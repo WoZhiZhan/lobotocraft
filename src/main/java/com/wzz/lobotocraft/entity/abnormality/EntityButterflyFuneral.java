@@ -40,12 +40,17 @@ import java.util.List;
  * 亡蝶葬仪 (T-01-68) —— HE 级异想体。
  * 出逃后在设施内游荡,攻击除出逃异想体外的所有单位。
  * 普攻(65%,冷却7秒):射击手势后出伤,蝴蝶绽放在目标上,10-15点精神伤害。
- * 特殊攻击(35%):停止移动放下棺材,持续15秒向前方直线喷出蝴蝶群,
+ * 特殊攻击(35%):停止移动放下棺材,持续15秒向前方50格、42°扇形喷出蝴蝶群,
  *   身处其中的单位每秒受3-4点精神伤害,村民被定身。
  * 处决:恐慌的玩家被其攻击 → "蝴蝶缠身"6秒后死亡(被"救赎")。
  * 空血:播放死亡音频与死亡动画后才回到出逃位置重置。
  */
 public class EntityButterflyFuneral extends AbstractAbnormality {
+
+    private static final double NORMAL_ATTACK_RANGE = 16.0D;
+    private static final double SKILL_RANGE = 50.0D;
+    private static final double SKILL_CONE_DEGREES = 42.0D;
+    private static final double SKILL_CONE_HALF_DOT = Math.cos(Math.toRadians(SKILL_CONE_DEGREES / 2.0D));
 
     private int attackCooldown = 0;
     private int pendingAttackHit = 0;       // 普攻出伤帧倒计时
@@ -225,8 +230,9 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
         // 索敌
         if (attackCooldown <= 0 && pendingAttackHit <= 0) {
             LivingEntity target = findTarget(level);
-            if (target != null && this.distanceToSqr(target) <= 16 * 16) {
-                if (this.random.nextFloat() < 0.65f) {
+            if (target != null && this.distanceToSqr(target) <= SKILL_RANGE * SKILL_RANGE) {
+                if (this.distanceToSqr(target) <= NORMAL_ATTACK_RANGE * NORMAL_ATTACK_RANGE
+                        && this.random.nextFloat() < 0.65f) {
                     beginNormalAttack(target);
                 } else {
                     beginSkill(level, target);
@@ -238,7 +244,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     /** 攻击除"出逃状态异想体"之外的所有单位 */
     private LivingEntity findTarget(ServerLevel level) {
         List<LivingEntity> candidates = level.getEntitiesOfClass(LivingEntity.class,
-                this.getBoundingBox().inflate(16), e -> isValidTarget(e));
+                this.getBoundingBox().inflate(SKILL_RANGE), e -> isValidTarget(e));
         LivingEntity best = null;
         double bestDist = Double.MAX_VALUE;
         for (LivingEntity e : candidates) {
@@ -339,21 +345,13 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
             setAnimation("skillAB");
             level.playSound(null, this.blockPosition(), ModSounds.BUTTERFLY_SKILL_LOOP.get(), SoundSource.HOSTILE, 1.3f, 1.0f);
         } else if (skillPhase == 2) {
-            // 持续召唤蝴蝶群冲向前方(移动速度2单位)
+            // 持续召唤蝴蝶群冲向前方42°扇形(移动速度2单位)
             if (skillTimer % 4 == 0 && skillDirection != null) {
-                Vec3 origin = this.position().add(skillDirection.scale(1.2)).add(0, 1.0, 0);
-                for (int i = 0; i < 3; i++) {
-                    double ox = (this.random.nextDouble() - 0.5) * 1.2;
-                    double oy = (this.random.nextDouble() - 0.5) * 0.8;
-                    double oz = (this.random.nextDouble() - 0.5) * 1.2;
-                    level.sendParticles((SimpleParticleType) ModParticleTypes.BUTTERFLY.get(),
-                            origin.x + ox, origin.y + oy, origin.z + oz,
-                            0, skillDirection.x * 0.1, 0.0, skillDirection.z * 0.1, 2.0);
-                }
+                spawnButterflyConeParticles(level);
             }
-            // 直线范围每秒判伤(3-4点精神伤害,1秒冷却)
+            // 扇形范围每秒判伤(3-4点精神伤害,1秒冷却)
             if (skillTimer % 20 == 0 && skillDirection != null) {
-                damageButterflyLine(level);
+                damageButterflyCone(level);
             }
             if (skillTimer <= 0) {
                 skillPhase = 3;
@@ -368,18 +366,41 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
         }
     }
 
-    /** 蝴蝶群直线范围伤害:前方20格、宽3格 */
-    private void damageButterflyLine(ServerLevel level) {
+    private void spawnButterflyConeParticles(ServerLevel level) {
+        Vec3 origin = this.position().add(skillDirection.scale(1.2)).add(0, 1.0, 0);
+        SimpleParticleType particleType = (SimpleParticleType) ModParticleTypes.BUTTERFLY.get();
+        for (int i = 0; i < 7; i++) {
+            double angle = Math.toRadians((this.random.nextDouble() - 0.5D) * SKILL_CONE_DEGREES);
+            Vec3 direction = rotateHorizontal(skillDirection, angle);
+            double ox = (this.random.nextDouble() - 0.5D) * 1.2D;
+            double oy = (this.random.nextDouble() - 0.5D) * 0.8D;
+            double oz = (this.random.nextDouble() - 0.5D) * 1.2D;
+            level.sendParticles(particleType,
+                    origin.x + ox, origin.y + oy, origin.z + oz,
+                    0, direction.x * 0.1D, (this.random.nextDouble() - 0.5D) * 0.02D, direction.z * 0.1D, 2.0D);
+        }
+    }
+
+    private Vec3 rotateHorizontal(Vec3 direction, double radians) {
+        double cos = Math.cos(radians);
+        double sin = Math.sin(radians);
+        return new Vec3(
+                direction.x * cos - direction.z * sin,
+                0.0D,
+                direction.x * sin + direction.z * cos
+        ).normalize();
+    }
+
+    /** 蝴蝶群扇形范围伤害:前方50格、总角度42° */
+    private void damageButterflyCone(ServerLevel level) {
         Vec3 start = this.position();
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class,
-                this.getBoundingBox().inflate(20), this::isValidTarget)) {
+                this.getBoundingBox().inflate(SKILL_RANGE), this::isValidTarget)) {
             Vec3 rel = e.position().subtract(start);
-            double along = rel.x * skillDirection.x + rel.z * skillDirection.z; // 投影距离
-            if (along < 0 || along > 20) continue;
-            double perpX = rel.x - skillDirection.x * along;
-            double perpZ = rel.z - skillDirection.z * along;
-            double perp = Math.sqrt(perpX * perpX + perpZ * perpZ);
-            if (perp > 1.5) continue; // 直线宽约3格
+            double horizontalDistance = Math.sqrt(rel.x * rel.x + rel.z * rel.z);
+            if (horizontalDistance <= 0.0D || horizontalDistance > SKILL_RANGE) continue;
+            double dot = (rel.x * skillDirection.x + rel.z * skillDirection.z) / horizontalDistance;
+            if (dot < SKILL_CONE_HALF_DOT) continue;
             dealMentalDamage(e, 3 + this.random.nextInt(2));
         }
     }

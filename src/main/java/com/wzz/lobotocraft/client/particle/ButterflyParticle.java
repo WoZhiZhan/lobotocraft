@@ -3,6 +3,9 @@ package com.wzz.lobotocraft.client.particle;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.*;
 import net.minecraft.core.particles.SimpleParticleType;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
@@ -14,6 +17,8 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 @OnlyIn(value = Dist.CLIENT)
 public class ButterflyParticle extends TextureSheetParticle {
 
+    private final boolean flying;
+
     public static ParticleProvider<SimpleParticleType> provider(SpriteSet spriteSet) {
         return (type, level, x, y, z, vx, vy, vz) ->
                 new ButterflyParticle(level, x, y, z, vx, vy, vz, spriteSet);
@@ -24,8 +29,8 @@ public class ButterflyParticle extends TextureSheetParticle {
         super(world, x, y, z);
         this.setSize(0.25f, 0.25f);
         this.quadSize = 0.25f; // 约等于掉落物大小
-        boolean flying = (vx * vx + vy * vy + vz * vz) > 1.0E-4;
-        if (flying) {
+        this.flying = (vx * vx + vy * vy + vz * vz) > 1.0E-4;
+        if (this.flying) {
             // 飞行形态:直线冲向前方,碰到方块消失,最长15秒
             this.lifetime = 15 * 20;
             this.hasPhysics = true;
@@ -47,11 +52,26 @@ public class ButterflyParticle extends TextureSheetParticle {
 
     @Override
     public void tick() {
+        double prevX = this.x;
+        double prevY = this.y;
+        double prevZ = this.z;
         super.tick();
         // 飞行形态碰撞到方块后立即消失
-        if (this.hasPhysics && (this.stoppedByCollision || this.onGround)) {
+        if (this.flying && (hasHitBlock(prevX, prevY, prevZ) || this.stoppedByCollision || this.onGround)) {
             this.remove();
         }
+    }
+
+    private boolean hasHitBlock(double prevX, double prevY, double prevZ) {
+        if (prevX == this.x && prevY == this.y && prevZ == this.z) return false;
+        HitResult result = this.level.clip(new ClipContext(
+                new Vec3(prevX, prevY, prevZ),
+                new Vec3(this.x, this.y, this.z),
+                ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE,
+                null
+        ));
+        return result.getType() == HitResult.Type.BLOCK;
     }
 
     @Override
