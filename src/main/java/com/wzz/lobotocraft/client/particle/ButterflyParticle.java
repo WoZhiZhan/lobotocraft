@@ -35,6 +35,7 @@ public class ButterflyParticle extends TextureSheetParticle {
             this.lifetime = 15 * 20;
             this.hasPhysics = true;
             this.gravity = 0.0f;
+            this.friction = 1.0f;
             this.xd = vx;
             this.yd = vy;
             this.zd = vz;

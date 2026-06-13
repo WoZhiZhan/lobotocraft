@@ -38,10 +38,10 @@ import java.util.List;
 
 /**
  * 亡蝶葬仪 (T-01-68) —— HE 级异想体。
- * 出逃后在设施内游荡,攻击除出逃异想体外的所有单位。
- * 普攻(65%,冷却7秒):射击手势后出伤,蝴蝶绽放在目标上,10-15点精神伤害。
+ * 出逃后在设施内游荡,攻击除出逃异想体、不会出逃异想体外的所有单位。
+ * 普攻(65%,冷却7秒):射击手势后出伤,蝴蝶绽放在目标上,10-15点白色伤害。
  * 特殊攻击(35%):停止移动放下棺材,持续15秒向前方50格、42°扇形喷出蝴蝶群,
- *   身处其中的单位每秒受3-4点精神伤害,村民被定身。
+ *   身处其中的单位每秒受3-4点白色伤害,村民被定身。
  * 处决:恐慌的玩家被其攻击 → "蝴蝶缠身"6秒后死亡(被"救赎")。
  * 空血:播放死亡音频与死亡动画后才回到出逃位置重置。
  */
@@ -56,6 +56,13 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     private static final int SKILL_WINDUP_TICKS = 20;
     private static final int SKILL_DURATION_TICKS = 15 * 20;
     private static final int SKILL_RECOVERY_TICKS = 9;
+    private static final int SKILL_PARTICLES_PER_BURST = 12;
+    private static final double COFFIN_PARTICLE_FORWARD_OFFSET = 0.95D;
+    private static final double COFFIN_PARTICLE_WIDTH = 1.2D;
+    private static final double COFFIN_PARTICLE_BOTTOM = 0.1D;
+    private static final double COFFIN_PARTICLE_HEIGHT = 2.75D;
+    private static final double SKILL_PARTICLE_SPEED = (SKILL_RANGE - COFFIN_PARTICLE_FORWARD_OFFSET) / SKILL_DURATION_TICKS;
+    private static final double SKILL_PARTICLE_VERTICAL_SPEED = 0.01D;
     private static final int DYING_ANIMATION_TICKS = 34;
 
     private int attackCooldown = 0;
@@ -65,6 +72,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     private int skillPhase = 0;             // 0=无 1=skill前摇 2=skillAB持续 3=skillB收尾
     private int skillTimer = 0;
     private Vec3 skillDirection = null;
+    private float skillYaw = 0.0F;
     private int dyingTimer = 0;             // 死亡动画计时(>0表示濒死中)
 
     public EntityButterflyFuneral(EntityType<? extends TamableAnimal> entityType, Level level) {
@@ -278,7 +286,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
         }
     }
 
-    /** 攻击除"出逃状态异想体"之外的所有单位 */
+    /** 攻击除"出逃状态异想体"、"不会出逃异想体"之外的所有单位 */
     private LivingEntity findTarget(ServerLevel level) {
         List<LivingEntity> candidates = level.getEntitiesOfClass(LivingEntity.class,
                 this.getBoundingBox().inflate(SKILL_RANGE), e -> isValidTarget(e));
@@ -295,7 +303,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
         if (e == this || !e.isAlive()) return false;
         if (e instanceof Player p && (p.isCreative() || p.isSpectator())) return false;
         if (e instanceof AbstractAbnormality ab) {
-            return !ab.hasEscape(); // 不攻击出逃状态的异想体
+            return ab.canEscape() && !ab.hasEscape();
         }
         return true;
     }
@@ -317,15 +325,15 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
         level.sendParticles((SimpleParticleType) ModParticleTypes.BUTTERFLY.get(),
                 target.getX(), target.getY() + target.getBbHeight() * 0.6, target.getZ(),
                 5, 0.3, 0.3, 0.3, 0.0);
-        // 10-15点精神伤害
-        dealMentalDamage(target, 10 + this.random.nextInt(6));
+        // 10-15点白色伤害
+        dealWhiteDamage(target, 10 + this.random.nextInt(6));
     }
 
-    /** 精神伤害:玩家扣精神值,其余单位转为白色伤害;并检查处决条件 */
-    private void dealMentalDamage(LivingEntity target, float amount) {
+    /** 白色伤害:通过统一伤害流程结算玩家精神值,并检查处决条件 */
+    private void dealWhiteDamage(LivingEntity target, float amount) {
         if (target instanceof ServerPlayer player) {
             boolean wasPanic = isPanicking(player);
-            MentalValueUtil.reduceMentalValue(player, amount);
+            player.hurt(DamageHelper.getDamage(this, "white"), amount);
             boolean nowPanic = isPanicking(player);
             // 处决:恐慌状态下受到攻击,或因本次攻击而恐慌
             if (wasPanic || nowPanic) {
@@ -362,18 +370,35 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     private void beginSkill(ServerLevel level, LivingEntity target) {
         skillPhase = 1;
         skillTimer = SKILL_WINDUP_TICKS;
-        Vec3 dir = target.position().subtract(this.position());
-        skillDirection = new Vec3(dir.x, 0, dir.z).normalize();
+        faceTargetForSkill(target);
         setAnimation("skill");
-        this.getLookControl().setLookAt(target);
         level.playSound(null, this.blockPosition(), ModSounds.BUTTERFLY_SKILL_START.get(), SoundSource.HOSTILE, 1.3f, 1.0f);
         attackCooldown = 7 * 20;
+    }
+
+    private void faceTargetForSkill(LivingEntity target) {
+        double dx = target.getX() - this.getX();
+        double dz = target.getZ() - this.getZ();
+        if (dx * dx + dz * dz > 1.0E-6D) {
+            skillYaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0D);
+        } else {
+            skillYaw = this.getYRot();
+        }
+        lockSkillRotation();
+        skillDirection = Vec3.directionFromRotation(0.0F, skillYaw).normalize();
+    }
+
+    private void lockSkillRotation() {
+        this.setYRot(skillYaw);
+        this.yRotO = skillYaw;
+        this.setYHeadRot(skillYaw);
+        this.yBodyRot = skillYaw;
     }
 
     private void tickSkill(ServerLevel level) {
         // 释放期间不可移动不可转向
         this.setDeltaMovement(0, this.getDeltaMovement().y, 0);
-        this.setYRot(this.yRotO);
+        lockSkillRotation();
         skillTimer--;
 
         if (skillPhase == 1 && skillTimer <= 0) {
@@ -386,7 +411,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
             if (skillTimer % 4 == 0 && skillDirection != null) {
                 spawnButterflyConeParticles(level);
             }
-            // 扇形范围每秒判伤(3-4点精神伤害,1秒冷却)
+            // 扇形范围每秒判伤(3-4点白色伤害,1秒冷却)
             if (skillTimer % 20 == 0 && skillDirection != null) {
                 damageButterflyCone(level);
             }
@@ -404,17 +429,21 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     }
 
     private void spawnButterflyConeParticles(ServerLevel level) {
-        Vec3 origin = this.position().add(skillDirection.scale(1.2)).add(0, 1.0, 0);
+        Vec3 forward = skillDirection.normalize();
+        Vec3 right = new Vec3(-forward.z, 0.0D, forward.x).normalize();
+        Vec3 origin = this.position().add(forward.scale(COFFIN_PARTICLE_FORWARD_OFFSET));
         SimpleParticleType particleType = (SimpleParticleType) ModParticleTypes.BUTTERFLY.get();
-        for (int i = 0; i < 7; i++) {
+        for (int i = 0; i < SKILL_PARTICLES_PER_BURST; i++) {
             double angle = Math.toRadians((this.random.nextDouble() - 0.5D) * SKILL_CONE_DEGREES);
-            Vec3 direction = rotateHorizontal(skillDirection, angle);
-            double ox = (this.random.nextDouble() - 0.5D) * 1.2D;
-            double oy = (this.random.nextDouble() - 0.5D) * 0.8D;
-            double oz = (this.random.nextDouble() - 0.5D) * 1.2D;
+            Vec3 direction = rotateHorizontal(forward, angle);
+            double lateral = (this.random.nextDouble() - 0.5D) * COFFIN_PARTICLE_WIDTH;
+            double vertical = COFFIN_PARTICLE_BOTTOM + this.random.nextDouble() * COFFIN_PARTICLE_HEIGHT;
+            Vec3 particlePos = origin.add(right.scale(lateral)).add(0.0D, vertical, 0.0D);
             level.sendParticles(particleType,
-                    origin.x + ox, origin.y + oy, origin.z + oz,
-                    0, direction.x * 0.1D, (this.random.nextDouble() - 0.5D) * 0.02D, direction.z * 0.1D, 2.0D);
+                    particlePos.x, particlePos.y, particlePos.z,
+                    0, direction.x * SKILL_PARTICLE_SPEED,
+                    (this.random.nextDouble() - 0.5D) * SKILL_PARTICLE_VERTICAL_SPEED,
+                    direction.z * SKILL_PARTICLE_SPEED, 1.0D);
         }
     }
 
@@ -438,7 +467,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
             if (horizontalDistance <= 0.0D || horizontalDistance > SKILL_RANGE) continue;
             double dot = (rel.x * skillDirection.x + rel.z * skillDirection.z) / horizontalDistance;
             if (dot < SKILL_CONE_HALF_DOT) continue;
-            dealMentalDamage(e, 3 + this.random.nextInt(2));
+            dealWhiteDamage(e, 3 + this.random.nextInt(2));
         }
     }
 
