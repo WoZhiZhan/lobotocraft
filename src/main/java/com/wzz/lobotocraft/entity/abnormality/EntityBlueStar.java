@@ -59,12 +59,6 @@ public class EntityBlueStar extends AbstractAbnormality {
     }
 
     @Override
-    public void defineSynchedData() {
-        super.defineSynchedData();
-        this.entityData.define(DATA_ANIMATION, "idle");
-    }
-
-    @Override
     protected void initializeAbnormality() {
         this.abnormalityCode = "O-03-93";
         this.abnormalityName = "碧蓝新星";
