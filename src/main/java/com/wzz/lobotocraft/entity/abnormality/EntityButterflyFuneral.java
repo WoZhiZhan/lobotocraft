@@ -51,9 +51,16 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     private static final double SKILL_RANGE = 50.0D;
     private static final double SKILL_CONE_DEGREES = 42.0D;
     private static final double SKILL_CONE_HALF_DOT = Math.cos(Math.toRadians(SKILL_CONE_DEGREES / 2.0D));
+    private static final int NORMAL_ATTACK_HIT_TICKS = 10;
+    private static final int NORMAL_ATTACK_ANIMATION_TICKS = 49;
+    private static final int SKILL_WINDUP_TICKS = 20;
+    private static final int SKILL_DURATION_TICKS = 15 * 20;
+    private static final int SKILL_RECOVERY_TICKS = 9;
+    private static final int DYING_ANIMATION_TICKS = 34;
 
     private int attackCooldown = 0;
     private int pendingAttackHit = 0;       // 普攻出伤帧倒计时
+    private int normalAttackAnimationTimer = 0;
     private LivingEntity pendingTarget = null;
     private int skillPhase = 0;             // 0=无 1=skill前摇 2=skillAB持续 3=skillB收尾
     private int skillTimer = 0;
@@ -181,8 +188,13 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     }
 
     private void startDying() {
-        dyingTimer = 40; // 2秒死亡动画
+        dyingTimer = DYING_ANIMATION_TICKS;
+        pendingAttackHit = 0;
+        normalAttackAnimationTimer = 0;
+        pendingTarget = null;
         skillPhase = 0;
+        skillTimer = 0;
+        skillDirection = null;
         setAnimation("die");
         if (this.level() instanceof ServerLevel sl) {
             sl.playSound(null, this.blockPosition(), ModSounds.BUTTERFLY_DEATH.get(), SoundSource.HOSTILE, 1.5f, 1.0f);
@@ -208,16 +220,28 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
             return;
         }
 
-        if (!hasEscape()) return;
+        if (!hasEscape()) {
+            resetCombatAnimationState();
+            return;
+        }
 
         if (attackCooldown > 0) attackCooldown--;
 
         // 普攻出伤帧
         if (pendingAttackHit > 0) {
             pendingAttackHit--;
-            if (pendingAttackHit == 0 && pendingTarget != null && pendingTarget.isAlive()) {
-                resolveNormalAttack(level, pendingTarget);
+            if (pendingAttackHit == 0) {
+                if (pendingTarget != null && pendingTarget.isAlive()) {
+                    resolveNormalAttack(level, pendingTarget);
+                }
                 pendingTarget = null;
+            }
+        }
+
+        if (normalAttackAnimationTimer > 0) {
+            normalAttackAnimationTimer--;
+            if (normalAttackAnimationTimer == 0) {
+                setAnimation("idle");
             }
         }
 
@@ -238,6 +262,19 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
                     beginSkill(level, target);
                 }
             }
+        }
+    }
+
+    private void resetCombatAnimationState() {
+        attackCooldown = 0;
+        pendingAttackHit = 0;
+        normalAttackAnimationTimer = 0;
+        pendingTarget = null;
+        skillPhase = 0;
+        skillTimer = 0;
+        skillDirection = null;
+        if (!"idle".equals(getAnimation())) {
+            setAnimation("idle");
         }
     }
 
@@ -266,9 +303,10 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     // ==================== 普通攻击 ====================
 
     private void beginNormalAttack(LivingEntity target) {
-        setAnimation(this.random.nextBoolean() ? "attack" : "attack2");
+        setAnimation(this.random.nextBoolean() ? "attack1" : "attack2");
         pendingTarget = target;
-        pendingAttackHit = 10; // 射击手势出伤帧
+        pendingAttackHit = NORMAL_ATTACK_HIT_TICKS; // 射击手势出伤帧
+        normalAttackAnimationTimer = NORMAL_ATTACK_ANIMATION_TICKS;
         attackCooldown = 7 * 20; // 冷却7秒
         this.getLookControl().setLookAt(target);
     }
@@ -281,7 +319,6 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
                 5, 0.3, 0.3, 0.3, 0.0);
         // 10-15点精神伤害
         dealMentalDamage(target, 10 + this.random.nextInt(6));
-        setAnimation("idle");
     }
 
     /** 精神伤害:玩家扣精神值,其余单位转为白色伤害;并检查处决条件 */
@@ -324,7 +361,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
 
     private void beginSkill(ServerLevel level, LivingEntity target) {
         skillPhase = 1;
-        skillTimer = 20; // skill 前摇约1秒
+        skillTimer = SKILL_WINDUP_TICKS;
         Vec3 dir = target.position().subtract(this.position());
         skillDirection = new Vec3(dir.x, 0, dir.z).normalize();
         setAnimation("skill");
@@ -341,7 +378,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
 
         if (skillPhase == 1 && skillTimer <= 0) {
             skillPhase = 2;
-            skillTimer = 15 * 20; // 持续15秒
+            skillTimer = SKILL_DURATION_TICKS;
             setAnimation("skillAB");
             level.playSound(null, this.blockPosition(), ModSounds.BUTTERFLY_SKILL_LOOP.get(), SoundSource.HOSTILE, 1.3f, 1.0f);
         } else if (skillPhase == 2) {
@@ -355,7 +392,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
             }
             if (skillTimer <= 0) {
                 skillPhase = 3;
-                skillTimer = 20;
+                skillTimer = SKILL_RECOVERY_TICKS;
                 setAnimation("skillB");
                 level.playSound(null, this.blockPosition(), ModSounds.BUTTERFLY_SKILL_END.get(), SoundSource.HOSTILE, 1.3f, 1.0f);
             }
