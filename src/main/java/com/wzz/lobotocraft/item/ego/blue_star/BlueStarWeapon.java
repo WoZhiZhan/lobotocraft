@@ -1,0 +1,309 @@
+package com.wzz.lobotocraft.item.ego.blue_star;
+
+import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.network.MessageLoader;
+import com.wzz.lobotocraft.network.packet.ScreenDistortionEffectPacket;
+import com.wzz.lobotocraft.util.ClientInputUtil;
+import com.wzz.lobotocraft.util.DamageHelper;
+import com.wzz.lobotocraft.util.MentalValueUtil;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
+import software.bernie.geckolib.core.animation.AnimationController;
+import software.bernie.geckolib.core.animation.RawAnimation;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 新星之声 武器(ALEPH)。
+ * 攻击力 8-12 白(精神)伤害,攻击冷却1.5秒,射程25格。
+ * 右键:从身旁漂浮的"新星之声"处朝准心射出最多3段白色光束(25格射线),
+ *   段数/额外伤害仅与当前精神值占最大精神的百分比有关:
+ *     <30%   : 1段,8-12
+ *     30~60% : 2段,额外1段15-18
+ *     >60%   : 3段,再额外1段20-22
+ * Shift右键(120秒CD):特殊攻击,播放碧蓝新星攻击音效+屏幕扭曲,
+ *   对全图已出逃异想体造成等同玩家精神值的白伤,解除自身恐慌并回10%精神,
+ *   并使该维度未出逃且计数器未满的异想体计数器+1。
+ * 套装效果(武器+护甲+饰品):见 BlueStarSetEvent(命中减速、满精神光束+25%、致命复活)。
+ */
+public class BlueStarWeapon extends BaseEgoWeapon {
+
+    private static final String KEY_COOLDOWN = "AttackCooldown";  // 普通攻击冷却(tick)
+    private static final String KEY_SPECIAL_CD = "SpecialCooldown"; // 特殊攻击冷却(tick)
+    private static final int ATTACK_COOLDOWN = 30;      // 1.5秒
+    private static final int SPECIAL_COOLDOWN = 120 * 20; // 120秒
+    private static final double BEAM_RANGE = 25.0;
+
+    public BlueStarWeapon() {
+        super(new Tier(), 0, -2.4f, new Properties().stacksTo(1).fireResistant());
+    }
+
+    @Override
+    public String weaponName() { return "blue_star"; }
+
+    @Override
+    public Map<String, Integer> getRequiredLevels() {
+        Map<String, Integer> map = new HashMap<>();
+        map.put("PrudenceLevel", 5);
+        map.put("TemperanceLevel", 5);
+        map.put("EmployeeLevel", 5);
+        return map;
+    }
+
+    @Override public boolean hasAnimatable() { return true; }
+    @Override protected String getAttackName() { return "animation.blue_star_weapon.idle"; }
+    @Override protected boolean hasIdle() { return true; }
+
+    @Override
+    protected void registerAdditionalAnimations(AnimationController<BaseEgoWeapon> controller) {
+        controller.triggerableAnim("special_attack",
+                RawAnimation.begin().thenPlay("animation.blue_star_weapon.special_attack"));
+    }
+
+    // 左键不进行普通近战(本武器以右键光束为主),保留基类满蓄力判定即可
+    @Override
+    public boolean onLeftClickEntity(ItemStack stack, Player player, Entity entity) {
+        return super.onLeftClickEntity(stack, player, entity);
+    }
+
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+        if (!canUseItem(player)) return InteractionResultHolder.pass(stack);
+
+        // Shift右键:特殊攻击
+        if (player.isShiftKeyDown()) {
+            int scd = stack.getOrCreateTag().getInt(KEY_SPECIAL_CD);
+            if (scd > 0) {
+                if (!level.isClientSide) {
+                    player.displayClientMessage(Component.literal(
+                            "§b特殊攻击冷却中：" + (scd / 20) + " 秒"), true);
+                }
+                return InteractionResultHolder.pass(stack);
+            }
+            if (!level.isClientSide) {
+                doSpecialAttack((ServerPlayer) player, stack);
+            }
+            return InteractionResultHolder.success(stack);
+        }
+
+        // 普通右键:光束攻击
+        int cd = stack.getOrCreateTag().getInt(KEY_COOLDOWN);
+        if (cd > 0) return InteractionResultHolder.pass(stack);
+        stack.getOrCreateTag().putInt(KEY_COOLDOWN, ATTACK_COOLDOWN);
+
+        if (!level.isClientSide) {
+            fireBeams((ServerPlayer) player);
+        }
+        return InteractionResultHolder.success(stack);
+    }
+
+    // ==================== 光束攻击 ====================
+
+    private void fireBeams(ServerPlayer player) {
+        float cur = MentalValueUtil.getMentalValue(player);
+        float max = MentalValueUtil.getEffectiveMaxMentalValue(player);
+        float ratio = max > 0 ? cur / max : 0f;
+
+        // 套装:精神值为满时光束伤害 +25%
+        boolean fullSetMaxBonus = isBlueStarSet(player) && ratio >= 1.0f;
+        float mult = fullSetMaxBonus ? 1.25f : 1.0f;
+
+        // 第1段:面板 8-12(始终存在)
+        shootSingleBeam(player, (8 + player.getRandom().nextInt(5)) * mult);
+        // 第2段:精神>30% 时追加 15-18
+        if (ratio > 0.30f) {
+            shootSingleBeam(player, (15 + player.getRandom().nextInt(4)) * mult);
+        }
+        // 第3段:精神>60% 时再追加 20-22
+        if (ratio > 0.60f) {
+            shootSingleBeam(player, (20 + player.getRandom().nextInt(3)) * mult);
+        }
+
+        player.level().playSound(null, player.blockPosition(),
+                ModSounds.BLUE_STAR_ATTACK.get(), SoundSource.PLAYERS, 1.0f, 1.4f);
+    }
+
+    /** 从玩家身旁(右上方)朝准心方向发射一道25格白色光束,命中最近生物 */
+    private void shootSingleBeam(ServerPlayer player, float damage) {
+        ServerLevel level = player.serverLevel();
+        Vec3 eye = player.getEyePosition();
+        Vec3 look = player.getLookAngle().normalize();
+        // 光束起点:玩家身旁漂浮实体位置(右上偏移)
+        Vec3 right = new Vec3(-look.z, 0, look.x).normalize();
+        Vec3 origin = eye.add(right.scale(0.6)).add(0, 0.3, 0);
+        Vec3 end = eye.add(look.scale(BEAM_RANGE));
+
+        // 方块阻挡裁剪
+        HitResult blockHit = level.clip(new ClipContext(eye, end,
+                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+        Vec3 realEnd = blockHit.getType() == HitResult.Type.BLOCK ? blockHit.getLocation() : end;
+
+        // 沿射线找最近的受击生物
+        LivingEntity target = null;
+        double bestDist = Double.MAX_VALUE;
+        AABB scan = new AABB(eye, realEnd).inflate(1.0);
+        for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, scan,
+                en -> en != player && en.isAlive() && !(en instanceof Player p && (p.isCreative() || p.isSpectator())))) {
+            Vec3 rel = e.getBoundingBox().getCenter().subtract(eye);
+            double along = rel.dot(look);
+            if (along < 0 || along > BEAM_RANGE) continue;
+            double perp = rel.subtract(look.scale(along)).length();
+            if (perp > 1.2) continue;
+            if (along < bestDist) { bestDist = along; target = e; }
+        }
+
+        // 光束粒子轨迹
+        Vec3 hitPoint = target != null ? target.getBoundingBox().getCenter() : realEnd;
+        drawBeamParticles(level, origin, hitPoint);
+
+        if (target != null) {
+            target.hurt(DamageHelper.getDamage(player, "white"), damage);
+            if (target instanceof ServerPlayer sp) {
+                MentalValueUtil.reduceMentalValue(sp, damage);
+            }
+            // 套装:命中减速30%(10秒,刷新)——记录到目标persistentData,由 BlueStarSetEvent 维护
+            if (isBlueStarSet(player)) {
+                target.getPersistentData().putLong("blue_star_slow_until",
+                        level.getGameTime() + 200);
+            }
+        }
+    }
+
+    private void drawBeamParticles(ServerLevel level, Vec3 from, Vec3 to) {
+        Vec3 dir = to.subtract(from);
+        double len = dir.length();
+        if (len < 0.01) return;
+        Vec3 step = dir.normalize().scale(0.5);
+        Vec3 p = from;
+        for (double d = 0; d < len; d += 0.5) {
+            level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, p.x, p.y, p.z, 1, 0.0, 0.0, 0.0, 0.0);
+            level.sendParticles(ParticleTypes.END_ROD, p.x, p.y, p.z, 1, 0.0, 0.0, 0.0, 0.01);
+            p = p.add(step);
+        }
+    }
+
+    // ==================== 特殊攻击 ====================
+
+    private void doSpecialAttack(ServerPlayer player, ItemStack stack) {
+        ServerLevel level = player.serverLevel();
+        stack.getOrCreateTag().putInt(KEY_SPECIAL_CD, SPECIAL_COOLDOWN);
+
+        // 攻击动画 + 碧蓝新星攻击音效 + 屏幕扭曲
+        triggerAnimation(player, stack, "special_attack");
+        level.playSound(null, player.blockPosition(),
+                ModSounds.BLUE_STAR_ATTACK.get(), SoundSource.PLAYERS, 1.4f, 1.0f);
+        MessageLoader.getLoader().sendToPlayer(player, new ScreenDistortionEffectPacket(0.3f, 30));
+
+        float mentalDamage = MentalValueUtil.getMentalValue(player);
+
+        // 全图范围
+        AABB whole = new AABB(-30000000, level.getMinBuildHeight(), -30000000,
+                30000000, level.getMaxBuildHeight(), 30000000);
+        for (AbstractAbnormality ab : level.getEntitiesOfClass(AbstractAbnormality.class, whole, AbstractAbnormality::isAlive)) {
+            if (ab.hasEscape()) {
+                // 已出逃:造成等同玩家精神值的白色伤害
+                ab.hurt(DamageHelper.getDamage(player, "white"), mentalDamage);
+            } else {
+                // 未出逃且计数器未满:计数器+1
+                if (ab.getQliphothCounter() < ab.getMaxQliphothCounter()) {
+                    ab.increaseQliphothCounter(1);
+                }
+            }
+        }
+
+        // 解除恐慌并回复10%精神(无论是否恐慌都回10%)
+        float max = MentalValueUtil.getEffectiveMaxMentalValue(player);
+        MentalValueUtil.addMentalValue(player, max * 0.10f);
+        player.getPersistentData().putBoolean("isharmla_panic", false); // 复用恐慌标记清除
+
+        player.displayClientMessage(Component.literal("§b新星之声：群星共鸣！"), true);
+    }
+
+    // ==================== 冷却倒计时 ====================
+
+    @Override
+    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
+        super.inventoryTick(stack, level, entity, slotId, isSelected);
+        if (level.isClientSide) return;
+        int cd = stack.getOrCreateTag().getInt(KEY_COOLDOWN);
+        if (cd > 0) stack.getOrCreateTag().putInt(KEY_COOLDOWN, cd - 1);
+        int scd = stack.getOrCreateTag().getInt(KEY_SPECIAL_CD);
+        if (scd > 0) stack.getOrCreateTag().putInt(KEY_SPECIAL_CD, scd - 1);
+
+        // 持握时身旁漂浮"新星之声"的粒子提示
+        if (isSelected && entity instanceof Player player && level instanceof ServerLevel sl
+                && player.tickCount % 6 == 0) {
+            Vec3 look = player.getLookAngle().normalize();
+            Vec3 right = new Vec3(-look.z, 0, look.x).normalize();
+            Vec3 orb = player.getEyePosition().add(right.scale(0.6)).add(0, 0.1, 0);
+            sl.sendParticles(ParticleTypes.END_ROD, orb.x, orb.y, orb.z, 1, 0.02, 0.02, 0.02, 0.0);
+        }
+    }
+
+    /** 是否穿戴全套新星之声(武器+护甲+饰品) */
+    public static boolean isBlueStarSet(Player player) {
+        return com.wzz.lobotocraft.util.EgoArmorHelper.isWearingFullSet(player, "blue_star")
+                && com.wzz.lobotocraft.util.EgoArmorHelper.isHoldingWeapon(player, "blue_star")
+                && hasBlueStarCurio(player);
+    }
+
+    private static boolean hasBlueStarCurio(Player player) {
+        for (ItemStack st : com.wzz.lobotocraft.util.CuriosUtil.getCuriosItems(player)) {
+            if (st.getItem() instanceof BlueStarCurio) return true;
+        }
+        return false;
+    }
+
+    @Override
+    public void appendHoverText(ItemStack stack, @Nullable Level level,
+                                List<Component> components, TooltipFlag flag) {
+        super.appendHoverText(stack, level, components, flag);
+        int scd = stack.getOrCreateTag().getInt(KEY_SPECIAL_CD);
+        if (scd > 0) {
+            components.add(Component.literal("§b特殊攻击冷却：" + (scd / 20) + " 秒"));
+        }
+        if (ClientInputUtil.isShiftPressed()) {
+            components.add(Component.literal("§6※攻击时，持有者的精神值越高，就会生成额外的“新星之声”以造成更高的伤害。"));
+            components.add(Component.literal("§7右键从身旁射出最多三段白色光束(射程25格)。"));
+            components.add(Component.literal("§7精神<30%：1段8-12；30~60%：2段(+15-18)；>60%：3段(再+20-22)。"));
+            components.add(Component.literal("§7Shift右键(120秒)：对全图出逃异想体造成等同精神值的白伤，"));
+            components.add(Component.literal("§7解除恐慌并回10%精神，未出逃异想体计数器+1。"));
+            return;
+        }
+        components.add(Component.literal("§7新星自我们的绝望中闪耀。在它的光芒之下，众生皆为平等。"));
+        components.add(Component.literal("§7按住<Shift>查看详情"));
+    }
+
+    private static class Tier implements net.minecraft.world.item.Tier {
+        @Override public int getUses()                    { return 0; }
+        @Override public float getSpeed()                 { return 2.0F; }
+        @Override public float getAttackDamageBonus()     { return 0.0F; }
+        @Override public int getLevel()                   { return 2; }
+        @Override public int getEnchantmentValue()        { return 14; }
+        @Override public Ingredient getRepairIngredient() { return Ingredient.EMPTY; }
+    }
+}

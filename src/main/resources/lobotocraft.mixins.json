@@ -1,0 +1,33 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.wzz.lobotocraft.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "refmap": "lobotocraft.refmap.json",
+  "mixins": [
+    "MixinAbstractContainerMenu",
+    "MixinDamageSource",
+    "MixinDimensionType",
+    "MixinEntity",
+    "MixinInventory",
+    "MixinLevel",
+    "MixinLevelChunk",
+    "MixinLivingEntity",
+    "MixinRangedAttribute",
+    "MixinServerPlayer",
+    "MixinSlot"
+  ],
+  "client": [
+    "ChannelAccessor",
+    "ChannelHandleAccessor",
+    "MixinInventoryScreen",
+    "MixinLocalPlayer",
+    "MixinMultiPlayerGameMode"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

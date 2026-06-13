@@ -1,0 +1,25 @@
+{
+  "credit": "Made with Blockbench",
+  "parent": "builtin/entity",
+  "texture_size": [
+    32,
+    32
+  ],
+  "display": {
+    "head": {
+      "translation": [
+        0,
+        -6.5,
+        0
+      ],
+      "scale": [
+        1.6,
+        0.96,
+        1.6
+      ]
+    }
+  },
+  "textures": {
+    "particle": "item/texture"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "sky_color": 7907327,
+  "fog_color": 12638463,
+  "water_color": 4159204,
+  "water_fog_color": 329011,
+  "clouds_color": 10518688,
+  "sunrise_color": [255, 204, 128],
+  "star_brightness": 1.0,
+  "has_fog": false
+}

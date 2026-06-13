@@ -1,0 +1,13 @@
+{
+  "parent": "block/cube",
+  "textures": {
+    "up": "lobotocraft:block/escape",
+    "down": "lobotocraft:block/black",
+    "east": "lobotocraft:block/black",
+    "north": "lobotocraft:block/black",
+    "south": "lobotocraft:block/black",
+    "west": "lobotocraft:block/black",
+    "particle": "lobotocraft:block/escape"
+  },
+  "render_type": "solid"
+}

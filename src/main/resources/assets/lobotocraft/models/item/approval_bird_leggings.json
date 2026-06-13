@@ -1,0 +1,6 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "lobotocraft:item/approval_bird_leggings"
+  }
+}

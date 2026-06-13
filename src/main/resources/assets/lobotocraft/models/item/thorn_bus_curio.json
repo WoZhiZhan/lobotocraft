@@ -1,0 +1,18 @@
+{
+  "credit": "Made with Blockbench",
+  "parent": "builtin/entity",
+  "display": {
+    "head": {
+      "translation": [
+        0,
+        -13.75,
+        -0.1
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        1.5
+      ]
+    }
+  }
+}

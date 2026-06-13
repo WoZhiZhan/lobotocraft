@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "lobotocraft:block/punishing_bird",
+    "particle": "lobotocraft:block/punishing_bird"
+  }
+}

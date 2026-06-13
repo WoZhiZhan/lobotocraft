@@ -1,0 +1,902 @@
+{
+  "onebad_ambient": {
+    "sounds": [
+      {
+        "name": "lobotocraft:onebad_ambient",
+        "stream": true
+      }
+    ]
+  },
+  "touch_off": {
+    "sounds": [
+      {
+        "name": "lobotocraft:touch_off",
+        "stream": false
+      }
+    ]
+  },
+  "unlock_information": {
+    "sounds": [
+      {
+        "name": "lobotocraft:unlock_information",
+        "stream": false
+      }
+    ]
+  },
+  "energy_shortage_information": {
+    "sounds": [
+      {
+        "name": "lobotocraft:energy_shortage_information",
+        "stream": false
+      }
+    ]
+  },
+  "iron_maiden_closing": {
+    "sounds": [
+      {
+        "name": "lobotocraft:iron_maiden_closing",
+        "stream": false
+      }
+    ]
+  },
+  "iron_maiden_damage": {
+    "sounds": [
+      {
+        "name": "lobotocraft:iron_maiden_damage",
+        "stream": false
+      }
+    ]
+  },
+  "iron_maiden_opening": {
+    "sounds": [
+      {
+        "name": "lobotocraft:iron_maiden_opening",
+        "stream": false
+      }
+    ]
+  },
+  "iron_maiden_end_music": {
+    "sounds": [
+      {
+        "name": "lobotocraft:iron_maiden_end_music",
+        "stream": false
+      }
+    ]
+  },
+  "abandoned_murderer_escape": {
+    "subtitle": "被遗弃的杀人魔出逃",
+    "sounds": [
+      {
+        "name": "lobotocraft:abandoned_murderer_escape",
+        "stream": false
+      }
+    ]
+  },
+  "abandoned_murderer_warning": {
+    "subtitle": "警告：异想体出逃",
+    "sounds": [
+      {
+        "name": "lobotocraft:abandoned_murderer_warning",
+        "stream": false
+      }
+    ]
+  },
+  "abandoned_murderer_attack": {
+    "subtitle": "被遗弃的杀人魔攻击",
+    "sounds": [
+      {
+        "name": "lobotocraft:abandoned_murderer_attack",
+        "stream": false
+      }
+    ]
+  },
+  "abandoned_murderer_ambient": {
+    "subtitle": "不安的气息",
+    "sounds": [
+      {
+        "name": "lobotocraft:abandoned_murderer_ambient",
+        "stream": false
+      }
+    ]
+  },
+  "largebird_weapon": {
+    "sounds": [
+      {
+        "name": "lobotocraft:largebird_weapon",
+        "stream": false
+      }
+    ]
+  },
+  "large_bird_walk": {
+    "sounds": [
+      {
+        "name": "lobotocraft:large_bird_walk",
+        "stream": false
+      }
+    ]
+  },
+  "large_bird_charm": {
+    "sounds": [
+      {
+        "name": "lobotocraft:large_bird_charm",
+        "stream": false
+      }
+    ]
+  },
+  "large_bird_killer_player": {
+    "sounds": [
+      {
+        "name": "lobotocraft:large_bird_killer_player",
+        "stream": false
+      }
+    ]
+  },
+  "large_bird_open_mouth": {
+    "sounds": [
+      {
+        "name": "lobotocraft:large_bird_open_mouth",
+        "stream": false
+      }
+    ]
+  },
+  "punishing_bird_weapon_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:punishing_bird_weapon_attack",
+        "stream": false
+      }
+    ]
+  },
+  "punishing_bird_angry_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:punishing_bird_angry_attack",
+        "stream": false
+      }
+    ]
+  },
+  "punishing_bird_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:punishing_bird_attack",
+        "stream": false
+      }
+    ]
+  },
+  "approval_bird_weapon_special_1": {
+    "sounds": [
+      {
+        "name": "lobotocraft:approval_bird_weapon_special_1",
+        "stream": false
+      }
+    ]
+  },
+  "approval_bird_weapon_special_2": {
+    "sounds": [
+      {
+        "name": "lobotocraft:approval_bird_weapon_special_2",
+        "stream": false
+      }
+    ]
+  },
+  "approval_bird_weapon_special_3": {
+    "sounds": [
+      {
+        "name": "lobotocraft:approval_bird_weapon_special_3",
+        "stream": false
+      }
+    ]
+  },
+  "approval_bird_weapon_special_4": {
+    "sounds": [
+      {
+        "name": "lobotocraft:approval_bird_weapon_special_4",
+        "stream": false
+      }
+    ]
+  },
+  "approval_bird_weapon_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:approval_bird_weapon_attack",
+        "stream": false
+      }
+    ]
+  },
+  "approval_bird_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:approval_bird_attack",
+        "stream": false
+      }
+    ]
+  },
+  "approval_bird_will_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:approval_bird_will_attack",
+        "stream": false
+      }
+    ]
+  },
+  "fourth_match_flame_weapon": {
+    "sounds": [
+      {
+        "name": "lobotocraft:fourth_match_flame_weapon",
+        "stream": false
+      }
+    ]
+  },
+  "fourth_match_flame": {
+    "sounds": [
+      {
+        "name": "lobotocraft:fourth_match_flame",
+        "stream": false
+      }
+    ]
+  },
+  "wingbeat_weapon": {
+    "sounds": [
+      {
+        "name": "lobotocraft:wingbeat_weapon",
+        "stream": false
+      }
+    ]
+  },
+  "wingbeat_heal_health": {
+    "sounds": [
+      {
+        "name": "lobotocraft:wingbeat_heal_health",
+        "stream": false
+      }
+    ]
+  },
+  "wingbeat_kill_player": {
+    "sounds": [
+      {
+        "name": "lobotocraft:wingbeat_kill_player",
+        "stream": false
+      }
+    ]
+  },
+  "ppodae_death": {
+    "sounds": [
+      {
+        "name": "lobotocraft:ppodae_death",
+        "stream": false
+      }
+    ]
+  },
+  "ppodae_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:ppodae_attack",
+        "stream": false
+      }
+    ]
+  },
+  "ppodae_return": {
+    "sounds": [
+      {
+        "name": "lobotocraft:ppodae_return",
+        "stream": false
+      }
+    ]
+  },
+  "ppodae_work_start": {
+    "sounds": [
+      {
+        "name": "lobotocraft:ppodae_work_start",
+        "stream": false
+      }
+    ]
+  },
+  "escape_alert_bgm_0": {
+    "sounds": [
+      {
+        "name": "lobotocraft:escape_alert_bgm_0",
+        "stream": true
+      }
+    ]
+  },
+  "escape_alert_bgm_1": {
+    "sounds": [
+      {
+        "name": "lobotocraft:escape_alert_bgm_1",
+        "stream": true
+      }
+    ]
+  },
+  "escape_alert_bgm_2": {
+    "sounds": [
+      {
+        "name": "lobotocraft:escape_alert_bgm_2",
+        "stream": true
+      }
+    ]
+  },
+  "snow_queen_idle": {
+    "sounds": [
+      {
+        "name": "lobotocraft:snow_queen_idle",
+        "stream": false
+      }
+    ]
+  },
+  "snow_queen_duel": {
+    "sounds": [
+      {
+        "name": "lobotocraft:snow_queen_duel",
+        "stream": false
+      }
+    ]
+  },
+  "snow_queen_duel_fail": {
+    "sounds": [
+      {
+        "name": "lobotocraft:snow_queen_duel_fail",
+        "stream": false
+      }
+    ]
+  },
+  "snow_queen_duel_success": {
+    "sounds": [
+      {
+        "name": "lobotocraft:snow_queen_duel_success",
+        "stream": false
+      }
+    ]
+  },
+  "snow_queen_sign_kiss": {
+    "sounds": [
+      {
+        "name": "lobotocraft:snow_queen_sign_kiss",
+        "stream": false
+      }
+    ]
+  },
+  "snow_queen_kiss": {
+    "sounds": [
+      {
+        "name": "lobotocraft:snow_queen_kiss",
+        "stream": false
+      }
+    ]
+  },
+  "children_galaxy_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:children_galaxy_attack",
+        "stream": false
+      }
+    ]
+  },
+  "blue_star_escape": {
+    "sounds": [
+      {
+        "name": "lobotocraft:blue_star_escape",
+        "stream": true
+      }
+    ]
+  },
+  "blue_star_die": {
+    "sounds": [
+      {
+        "name": "lobotocraft:blue_star_die",
+        "stream": false
+      }
+    ]
+  },
+  "blue_star_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:blue_star_attack",
+        "stream": false
+      }
+    ]
+  },
+  "thorn_bus_death": {
+    "sounds": [
+      {
+        "name": "lobotocraft:thorn_bus_death",
+        "stream": false
+      }
+    ]
+  },
+  "thorn_bus_particle": {
+    "sounds": [
+      {
+        "name": "lobotocraft:thorn_bus_particle",
+        "stream": false
+      }
+    ]
+  },
+  "thorn_bus_face_attack_1": {
+    "sounds": [
+      {
+        "name": "lobotocraft:thorn_bus_face_attack_1",
+        "stream": false
+      }
+    ]
+  },
+  "thorn_bus_face_attack_2": {
+    "sounds": [
+      {
+        "name": "lobotocraft:thorn_bus_face_attack_2",
+        "stream": false
+      }
+    ]
+  },
+  "thorn_bus_use_put_to_death": {
+    "sounds": [
+      {
+        "name": "lobotocraft:thorn_bus_use_put_to_death",
+        "stream": false
+      }
+    ]
+  },
+  "thorn_bus_put_to_death_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:thorn_bus_put_to_death_attack",
+        "stream": false
+      }
+    ]
+  },
+  "player_death": {
+    "sounds": [
+      {
+        "name": "lobotocraft:player_death",
+        "stream": false
+      }
+    ]
+  },
+  "thorn_bus_weapon": {
+    "sounds": [
+      {
+        "name": "lobotocraft:thorn_bus_weapon",
+        "stream": false
+      }
+    ]
+  },
+  "end_bird_egg_high": {
+    "sounds": [
+      {
+        "name": "lobotocraft:end_bird_egg_high",
+        "stream": true
+      }
+    ]
+  },
+  "end_bird_egg_small": {
+    "sounds": [
+      {
+        "name": "lobotocraft:end_bird_egg_small",
+        "stream": true
+      }
+    ]
+  },
+  "end_bird_egg_eye": {
+    "sounds": [
+      {
+        "name": "lobotocraft:end_bird_egg_eye",
+        "stream": true
+      }
+    ]
+  },
+  "end_bird_die": {
+    "sounds": [
+      {
+        "name": "lobotocraft:end_bird_die",
+        "stream": false
+      }
+    ]
+  },
+  "end_bird_transfer": {
+    "sounds": [
+      {
+        "name": "lobotocraft:end_bird_transfer",
+        "stream": false
+      }
+    ]
+  },
+  "end_bird_skill1": {
+    "sounds": [
+      {
+        "name": "lobotocraft:end_bird_skill1",
+        "stream": false
+      }
+    ]
+  },
+  "end_bird_skill2": {
+    "sounds": [
+      {
+        "name": "lobotocraft:end_bird_skill2",
+        "stream": false
+      }
+    ]
+  },
+  "end_bird_will_skill2": {
+    "sounds": [
+      {
+        "name": "lobotocraft:end_bird_will_skill2",
+        "stream": false
+      }
+    ]
+  },
+  "end_bird_attack1": {
+    "sounds": [
+      {
+        "name": "lobotocraft:end_bird_attack1",
+        "stream": false
+      }
+    ]
+  },
+  "end_bird_attack2": {
+    "sounds": [
+      {
+        "name": "lobotocraft:end_bird_attack2",
+        "stream": false
+      }
+    ]
+  },
+  "end_bird_will_attack1": {
+    "sounds": [
+      {
+        "name": "lobotocraft:end_bird_will_attack2",
+        "stream": false
+      }
+    ]
+  },
+  "end_bird_skill3": {
+    "sounds": [
+      {
+        "name": "lobotocraft:end_bird_skill3",
+        "stream": false
+      }
+    ]
+  },
+  "end_bird_will_skill3": {
+    "sounds": [
+      {
+        "name": "lobotocraft:end_bird_will_skill3",
+        "stream": false
+      }
+    ]
+  },
+  "three_birds_appear": {
+    "sounds": [
+      {
+        "name": "lobotocraft:three_birds_appear",
+        "stream": false
+      }
+    ]
+  },
+  "end_bird_weapon_normal": {
+    "sounds": [
+      {
+        "name": "lobotocraft:end_bird_weapon_normal",
+        "stream": false
+      }
+    ]
+  },
+  "end_bird_weapon_special_1": {
+    "sounds": [
+      {
+        "name": "lobotocraft:end_bird_weapon_special_1",
+        "stream": false
+      }
+    ]
+  },
+  "end_bird_weapon_special_2": {
+    "sounds": [
+      {
+        "name": "lobotocraft:end_bird_weapon_special_2",
+        "stream": false
+      }
+    ]
+  },
+  "end_bird_weapon_special_3": {
+    "sounds": [
+      {
+        "name": "lobotocraft:end_bird_weapon_special_3",
+        "stream": false
+      }
+    ]
+  },
+  "end_bird_weapon_special_4": {
+    "sounds": [
+      {
+        "name": "lobotocraft:end_bird_weapon_special_4",
+        "stream": false
+      }
+    ]
+  },
+  "skadi_ambient": {
+    "sounds": [
+      {
+        "name": "lobotocraft:skadi_ambient",
+        "stream": true
+      }
+    ]
+  },
+  "skadi_escape": {
+    "sounds": [
+      {
+        "name": "lobotocraft:skadi_escape",
+        "stream": true
+      }
+    ]
+  },
+  "isharmla_to_monster": {
+    "sounds": [
+      {
+        "name": "lobotocraft:isharmla_to_monster",
+        "stream": true
+      }
+    ]
+  },
+  "isharmla_to_human": {
+    "sounds": [
+      {
+        "name": "lobotocraft:isharmla_to_human",
+        "stream": true
+      }
+    ]
+  },
+  "isharmla_bite": {
+    "sounds": [
+      {
+        "name": "lobotocraft:isharmla_bite",
+        "stream": true
+      }
+    ]
+  },
+  "isharmla_tail": {
+    "sounds": [
+      {
+        "name": "lobotocraft:isharmla_tail",
+        "stream": true
+      }
+    ]
+  },
+  "isharmla_beam": {
+    "sounds": [
+      {
+        "name": "lobotocraft:isharmla_beam",
+        "stream": true
+      }
+    ]
+  },
+  "isharmla_tear_summon": {
+    "sounds": [
+      {
+        "name": "lobotocraft:isharmla_tear_summon",
+        "stream": true
+      }
+    ]
+  },
+  "isharmla_tear_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:isharmla_tear_attack",
+        "stream": true
+      }
+    ]
+  },
+  "isharmla_tear_death_natural": {
+    "sounds": [
+      {
+        "name": "lobotocraft:isharmla_tear_death_natural",
+        "stream": true
+      }
+    ]
+  },
+  "isharmla_tear_death_killed": {
+    "sounds": [
+      {
+        "name": "lobotocraft:isharmla_tear_death_killed",
+        "stream": true
+      }
+    ]
+  },
+  "cleaner_voice_1": {
+    "sounds": [
+      {
+        "name": "lobotocraft:cleaner_voice_1",
+        "stream": false
+      }
+    ]
+  },
+  "cleaner_voice_2": {
+    "sounds": [
+      {
+        "name": "lobotocraft:cleaner_voice_2",
+        "stream": false
+      }
+    ]
+  },
+  "cleaner_voice_3": {
+    "sounds": [
+      {
+        "name": "lobotocraft:cleaner_voice_3",
+        "stream": false
+      }
+    ]
+  },
+  "cleaner_voice_4": {
+    "sounds": [
+      {
+        "name": "lobotocraft:cleaner_voice_4",
+        "stream": false
+      }
+    ]
+  },
+  "cleaner_voice_5": {
+    "sounds": [
+      {
+        "name": "lobotocraft:cleaner_voice_5",
+        "stream": false
+      }
+    ]
+  },
+  "cleaner_skill1": {
+    "sounds": [
+      {
+        "name": "lobotocraft:cleaner_skill1",
+        "stream": false
+      }
+    ]
+  },
+  "cleaner_skill2": {
+    "sounds": [
+      {
+        "name": "lobotocraft:cleaner_skill2",
+        "stream": false
+      }
+    ]
+  },
+  "butterfly_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:butterfly_attack",
+        "stream": false
+      }
+    ]
+  },
+  "butterfly_skill_start": {
+    "sounds": [
+      {
+        "name": "lobotocraft:butterfly_skill_start",
+        "stream": false
+      }
+    ]
+  },
+  "butterfly_skill_loop": {
+    "sounds": [
+      {
+        "name": "lobotocraft:butterfly_skill_loop",
+        "stream": false
+      }
+    ]
+  },
+  "butterfly_skill_end": {
+    "sounds": [
+      {
+        "name": "lobotocraft:butterfly_skill_end",
+        "stream": false
+      }
+    ]
+  },
+  "butterfly_death": {
+    "sounds": [
+      {
+        "name": "lobotocraft:butterfly_death",
+        "stream": false
+      }
+    ]
+  },
+  "redhat_knife": {
+    "sounds": [
+      {
+        "name": "lobotocraft:redhat_knife",
+        "stream": false
+      }
+    ]
+  },
+  "redhat_knife_rage": {
+    "sounds": [
+      {
+        "name": "lobotocraft:redhat_knife_rage",
+        "stream": false
+      }
+    ]
+  },
+  "redhat_gun": {
+    "sounds": [
+      {
+        "name": "lobotocraft:redhat_gun",
+        "stream": false
+      }
+    ]
+  },
+  "redhat_throw": {
+    "sounds": [
+      {
+        "name": "lobotocraft:redhat_throw",
+        "stream": false
+      }
+    ]
+  },
+  "fragment_sing": {
+    "sounds": [
+      {
+        "name": "lobotocraft:fragment_sing",
+        "stream": false
+      }
+    ]
+  },
+  "fragment_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:fragment_attack",
+        "stream": false
+      }
+    ]
+  },
+  "wolf_stealth": {
+    "sounds": [
+      {
+        "name": "lobotocraft:wolf_stealth",
+        "stream": false
+      }
+    ]
+  },
+  "wolf_claw": {
+    "sounds": [
+      {
+        "name": "lobotocraft:wolf_claw",
+        "stream": false
+      }
+    ]
+  },
+  "wolf_idle": {
+    "sounds": [
+      {
+        "name": "lobotocraft:wolf_idle",
+        "stream": false
+      }
+    ]
+  },
+  "wolf_howl": {
+    "sounds": [
+      {
+        "name": "lobotocraft:wolf_howl",
+        "stream": false
+      }
+    ]
+  },
+  "helper_boot": {
+    "sounds": [
+      {
+        "name": "lobotocraft:helper_boot",
+        "stream": false
+      }
+    ]
+  },
+  "helper_spin": {
+    "sounds": [
+      {
+        "name": "lobotocraft:helper_spin",
+        "stream": false
+      }
+    ]
+  },
+  "helper_hit": {
+    "sounds": [
+      {
+        "name": "lobotocraft:helper_hit",
+        "stream": false
+      }
+    ]
+  }
+}

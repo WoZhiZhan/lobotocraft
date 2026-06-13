@@ -1,0 +1,10 @@
+{
+  "type": "lobotocraft:loboto",
+  "generator": {
+    "type": "lobotocraft:loboto",
+    "biome_source": {
+      "type": "lobotocraft:loboto",
+      "biome": "lobotocraft:loboto"
+    }
+  }
+}

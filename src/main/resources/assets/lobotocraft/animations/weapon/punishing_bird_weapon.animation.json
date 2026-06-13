@@ -1,0 +1,100 @@
+{
+	"format_version": "1.8.0",
+	"animations": {
+		"animation.model.1": {
+			"animation_length": 0.25,
+			"bones": {
+				"bone": {
+					"rotation": {
+						"0.0": [0, 0, 0],
+						"0.0417": [-7.5, 0, 0],
+						"0.0833": [0, 0, 0]
+					}
+				},
+				"bone7": {
+					"position": {
+						"0.0": [0, 0, 0],
+						"0.0417": [0, 0, 3],
+						"0.0833": [0, 0, 0]
+					}
+				},
+				"bone5": {
+					"position": [0, 0, 0]
+				}
+			}
+		},
+		"animation.model.2": {
+			"animation_length": 1.5,
+			"bones": {
+				"bone": {
+					"rotation": {
+						"0.0": {
+							"post": [0, 0, 0],
+							"lerp_mode": "catmullrom"
+						},
+						"0.0833": {
+							"post": [19.21875, 0, -11.25],
+							"lerp_mode": "catmullrom"
+						},
+						"0.1667": {
+							"post": [-45, 0, -22.5],
+							"lerp_mode": "catmullrom"
+						},
+						"0.25": {
+							"post": [-35, 0, -22.5],
+							"lerp_mode": "catmullrom"
+						},
+						"0.3333": {
+							"post": [-30.56393, -17.94973, -50.05814],
+							"lerp_mode": "catmullrom"
+						},
+						"0.5833": {
+							"post": [-30.56393, -17.94973, -50.05814],
+							"lerp_mode": "catmullrom"
+						},
+						"0.75": {
+							"post": [-30.56393, -17.94973, -50.05814],
+							"lerp_mode": "catmullrom"
+						},
+						"0.8333": {
+							"post": [10.9276, 8.53726, -10.12039],
+							"lerp_mode": "catmullrom"
+						},
+						"0.9167": {
+							"post": [17.54719, -3.81759, 40.50285],
+							"lerp_mode": "catmullrom"
+						},
+						"1.25": {
+							"post": [17.54719, -3.81759, 40.50285],
+							"lerp_mode": "catmullrom"
+						},
+						"1.4167": {
+							"post": [17.54719, -3.81759, 40.50285],
+							"lerp_mode": "catmullrom"
+						},
+						"1.5": {
+							"post": [0, 0, 0],
+							"lerp_mode": "catmullrom"
+						}
+					}
+				},
+				"bone7": {
+					"position": {
+						"0.9167": [0, 0, 0],
+						"1.0": [0, 0, 2],
+						"1.1667": [0, 0, 2],
+						"1.25": [0, 0, 0]
+					}
+				},
+				"bone5": {
+					"position": {
+						"0.0833": [0, 0, 0],
+						"0.1667": [0, -8, 4],
+						"0.5": [0, -8, 4],
+						"0.5833": [0, 0, 0]
+					}
+				}
+			}
+		}
+	}
+}
