@@ -128,55 +128,103 @@ public class BlueStarWeapon extends BaseEgoWeapon {
         float max = MentalValueUtil.getEffectiveMaxMentalValue(player);
         float ratio = max > 0 ? cur / max : 0f;
 
-        // 套装:精神值为满时光束伤害 +25%
         boolean fullSetMaxBonus = isBlueStarSet(player) && ratio >= 1.0f;
         float mult = fullSetMaxBonus ? 1.25f : 1.0f;
 
-        // 第1段:面板 8-12(始终存在)
-        shootSingleBeam(player, (8 + player.getRandom().nextInt(5)) * mult);
-        // 第2段:精神>30% 时追加 15-18
-        if (ratio > 0.30f) {
-            shootSingleBeam(player, (15 + player.getRandom().nextInt(4)) * mult);
+        int orbCount = 1;
+        if (ratio > 0.60f) orbCount = 3;
+        else if (ratio > 0.30f) orbCount = 2;
+
+        // 第 1 段（总是存在）
+        shootSingleBeam(player, getOrbPosition(player, 0, orbCount),
+                (8 + player.getRandom().nextInt(5)) * mult);
+        // 第 2 段
+        if (orbCount >= 2) {
+            shootSingleBeam(player, getOrbPosition(player, 1, orbCount),
+                    (15 + player.getRandom().nextInt(4)) * mult);
         }
-        // 第3段:精神>60% 时再追加 20-22
-        if (ratio > 0.60f) {
-            shootSingleBeam(player, (20 + player.getRandom().nextInt(3)) * mult);
+        // 第 3 段
+        if (orbCount >= 3) {
+            shootSingleBeam(player, getOrbPosition(player, 2, orbCount),
+                    (20 + player.getRandom().nextInt(3)) * mult);
         }
 
         player.level().playSound(null, player.blockPosition(),
                 ModSounds.BLUE_STAR_ATTACK.get(), SoundSource.PLAYERS, 1.0f, 1.4f);
     }
 
-    /** 从玩家身旁(右上方)朝准心方向发射一道25格白色光束,命中最近生物 */
-    private void shootSingleBeam(ServerPlayer player, float damage) {
+    /**
+     * 获取第 index 个漂浮光球的位置（0-based，共 total 个）
+     * 光球在玩家右前方呈弧形分布，间距明显
+     */
+    private Vec3 getOrbPosition(Player player, int index, int total) {
+        Vec3 eye = player.getEyePosition();
+        Vec3 look = player.getLookAngle().normalize();
+        Vec3 right = new Vec3(-look.z, 0, look.x).normalize();
+
+        if (total <= 1) {
+            // 只有一个光球时，在右上前方
+            return eye.add(right.scale(0.8)).add(0, 0.5, 0).add(look.scale(0.3));
+        }
+
+        // 多个光球时，分布在以 eye + 偏移中心 为圆心、半径 0.5 的圆弧上
+        // 圆心位置：玩家右方 0.8、上方 0.5、前方 0.3
+        Vec3 center = eye.add(right.scale(0.8)).add(0, 0.5, 0).add(look.scale(0.3));
+
+        // 三个光球分布在 -40° 到 +40° 的弧上（相对于中心正上方）
+        // index 0 -> -40°, index 1 -> 0°, index 2 -> +40°
+        double startAngle = Math.toRadians(-40);
+        double endAngle = Math.toRadians(40);
+        double angleStep = (total > 2) ? (endAngle - startAngle) / (total - 1) : 0;
+        double angle = startAngle + index * angleStep;
+
+        // 在 center 的右-上平面内偏移
+        Vec3 up = new Vec3(0, 1, 0);
+        // 将 up 投影到与 look 垂直的平面，保证光球不会跑到玩家前方太远
+        Vec3 orbitUp = up.subtract(look.scale(up.dot(look))).normalize();
+        Vec3 orbitRight = right;  // right 已经与 look 垂直
+
+        double radius = 0.5;
+        return center
+                .add(orbitUp.scale(Math.sin(angle) * radius))
+                .add(orbitRight.scale(Math.cos(angle) * radius));
+    }
+
+    /** 从指定起点朝玩家准星方向发射一道25格白色光束 */
+    private void shootSingleBeam(ServerPlayer player, Vec3 origin, float damage) {
         ServerLevel level = player.serverLevel();
         Vec3 eye = player.getEyePosition();
         Vec3 look = player.getLookAngle().normalize();
-        // 光束起点:玩家身旁漂浮实体位置(右上偏移)
-        Vec3 right = new Vec3(-look.z, 0, look.x).normalize();
-        Vec3 origin = eye.add(right.scale(0.6)).add(0, 0.3, 0);
-        Vec3 end = eye.add(look.scale(BEAM_RANGE));
 
-        // 方块阻挡裁剪
-        HitResult blockHit = level.clip(new ClipContext(eye, end,
+        // 从玩家眼睛做射线检测，找到准星实际指向的远点
+        Vec3 eyeEnd = eye.add(look.scale(BEAM_RANGE));
+        HitResult eyeHit = level.clip(new ClipContext(eye, eyeEnd,
+                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+        Vec3 targetPoint = eyeHit.getType() == HitResult.Type.BLOCK ? eyeHit.getLocation() : eyeEnd;
+
+        // 光束方向：从光球 origin 指向准星目标点
+        Vec3 beamDir = targetPoint.subtract(origin).normalize();
+        Vec3 end = origin.add(beamDir.scale(BEAM_RANGE));
+
+        // 方块阻挡裁剪（沿光束方向从 origin 出发）
+        HitResult blockHit = level.clip(new ClipContext(origin, end,
                 ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
         Vec3 realEnd = blockHit.getType() == HitResult.Type.BLOCK ? blockHit.getLocation() : end;
 
-        // 沿射线找最近的受击生物
+        // 扫描生物
         LivingEntity target = null;
         double bestDist = Double.MAX_VALUE;
-        AABB scan = new AABB(eye, realEnd).inflate(1.0);
+        AABB scan = new AABB(origin, realEnd).inflate(1.0);
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, scan,
                 en -> en != player && en.isAlive() && !(en instanceof Player p && (p.isCreative() || p.isSpectator())))) {
-            Vec3 rel = e.getBoundingBox().getCenter().subtract(eye);
-            double along = rel.dot(look);
+            Vec3 rel = e.getBoundingBox().getCenter().subtract(origin);
+            double along = rel.dot(beamDir);
             if (along < 0 || along > BEAM_RANGE) continue;
-            double perp = rel.subtract(look.scale(along)).length();
+            double perp = rel.subtract(beamDir.scale(along)).length();
             if (perp > 1.2) continue;
             if (along < bestDist) { bestDist = along; target = e; }
         }
 
-        // 光束粒子轨迹
         Vec3 hitPoint = target != null ? target.getBoundingBox().getCenter() : realEnd;
         drawBeamParticles(level, origin, hitPoint);
 
@@ -185,7 +233,6 @@ public class BlueStarWeapon extends BaseEgoWeapon {
             if (target instanceof ServerPlayer sp) {
                 MentalValueUtil.reduceMentalValue(sp, damage);
             }
-            // 套装:命中减速30%(10秒,刷新)——记录到目标persistentData,由 BlueStarSetEvent 维护
             if (isBlueStarSet(player)) {
                 target.getPersistentData().putLong("blue_star_slow_until",
                         level.getGameTime() + 200);
@@ -193,6 +240,7 @@ public class BlueStarWeapon extends BaseEgoWeapon {
         }
     }
 
+    /** 光束粒子特效 */
     private void drawBeamParticles(ServerLevel level, Vec3 from, Vec3 to) {
         Vec3 dir = to.subtract(from);
         double len = dir.length();
@@ -257,10 +305,17 @@ public class BlueStarWeapon extends BaseEgoWeapon {
         // 持握时身旁漂浮"新星之声"的粒子提示
         if (isSelected && entity instanceof Player player && level instanceof ServerLevel sl
                 && player.tickCount % 6 == 0) {
-            Vec3 look = player.getLookAngle().normalize();
-            Vec3 right = new Vec3(-look.z, 0, look.x).normalize();
-            Vec3 orb = player.getEyePosition().add(right.scale(0.6)).add(0, 0.1, 0);
-            sl.sendParticles(ParticleTypes.END_ROD, orb.x, orb.y, orb.z, 1, 0.02, 0.02, 0.02, 0.0);
+            float cur = MentalValueUtil.getMentalValue(player);
+            float max = MentalValueUtil.getEffectiveMaxMentalValue(player);
+            float ratio = max > 0 ? cur / max : 0f;
+            int orbCount = 1;
+            if (ratio > 0.60f) orbCount = 3;
+            else if (ratio > 0.30f) orbCount = 2;
+
+            for (int i = 0; i < orbCount; i++) {
+                Vec3 pos = getOrbPosition(player, i, orbCount);
+                sl.sendParticles(ParticleTypes.END_ROD, pos.x, pos.y, pos.z, 1, 0.02, 0.02, 0.02, 0.0);
+            }
         }
     }
 
