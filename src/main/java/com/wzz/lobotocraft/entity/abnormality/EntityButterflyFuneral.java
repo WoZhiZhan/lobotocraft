@@ -504,7 +504,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     private PlayState predicate(AnimationState<EntityButterflyFuneral> event) {
         String anim = getAnimation();
         switch (anim) {
-            case "attack", "attack1" -> { return event.setAndContinue(RawAnimation.begin().thenPlay("attack")); }
+            case "attack", "attack1" -> { return event.setAndContinue(RawAnimation.begin().thenPlay("attack1")); }
             case "attack2" -> { return event.setAndContinue(RawAnimation.begin().thenPlay("attack2")); }
             case "skill" -> { return event.setAndContinue(RawAnimation.begin().thenPlay("skill")); }
             case "skillAB" -> { return event.setAndContinue(RawAnimation.begin().thenLoop("skillAB")); }
