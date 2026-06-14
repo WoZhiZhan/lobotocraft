@@ -84,7 +84,7 @@ public class ModEntities {
     public static final RegistryObject<EntityType<EntityButterflyFuneral>> butterfly_funeral =
             ENTITIES.register("butterfly_funeral",
                     () -> EntityType.Builder.of(EntityButterflyFuneral::new, MobCategory.CREATURE)
-                            .sized(1.2F, 2.6F)
+                            .sized(0.588F, 3.0576F)
                             .clientTrackingRange(10)
                             .updateInterval(3)
                             .build("butterfly_funeral"));

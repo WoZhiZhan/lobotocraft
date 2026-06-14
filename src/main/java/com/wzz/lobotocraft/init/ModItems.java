@@ -97,8 +97,8 @@ public class ModItems {
                     "§b深海的歌声将一切引向沉眠……"));
 
     public static final RegistryObject<Item> BUTTERFLY_FUNERAL_SPAWN_EGG = REGISTRY.register("butterfly_funeral_spawn_egg",
-            () -> new TextSpawnEggItem(ModEntities.butterfly_funeral, 0xE8E8FF, 0x6a6a8a, new Item.Properties(),
-                    "§f一场永无止境的葬礼。"));
+            () -> new TextSpawnEggItem(ModEntities.butterfly_funeral , 0xE8E8FF, 0x6a6a8a, new Item.Properties(),
+                    "§c人死后会去向何方？"));
 
     public static final RegistryObject<Item> REDHAT_MERCENARY_SPAWN_EGG = REGISTRY.register("redhat_mercenary_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.redhat_mercenary, 0xb01010, 0x202020, new Item.Properties(),
@@ -114,7 +114,7 @@ public class ModItems {
 
     public static final RegistryObject<Item> HELPER_SPAWN_EGG = REGISTRY.register("helper_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.helper, 0xe8e8e8, 0x901010, new Item.Properties(),
-                    "§7如果您需要帮助的话，小帮手随叫随到！"));
+                    "§7地板上满是鲜血，人们四散而逃..."));
 
     public static final RegistryObject<Item> SKADI_SPAWN_EGG = REGISTRY.register("skadi_corrupted_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.skadi_corrupted, 0x1A2A4A, 0xAEE6FF, new Item.Properties(),

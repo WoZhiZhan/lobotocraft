@@ -60,11 +60,12 @@ public class ModClientEvent {
         event.registerEntityRenderer(ModEntities.nucleic_maleficent.get(), (r) -> new GeoEntityRenderer<>(r, 1.2f, 1.2f));
         event.registerEntityRenderer(ModEntities.basinsea_reaper.get(), (r) -> new GeoEntityRenderer<>(r, 1.4f, 1.4f));
         event.registerEntityRenderer(ModEntities.cleaner.get(), (r) -> new GeoEntityRenderer<>(r, 1.0f, 1.0f));
-        event.registerEntityRenderer(ModEntities.butterfly_funeral.get(), (r) -> new AbnormalityRenderer<>(r, "butterfly", "butterfly", 1.4f, 1.2f));
+        event.registerEntityRenderer(ModEntities.butterfly_funeral.get(), (r) -> new AbnormalityRenderer<>(r,
+                "butterfly", "butterfly", 0.686f, 0.588f));
         event.registerEntityRenderer(ModEntities.fragment_of_the_universe.get(), (r) -> new AbnormalityRenderer<>(r, 1.0f, 1.0f));
         event.registerEntityRenderer(ModEntities.helper.get(), (r) -> new AbnormalityRenderer<>(r, 1.0f, 1.0f));
-        event.registerEntityRenderer(ModEntities.bigbadwolf.get(), (r) -> new EntityBigBadWolfRenderer(r, 1.0f, 1.0f));
-        event.registerEntityRenderer(ModEntities.redhat_mercenary.get(), (r) -> new AbnormalityRenderer<>(r, "redhat", "redhat", 1.0f, 1.0f));
+        event.registerEntityRenderer(ModEntities.bigbadwolf.get(), (r) -> new com.wzz.lobotocraft.client.renderer.entity.abnormality.EntityBigBadWolfRenderer(r, 1.0f, 1.0f));
+        event.registerEntityRenderer(ModEntities.redhat_mercenary.get(), (r) -> new AbnormalityRenderer<>(r, 1.0f, 1.0f));
         event.registerEntityRenderer(ModEntities.iron_maiden.get(), (r) -> new AbnormalityRenderer<>(r, 1.5f, 1.5f));
         event.registerEntityRenderer(ModEntities.meat_idol.get(), (r) -> new AbnormalityRenderer<>(r, 1.2f, 1.0f));
         event.registerEntityRenderer(ModEntities.abandoned_murderer.get(), (r) -> new AbnormalityRenderer<>(r, 1.2f, 1.0f));
