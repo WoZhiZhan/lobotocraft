@@ -102,7 +102,7 @@ public class EntityIsharmla extends AbstractAbnormality {
     // 光束累计命中次数(满4次造成15蓝伤)——项6
     private int beamChargeCount = 0;
     private boolean beamAttackStarted = false;
-    private final java.util.List<net.minecraft.world.entity.LivingEntity> beamCircleTargets = new java.util.ArrayList<>();
+    private final List<LivingEntity> beamCircleTargets = new ArrayList<>();
 
     private void setForm(Form form) {
         Form old = getForm();
@@ -162,7 +162,7 @@ public class EntityIsharmla extends AbstractAbnormality {
         if (com.wzz.lobotocraft.event.BlueMiddayEvent.isTrialActive()) {
             com.wzz.lobotocraft.event.BlueMiddayEvent.endTrial();
             List<net.minecraft.world.entity.Entity> seaborns =
-                    level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
+                    level.getEntitiesOfClass(LivingEntity.class,
                             new net.minecraft.world.phys.AABB(
                                     -30000000, level.getMinBuildHeight(), -30000000,
                                     30000000, level.getMaxBuildHeight(), 30000000),
@@ -362,11 +362,12 @@ public class EntityIsharmla extends AbstractAbnormality {
             }
             return;
         }
-        // 项4④:人形态也会移动,缓慢靠近最近目标
-        LivingEntity target = findNearestTarget(level, 24);
-        if (target != null) {
-            this.getNavigation().moveTo(target, 1.0);
-            this.getLookControl().setLookAt(target);
+        // 人形态:闲逛(不仇恨、不追击玩家),只随机游走
+        if (this.getNavigation().isDone() && this.random.nextInt(80) == 0) {
+            net.minecraft.world.phys.Vec3 pos = net.minecraft.world.entity.ai.util.DefaultRandomPos.getPos(this, 10, 7);
+            if (pos != null) {
+                this.getNavigation().moveTo(pos.x, pos.y, pos.z, 0.8);
+            }
         }
         if (humanPhaseTimer > 0) {
             humanPhaseTimer--;
@@ -423,6 +424,10 @@ public class EntityIsharmla extends AbstractAbnormality {
         performMonsterAttack(level, target);
         attackCooldown = 40;
     }
+
+    // 旧的逐帧命中倒计时(保留字段以兼容,但命中改由 tickAttackHitDetection 处理)
+    private int pendingAttackHit = 0;
+    private int pendingAttackType = -1;
 
     private void performMonsterAttack(ServerLevel level, LivingEntity target) {
         float roll = this.random.nextFloat();

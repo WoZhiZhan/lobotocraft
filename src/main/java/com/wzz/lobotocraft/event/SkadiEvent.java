@@ -28,18 +28,13 @@ public class SkadiEvent {
     /** 机制2:被祝福玩家受到四种颜色(WHITE/RED/BLACK/PALE)的伤害减少 40% */
     @SubscribeEvent
     public static void onHurt(LivingHurtEvent event) {
-        if (!(event.getEntity() instanceof Player player)) return;
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
         if (player.hasEffect(ModEffects.WISH_WITHOUT_LIGHT.get())) {
             // mod 的异想体伤害体系即"四种颜色"伤害,这里对所有进入该事件的伤害统一减免 40%
             event.setAmount(event.getAmount() * 0.6f);
         }
-    }
-
-    /** 机制4:被祝福玩家死亡时原地满血免死复活,斯卡蒂计数器 -1 */
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public static void onDeath(LivingDeathEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer player)) return;
         if (player.level().isClientSide) return;
+        if (event.getAmount() < event.getEntity().getHealth()) return;
         if (!player.hasEffect(ModEffects.WISH_WITHOUT_LIGHT.get())) return;
 
         // 取消死亡,满血复活
@@ -50,7 +45,7 @@ public class SkadiEvent {
         player.removeEffect(net.minecraft.world.effect.MobEffects.POISON);
         player.setRemainingFireTicks(0);
         // 播放复活音频
-        ((ServerLevel) player.level()).playSound(null, player.blockPosition(),
+        player.level().playSound(null, player.blockPosition(),
                 ModSounds.SKADI_AMBIENT.get(),
                 net.minecraft.sounds.SoundSource.NEUTRAL, 1.0f, 1.0f);
         player.sendSystemMessage(Component.literal("§9「同葬无光之愿」庇护了你,你免于死亡。"));

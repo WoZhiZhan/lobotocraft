@@ -254,7 +254,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     // ==================== 普通攻击 ====================
 
     private void beginNormalAttack(LivingEntity target) {
-        setAnimation(this.random.nextBoolean() ? "attack1" : "attack2");
+        setAnimation(this.random.nextBoolean() ? "attack" : "attack2");
         pendingTarget = target;
         pendingAttackHit = 10; // 射击手势出伤帧
         attackCooldown = 7 * 20; // 冷却7秒
@@ -411,7 +411,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     private PlayState predicate(AnimationState<EntityButterflyFuneral> event) {
         String anim = getAnimation();
         switch (anim) {
-            case "attack1" -> { return event.setAndContinue(RawAnimation.begin().thenPlay("attack1")); }
+            case "attack" -> { return event.setAndContinue(RawAnimation.begin().thenPlay("attack")); }
             case "attack2" -> { return event.setAndContinue(RawAnimation.begin().thenPlay("attack2")); }
             case "skill" -> { return event.setAndContinue(RawAnimation.begin().thenPlay("skill")); }
             case "skillAB" -> { return event.setAndContinue(RawAnimation.begin().thenLoop("skillAB")); }
@@ -422,6 +422,11 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
             return event.setAndContinue(RawAnimation.begin().thenLoop("move"));
         }
         return event.setAndContinue(RawAnimation.begin().thenLoop("idle"));
+    }
+
+    @Override
+    protected AbstractAbnormality createNewInstance(ServerLevel serverLevel) {
+        return new EntityButterflyFuneral((EntityType<? extends TamableAnimal>) this.getType(), serverLevel);
     }
 
     public static AttributeSupplier.Builder createAttributes() {

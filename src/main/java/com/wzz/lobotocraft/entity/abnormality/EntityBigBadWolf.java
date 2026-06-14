@@ -582,6 +582,11 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         return event.setAndContinue(RawAnimation.begin().thenLoop("idle"));
     }
 
+    @Override
+    protected AbstractAbnormality createNewInstance(ServerLevel serverLevel) {
+        return new EntityBigBadWolf((EntityType<? extends TamableAnimal>) this.getType(), serverLevel);
+    }
+
     public static AttributeSupplier.Builder createAttributes() {
         return Mob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, 2000.0D)

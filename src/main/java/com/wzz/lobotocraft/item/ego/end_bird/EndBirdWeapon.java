@@ -173,22 +173,24 @@ public class EndBirdWeapon extends BaseEgoWeapon {
         playSound(player, ModSounds.END_BIRD_WEAPON_NORMAL.get());
 
         if (!player.level().isClientSide) {
-            final float b = bonus;
-            // 链式四段:红18 → 白18 → 黑18 → 蓝18(+10%最大生命,上限5)
-            EntityUtil.clearHurtTime(target, () -> {
-                target.hurt(DamageHelper.getDamage(player, "red"), 18f + b);
-                EntityUtil.clearHurtTime(target, () -> {
-                    target.hurt(DamageHelper.getDamage(player, "white"), 18f + b);
-                    EntityUtil.clearHurtTime(target, () -> {
-                        target.hurt(DamageHelper.getDamage(player, "black"), 18f + b);
-                        EntityUtil.clearHurtTime(target, () ->
-                                target.hurt(DamageHelper.getDamage(player, "blue"),
-                                        18f + b + EntityUtil.addMaxHealthPercentageDamage(target, 0.1f, 0.1f, 5f)));
-                    });
-                });
-            });
+            // 四段链式:红/白/黑/蓝 各18(+特殊动画时+5);蓝段额外附带目标最大生命10%伤害(上限5)
+            // 每段前清除无敌帧,确保四段都能命中
+            dealStep(player, target, "red", 18f + bonus);
+            dealStep(player, target, "white", 18f + bonus);
+            dealStep(player, target, "black", 18f + bonus);
+            float blueExtra = EntityUtil.addMaxHealthPercentageDamage(target, 0.1f, 0.1f, 5f);
+            dealStep(player, target, "blue", 18f + bonus + blueExtra);
         }
         return true;
+    }
+
+    /** 单段伤害:清除目标无敌帧后立即结算,保证多段连击每段都生效 */
+    private void dealStep(Player player, LivingEntity target, String color, float damage) {
+        target.hurtTime = 0;
+        target.hurtDuration = 0;
+        target.hurtMarked = false;
+        target.invulnerableTime = 0;
+        target.hurt(DamageHelper.getDamage(player, color), damage);
     }
 
     // =======================================================================
@@ -271,6 +273,7 @@ public class EndBirdWeapon extends BaseEgoWeapon {
 
         // 进入攻击演出:期间禁普攻、禁再次蓄力(后摇结束时解除)
         stack.getOrCreateTag().putBoolean(KEY_IS_ANIMATING, true);
+        stack.getOrCreateTag().putLong("AnimStartTick", level.getGameTime());
         stack.getOrCreateTag().putBoolean(KEY_CAN_CHARGE_UP, false);
 
         if (!level.isClientSide) {
@@ -299,6 +302,14 @@ public class EndBirdWeapon extends BaseEgoWeapon {
             if (level.getGameTime() - last > COMBO_WINDOW_TICKS) {
                 stack.getOrCreateTag().putBoolean(KEY_CAN_CHARGE_UP, false);
                 stack.getOrCreateTag().putInt(KEY_CHARGE_STAGE, STAGE_NONE);
+            }
+        }
+
+        // 看门狗:动画/演出锁定超过6秒仍未解除则强制复位,避免武器卡成"无效武器"
+        if (stack.getOrCreateTag().getBoolean(KEY_IS_ANIMATING)) {
+            long animStart = stack.getOrCreateTag().getLong("AnimStartTick");
+            if (level.getGameTime() - animStart > 120) {
+                stack.getOrCreateTag().putBoolean(KEY_IS_ANIMATING, false);
             }
         }
     }
@@ -383,10 +394,10 @@ public class EndBirdWeapon extends BaseEgoWeapon {
                     p.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN,
                             ATK2_FREEZE_TICKS + 5, 255, false, false));
                     // 1 点红色伤害(特殊音效1)
-                    EntityUtil.clearHurtTime(target, () -> {
-                        target.hurt(DamageHelper.getDamage(p, "red"), 1f);
-                        applySlowness(target);
-                    });
+                    target.hurtTime = 0; target.hurtDuration = 0;
+                    target.hurtMarked = false; target.invulnerableTime = 0;
+                    target.hurt(DamageHelper.getDamage(p, "red"), 1f);
+                    applySlowness(target);
                     playSpecialSound(p, 1);
                 }
 
@@ -525,44 +536,41 @@ public class EndBirdWeapon extends BaseEgoWeapon {
             if ("blue".equals(color) && bluePercent > 0) {
                 dmg += EntityUtil.addMaxHealthPercentageDamage(t, bluePercent, bluePercent, blueCap);
             }
-            final float finalDmg = dmg;
-            EntityUtil.clearHurtTime(t, () -> {
-                t.hurt(DamageHelper.getDamage(player, color), finalDmg);
-                applySlowness(t);
-            });
+            t.hurtTime = 0; t.hurtDuration = 0; t.hurtMarked = false; t.invulnerableTime = 0;
+            t.hurt(DamageHelper.getDamage(player, color), dmg);
+            applySlowness(t);
         }
     }
 
     /** 对单个目标按颜色序列链式造成多段伤害(无音效版,三阶用) */
     private void dealChainedColors(Player player, LivingEntity target,
                                    String[] colors, float baseDamage, float bluePercent, float blueCap) {
-        dealChainedStep(player, target, colors, null, 0, baseDamage, bluePercent, blueCap);
+        dealChainedStep(player, target, colors, null, baseDamage, bluePercent, blueCap);
     }
 
     /** 对单个目标按颜色序列链式多段伤害,每段配一个特殊音效(二阶收刀用) */
     private void dealChainedWithSounds(Player player, LivingEntity target,
                                        String[] colors, int[] sounds,
                                        float baseDamage, float bluePercent, float blueCap) {
-        dealChainedStep(player, target, colors, sounds, 0, baseDamage, bluePercent, blueCap);
+        dealChainedStep(player, target, colors, sounds, baseDamage, bluePercent, blueCap);
     }
 
+    /** 顺序结算多段伤害(每段前清无敌帧,保证段段命中) */
     private void dealChainedStep(Player player, LivingEntity target,
-                                 String[] colors, int[] sounds, int idx,
+                                 String[] colors, int[] sounds,
                                  float baseDamage, float bluePercent, float blueCap) {
-        if (idx >= colors.length || !target.isAlive()) return;
-        String color = colors[idx];
-        float dmg = baseDamage;
-        if ("blue".equals(color) && bluePercent > 0) {
-            dmg += EntityUtil.addMaxHealthPercentageDamage(target, bluePercent, bluePercent, blueCap);
-        }
-        final float finalDmg = dmg;
-        final int next = idx + 1;
-        if (sounds != null && idx < sounds.length) playSpecialSound(player, sounds[idx]);
-        EntityUtil.clearHurtTime(target, () -> {
-            target.hurt(DamageHelper.getDamage(player, color), finalDmg);
+        for (int idx = 0; idx < colors.length; idx++) {
+            if (!target.isAlive()) return;
+            String color = colors[idx];
+            float dmg = baseDamage;
+            if ("blue".equals(color) && bluePercent > 0) {
+                dmg += EntityUtil.addMaxHealthPercentageDamage(target, bluePercent, bluePercent, blueCap);
+            }
+            if (sounds != null && idx < sounds.length) playSpecialSound(player, sounds[idx]);
+            target.hurtTime = 0; target.hurtDuration = 0; target.hurtMarked = false; target.invulnerableTime = 0;
+            target.hurt(DamageHelper.getDamage(player, color), dmg);
             applySlowness(target);
-            dealChainedStep(player, target, colors, sounds, next, baseDamage, bluePercent, blueCap);
-        });
+        }
     }
 
     /** 开启 1.5 秒连招窗口:在窗口内再次长按右键可提升至下一蓄力阶段 */

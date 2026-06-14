@@ -41,29 +41,10 @@ import java.util.List;
  */
 public class EntityFragmentOfUniverse extends AbstractAbnormality {
 
-    private static final String P = "animation.fragmentoftheuniverse.";
-    private static final int TRANSFORM_DURATION = 4 * 20;
-    private static final int ATTACK_1_DURATION = 40;
-    private static final int ATTACK_2_DURATION = 37;
-    private static final int ATTACK_1_HIT_DELAY = 27;
-    private static final int ATTACK_2_HIT_DELAY = 28;
-    private static final int SING_DURATION = 5 * 20;
-
-    private static final RawAnimation CLOSEUP_ANIMATION = RawAnimation.begin().thenLoop(P + "closeup");
-    private static final RawAnimation TRANSFORM_ANIMATION = RawAnimation.begin().thenPlay(P + "transform");
-    private static final RawAnimation IDLE_ANIMATION = RawAnimation.begin().thenLoop(P + "idle");
-    private static final RawAnimation MOVE_ANIMATION = RawAnimation.begin().thenLoop(P + "move");
-    private static final RawAnimation ATTACK_1_ANIMATION = RawAnimation.begin().thenPlay(P + "attack1");
-    private static final RawAnimation ATTACK_2_ANIMATION = RawAnimation.begin().thenPlay(P + "attack2");
-    private static final RawAnimation SING_ANIMATION = RawAnimation.begin().thenLoop(P + "sing");
-
     private int attackCooldown = 0;
     private int pendingHit = 0;
     private LivingEntity pendingTarget = null;
-    private int attackAnimationTimer = 0;
-    private String attackAnimation = "idle";
     private int singTimer = 0;      // >0 表示歌唱中
-    private int transformTimer = 0;
     private boolean transformed = false; // 出逃变形动画是否播完
 
     public EntityFragmentOfUniverse(EntityType<? extends TamableAnimal> entityType, Level level) {
@@ -118,12 +99,6 @@ public class EntityFragmentOfUniverse extends AbstractAbnormality {
     @Override
     public String name() { return "fragment_of_the_universe"; }
 
-    @SuppressWarnings("unchecked")
-    @Override
-    protected AbstractAbnormality createNewInstance(ServerLevel serverLevel) {
-        return new EntityFragmentOfUniverse((EntityType<? extends TamableAnimal>) this.getType(), serverLevel);
-    }
-
     // ==================== 管理须知 ====================
 
     @Override
@@ -158,7 +133,6 @@ public class EntityFragmentOfUniverse extends AbstractAbnormality {
         if (!wasEscaped && hasEscape()) {
             // 播放变形动画
             transformed = false;
-            transformTimer = TRANSFORM_DURATION;
             setAnimation("transform");
         }
     }
@@ -186,40 +160,33 @@ public class EntityFragmentOfUniverse extends AbstractAbnormality {
         ServerLevel level = (ServerLevel) this.level();
         if (!hasEscape()) return;
 
-        // 变形动画(4秒)
+        // 变形动画(约2秒)
         if (!transformed) {
-            this.getNavigation().stop();
-            this.setDeltaMovement(0, getDeltaMovement().y, 0);
-            if (transformTimer > 0) {
-                transformTimer--;
-                return;
-            } else {
+            if (this.tickCount % 40 == 0) {
                 transformed = true;
                 setAnimation("idle");
+            } else {
+                return;
             }
         }
 
         if (attackCooldown > 0) attackCooldown--;
 
-        if (attackAnimationTimer > 0) {
-            this.getNavigation().stop();
-            this.setDeltaMovement(0, getDeltaMovement().y, 0);
-            if (pendingTarget != null && pendingTarget.isAlive()) {
-                this.getLookControl().setLookAt(pendingTarget);
-            }
-            tickTentacleHit(level);
-            attackAnimationTimer--;
-            if (attackAnimationTimer == 0) {
-                clearTentacleAttack();
+        // 触手攻击出伤帧
+        if (pendingHit > 0) {
+            pendingHit--;
+            if (pendingHit == 0 && pendingTarget != null && pendingTarget.isAlive()
+                    && this.distanceToSqr(pendingTarget) <= 16) {
+                level.playSound(null, blockPosition(), ModSounds.FRAGMENT_ATTACK.get(), SoundSource.HOSTILE, 1.2f, 1.0f);
+                pendingTarget.hurt(DamageHelper.getDamage(this, "black"), 2 + random.nextInt(3));
+                pendingTarget = null;
                 setAnimation("idle");
             }
-            return;
         }
 
         // 歌唱中
         if (singTimer > 0) {
             singTimer--;
-            this.getNavigation().stop();
             this.setDeltaMovement(0, getDeltaMovement().y, 0);
             this.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 5, 255, false, false));
             // 音符粒子从头顶触角向外扩散
@@ -250,12 +217,14 @@ public class EntityFragmentOfUniverse extends AbstractAbnormality {
             if (target != null && this.distanceToSqr(target) <= 9) {
                 float roll = random.nextFloat();
                 if (roll < 0.40f) {
-                    beginAttack(target, "attack1", ATTACK_1_DURATION, ATTACK_1_HIT_DELAY);
+                    setAnimation("attack1");
+                    beginAttack(target);
                 } else if (roll < 0.80f) {
-                    beginAttack(target, "attack2", ATTACK_2_DURATION, ATTACK_2_HIT_DELAY);
+                    setAnimation("attack2");
+                    beginAttack(target);
                 } else {
                     // 特殊攻击:歌唱5秒
-                    singTimer = SING_DURATION;
+                    singTimer = 5 * 20;
                     setAnimation("sing");
                     level.playSound(null, blockPosition(), ModSounds.FRAGMENT_SING.get(), SoundSource.HOSTILE, 1.4f, 1.0f);
                     attackCooldown = 8 * 20;
@@ -266,36 +235,11 @@ public class EntityFragmentOfUniverse extends AbstractAbnormality {
         }
     }
 
-    private void beginAttack(LivingEntity target, String animation, int animationTicks, int hitDelay) {
-        setAnimation(animation);
-        attackAnimation = animation;
-        attackAnimationTimer = animationTicks;
+    private void beginAttack(LivingEntity target) {
         pendingTarget = target;
-        pendingHit = hitDelay;
+        pendingHit = 8;
         attackCooldown = 40;
-        this.getNavigation().stop();
-        this.setDeltaMovement(0, getDeltaMovement().y, 0);
         this.getLookControl().setLookAt(target);
-    }
-
-    private void tickTentacleHit(ServerLevel level) {
-        if (pendingHit <= 0) return;
-        pendingHit--;
-        if (pendingHit != 0) return;
-
-        LivingEntity target = pendingTarget;
-        pendingTarget = null;
-        if (target != null && target.isAlive() && this.distanceToSqr(target) <= 16) {
-            level.playSound(null, blockPosition(), ModSounds.FRAGMENT_ATTACK.get(), SoundSource.HOSTILE, 1.2f, 1.0f);
-            target.hurt(DamageHelper.getDamage(this, "black"), 2 + random.nextInt(3));
-        }
-    }
-
-    private void clearTentacleAttack() {
-        pendingHit = 0;
-        pendingTarget = null;
-        attackAnimationTimer = 0;
-        attackAnimation = "idle";
     }
 
     private boolean isValidTarget(LivingEntity e) {
@@ -330,6 +274,8 @@ public class EntityFragmentOfUniverse extends AbstractAbnormality {
 
     // ==================== 动画 ====================
 
+    private static final String P = "animation.fragmentoftheuniverse.";
+
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar registrar) {
         registrar.add(new AnimationController<>(this, "controller", 3, this::predicate));
@@ -338,18 +284,23 @@ public class EntityFragmentOfUniverse extends AbstractAbnormality {
     private PlayState predicate(AnimationState<EntityFragmentOfUniverse> event) {
         String anim = getAnimation();
         switch (anim) {
-            case "transform" -> { return event.setAndContinue(TRANSFORM_ANIMATION); }
-            case "attack1" -> { return event.setAndContinue(ATTACK_1_ANIMATION); }
-            case "attack2" -> { return event.setAndContinue(ATTACK_2_ANIMATION); }
-            case "sing" -> { return event.setAndContinue(SING_ANIMATION); }
+            case "transform" -> { return event.setAndContinue(RawAnimation.begin().thenPlay(P + "transform")); }
+            case "attack1" -> { return event.setAndContinue(RawAnimation.begin().thenPlay(P + "attack1")); }
+            case "attack2" -> { return event.setAndContinue(RawAnimation.begin().thenPlay(P + "attack2")); }
+            case "sing" -> { return event.setAndContinue(RawAnimation.begin().thenLoop(P + "sing")); }
         }
         if (!hasEscape()) {
-            return event.setAndContinue(CLOSEUP_ANIMATION);
+            return event.setAndContinue(RawAnimation.begin().thenLoop(P + "closeup"));
         }
         if (event.isMoving()) {
-            return event.setAndContinue(MOVE_ANIMATION);
+            return event.setAndContinue(RawAnimation.begin().thenLoop(P + "move"));
         }
-        return event.setAndContinue(IDLE_ANIMATION);
+        return event.setAndContinue(RawAnimation.begin().thenLoop(P + "idle"));
+    }
+
+    @Override
+    protected AbstractAbnormality createNewInstance(ServerLevel serverLevel) {
+        return new EntityFragmentOfUniverse((EntityType<? extends TamableAnimal>) this.getType(), serverLevel);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -364,49 +315,12 @@ public class EntityFragmentOfUniverse extends AbstractAbnormality {
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
-        tag.putInt("AttackCooldown", attackCooldown);
-        tag.putInt("PendingHit", pendingHit);
-        tag.putInt("AttackAnimationTimer", attackAnimationTimer);
-        tag.putString("AttackAnimation", attackAnimation);
-        tag.putInt("SingTimer", singTimer);
-        tag.putInt("TransformTimer", transformTimer);
         tag.putBoolean("Transformed", transformed);
     }
 
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
-        attackCooldown = tag.getInt("AttackCooldown");
-        pendingHit = tag.getInt("PendingHit");
-        attackAnimationTimer = tag.getInt("AttackAnimationTimer");
-        attackAnimation = readAttackAnimation(tag.getString("AttackAnimation"));
-        singTimer = tag.getInt("SingTimer");
-        transformTimer = tag.getInt("TransformTimer");
         transformed = tag.getBoolean("Transformed");
-        if (hasEscape()) {
-            if (!transformed) {
-                setAnimation("transform");
-            } else if (singTimer > 0) {
-                setAnimation("sing");
-            } else if (attackAnimationTimer > 0) {
-                setAnimation(attackAnimation);
-            } else {
-                setAnimation("idle");
-            }
-        }
-    }
-
-    private String readAttackAnimation(String animation) {
-        return "attack1".equals(animation) || "attack2".equals(animation) ? animation : "idle";
-    }
-
-    @Override
-    public void stopEscape() {
-        super.stopEscape();
-        clearTentacleAttack();
-        singTimer = 0;
-        transformTimer = 0;
-        transformed = false;
-        setAnimation("idle");
     }
 }
