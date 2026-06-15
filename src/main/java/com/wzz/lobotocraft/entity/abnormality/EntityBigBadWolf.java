@@ -131,7 +131,10 @@ public class EntityBigBadWolf extends AbstractAbnormality {
     }
 
     private String textureForCurrentState() {
-        return hasEscape() ? "bigbadwolf_big" : "bigbadwolf";
+        if (hasEscape()) {
+            return "bigbadwolf_big";
+        }
+        return hasSwallowedPlayers() ? "bigbadwolf_swallowed" : "bigbadwolf";
     }
 
     public boolean hasSwallowedPlayers() {
@@ -269,6 +272,36 @@ public class EntityBigBadWolf extends AbstractAbnormality {
                 fogTargetReactor = findNearestReactor(level, blockPosition(), null);
             }
         }
+    }
+
+    @Override
+    public void stopEscape() {
+        boolean wasEscaped = hasEscape();
+        super.stopEscape();
+        if (!wasEscaped || hasEscape()) {
+            return;
+        }
+
+        resetEscapeState();
+        setTexture(textureForCurrentState());
+        setAnimation(hasSwallowedPlayers() ? "idle2" : "idle");
+    }
+
+    private void resetEscapeState() {
+        attackCooldown = 0;
+        pendingHit = 0;
+        pendingType = -1;
+        pendingTarget = null;
+        howlTimer = 0;
+        howlPhase = 0;
+        inFog = false;
+        fogTimer = 0;
+        fogTargetReactor = null;
+        killedByRedHood = false;
+        lastFogHealth = getHealth();
+        this.removeEffect(MobEffects.INVISIBILITY);
+        this.removeEffect(MobEffects.GLOWING);
+        this.getNavigation().stop();
     }
 
     private BlockPos findNearestReactor(ServerLevel level, BlockPos origin, BlockPos exclude) {
