@@ -20,6 +20,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
@@ -48,6 +49,9 @@ public class EntityHelper extends AbstractAbnormality {
     private static final int STATE_SPIN = 1;   // 旋转蓄力
     private static final int STATE_DASH = 2;   // 冲刺
     private static final int STATE_STUNNED = 3;// 宕机
+
+    private static final double DASH_SPEED = 0.75D;
+    private static final double DASH_COLLISION_STEP = 0.15D;
 
     private static final String ANIM_IDLE = "shake head";
     private static final String ANIM_ESCAPE = "get strange";
@@ -239,10 +243,22 @@ public class EntityHelper extends AbstractAbnormality {
                     return;
                 }
                 // 极快冲刺(速度5奔跑玩家,约0.75格/tick)
-                this.setDeltaMovement(dashDirection.x * 0.75, getDeltaMovement().y, dashDirection.z * 0.75);
+                Vec3 dashMovement = new Vec3(
+                        dashDirection.x * DASH_SPEED,
+                        getDeltaMovement().y,
+                        dashDirection.z * DASH_SPEED
+                );
+                if (willDashHitBlock(level, dashMovement)) {
+                    endDashOnCollision(level);
+                    return;
+                }
+                this.setDeltaMovement(dashMovement);
                 // 路径伤害:对触碰到的所有单位造成20-30物理伤,每次冲刺每个目标只结算一次
+                AABB attackBox = getBoundingBox()
+                        .expandTowards(dashMovement.x, 0, dashMovement.z)
+                        .inflate(1.2);
                 for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class,
-                        getBoundingBox().inflate(1.2), this::isValidTarget)) {
+                        attackBox, this::isValidTarget)) {
                     if (dashHitIds.add(e.getId())) {
                         e.hurt(DamageHelper.getDamage(this, "red"), 20 + random.nextInt(11));
                         level.playSound(null, e.blockPosition(), ModSounds.HELPER_HIT.get(),
@@ -287,16 +303,57 @@ public class EntityHelper extends AbstractAbnormality {
         setAnimation(ANIM_IDLE);
     }
 
+    private void endDashOnCollision(ServerLevel level) {
+        this.setDeltaMovement(0, getDeltaMovement().y, 0);
+        if (isWallAhead(level)) {
+            state = STATE_STUNNED;
+            stateTimer = 4 * 20; // 宕机约4秒
+            dashDirection = null;
+            setAnimation(ANIM_STUNNED);
+            return;
+        }
+        endDashToIdle();
+    }
+
+    /** 提前检查本 tick 的高速冲刺路径,避免速度过快时偶发穿过方块。 */
+    private boolean willDashHitBlock(ServerLevel level, Vec3 movement) {
+        Vec3 horizontal = new Vec3(movement.x, 0, movement.z);
+        double distance = Math.sqrt(horizontal.lengthSqr());
+        if (distance <= 0.0D) return false;
+
+        int steps = Math.max(1, (int) Math.ceil(distance / DASH_COLLISION_STEP));
+        AABB box = getBoundingBox();
+        for (int i = 1; i <= steps; i++) {
+            Vec3 offset = horizontal.scale((double) i / steps);
+            if (!level.noCollision(this, box.move(offset.x, 0, offset.z))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** 冲刺方向前方是否为3格高的方块墙 */
     private boolean isWallAhead(ServerLevel level) {
         Vec3 dir = dashDirection != null ? dashDirection
                 : Vec3.directionFromRotation(0, getYRot()).normalize();
-        BlockPos front = BlockPos.containing(position().add(dir.scale(1.0)));
-        int solid = 0;
-        for (int dy = 0; dy < 3; dy++) {
-            if (!level.getBlockState(front.above(dy)).isAir()) solid++;
+        Vec3 front = position().add(dir.scale(0.9D));
+        double halfWidth = getBbWidth() * 0.5D + 0.15D;
+        BlockPos min = BlockPos.containing(front.x - halfWidth, getY(), front.z - halfWidth);
+        BlockPos max = BlockPos.containing(front.x + halfWidth, getY() + 2.0D, front.z + halfWidth);
+
+        for (int x = min.getX(); x <= max.getX(); x++) {
+            for (int z = min.getZ(); z <= max.getZ(); z++) {
+                int solid = 0;
+                for (int y = min.getY(); y <= max.getY(); y++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    if (!level.getBlockState(pos).getCollisionShape(level, pos).isEmpty()) {
+                        solid++;
+                    }
+                }
+                if (solid >= 3) return true;
+            }
         }
-        return solid >= 3;
+        return false;
     }
 
     private boolean isValidTarget(LivingEntity e) {
