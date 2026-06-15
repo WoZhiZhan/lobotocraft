@@ -119,8 +119,8 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
                         .putInt("lobotocraft_worked_redhat_day", data.getCurrentDay()));
         // 须知Ⅱ:拥有狼的饰品"羊皮"的员工完成工作 → 计数器在倒计时结束后减少
         boolean hasSheepskin = false;
-        for (net.minecraft.world.item.ItemStack st : player.getInventory().items) {
-            if (st.getItem() == com.wzz.lobotocraft.init.ModItems.SHEEPSKIN_CURIO.get()) { hasSheepskin = true; break; }
+        for (ItemStack st : player.getInventory().items) {
+            if (st.getItem() == ModItems.SHEEPSKIN_CURIO.get()) { hasSheepskin = true; break; }
         }
         if (hasSheepskin) {
             decreaseQliphothCounter(1);
@@ -246,7 +246,7 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
                     getX() + Math.cos(ang) * 0.9, getY() + 1.0, getZ() + Math.sin(ang) * 0.9,
                     1, 0, 0, 0, 0);
             if (rageMode) {
-                level.sendParticles(net.minecraft.core.particles.ParticleTypes.WAX_OFF,
+                level.sendParticles(ParticleTypes.WAX_OFF,
                         getX() + Math.cos(ang + Math.PI) * 0.9, getY() + 1.2, getZ() + Math.sin(ang + Math.PI) * 0.9,
                         1, 0, 0, 0, 0);
             }
@@ -496,6 +496,11 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
         }
         return event.setAndContinue(RawAnimation.begin().thenLoop(
                 this.random.nextBoolean() ? "idle1" : "idle1"));
+    }
+
+    @Override
+    protected AbstractAbnormality createNewInstance(ServerLevel serverLevel) {
+        return new EntityRedHoodMercenary((EntityType<? extends TamableAnimal>) this.getType(), serverLevel);
     }
 
     public static AttributeSupplier.Builder createAttributes() {

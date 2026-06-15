@@ -362,6 +362,11 @@ public class EntityHelper extends AbstractAbnormality {
         return event.setAndContinue(IDLE_ANIMATION);
     }
 
+    @Override
+    protected AbstractAbnormality createNewInstance(ServerLevel serverLevel) {
+        return new EntityHelper((EntityType<? extends TamableAnimal>) this.getType(), serverLevel);
+    }
+
     public static AttributeSupplier.Builder createAttributes() {
         return Mob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, 300.0D)
