@@ -163,4 +163,7 @@ tasks.named('jar', Jar).configure {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+    // Release jars are assembled from build/classes; if Gradle's incremental
+    // state drifts from disk, Mixin can crash on classes missing from the jar.
+    outputs.upToDateWhen { false }
 }
