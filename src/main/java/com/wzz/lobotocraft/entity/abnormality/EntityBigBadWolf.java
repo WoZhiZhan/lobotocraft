@@ -124,9 +124,13 @@ public class EntityBigBadWolf extends AbstractAbnormality {
     @Override
     public RiskLevel getRiskLevel() { return riskLevel; }
 
-    /** 双形态模型:出逃前 bigbadwolf,出逃后 bigbadwolf_big(geo/动画资源随之切换) */
+    /** 构造期默认资源名。出逃后的资源切换通过 textureForCurrentState()/渲染器处理。 */
     @Override
     public String name() {
+        return "bigbadwolf";
+    }
+
+    private String textureForCurrentState() {
         return hasEscape() ? "bigbadwolf_big" : "bigbadwolf";
     }
 
@@ -224,7 +228,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
             }
         }
         swallowedPlayers.clear();
-        setTexture(name());
+        setTexture(textureForCurrentState());
         setAnimation("idle");
     }
 
@@ -622,6 +626,9 @@ public class EntityBigBadWolf extends AbstractAbnormality {
             for (int i = 0; i < count; i++) {
                 if (list.hasUUID("p" + i)) swallowedPlayers.add(list.getUUID("p" + i));
             }
+        }
+        if (!hasSwallowedPlayers()) {
+            setTexture(textureForCurrentState());
         }
     }
 }
