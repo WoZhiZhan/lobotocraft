@@ -49,8 +49,19 @@ public class EntityHelper extends AbstractAbnormality {
     private static final int STATE_DASH = 2;   // 冲刺
     private static final int STATE_STUNNED = 3;// 宕机
 
+    private static final String ANIM_IDLE = "shake head";
+    private static final String ANIM_ESCAPE = "get strange";
+    private static final String ANIM_SPIN = "big wind car";
+    private static final String ANIM_STUNNED = "I sleep";
+
+    private static final RawAnimation IDLE_ANIMATION = RawAnimation.begin().thenLoop(ANIM_IDLE);
+    private static final RawAnimation ESCAPE_ANIMATION = RawAnimation.begin().thenPlayAndHold(ANIM_ESCAPE);
+    private static final RawAnimation SPIN_ANIMATION = RawAnimation.begin().thenLoop(ANIM_SPIN);
+    private static final RawAnimation STUNNED_ANIMATION = RawAnimation.begin().thenPlayAndHold(ANIM_STUNNED);
+
     private int state = STATE_IDLE;
     private int stateTimer = 0;
+    private String lastClientAnimation = "";
     private Vec3 dashDirection = null;
     private final Set<Integer> dashHitIds = new HashSet<>(); // 本次冲刺已命中的实体
 
@@ -139,7 +150,7 @@ public class EntityHelper extends AbstractAbnormality {
         super.triggerEscape();
         if (!was && hasEscape()) {
             setTexture("helper_escaped");
-            setAnimation("get strange"); // 出逃动画
+            setAnimation(ANIM_ESCAPE); // 出逃动画
             state = STATE_IDLE;
             stateTimer = 25; // 出逃动画播放时间
         }
@@ -186,12 +197,15 @@ public class EntityHelper extends AbstractAbnormality {
         switch (state) {
             case STATE_IDLE -> {
                 if (stateTimer > 0) return; // 出逃动画/缓冲期
+                if (ANIM_ESCAPE.equals(getAnimation())) {
+                    setAnimation(ANIM_IDLE);
+                }
                 LivingEntity target = findTarget(level);
                 if (target != null) {
                     // 机制2:遇到单位,原地旋转蓄力3秒
                     state = STATE_SPIN;
                     stateTimer = 3 * 20;
-                    setAnimation("big wind car");
+                    setAnimation(ANIM_SPIN);
                     level.playSound(null, blockPosition(), ModSounds.HELPER_SPIN.get(),
                             SoundSource.HOSTILE, 1.4f, 1.0f);
                     this.getLookControl().setLookAt(target);
@@ -210,7 +224,7 @@ public class EntityHelper extends AbstractAbnormality {
                 if (stateTimer <= 0) {
                     if (dashDirection == null) {
                         state = STATE_IDLE;
-                        setAnimation("shake head");
+                        setAnimation(ANIM_IDLE);
                         return;
                     }
                     // 蓄力完成:开始冲刺
@@ -241,7 +255,7 @@ public class EntityHelper extends AbstractAbnormality {
                         state = STATE_STUNNED;
                         stateTimer = 4 * 20; // 宕机约4秒
                         dashDirection = null;
-                        setAnimation("I sleep");
+                        setAnimation(ANIM_STUNNED);
                         this.setDeltaMovement(0, getDeltaMovement().y, 0);
                         return;
                     } else {
@@ -270,7 +284,7 @@ public class EntityHelper extends AbstractAbnormality {
         state = STATE_IDLE;
         stateTimer = 10;
         dashDirection = null;
-        setAnimation("shake head");
+        setAnimation(ANIM_IDLE);
     }
 
     /** 冲刺方向前方是否为3格高的方块墙 */
@@ -335,13 +349,17 @@ public class EntityHelper extends AbstractAbnormality {
 
     private PlayState predicate(AnimationState<EntityHelper> event) {
         String anim = getAnimation();
+        if (!anim.equals(lastClientAnimation)) {
+            event.getController().forceAnimationReset();
+            lastClientAnimation = anim;
+        }
         switch (anim) {
-            case "get strange" -> { return event.setAndContinue(RawAnimation.begin().thenPlay("get strange")); }
-            case "big wind car" -> { return event.setAndContinue(RawAnimation.begin().thenLoop("big wind car")); }
-            case "I sleep" -> { return event.setAndContinue(RawAnimation.begin().thenPlay("I sleep")); }
+            case ANIM_ESCAPE -> { return event.setAndContinue(ESCAPE_ANIMATION); }
+            case ANIM_SPIN -> { return event.setAndContinue(SPIN_ANIMATION); }
+            case ANIM_STUNNED -> { return event.setAndContinue(STUNNED_ANIMATION); }
         }
         // 待机(出逃前后均为 shake head)
-        return event.setAndContinue(RawAnimation.begin().thenLoop("shake head"));
+        return event.setAndContinue(IDLE_ANIMATION);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
