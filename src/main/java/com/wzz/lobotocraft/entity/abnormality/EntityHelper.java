@@ -48,24 +48,22 @@ public class EntityHelper extends AbstractAbnormality {
     private static final int STATE_IDLE = 0;
     private static final int STATE_SPIN = 1;   // 旋转蓄力
     private static final int STATE_DASH = 2;   // 冲刺
-    private static final int STATE_STUNNED = 3;// 宕机
-    private static final int STATE_RECOVER = 4;// 冲刺后缓冲
+    private static final int STATE_STUNNED = 3;// 宕机/冲刺后缓冲
+    private static final int STATE_RECOVER = 4;// 旧存档兼容:曾用于1.5秒短缓冲
 
     private static final double DASH_SPEED = 0.75D;
     private static final double DASH_COLLISION_STEP = 0.15D;
-    private static final int DASH_RECOVER_TICKS = 30;
+    private static final int SLEEP_ANIMATION_TICKS = 184; // I sleep animation_length = 9.1667s
 
     private static final String ANIM_IDLE = "shake head";
     private static final String ANIM_ESCAPE = "get strange";
     private static final String ANIM_SPIN = "big wind car";
     private static final String ANIM_STUNNED = "I sleep";
-    private static final String ANIM_RECOVER = "defeat";
 
     private static final RawAnimation IDLE_ANIMATION = RawAnimation.begin().thenLoop(ANIM_IDLE);
     private static final RawAnimation ESCAPE_ANIMATION = RawAnimation.begin().thenPlayAndHold(ANIM_ESCAPE);
     private static final RawAnimation SPIN_ANIMATION = RawAnimation.begin().thenLoop(ANIM_SPIN);
     private static final RawAnimation STUNNED_ANIMATION = RawAnimation.begin().thenPlayAndHold(ANIM_STUNNED);
-    private static final RawAnimation RECOVER_ANIMATION = RawAnimation.begin().thenPlayAndHold(ANIM_RECOVER);
 
     private int state = STATE_IDLE;
     private int stateTimer = 0;
@@ -272,31 +270,21 @@ public class EntityHelper extends AbstractAbnormality {
                 // 机制3:撞到3格高的方块墙 → 宕机
                 if (this.horizontalCollision) {
                     if (isWallAhead(level)) {
-                        state = STATE_STUNNED;
-                        stateTimer = 4 * 20; // 宕机约4秒
-                        dashDirection = null;
-                        setAnimation(ANIM_STUNNED);
-                        this.setDeltaMovement(0, getDeltaMovement().y, 0);
+                        startSleepRecovery();
                         return;
                     } else {
                         // 撞到低矮障碍:结束本次冲刺
-                        startDashRecovery();
+                        startSleepRecovery();
                         return;
                     }
                 }
                 if (stateTimer <= 0) {
-                    startDashRecovery();
-                }
-            }
-            case STATE_RECOVER -> {
-                this.setDeltaMovement(0, getDeltaMovement().y, 0);
-                this.getNavigation().stop();
-                if (stateTimer <= 0) {
-                    enterIdle(0);
+                    startSleepRecovery();
                 }
             }
             case STATE_STUNNED -> {
                 this.setDeltaMovement(0, getDeltaMovement().y, 0);
+                this.getNavigation().stop();
                 if (stateTimer <= 0) {
                     // 起身:播放启动成功音频,回到待机重复机制2
                     level.playSound(null, blockPosition(), ModSounds.HELPER_BOOT.get(),
@@ -318,12 +306,12 @@ public class EntityHelper extends AbstractAbnormality {
         setAnimation(ANIM_IDLE);
     }
 
-    private void startDashRecovery() {
-        state = STATE_RECOVER;
-        stateTimer = DASH_RECOVER_TICKS;
+    private void startSleepRecovery() {
+        state = STATE_STUNNED;
+        stateTimer = SLEEP_ANIMATION_TICKS;
         dashDirection = null;
         dashHitIds.clear();
-        setAnimation(ANIM_RECOVER);
+        setAnimation(ANIM_STUNNED);
         this.setDeltaMovement(0, getDeltaMovement().y, 0);
         this.getNavigation().stop();
     }
@@ -331,13 +319,10 @@ public class EntityHelper extends AbstractAbnormality {
     private void endDashOnCollision(ServerLevel level) {
         this.setDeltaMovement(0, getDeltaMovement().y, 0);
         if (isWallAhead(level)) {
-            state = STATE_STUNNED;
-            stateTimer = 4 * 20; // 宕机约4秒
-            dashDirection = null;
-            setAnimation(ANIM_STUNNED);
+            startSleepRecovery();
             return;
         }
-        startDashRecovery();
+        startSleepRecovery();
     }
 
     /** 提前检查本 tick 的高速冲刺路径,避免速度过快时偶发穿过方块。 */
@@ -439,7 +424,6 @@ public class EntityHelper extends AbstractAbnormality {
             case ANIM_ESCAPE -> { return event.setAndContinue(ESCAPE_ANIMATION); }
             case ANIM_SPIN -> { return event.setAndContinue(SPIN_ANIMATION); }
             case ANIM_STUNNED -> { return event.setAndContinue(STUNNED_ANIMATION); }
-            case ANIM_RECOVER -> { return event.setAndContinue(RECOVER_ANIMATION); }
         }
         // 待机(出逃前后均为 shake head)
         return event.setAndContinue(IDLE_ANIMATION);
