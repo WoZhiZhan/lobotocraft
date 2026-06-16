@@ -47,6 +47,11 @@ import java.util.UUID;
  */
 public class EntityRedHoodMercenary extends AbstractAbnormality {
 
+    // Mob movement attributes are not 1:1 with player movement_speed values; these are gameplay-calibrated.
+    private static final double BASE_MOVEMENT_SPEED = 0.28D; // sprinting player with Speed II
+    private static final double WOLF_MODE_MOVEMENT_SPEED = BASE_MOVEMENT_SPEED * 1.5D;
+    private static final double GUN_RUN_MOVEMENT_MULTIPLIER = 0.25D;
+
     private int attackCooldown = 0;
     private int actionTimer = 0;        // 当前攻击动作剩余时间
     private int actionType = -1;        // 0劈砍 1火铳 2双劈 3掷刀 4走射
@@ -174,14 +179,24 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
         return rageMode ? 2.0f : (wolfMode ? 1.5f : 1.0f);
     }
 
+    private void syncMovementSpeed() {
+        var speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed == null) {
+            return;
+        }
+        double expectedSpeed = (wolfMode || rageMode) ? WOLF_MODE_MOVEMENT_SPEED : BASE_MOVEMENT_SPEED;
+        if (Math.abs(speed.getBaseValue() - expectedSpeed) > 1.0E-4D) {
+            speed.setBaseValue(expectedSpeed);
+        }
+    }
+
     /** 目标机制2:遇见狼或受狼嚎伤害 → 强制委托目标为狼,伤害移速提升至150% */
     public void forceWolfTarget(EntityBigBadWolf wolf) {
         if (rageMode) return;
         this.commissionTargetId = wolf.getUUID();
         this.commissionMode = true;
         this.wolfMode = true;
-        var speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
-        if (speed != null) speed.setBaseValue(0.28D * 1.5);
+        syncMovementSpeed();
         if (!hasEscape()) triggerEscape();
     }
 
@@ -198,8 +213,7 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
         if (byPlayerWhileMarked) {
             this.setHealth(this.getMaxHealth()); // 生命恢复至最大值一次
         }
-        var speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
-        if (speed != null) speed.setBaseValue(0.28D * 1.5);
+        syncMovementSpeed();
         if (!hasEscape()) triggerEscape();
     }
 
@@ -238,6 +252,7 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
         if (this.level().isClientSide) return;
         ServerLevel level = (ServerLevel) this.level();
         if (!hasEscape()) return;
+        syncMovementSpeed();
 
         // 委托目标为狼:红色渲染环绕;狂暴:红色+金色环绕
         if ((wolfMode || rageMode) && this.tickCount % 4 == 0) {
@@ -368,7 +383,8 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
             case 4 -> { // 走射:缓慢移动+周期射击
                 LivingEntity t = commissionMode ? getCommissionTarget(level) : findTarget(level);
                 if (t != null) {
-                    Vec3 dir = t.position().subtract(position()).normalize().scale(0.05); // 25%速度
+                    Vec3 dir = t.position().subtract(position()).normalize()
+                            .scale(this.getAttributeValue(Attributes.MOVEMENT_SPEED) * GUN_RUN_MOVEMENT_MULTIPLIER);
                     this.setDeltaMovement(dir.x, getDeltaMovement().y, dir.z);
                     this.getLookControl().setLookAt(t);
                 }
@@ -506,7 +522,7 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
     public static AttributeSupplier.Builder createAttributes() {
         return Mob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, 1000.0D)
-                .add(Attributes.MOVEMENT_SPEED, 0.28D)   // 奔跑2玩家
+                .add(Attributes.MOVEMENT_SPEED, BASE_MOVEMENT_SPEED)
                 .add(Attributes.ATTACK_DAMAGE, 0.0D)
                 .add(Attributes.FOLLOW_RANGE, 48.0D)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D);
@@ -528,5 +544,6 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
         wolfMode = tag.getBoolean("WolfMode");
         rageMode = tag.getBoolean("RageMode");
         if (tag.hasUUID("CommissionTarget")) commissionTargetId = tag.getUUID("CommissionTarget");
+        syncMovementSpeed();
     }
 }

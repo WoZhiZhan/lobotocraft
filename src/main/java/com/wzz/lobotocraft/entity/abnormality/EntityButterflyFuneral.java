@@ -51,8 +51,9 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     private static final double SKILL_RANGE = 50.0D;
     private static final double SKILL_CONE_DEGREES = 42.0D;
     private static final double SKILL_CONE_HALF_DOT = Math.cos(Math.toRadians(SKILL_CONE_DEGREES / 2.0D));
-    private static final int NORMAL_ATTACK_HIT_TICKS = 10;
     private static final int NORMAL_ATTACK_ANIMATION_TICKS = 49;
+    private static final int NORMAL_ATTACK_HIT_TICKS_ATTACK = 34;
+    private static final int NORMAL_ATTACK_HIT_TICKS_ATTACK2 = 24;
     private static final int SKILL_WINDUP_TICKS = 20;
     private static final int SKILL_DURATION_TICKS = 15 * 20;
     private static final int SKILL_RECOVERY_TICKS = 9;
@@ -311,9 +312,12 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     // ==================== 普通攻击 ====================
 
     private void beginNormalAttack(LivingEntity target) {
-        setAnimation(this.random.nextBoolean() ? "attack1" : "attack2");
+        String attackAnimation = this.random.nextBoolean() ? "attack" : "attack2";
+        setAnimation(attackAnimation);
         pendingTarget = target;
-        pendingAttackHit = NORMAL_ATTACK_HIT_TICKS; // 射击手势出伤帧
+        pendingAttackHit = "attack".equals(attackAnimation)
+                ? NORMAL_ATTACK_HIT_TICKS_ATTACK
+                : NORMAL_ATTACK_HIT_TICKS_ATTACK2;
         normalAttackAnimationTimer = NORMAL_ATTACK_ANIMATION_TICKS;
         attackCooldown = 7 * 20; // 冷却7秒
         this.getLookControl().setLookAt(target);
@@ -358,8 +362,8 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
         if (this.level() instanceof ServerLevel sl) {
             sl.playSound(null, player.blockPosition(), ModSounds.BUTTERFLY_DEATH.get(), SoundSource.HOSTILE, 1.5f, 1.0f);
         }
-        // 立刻解除恐慌:回复 20% 精神值
-        MentalValueUtil.addMentalValue(player, MentalValueUtil.getEffectiveMaxMentalValue(player) * 0.2f);
+        // 立刻解除恐慌并回满精神值
+        MentalValueUtil.setMentalValue(player, MentalValueUtil.getEffectiveMaxMentalValue(player));
         // 蝴蝶缠身 6 秒(到期死亡由 ButterflyFuneralEvent 处理)
         player.addEffect(new MobEffectInstance(
                 com.wzz.lobotocraft.init.ModEffects.BUTTERFLY_SHROUD.get(), 6 * 20, 0, false, false, true));
@@ -504,7 +508,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     private PlayState predicate(AnimationState<EntityButterflyFuneral> event) {
         String anim = getAnimation();
         switch (anim) {
-            case "attack", "attack1" -> { return event.setAndContinue(RawAnimation.begin().thenPlay("attack1")); }
+            case "attack", "attack1" -> { return event.setAndContinue(RawAnimation.begin().thenPlay("attack")); }
             case "attack2" -> { return event.setAndContinue(RawAnimation.begin().thenPlay("attack2")); }
             case "skill" -> { return event.setAndContinue(RawAnimation.begin().thenPlay("skill")); }
             case "skillAB" -> { return event.setAndContinue(RawAnimation.begin().thenLoop("skillAB")); }

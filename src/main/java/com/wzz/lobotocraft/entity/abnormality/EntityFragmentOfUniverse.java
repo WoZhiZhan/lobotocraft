@@ -41,8 +41,12 @@ import java.util.List;
  */
 public class EntityFragmentOfUniverse extends AbstractAbnormality {
 
+    private static final int ATTACK_HIT_TICKS = 16;
+    private static final int ATTACK_ANIMATION_TICKS = 40;
+
     private int attackCooldown = 0;
     private int pendingHit = 0;
+    private int attackAnimationTimer = 0;
     private LivingEntity pendingTarget = null;
     private int singTimer = 0;      // >0 表示歌唱中
     private boolean transformed = false; // 出逃变形动画是否播完
@@ -175,13 +179,23 @@ public class EntityFragmentOfUniverse extends AbstractAbnormality {
         // 触手攻击出伤帧
         if (pendingHit > 0) {
             pendingHit--;
-            if (pendingHit == 0 && pendingTarget != null && pendingTarget.isAlive()
-                    && this.distanceToSqr(pendingTarget) <= 16) {
-                level.playSound(null, blockPosition(), ModSounds.FRAGMENT_ATTACK.get(), SoundSource.HOSTILE, 1.2f, 1.0f);
-                pendingTarget.hurt(DamageHelper.getDamage(this, "black"), 2 + random.nextInt(3));
+            if (pendingHit == 0) {
+                if (pendingTarget != null && pendingTarget.isAlive()
+                        && this.distanceToSqr(pendingTarget) <= 16) {
+                    level.playSound(null, blockPosition(), ModSounds.FRAGMENT_ATTACK.get(), SoundSource.HOSTILE, 1.2f, 1.0f);
+                    pendingTarget.hurt(DamageHelper.getDamage(this, "black"), 2 + random.nextInt(3));
+                }
                 pendingTarget = null;
+            }
+        }
+
+        if (attackAnimationTimer > 0) {
+            attackAnimationTimer--;
+            this.setDeltaMovement(0, getDeltaMovement().y, 0);
+            if (attackAnimationTimer == 0) {
                 setAnimation("idle");
             }
+            return;
         }
 
         // 歌唱中
@@ -200,11 +214,7 @@ public class EntityFragmentOfUniverse extends AbstractAbnormality {
             if (singTimer % 20 == 0) {
                 for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class,
                         getBoundingBox().inflate(10, 5, 10), this::isValidTarget)) {
-                    if (e instanceof ServerPlayer sp) {
-                        MentalValueUtil.reduceMentalValue(sp, 5f);
-                    } else {
-                        e.hurt(DamageHelper.getDamage(this, "white"), 5f);
-                    }
+                    e.hurt(DamageHelper.getDamage(this, "white"), 5f);
                 }
             }
             if (singTimer == 0) setAnimation("idle");
@@ -217,11 +227,9 @@ public class EntityFragmentOfUniverse extends AbstractAbnormality {
             if (target != null && this.distanceToSqr(target) <= 9) {
                 float roll = random.nextFloat();
                 if (roll < 0.40f) {
-                    setAnimation("attack1");
-                    beginAttack(target);
+                    beginAttack(target, "attack1");
                 } else if (roll < 0.80f) {
-                    setAnimation("attack2");
-                    beginAttack(target);
+                    beginAttack(target, "attack2");
                 } else {
                     // 特殊攻击:歌唱5秒
                     singTimer = 5 * 20;
@@ -235,9 +243,11 @@ public class EntityFragmentOfUniverse extends AbstractAbnormality {
         }
     }
 
-    private void beginAttack(LivingEntity target) {
+    private void beginAttack(LivingEntity target, String animation) {
+        setAnimation(animation);
         pendingTarget = target;
-        pendingHit = 8;
+        pendingHit = ATTACK_HIT_TICKS;
+        attackAnimationTimer = ATTACK_ANIMATION_TICKS;
         attackCooldown = 40;
         this.getLookControl().setLookAt(target);
     }

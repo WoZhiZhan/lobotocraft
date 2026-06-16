@@ -68,7 +68,7 @@ public class ModEntities {
     public static final RegistryObject<EntityType<EntityFragmentOfUniverse>> fragment_of_the_universe =
             ENTITIES.register("fragment_of_the_universe",
                     () -> EntityType.Builder.of(EntityFragmentOfUniverse::new, MobCategory.CREATURE)
-                            .sized(1.0F, 1.5F)
+                            .sized(3.0F, 5.0F)
                             .clientTrackingRange(10)
                             .updateInterval(3)
                             .build("fragment_of_the_universe"));
@@ -76,7 +76,7 @@ public class ModEntities {
     public static final RegistryObject<EntityType<EntityBigBadWolf>> bigbadwolf =
             ENTITIES.register("bigbadwolf",
                     () -> EntityType.Builder.of(EntityBigBadWolf::new, MobCategory.CREATURE)
-                            .sized(1.4F, 2.0F)
+                            .sized(2.6F, 4.1F)
                             .clientTrackingRange(10)
                             .updateInterval(3)
                             .build("bigbadwolf"));
@@ -84,7 +84,7 @@ public class ModEntities {
     public static final RegistryObject<EntityType<EntityButterflyFuneral>> butterfly_funeral =
             ENTITIES.register("butterfly_funeral",
                     () -> EntityType.Builder.of(EntityButterflyFuneral::new, MobCategory.CREATURE)
-                            .sized(0.588F, 3.0576F)
+                            .sized(1.4F, 2.7F)
                             .clientTrackingRange(10)
                             .updateInterval(3)
                             .build("butterfly_funeral"));

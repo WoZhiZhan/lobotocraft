@@ -2823,7 +2823,6 @@
 			}
 		},
 		"animation.fragmentoftheuniverse.attack1": {
-			"loop": true,
 			"animation_length": 2,
 			"bones": {
 				"Body": {
@@ -3603,7 +3602,6 @@
 			}
 		},
 		"animation.fragmentoftheuniverse.attack2": {
-			"loop": true,
 			"animation_length": 1.8333,
 			"bones": {
 				"Body": {

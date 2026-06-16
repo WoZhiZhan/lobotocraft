@@ -25,9 +25,11 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -60,6 +62,11 @@ import java.util.UUID;
  */
 public class EntityBigBadWolf extends AbstractAbnormality {
 
+    // Mob movement attributes are not 1:1 with player movement_speed values; this is gameplay-calibrated.
+    private static final double ESCAPED_MOVEMENT_SPEED = 0.30D; // sprinting player with Speed III
+    private static final EntityDimensions CONTAINED_SIZE = EntityDimensions.scalable(2.6F, 4.1F);
+    private static final EntityDimensions ESCAPED_SIZE = EntityDimensions.scalable(4.5F, 3.2F);
+
     private final List<UUID> swallowedPlayers = new ArrayList<>();
     private int attackCooldown = 0;
     private int pendingHit = 0;
@@ -75,6 +82,18 @@ public class EntityBigBadWolf extends AbstractAbnormality {
 
     public EntityBigBadWolf(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
+    }
+
+    @Override
+    public EntityDimensions getDimensions(Pose pose) {
+        return hasEscape() ? ESCAPED_SIZE : CONTAINED_SIZE;
+    }
+
+    private void syncMovementSpeed() {
+        var speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed != null && Math.abs(speed.getBaseValue() - ESCAPED_MOVEMENT_SPEED) > 1.0E-4D) {
+            speed.setBaseValue(ESCAPED_MOVEMENT_SPEED);
+        }
     }
 
     @Override
@@ -255,6 +274,8 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         if (!was && hasEscape()) {
             setTexture("bigbadwolf_big");
             setAnimation("idle");
+            syncMovementSpeed();
+            this.refreshDimensions();
             if (this.level() instanceof ServerLevel level) {
                 level.playSound(null, blockPosition(), ModSounds.WOLF_HOWL.get(), SoundSource.HOSTILE, 2.0f, 1.0f);
                 // 全屏CG:cg1 0.5秒 → cg2 持续1秒后渐隐
@@ -285,6 +306,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         resetEscapeState();
         setTexture(textureForCurrentState());
         setAnimation(hasSwallowedPlayers() ? "idle2" : "idle");
+        this.refreshDimensions();
     }
 
     private void resetEscapeState() {
@@ -391,6 +413,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         super.tick();
         if (this.level().isClientSide) return;
         ServerLevel level = (ServerLevel) this.level();
+        syncMovementSpeed();
         if (!hasEscape()) {
             // 收容期检测(每秒,以收容单元附近16格近似"收容单元前的走廊")
             if (this.tickCount % 20 == 0) {
@@ -482,7 +505,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
             }
             attackCooldown = 35;
         } else if (dist > 4.5) {
-            this.getNavigation().moveTo(target, 1.1);
+            this.getNavigation().moveTo(target, 1.0);
         }
     }
 
@@ -508,11 +531,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
             float healed = 0;
             for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class,
                     getBoundingBox().inflate(10, 5, 10), this::isValidTarget)) {
-                if (e instanceof ServerPlayer sp) {
-                    MentalValueUtil.reduceMentalValue(sp, 30f);
-                } else {
-                    e.hurt(DamageHelper.getDamage(this, "white"), 30f);
-                }
+                e.hurt(DamageHelper.getDamage(this, "white"), 30f);
                 healed += 30f;
                 // 小红帽目标机制2:受到狼嚎伤害的小红帽强制以狼为委托目标
                 if (e instanceof EntityRedHoodMercenary redhat) {
@@ -627,7 +646,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
     public static AttributeSupplier.Builder createAttributes() {
         return Mob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, 2000.0D)
-                .add(Attributes.MOVEMENT_SPEED, 0.32D)  // 奔跑4玩家
+                .add(Attributes.MOVEMENT_SPEED, ESCAPED_MOVEMENT_SPEED)
                 .add(Attributes.ATTACK_DAMAGE, 0.0D)
                 .add(Attributes.FOLLOW_RANGE, 48.0D)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D);
@@ -663,5 +682,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         if (!hasSwallowedPlayers()) {
             setTexture(textureForCurrentState());
         }
+        syncMovementSpeed();
+        this.refreshDimensions();
     }
 }

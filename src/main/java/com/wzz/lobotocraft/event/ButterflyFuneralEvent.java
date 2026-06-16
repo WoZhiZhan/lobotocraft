@@ -3,7 +3,6 @@ package com.wzz.lobotocraft.event;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.init.ModEffects;
 import com.wzz.lobotocraft.init.ModParticleTypes;
-import com.wzz.lobotocraft.util.DamageHelper;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -33,7 +32,11 @@ public class ButterflyFuneralEvent {
         // 处决:玩家死亡
         player.getPersistentData().putBoolean("butterfly_salvation", true);
         player.invulnerableTime = 0;
-        player.hurt(DamageHelper.getDamage(player, "white"), Float.MAX_VALUE);
+        player.hurt(player.damageSources().genericKill(), Float.MAX_VALUE);
+        if (player.isAlive()) {
+            player.setHealth(0.0F);
+            player.die(player.damageSources().genericKill());
+        }
         // 死亡提示:xxx被亡蝶葬仪"救赎"了
         if (player.level() instanceof ServerLevel level) {
             level.getServer().getPlayerList().broadcastSystemMessage(

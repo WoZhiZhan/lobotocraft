@@ -441,8 +441,7 @@ public class EntityIsharmla extends AbstractAbnormality {
     private void performMonsterAttack(ServerLevel level, LivingEntity target) {
         float roll = this.random.nextFloat();
         currentAttackHitTargets.clear();
-        
-        roll = 1;
+
         
         if (roll < 0.40f) {
             // 撕咬:单体40黑伤,命中窗口约动画第6~12tick
