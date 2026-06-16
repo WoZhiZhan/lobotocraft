@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.item.SkadiBanishData;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.nbt.CompoundTag;
@@ -245,7 +246,7 @@ public class EntityIsharmla extends AbstractAbnormality {
         if (attackAnimType >= 0) {
             tickAttackHitDetection(level);
         }
-
+        
         if (transitioning) {
             transitionTimer--;
             if (transitionTimer <= 0) {
@@ -254,7 +255,7 @@ public class EntityIsharmla extends AbstractAbnormality {
             }
             return;
         }
-
+        
         if (getForm() == Form.HUMAN) {
             tickHumanForm(level);
         } else {
@@ -379,7 +380,8 @@ public class EntityIsharmla extends AbstractAbnormality {
     }
 
     private void cleanupTears(ServerLevel level) {
-        setAnimTimed("heal_human", 3 * 20); // 项4①:3秒后(进入巨兽前)自动切回待机
+        //FIX 动画就 1.5s * 20 tick/s = 30tick
+    	setAnimTimed("heal_human", 30); // 项4①:3秒后(进入巨兽前)自动切回待机
         playSoundToAll(ModSounds.ISHARMLA_TEAR_SUMMON.get());
         int naturalKills = 0;
         for (java.util.UUID uuid : currentTears) {
@@ -405,10 +407,17 @@ public class EntityIsharmla extends AbstractAbnormality {
                 return;
             }
         }
+        
         if (attackCooldown > 0) {
             attackCooldown--;
             return;
         }
+        
+        //FIX 3 防止在攻击时重复攻击导致攻击无效化(光线攻击会出bug)
+        if (tickCount < attackHitWindowEnd) {
+        	return;
+        }
+        
         LivingEntity target = findNearestTarget(level, 24);
         if (target == null) return;
 
@@ -432,6 +441,9 @@ public class EntityIsharmla extends AbstractAbnormality {
     private void performMonsterAttack(ServerLevel level, LivingEntity target) {
         float roll = this.random.nextFloat();
         currentAttackHitTargets.clear();
+        
+        roll = 1;
+        
         if (roll < 0.40f) {
             // 撕咬:单体40黑伤,命中窗口约动画第6~12tick
             setAnimTimed("bite_monster", 20);
@@ -448,7 +460,10 @@ public class EntityIsharmla extends AbstractAbnormality {
             attackHitWindowEnd = this.tickCount + 16;
         } else {
             // 光束:范围攻击(项6特效),命中窗口贯穿整个动画
-            setAnimTimed("attack_monster", 60);
+        	
+        	//FIX 动画就 2.1s * 20 tick/s = 30tick
+            setAnimTimed("attack_monster", 42);
+            
             playSoundToAll(ModSounds.ISHARMLA_BEAM.get());
             attackAnimType = 2;
             attackHitWindowStart = this.tickCount + 1;
@@ -483,7 +498,7 @@ public class EntityIsharmla extends AbstractAbnormality {
 
     /** 造成伤害(黑色),并附带机制1的精神攻击 */
     private void dealDamageWithMental(LivingEntity target, float damage) {
-        target.hurt(com.wzz.lobotocraft.util.DamageHelper.getDamage(this, "black"), damage);
+//        target.hurt(com.wzz.lobotocraft.util.DamageHelper.getDamage(this, "black"), damage);
         if (target instanceof ServerPlayer player) {
             // 机制1:额外强行扣除3-6%精神值(无视精神抗性)
             float maxMental = MentalValueUtil.getEffectiveMaxMentalValue(player);
@@ -535,6 +550,25 @@ public class EntityIsharmla extends AbstractAbnormality {
     public void die(DamageSource source) {
         // 只有人形态血量耗尽才真正死亡
         super.die(source);
+        
+        if (level() instanceof ServerLevel sl) {
+            SkadiBanishData data = com.wzz.lobotocraft.item.SkadiBanishData.get(sl);
+            if (data.hasSkadiOrigin()) {
+            	AbstractAbnormality newEntity = new EntityDarkSkadi(ModEntities.skadi_corrupted.get(), sl);
+            	newEntity.moveTo(
+            			data.getOriginX(),
+            			data.getOriginY(),
+            			data.getOriginZ(),
+            			0, 0
+            			);
+
+            	// 重置状态
+            	newEntity.setEscape(false);
+            	newEntity.qliphothCounter = newEntity.maxQliphothCounter;
+
+            	sl.addFreshEntity(newEntity);
+            }
+        }
     }
 
     // ==================== 工作系统(不可工作) ====================
