@@ -48,8 +48,9 @@ import java.util.UUID;
 public class EntityRedHoodMercenary extends AbstractAbnormality {
 
     // Mob movement attributes are not 1:1 with player movement_speed values; these are gameplay-calibrated.
-    private static final double BASE_MOVEMENT_SPEED = 0.28D; // sprinting player with Speed II
+    private static final double BASE_MOVEMENT_SPEED = 0.45D; // effective sprinting player with Speed II
     private static final double WOLF_MODE_MOVEMENT_SPEED = BASE_MOVEMENT_SPEED * 1.5D;
+    private static final double CHASE_SPEED_MODIFIER = 1.2D;
     private static final double GUN_RUN_MOVEMENT_MULTIPLIER = 0.25D;
 
     private int attackCooldown = 0;
@@ -309,9 +310,9 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
                     return;
                 }
             }
-            this.getNavigation().moveTo(target, 1.0);
+            this.getNavigation().moveTo(target, CHASE_SPEED_MODIFIER);
         } else {
-            this.getNavigation().moveTo(target, 1.0);
+            this.getNavigation().moveTo(target, CHASE_SPEED_MODIFIER);
         }
     }
 
@@ -384,7 +385,9 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
                 LivingEntity t = commissionMode ? getCommissionTarget(level) : findTarget(level);
                 if (t != null) {
                     Vec3 dir = t.position().subtract(position()).normalize()
-                            .scale(this.getAttributeValue(Attributes.MOVEMENT_SPEED) * GUN_RUN_MOVEMENT_MULTIPLIER);
+                            .scale(this.getAttributeValue(Attributes.MOVEMENT_SPEED)
+                                    * CHASE_SPEED_MODIFIER
+                                    * GUN_RUN_MOVEMENT_MULTIPLIER);
                     this.setDeltaMovement(dir.x, getDeltaMovement().y, dir.z);
                     this.getLookControl().setLookAt(t);
                 }

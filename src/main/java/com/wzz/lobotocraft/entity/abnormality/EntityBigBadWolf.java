@@ -63,7 +63,8 @@ import java.util.UUID;
 public class EntityBigBadWolf extends AbstractAbnormality {
 
     // Mob movement attributes are not 1:1 with player movement_speed values; this is gameplay-calibrated.
-    private static final double ESCAPED_MOVEMENT_SPEED = 0.30D; // sprinting player with Speed III
+    private static final double ESCAPED_MOVEMENT_SPEED = 0.55D; // effective sprinting player with Speed III
+    private static final double CHASE_SPEED_MODIFIER = 1.2D;
     private static final EntityDimensions CONTAINED_SIZE = EntityDimensions.scalable(2.6F, 4.1F);
     private static final EntityDimensions ESCAPED_SIZE = EntityDimensions.scalable(4.5F, 3.2F);
 
@@ -505,7 +506,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
             }
             attackCooldown = 35;
         } else if (dist > 4.5) {
-            this.getNavigation().moveTo(target, 1.0);
+            this.getNavigation().moveTo(target, CHASE_SPEED_MODIFIER);
         }
     }
 
