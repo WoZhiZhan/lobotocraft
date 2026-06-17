@@ -11,6 +11,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.animal.Wolf;
 import net.minecraft.world.entity.monster.AbstractIllager;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.monster.Vindicator;
@@ -33,7 +34,7 @@ import net.minecraftforge.fml.common.Mod;
 public class AbnormalitySpawnEvent {
 
     // ============================================================
-    //  右键触发:棘刺公交 / 被遗弃的杀人魔
+    //  右键触发:棘刺公交 / 波迪 / 被遗弃的杀人魔
     // ============================================================
 
     @SubscribeEvent
@@ -62,6 +63,27 @@ public class AbnormalitySpawnEvent {
                     AbnormalitySpawnHelper.spawnPersistent(serverLevel,
                             ModEntities.abandoned_murderer.get(), pos);
                     player.displayClientMessage(Component.literal("§5「被遗弃的杀人魔」出现了……"), false);
+                    event.setCanceled(true);
+                }
+            }
+            return;
+        }
+
+        // 2. 波迪:对狼使用任意异想体能源(消耗一个)
+        if (target instanceof Wolf wolf) {
+            if (AbnormalitySpawnHelper.hasAnyPEBox(player)) {
+                BlockPos pos = wolf.blockPosition();
+                if (AbnormalitySpawnHelper.existsNearby(serverLevel, pos,
+                        AbnormalitySpawnHelper.DEFAULT_DEDUP_RADIUS, EntityPpodae.class)) {
+                    player.displayClientMessage(Component.literal("§c附近已经存在「波迪」"), true);
+                    event.setCanceled(true);
+                    return;
+                }
+                if (AbnormalitySpawnHelper.consumeAnyPEBox(player)) {
+                    wolf.discard();
+                    AbnormalitySpawnHelper.spawnPersistent(serverLevel,
+                            ModEntities.ppodae.get(), pos);
+                    player.displayClientMessage(Component.literal("§5「波迪」兴奋地跑了出来……"), false);
                     event.setCanceled(true);
                 }
             }
@@ -294,22 +316,27 @@ public class AbnormalitySpawnEvent {
 
     /** 黑森林:在大鸟/惩戒鸟/审判鸟之间随机生成一只(各自局部去重) */
     private static void trySpawnDarkForestBird(ServerLevel level, BlockPos pos) {
-        int roll = level.random.nextInt(3);
         BlockPos spawnPos = findGroundNear(level, pos);
-        switch (roll) {
-            case 0 -> {
-                if (!AbnormalitySpawnHelper.existsNearby(level, pos, STRUCTURE_DEDUP_RADIUS, EntityLargeBird.class)) {
-                    AbnormalitySpawnHelper.spawnPersistent(level, ModEntities.large_bird.get(), spawnPos);
+        int start = level.random.nextInt(3);
+        for (int i = 0; i < 3; i++) {
+            switch ((start + i) % 3) {
+                case 0 -> {
+                    if (!AbnormalitySpawnHelper.existsNearby(level, pos, STRUCTURE_DEDUP_RADIUS, EntityLargeBird.class)) {
+                        AbnormalitySpawnHelper.spawnPersistent(level, ModEntities.large_bird.get(), spawnPos);
+                        return;
+                    }
                 }
-            }
-            case 1 -> {
-                if (!AbnormalitySpawnHelper.existsNearby(level, pos, STRUCTURE_DEDUP_RADIUS, EntityPunishingBird.class)) {
-                    AbnormalitySpawnHelper.spawnPersistent(level, ModEntities.punishing_bird.get(), spawnPos);
+                case 1 -> {
+                    if (!AbnormalitySpawnHelper.existsNearby(level, pos, STRUCTURE_DEDUP_RADIUS, EntityPunishingBird.class)) {
+                        AbnormalitySpawnHelper.spawnPersistent(level, ModEntities.punishing_bird.get(), spawnPos);
+                        return;
+                    }
                 }
-            }
-            default -> {
-                if (!AbnormalitySpawnHelper.existsNearby(level, pos, STRUCTURE_DEDUP_RADIUS, EntityApprovalBird.class)) {
-                    AbnormalitySpawnHelper.spawnPersistent(level, ModEntities.approval_bird.get(), spawnPos);
+                default -> {
+                    if (!AbnormalitySpawnHelper.existsNearby(level, pos, STRUCTURE_DEDUP_RADIUS, EntityApprovalBird.class)) {
+                        AbnormalitySpawnHelper.spawnPersistent(level, ModEntities.approval_bird.get(), spawnPos);
+                        return;
+                    }
                 }
             }
         }

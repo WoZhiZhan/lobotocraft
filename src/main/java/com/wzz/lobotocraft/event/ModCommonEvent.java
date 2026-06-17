@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.event;
 
 import com.wzz.lobotocraft.entity.EntityClerk;
+import com.wzz.lobotocraft.entity.EntityGallows;
 import com.wzz.lobotocraft.entity.abnormality.*;
 import com.wzz.lobotocraft.init.ModEntities;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
@@ -39,7 +40,7 @@ public class ModCommonEvent {
 		event.put(ModEntities.wingbeat.get(), EntityWingBeat.createAttributes().build());
 		event.put(ModEntities.snowqueen.get(), EntitySnowQueen.createAttributes().build());
 		event.put(ModEntities.ppodae.get(), EntityPpodae.createAttributes().build());
-		event.put(ModEntities.gallows.get(), EntityPpodae.createAttributes().build());
+		event.put(ModEntities.gallows.get(), EntityGallows.createAttributes().build());
 		event.put(ModEntities.children_galaxy.get(), EntityChildrenGalaxy.createAttributes().build());
 		event.put(ModEntities.blue_star.get(), EntityBlueStar.createAttributes().build());
 		event.put(ModEntities.thorn_bus.get(), EntityThornBus.createAttributes().build());

@@ -10,6 +10,7 @@ import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.FullScreenRenderMessage;
+import com.wzz.lobotocraft.util.AbnormalitySpawnHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.util.TimerEntry;
@@ -142,13 +143,12 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
                     BlackForestEvent.BlackForestSavedData.get((ServerLevel) level());
             savedData.setDoorSpawned(false);
             savedData.getEscapedBirdUUIDs().clear();
-            EntityEndBird endBird = new EntityEndBird(ModEntities.end_bird.get(), level());
-            BlockPos doorPos = this.blockPosition();
-            BlockPos endBirdSpawnPos = EntityUtil.findSafeGroundPosition(level(), doorPos, 5);
-            endBird.setPos(endBirdSpawnPos.getX() + 0.5, endBirdSpawnPos.getY(), endBirdSpawnPos.getZ() + 0.5);
-            endBird.setBirdReturnInfo(birdInfo);
-            level().addFreshEntity(endBird);
-            endBird.triggerEscape();
+            EntityEndBird endBird = AbnormalitySpawnHelper.spawnPersistent(
+                    (ServerLevel) level(), ModEntities.end_bird.get(), this.blockPosition());
+            if (endBird != null) {
+                endBird.setBirdReturnInfo(birdInfo);
+                endBird.triggerEscape();
+            }
             return;
         }
         checkBirdEntry();

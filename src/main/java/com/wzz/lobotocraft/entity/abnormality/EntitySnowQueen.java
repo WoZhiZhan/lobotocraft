@@ -14,6 +14,7 @@ import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.*;
@@ -42,6 +43,12 @@ import java.util.concurrent.atomic.AtomicReference;
 public class EntitySnowQueen extends AbstractAbnormality {
     public EntitySnowQueen(EntityType<? extends TamableAnimal> p_21803_, Level p_21804_) {
         super(p_21803_, p_21804_);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    protected AbstractAbnormality createNewInstance(ServerLevel serverLevel) {
+        return new EntitySnowQueen((EntityType<? extends TamableAnimal>) this.getType(), serverLevel);
     }
 
     @Override
