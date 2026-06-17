@@ -94,7 +94,7 @@ public class ModItems {
 
     public static final RegistryObject<Item> ISHARMLA_SPAWN_EGG = REGISTRY.register("isharmla_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.isharmla, 0x3a1a4a, 0x7fd8ff, new Item.Properties(),
-                    "§b深海的歌声将一切引向沉眠……"));
+                    "§c深海的歌声将一切引向沉眠……"));
 
     public static final RegistryObject<Item> BUTTERFLY_FUNERAL_SPAWN_EGG = REGISTRY.register("butterfly_funeral_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.butterfly_funeral , 0xE8E8FF, 0x6a6a8a, new Item.Properties(),
@@ -102,44 +102,44 @@ public class ModItems {
 
     public static final RegistryObject<Item> REDHAT_MERCENARY_SPAWN_EGG = REGISTRY.register("redhat_mercenary_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.redhat_mercenary, 0xb01010, 0x202020, new Item.Properties(),
-                    "§c想雇佣我的话，希望你付得起代价。"));
+                    "§c我要把那杂种的脑袋挂在我的床头，只有这样我才能安心睡个好觉。"));
 
     public static final RegistryObject<Item> FRAGMENT_OF_THE_UNIVERSE_SPAWN_EGG = REGISTRY.register("fragment_of_the_universe_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.fragment_of_the_universe, 0x6a2a8a, 0xc080ff, new Item.Properties(),
-                    "§5眼前响起了悦耳的歌声，它正慢慢朝你靠近..."));
+                    "§c眼前响起了悦耳的歌声，它正慢慢朝你靠近..."));
 
     public static final RegistryObject<Item> BIGBADWOLF_SPAWN_EGG = REGISTRY.register("bigbadwolf_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.bigbadwolf, 0x4a3a2a, 0x901010, new Item.Properties(),
-                    "§4说实话我根本就不在乎，因为我必须是一只又大又坏的狼..."));
+                    "§c说实话我根本就不在乎，因为我必须是一只又大又坏的狼..."));
 
     public static final RegistryObject<Item> HELPER_SPAWN_EGG = REGISTRY.register("helper_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.helper, 0xe8e8e8, 0x901010, new Item.Properties(),
-                    "§7地板上满是鲜血，人们四散而逃..."));
+                    "§c地板上满是鲜血，人们四散而逃..."));
 
     public static final RegistryObject<Item> SKADI_SPAWN_EGG = REGISTRY.register("skadi_corrupted_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.skadi_corrupted, 0x1A2A4A, 0xAEE6FF, new Item.Properties(),
-                    "§9快走吧，博士......逃走吧。"));
+                    "§c快走吧，博士......逃走吧。"));
     public static final RegistryObject<Item> CLEANER_SPAWN_EGG = REGISTRY.register("cleaner_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.cleaner, 0x2b2b2b, 0x8b0000, new Item.Properties(),
                     "§c夜幕降临之际，他们悄悄地来到后巷……"));
     public static final RegistryObject<Item> SHELL_SEA_RUNNER_SPAWN_EGG = REGISTRY.register("shell_sea_runner_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.shell_sea_runner, 0x2e5a6b, 0x9ed0d8, new Item.Properties(),
-                    "§b长出四肢的恐鱼。"));
+                    "§c长出四肢的恐鱼。"));
     public static final RegistryObject<Item> DEEPSEA_SLIDER_SPAWN_EGG = REGISTRY.register("deepsea_slider_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.deepsea_slider, 0x1f3f4f, 0x7fb0c0, new Item.Properties(),
-                    "§b爬上海岸的恐鱼。"));
+                    "§c爬上海岸的恐鱼。"));
     public static final RegistryObject<Item> RIDGESEA_SPITTER_SPAWN_EGG = REGISTRY.register("ridgesea_spitter_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.ridgesea_spitter, 0x2a4a5a, 0x6fa0b0, new Item.Properties(),
-                    "§b神秘的恐鱼。"));
+                    "§c神秘的恐鱼。"));
     public static final RegistryObject<Item> PRIMALSEA_PIERCER_SPAWN_EGG = REGISTRY.register("primalsea_piercer_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.primalsea_piercer, 0x3a2a4a, 0xc09ed8, new Item.Properties(),
-                    "§5生长出固态器官的恐鱼。"));
+                    "§c生长出固态器官的恐鱼。"));
     public static final RegistryObject<Item> NUCLEIC_MALEFICENT_SPAWN_EGG = REGISTRY.register("nucleic_maleficent_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.nucleic_maleficent, 0x4a3a2a, 0xd8b89e, new Item.Properties(),
-                    "§6意外发育成独立个体的细胞。"));
+                    "§c意外发育成独立个体的细胞。"));
     public static final RegistryObject<Item> BASINSEA_REAPER_SPAWN_EGG = REGISTRY.register("basinsea_reaper_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.basinsea_reaper, 0x4a2a3a, 0xd89eb8, new Item.Properties(),
-                    "§5发出尖锐声响的恐鱼。"));
+                    "§c发出尖锐声响的恐鱼。"));
 
     public static final RegistryObject<Item> PE_BOX = REGISTRY.register("pe_box", PEBoxItem::new);
     public static final RegistryObject<Item> STRANGE_BADGE = REGISTRY.register("strange_badge", StrangeBadgeItem::new);

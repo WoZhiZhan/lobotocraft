@@ -57,6 +57,7 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
     private int actionTimer = 0;        // 当前攻击动作剩余时间
     private int actionType = -1;        // 0劈砍 1火铳 2双劈 3掷刀 4走射
     private int actionHits = 0;         // 多段攻击剩余段数
+    private LivingEntity actionTarget = null;
     private UUID commissionTargetId = null; // 委托目标
     private boolean commissionMode = false;
     private boolean wolfMode = false;   // 委托目标为狼:伤害与移速提升至150%
@@ -191,6 +192,35 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
         }
     }
 
+    private String idleAnimation() {
+        return hasEscape() ? "idle2" : "idle1";
+    }
+
+    private void faceTarget(LivingEntity target) {
+        if (target == null || !target.isAlive()) {
+            return;
+        }
+        double dx = target.getX() - this.getX();
+        double dz = target.getZ() - this.getZ();
+        if (dx * dx + dz * dz <= 1.0E-6D) {
+            return;
+        }
+        float yaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0D);
+        this.setYRot(yaw);
+        this.yRotO = yaw;
+        this.setYHeadRot(yaw);
+        this.yBodyRot = yaw;
+        this.getLookControl().setLookAt(target, 30.0F, 30.0F);
+    }
+
+    private LivingEntity getActionFacingTarget(ServerLevel level) {
+        if (actionTarget != null && actionTarget.isAlive() && isValidTarget(actionTarget)) {
+            return actionTarget;
+        }
+        actionTarget = commissionMode ? getCommissionTarget(level) : findTarget(level);
+        return actionTarget;
+    }
+
     /** 目标机制2:遇见狼或受狼嚎伤害 → 强制委托目标为狼,伤害移速提升至150% */
     public void forceWolfTarget(EntityBigBadWolf wolf) {
         if (rageMode) return;
@@ -277,7 +307,8 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
             tickAction(level);
             if (actionTimer == 0) {
                 actionType = -1;
-                setAnimation("idle1");
+                actionTarget = null;
+                setAnimation(idleAnimation());
             }
             return;
         }
@@ -328,6 +359,8 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
 
     private void beginAction(ServerLevel level, int type, LivingEntity target) {
         actionType = type;
+        actionTarget = target;
+        faceTarget(target);
         attackCooldown = 30;
         switch (type) {
             case 0 -> { // 劈砍:2x3范围 9-12红伤
@@ -364,6 +397,10 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
     }
 
     private void tickAction(ServerLevel level) {
+        LivingEntity facingTarget = getActionFacingTarget(level);
+        if (facingTarget != null && actionType >= 0 && actionType <= 3) {
+            faceTarget(facingTarget);
+        }
         switch (actionType) {
             case 0 -> { // 劈砍命中帧
                 if (actionTimer == 7) meleeSweep(level, (9 + random.nextInt(4)) * dmgMul());
@@ -384,12 +421,13 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
             case 4 -> { // 走射:缓慢移动+周期射击
                 LivingEntity t = commissionMode ? getCommissionTarget(level) : findTarget(level);
                 if (t != null) {
+                    actionTarget = t;
+                    faceTarget(t);
                     Vec3 dir = t.position().subtract(position()).normalize()
                             .scale(this.getAttributeValue(Attributes.MOVEMENT_SPEED)
                                     * CHASE_SPEED_MODIFIER
                                     * GUN_RUN_MOVEMENT_MULTIPLIER);
                     this.setDeltaMovement(dir.x, getDeltaMovement().y, dir.z);
-                    this.getLookControl().setLookAt(t);
                 }
                 if (actionTimer % 10 == 0) {
                     gunShot(level, 999); // 同房间内前方所有目标(用大射程近似)
@@ -513,8 +551,10 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
         if (hasEscape() && event.isMoving()) {
             return event.setAndContinue(RawAnimation.begin().thenLoop("move"));
         }
-        return event.setAndContinue(RawAnimation.begin().thenLoop(
-                this.random.nextBoolean() ? "idle1" : "idle1"));
+        if (hasEscape()) {
+            return event.setAndContinue(RawAnimation.begin().thenLoop("idle2"));
+        }
+        return event.setAndContinue(RawAnimation.begin().thenLoop("idle1"));
     }
 
     @Override

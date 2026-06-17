@@ -240,7 +240,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
         if (pendingAttackHit > 0) {
             pendingAttackHit--;
             if (pendingAttackHit == 0) {
-                if (pendingTarget != null && pendingTarget.isAlive()) {
+                if (pendingTarget != null && isValidTarget(pendingTarget)) {
                     resolveNormalAttack(level, pendingTarget);
                 }
                 pendingTarget = null;
@@ -287,24 +287,34 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
         }
     }
 
-    /** 攻击除"出逃状态异想体"、"不会出逃异想体"之外的所有单位 */
+    /** 优先攻击玩家,其次攻击其它有效单位;不锁定出逃状态异想体和不会出逃的异想体 */
     private LivingEntity findTarget(ServerLevel level) {
         List<LivingEntity> candidates = level.getEntitiesOfClass(LivingEntity.class,
                 this.getBoundingBox().inflate(SKILL_RANGE), e -> isValidTarget(e));
-        LivingEntity best = null;
-        double bestDist = Double.MAX_VALUE;
+        LivingEntity bestPlayer = null;
+        LivingEntity bestOther = null;
+        double bestPlayerDist = Double.MAX_VALUE;
+        double bestOtherDist = Double.MAX_VALUE;
         for (LivingEntity e : candidates) {
             double d = e.distanceToSqr(this);
-            if (d < bestDist) { bestDist = d; best = e; }
+            if (e instanceof Player) {
+                if (d < bestPlayerDist) {
+                    bestPlayerDist = d;
+                    bestPlayer = e;
+                }
+            } else if (d < bestOtherDist) {
+                bestOtherDist = d;
+                bestOther = e;
+            }
         }
-        return best;
+        return bestPlayer != null ? bestPlayer : bestOther;
     }
 
     private boolean isValidTarget(LivingEntity e) {
         if (e == this || !e.isAlive()) return false;
         if (e instanceof Player p && (p.isCreative() || p.isSpectator())) return false;
         if (e instanceof AbstractAbnormality ab) {
-            return ab.canEscape() && !ab.hasEscape();
+            return !ab.hasEscape() && ab.canEscape();
         }
         return true;
     }
