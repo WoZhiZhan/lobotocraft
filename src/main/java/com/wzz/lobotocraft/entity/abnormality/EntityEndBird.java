@@ -108,7 +108,6 @@ public class EntityEndBird extends AbstractAbnormality {
     @Override
     public void defineSynchedData() {
         super.defineSynchedData();
-        this.entityData.define(DATA_ANIMATION, "idle");
     }
 
     @Override

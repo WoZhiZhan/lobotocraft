@@ -65,7 +65,6 @@ public class EntityPpodae extends AbstractAbnormality {
     public void defineSynchedData() {
         super.defineSynchedData();
         this.entityData.define(DATA_RETURNING, false);
-        this.entityData.define(DATA_ANIMATION, "idle");
     }
 
     @Override

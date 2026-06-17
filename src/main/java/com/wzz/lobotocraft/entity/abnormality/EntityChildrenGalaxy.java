@@ -218,7 +218,6 @@ public class EntityChildrenGalaxy extends AbstractAbnormality {
     @Override
     public void defineSynchedData() {
         super.defineSynchedData();
-        this.entityData.define(AbstractAbnormality.DATA_ANIMATION, "idle");
     }
 
     @Override

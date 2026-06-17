@@ -199,7 +199,7 @@ public class EntitySnowQueen extends AbstractAbnormality {
     @Override
     public void defineSynchedData() {
         super.defineSynchedData();
-        this.entityData.define(AbstractAbnormality.DATA_ANIMATION, "animation.snowqueen.idle");
+        this.entityData.set(DATA_ANIMATION, "animation.snowqueen.idle");
     }
 
     @Override

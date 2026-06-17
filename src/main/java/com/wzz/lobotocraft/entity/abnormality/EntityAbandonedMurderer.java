@@ -75,7 +75,7 @@ public class EntityAbandonedMurderer extends AbstractAbnormality {
     @Override
     public void defineSynchedData() {
         super.defineSynchedData();
-        this.entityData.define(DATA_ANIMATION, "model.2"); // 初始状态：头盔隐藏
+        this.entityData.set(DATA_ANIMATION, "model.2"); // 初始状态：头盔隐藏
     }
 
     @Override

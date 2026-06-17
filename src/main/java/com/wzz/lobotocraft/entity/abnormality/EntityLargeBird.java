@@ -79,7 +79,7 @@ public class EntityLargeBird extends AbstractAbnormality {
     @Override
     public void defineSynchedData() {
         super.defineSynchedData();
-        this.entityData.define(DATA_ANIMATION, "model.5");
+        this.entityData.set(DATA_ANIMATION, "model.5");
         this.entityData.define(DATA_PLAYER_OR_VILLAGER_DEATH_COUNT, 0);
     }
 

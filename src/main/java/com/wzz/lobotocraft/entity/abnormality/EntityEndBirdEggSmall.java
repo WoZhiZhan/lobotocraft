@@ -73,7 +73,6 @@ public class EntityEndBirdEggSmall extends AbstractAbnormality {
     @Override
     public void defineSynchedData() {
         super.defineSynchedData();
-        this.entityData.define(BaseGeoEntity.DATA_ANIMATION, "idle");
     }
 
     @Override

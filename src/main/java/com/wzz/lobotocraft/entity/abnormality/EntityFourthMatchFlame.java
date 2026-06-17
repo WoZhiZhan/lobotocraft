@@ -78,7 +78,6 @@ public class EntityFourthMatchFlame extends AbstractAbnormality {
     @Override
     public void defineSynchedData() {
         super.defineSynchedData();
-        this.entityData.define(DATA_ANIMATION, "idle");
         this.entityData.define(DATA_EXPLODING, false);
         this.entityData.define(DATA_EXPLOSION_TIMER, 0);
     }
