@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.entity.EntityLightFollower;
+import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.ai.goal.MoveToBlackForestDoorGoal;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
@@ -153,7 +154,7 @@ public class EntityLargeBird extends AbstractAbnormality {
         this.goalSelector.addGoal(4, new LookAtPlayerGoal(this, Player.class, 16.0F));
         this.goalSelector.addGoal(5, new net.minecraft.world.entity.ai.goal.RandomLookAroundGoal(this));
         this.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(this, LivingEntity.class, 10, true, false,
-                (entity) -> (entity instanceof Villager || (entity instanceof Player player
+                (entity) -> (entity instanceof Villager || entity instanceof EntityClerk || (entity instanceof Player player
                         && EntityUtil.getDistanceBetweenEntities(this, player) <= 3.1D)) && hasEscape()));
     }
 

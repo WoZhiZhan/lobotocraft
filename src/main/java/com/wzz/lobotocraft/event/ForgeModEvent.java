@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.event;
 
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
+import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.abnormality.*;
 import com.wzz.lobotocraft.entity.ai.AttackAI;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
@@ -490,7 +491,9 @@ public class ForgeModEvent {
 				com.wzz.lobotocraft.util.BuffUtil.removeFriendshipProof(player);
 			}
 		}
-		if (event.getEntity().level.dimension == ModDimensions.LOBOTO_KEY && (event.getEntity() instanceof Player || event.getEntity() instanceof Villager)) {
+		if (event.getEntity().level.dimension == ModDimensions.LOBOTO_KEY
+				&& (event.getEntity() instanceof Player || event.getEntity() instanceof Villager
+				|| event.getEntity() instanceof EntityClerk)) {
 			for (Entity entity : EntityUtil.findAllEntities(event.getEntity(), 300)) {
 				if (entity instanceof EntityLargeBird largeBird) {
 					largeBird.addDataPlayerOrVillagerDeathCount(1);

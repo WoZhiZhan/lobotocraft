@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.block.ElevatorBlock;
 import com.wzz.lobotocraft.block.EscapeBlock;
 import com.wzz.lobotocraft.block.PunishingBirdBlock;
 import com.wzz.lobotocraft.block.RegenerationReactorBlock;
+import com.wzz.lobotocraft.block.TombstoneBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -63,6 +64,17 @@ public class ModBlocks {
                             .sound(SoundType.GRASS)
                             .noOcclusion()
                             .lightLevel(state -> 2)
+            )
+    );
+
+    public static final RegistryObject<Block> TOMBSTONE = BLOCKS.register(
+            "tombstone",
+            () -> new TombstoneBlock(
+                    BlockBehaviour.Properties.of()
+                            .mapColor(MapColor.STONE)
+                            .strength(-1.0F, 3600000.0F)
+                            .sound(SoundType.STONE)
+                            .noOcclusion()
             )
     );
 }

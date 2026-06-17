@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.event;
 
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.client.model.block.GenericGeoBlockModel;
+import com.wzz.lobotocraft.client.renderer.entity.EntityClerkRenderer;
 import com.wzz.lobotocraft.client.renderer.entity.EntityLightOrbRenderer;
 import com.wzz.lobotocraft.client.renderer.entity.abnormality.BlackForestDoorRenderer;
 import com.wzz.lobotocraft.client.renderer.entity.EmptyEntityRenderer;
@@ -49,6 +50,7 @@ public class ModClientEvent {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.onebad.get(), AbnormalityRenderer::new);
+        event.registerEntityRenderer(ModEntities.clerk.get(), EntityClerkRenderer::new);
         event.registerEntityRenderer(ModEntities.happy_teddy.get(), (r) -> new AbnormalityRenderer<>(r, 1.0f, 0.65f));
         event.registerEntityRenderer(ModEntities.skadi_corrupted.get(), (r) -> new AbnormalityRenderer<>(r, 1.0f, 1.0f));
         event.registerEntityRenderer(ModEntities.isharmla.get(), (r) -> new AbnormalityRenderer<>(r, 1.0f, 1.0f));
@@ -78,6 +80,9 @@ public class ModClientEvent {
         event.registerBlockEntityRenderer(ModBlockEntities.PUNISHING_BIRD.get(), context -> new BaseGeoBlockRenderer(
                 new GenericGeoBlockModel<>("punishing_bird.geo.json", "punishing_bird.png", null)
         ).withScale(2f, 1f).withOffset(-0.25f, 0f, -0.25f));
+        event.registerBlockEntityRenderer(ModBlockEntities.TOMBSTONE.get(), context -> new BaseGeoBlockRenderer(
+                new GenericGeoBlockModel<>("tombstone.geo.json", "tombstone.png", null)
+        ));
         event.registerEntityRenderer(ModEntities.immortal_item.get(), ItemEntityRenderer::new);
         event.registerEntityRenderer(ModEntities.large_bird.get(), (r) -> new EntityLargeBirdRenderer(r, 2f, 2f));
         event.registerEntityRenderer(ModEntities.light_follower.get(), EmptyEntityRenderer::new);

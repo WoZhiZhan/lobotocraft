@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.work.WorkManager;
@@ -20,7 +21,9 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.AgeableMob;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -55,7 +58,7 @@ public class EntityIronMaiden extends AbstractAbnormality {
     // 正在使用的员工UUID
     private UUID usingPlayerUUID = null;
 
-    // 被使用的村民UUID
+    // 被使用的牺牲目标UUID（村民或文职）
     private UUID targetVillagerUUID = null;
 
     // 使用计时器（tick）
@@ -222,19 +225,24 @@ public class EntityIronMaiden extends AbstractAbnormality {
     }
 
     /**
-     * 找到并锁定一个村民
+     * 找到并锁定一个牺牲目标
      */
-    private Villager findAndLockVillager() {
+    private LivingEntity findAndLockSacrifice() {
         BlockPos pos = this.blockPosition();
         AABB searchBox = new AABB(pos).inflate(5.0);
-        List<Villager> villagers = this.level().getEntitiesOfClass(Villager.class, searchBox);
+        List<LivingEntity> sacrifices = this.level().getEntitiesOfClass(LivingEntity.class, searchBox,
+                EntityIronMaiden::isSacrificeCandidate);
 
-        if (!villagers.isEmpty()) {
-            Villager villager = villagers.get(0);
-            targetVillagerUUID = villager.getUUID();
-            return villager;
+        if (!sacrifices.isEmpty()) {
+            LivingEntity sacrifice = sacrifices.get(0);
+            targetVillagerUUID = sacrifice.getUUID();
+            return sacrifice;
         }
         return null;
+    }
+
+    private static boolean isSacrificeCandidate(LivingEntity entity) {
+        return entity instanceof Villager || entity instanceof EntityClerk;
     }
 
     /**
@@ -251,8 +259,8 @@ public class EntityIronMaiden extends AbstractAbnormality {
             return false;
         }
 
-        // 尝试找到并锁定村民（可选）
-        Villager villager = findAndLockVillager();
+        // 尝试找到并锁定牺牲目标（可选）
+        LivingEntity sacrifice = findAndLockSacrifice();
 
         this.usingPlayerUUID = player.getUUID();
         this.usageTimer = 0;
@@ -266,16 +274,18 @@ public class EntityIronMaiden extends AbstractAbnormality {
         this.animationTimer = 0;
         setCurrentAnimation("closing"); // 闭合动画
 
-        // 如果有村民，传送村民到机器内部并完全控制
-        if (villager != null) {
-            villager.teleportTo(this.getX(), this.getY() + 1, this.getZ());
-            villager.setNoGravity(true);
-            villager.setDeltaMovement(0, 0, 0);
-            villager.noPhysics = true; // 设置为无碰撞，防止被挤出来
-            villager.setNoAi(true); // 禁用AI，防止村民自己移动
+        // 如果有牺牲目标，传送到机器内部并完全控制
+        if (sacrifice != null) {
+            sacrifice.teleportTo(this.getX(), this.getY() + 1, this.getZ());
+            sacrifice.setNoGravity(true);
+            sacrifice.setDeltaMovement(0, 0, 0);
+            sacrifice.noPhysics = true; // 设置为无碰撞，防止被挤出来
+            if (sacrifice instanceof Mob mob) {
+                mob.setNoAi(true);
+            }
 
             player.sendSystemMessage(Component.literal(
-                    "§e村民被放入了'我们可以改变一切'..."
+                    "§e牺牲目标被放入了'我们可以改变一切'..."
             ));
         } else {
             // 没有村民，玩家自己进去
@@ -362,24 +372,27 @@ public class EntityIronMaiden extends AbstractAbnormality {
                 return;
             }
 
-            // 检查村民是否还存在
-            Villager villager = null;
+            // 检查牺牲目标是否还存在
+            LivingEntity sacrifice = null;
             if (targetVillagerUUID != null) {
-                villager = (Villager) ((ServerLevel)this.level()).getEntity(targetVillagerUUID);
-                if (villager == null || !villager.isAlive()) {
-                    // 村民死亡，触发结束动画
+                Entity targetEntity = ((ServerLevel)this.level()).getEntity(targetVillagerUUID);
+                if (targetEntity instanceof LivingEntity livingEntity) {
+                    sacrifice = livingEntity;
+                }
+                if (sacrifice == null || !sacrifice.isAlive()) {
+                    // 牺牲目标死亡，触发结束动画
                     player.sendSystemMessage(Component.literal(
-                            "§c村民已经死亡，机器停止运转..."
+                            "§c牺牲目标已经死亡，机器停止运转..."
                     ));
                     triggerEndAnimation();
                     return;
                 }
 
-                // 持续控制村民位置，防止被推动或移动
-                villager.teleportTo(this.getX(), this.getY() + 1, this.getZ());
-                villager.setDeltaMovement(0, 0, 0);
-                villager.setYRot(0);
-                villager.setXRot(0);
+                // 持续控制牺牲目标位置，防止被推动或移动
+                sacrifice.teleportTo(this.getX(), this.getY() + 1, this.getZ());
+                sacrifice.setDeltaMovement(0, 0, 0);
+                sacrifice.setYRot(0);
+                sacrifice.setXRot(0);
             } else {
                 // 没有村民，控制玩家位置，防止玩家移动出机器
                 if (player.distanceToSqr(this.getX(), this.getY() + 1, this.getZ()) > 1.5D) {
@@ -429,19 +442,21 @@ public class EntityIronMaiden extends AbstractAbnormality {
                     // 随机1-3点伤害
                     float damage = 1.0f + random.nextFloat() * 2.0f; // 1.0 到 3.0
 
-                    // 优先选择10格范围内的村民造成伤害
+                    // 优先选择10格范围内的村民或文职造成伤害
                     BlockPos pos = this.blockPosition();
                     AABB damageBox = new AABB(pos).inflate(10.0); // 10格范围
-                    List<Villager> nearbyVillagers = this.level().getEntitiesOfClass(Villager.class, damageBox);
+                    List<LivingEntity> nearbySacrifices = this.level().getEntitiesOfClass(LivingEntity.class,
+                            damageBox, EntityIronMaiden::isSacrificeCandidate);
 
-                    if (!nearbyVillagers.isEmpty()) {
-                        // 有村民在范围内，随机选择一个造成伤害
-                        Villager targetVillager = nearbyVillagers.get(random.nextInt(nearbyVillagers.size()));
+                    if (!nearbySacrifices.isEmpty()) {
+                        // 有牺牲目标在范围内，随机选择一个造成伤害
+                        LivingEntity targetSacrifice = nearbySacrifices.get(random.nextInt(nearbySacrifices.size()));
                         if (currentDamageInterval == 1.0f)
-                            EntityUtil.clearHurtTime(targetVillager);
-                        targetVillager.hurt(this.damageSources().fellOutOfWorld(),
-                                damage
-                        );
+                            EntityUtil.clearHurtTime(targetSacrifice);
+                        if (targetSacrifice instanceof EntityClerk clerk && damage >= clerk.getHealth()) {
+                            EntityClerk.markNoTombstone(clerk);
+                        }
+                        targetSacrifice.hurt(DamageHelper.getDamage(this, "lobotocraft:red"), damage);
                     } else {
                         if (currentDamageInterval == 1.0f)
                             EntityUtil.clearHurtTime(player);
@@ -485,13 +500,15 @@ public class EntityIronMaiden extends AbstractAbnormality {
         playSound("opening");
         playSound("end_music");
 
-        // 清理村民引用并恢复所有状态
+        // 清理牺牲目标引用并恢复所有状态
         if (targetVillagerUUID != null) {
-            Villager villager = (Villager) ((ServerLevel)this.level()).getEntity(targetVillagerUUID);
-            if (villager != null && villager.isAlive()) {
-                villager.setNoGravity(false);
-                villager.noPhysics = false; // 恢复碰撞
-                villager.setNoAi(false); // 恢复AI
+            Entity targetEntity = ((ServerLevel)this.level()).getEntity(targetVillagerUUID);
+            if (targetEntity instanceof LivingEntity sacrifice && sacrifice.isAlive()) {
+                sacrifice.setNoGravity(false);
+                sacrifice.noPhysics = false; // 恢复碰撞
+                if (sacrifice instanceof Mob mob) {
+                    mob.setNoAi(false);
+                }
             }
             targetVillagerUUID = null;
         }
@@ -691,6 +708,7 @@ public class EntityIronMaiden extends AbstractAbnormality {
             tag.putUUID("UsingPlayerUUID", usingPlayerUUID);
         }
         if (targetVillagerUUID != null) {
+            tag.putUUID("TargetSacrificeUUID", targetVillagerUUID);
             tag.putUUID("TargetVillagerUUID", targetVillagerUUID);
         }
         tag.putInt("UsageTimer", usageTimer);
@@ -712,7 +730,9 @@ public class EntityIronMaiden extends AbstractAbnormality {
         if (tag.hasUUID("UsingPlayerUUID")) {
             usingPlayerUUID = tag.getUUID("UsingPlayerUUID");
         }
-        if (tag.hasUUID("TargetVillagerUUID")) {
+        if (tag.hasUUID("TargetSacrificeUUID")) {
+            targetVillagerUUID = tag.getUUID("TargetSacrificeUUID");
+        } else if (tag.hasUUID("TargetVillagerUUID")) {
             targetVillagerUUID = tag.getUUID("TargetVillagerUUID");
         }
         usageTimer = tag.getInt("UsageTimer");

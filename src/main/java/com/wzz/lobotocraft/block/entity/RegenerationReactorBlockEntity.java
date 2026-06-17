@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.block.entity;
 
 import com.wzz.lobotocraft.capability.MentalValueProvider;
+import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.init.ModBlockEntities;
 import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.network.MessageLoader;
@@ -14,6 +15,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
@@ -133,6 +135,15 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
                 healPlayer(player);
             }
         }
+
+        List<EntityClerk> clerks = level.getEntitiesOfClass(EntityClerk.class, range);
+        for (EntityClerk clerk : clerks) {
+            if (clerk.isDeadOrDying()) continue;
+            boolean hasSight = hasLineOfSight(level, pos, clerk);
+            if (hasSight) {
+                healClerk(clerk);
+            }
+        }
     }
 
     /**
@@ -141,9 +152,9 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
      * 导致永远判定为被遮挡、玩家无法回血。现改为从玩家眼睛射向反应堆,
      * 只要射线命中点足够接近反应堆(基本到达),即视为视线通畅。
      */
-    private boolean hasLineOfSight(Level level, BlockPos reactorPos, Player player) {
+    private boolean hasLineOfSight(Level level, BlockPos reactorPos, LivingEntity entity) {
         // 玩家眼睛位置
-        Vec3 playerEye = player.getEyePosition();
+        Vec3 playerEye = entity.getEyePosition();
 
         // 反应堆中心点
         Vec3 reactorCenter = new Vec3(
@@ -158,7 +169,7 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
                 reactorCenter,
                 ClipContext.Block.COLLIDER,
                 ClipContext.Fluid.NONE,
-                player
+                entity
         );
 
         BlockHitResult result = level.clip(context);
@@ -212,6 +223,14 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
             MessageLoader.getLoader().sendToPlayer(serverPlayer,
                     new MentalValueSyncPacket((int) newMental, (int) mental.getMaxMentalValue()));
         });
+    }
+
+    private void healClerk(EntityClerk clerk) {
+        float maxHealth = clerk.getMaxHealth();
+        float healAmount = maxHealth * HEAL_PERCENTAGE;
+        float newHealth = Math.min(clerk.getHealth() + healAmount, maxHealth);
+        clerk.setHealth(newHealth);
+        ParticleUtil.spawnParticlesAroundEntity(clerk, ParticleTypes.HAPPY_VILLAGER, (int) healAmount, 0.1d);
     }
 
     @Override

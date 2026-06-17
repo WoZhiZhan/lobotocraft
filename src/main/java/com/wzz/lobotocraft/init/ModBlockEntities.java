@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.block.entity.ElevatorBlockEntity;
 import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
 import com.wzz.lobotocraft.block.entity.PunishingBirdBlockEntity;
 import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
+import com.wzz.lobotocraft.block.entity.TombstoneBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -47,6 +48,15 @@ public class ModBlockEntities {
                     () -> BlockEntityType.Builder.of(
                             PunishingBirdBlockEntity::new,
                             ModBlocks.PUNISHING_BIRD.get()
+                    ).build(null)
+            );
+
+    public static final RegistryObject<BlockEntityType<TombstoneBlockEntity>> TOMBSTONE =
+            BLOCK_ENTITIES.register(
+                    "tombstone",
+                    () -> BlockEntityType.Builder.of(
+                            TombstoneBlockEntity::new,
+                            ModBlocks.TOMBSTONE.get()
                     ).build(null)
             );
 }

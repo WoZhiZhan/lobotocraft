@@ -14,6 +14,7 @@ public class ModTabs {
 	public static final RegistryObject<CreativeModeTab> TAB_LOBOTOCRAFT_ENTITY = REGISTRY.register("tablobotocraft_entity",
 			() -> CreativeModeTab.builder().title(Component.translatable("itemGroup.lobotocraft_entity")).icon(() -> new ItemStack(ModItems.ONEBAD_SPAWN_EGG.get())).displayItems((parameters, tabData) -> {
 						tabData.accept(ModItems.ONEBAD_SPAWN_EGG.get());
+						tabData.accept(ModItems.CLERK_SPAWN_EGG.get());
 						tabData.accept(ModItems.HAPPY_TEDDY_SPAWN_EGG.get());
 						tabData.accept(ModItems.IRON_MAIDEN_SPAWN_EGG.get());
 						tabData.accept(ModItems.MEAT_IDOL_SPAWN_EGG.get());

@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.entity.abnormality;
 import com.wzz.lobotocraft.block.RegenerationReactorBlock;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
+import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
@@ -217,6 +218,9 @@ public class EntityBlueStar extends AbstractAbnormality {
             @Override
             public void onEnd(@NotNull LivingEntity living) {
                 if (!living.isAlive() || living.isRemoved()) return;
+                if (living instanceof EntityClerk clerk) {
+                    EntityClerk.markNoTombstone(clerk);
+                }
                 if (!remove)
                     living.kill();
                 else living.discard();
@@ -318,6 +322,9 @@ public class EntityBlueStar extends AbstractAbnormality {
                                     if (living instanceof Villager villager && random.nextInt(101) <= 20) {
                                         killMob(villager, true);
                                     } else {
+                                        if (living instanceof EntityClerk clerk && damage >= clerk.getHealth()) {
+                                            EntityClerk.markNoTombstone(clerk);
+                                        }
                                         living.hurt(DamageHelper.getDamage().getDamageSources().fellOutOfWorld(), damage);
                                     }
                                 } else {

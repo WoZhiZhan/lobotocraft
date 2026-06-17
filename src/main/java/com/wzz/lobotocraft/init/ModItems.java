@@ -32,6 +32,10 @@ public class ModItems {
             () -> new TextSpawnEggItem(ModEntities.onebad, ExtendedColor.DIM_GRAY.getRGB(), ExtendedColor.DARK_RED.getRGB(), new Item.Properties(),
                     "§c它以言语中浮现的“罪孽”为食。"));
 
+    public static final RegistryObject<Item> CLERK_SPAWN_EGG = REGISTRY.register("clerk_spawn_egg",
+            () -> new TextSpawnEggItem(ModEntities.clerk, 0xE8C7A4, 0x4A4A4A, new Item.Properties(),
+                    "§7公司基层文职人员。"));
+
     public static final RegistryObject<Item> HAPPY_TEDDY_SPAWN_EGG = REGISTRY.register("happy_teddy_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.happy_teddy, ExtendedColor.DARK_GREEN.getRGB(), ExtendedColor.EARTH.getRGB(), new Item.Properties(),
                     "§c它的记忆始于温暖的怀抱。"));
