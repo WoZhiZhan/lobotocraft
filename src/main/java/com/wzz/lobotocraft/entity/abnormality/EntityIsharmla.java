@@ -59,6 +59,7 @@ public class EntityIsharmla extends AbstractAbnormality {
     private int humanPhaseTimer = 0;     // 人形态计时(到25秒触发清理之泪→巨兽)
     private int monsterPhaseTimer = 0;   // 巨兽形态剩余时间
     private int attackCooldown = 0;
+    private int beamSkillCooldown = 30 * 20;
     private boolean transitioning = false;
     private int transitionTimer = 0;
     private int pendingMonster = 0;      // 之泪清理后到进入巨兽的3秒缓冲
@@ -71,6 +72,10 @@ public class EntityIsharmla extends AbstractAbnormality {
     private static final int TEAR_KILL_EXTEND = 12 * 20; // 每个非玩家击杀的之泪延长12秒
     private static final int HEAL_HUMAN_ANIMATION_TICKS = 30;
     private static final int BEAM_ATTACK_ANIMATION_TICKS = 42;
+    private static final int BEAM_SKILL_INTERVAL_TICKS = 30 * 20;
+    private static final int BEAM_IMPACT_TICK = 36;
+    private static final double BEAM_TARGET_RADIUS = 1.5D;
+    private static final double BEAM_FALL_HEIGHT = 10.0D;
     private static final double MONSTER_ATTACK_DISTANCE = 8.0D;
 
     public EntityIsharmla(EntityType<? extends TamableAnimal> entityType, Level level) {
@@ -109,9 +114,20 @@ public class EntityIsharmla extends AbstractAbnormality {
     private final java.util.Set<java.util.UUID> currentAttackHitTargets = new java.util.HashSet<>();
     private Vec3 attackForward = new Vec3(0.0, 0.0, 1.0);
     private java.util.UUID currentAttackTargetUuid = null;
-    // 光束攻击在一次动作内分四段命中
-    private boolean beamAttackStarted = false;
-    private final List<LivingEntity> beamCircleTargets = new ArrayList<>();
+    // 光束攻击会锁定施放瞬间该维度所有玩家脚下的位置,之后可通过离开圈躲避.
+    private final List<BeamTargetSpot> beamTargetSpots = new ArrayList<>();
+
+    private static class BeamTargetSpot {
+        private final double x;
+        private final double y;
+        private final double z;
+
+        private BeamTargetSpot(ServerPlayer player) {
+            this.x = player.getX();
+            this.y = player.getY();
+            this.z = player.getZ();
+        }
+    }
 
     private void setForm(Form form) {
         Form old = getForm();
@@ -198,6 +214,7 @@ public class EntityIsharmla extends AbstractAbnormality {
     // ==================== 形态切换 ====================
 
     private void enterHumanForm(boolean firstTime) {
+        clearActiveAttack();
         setForm(Form.HUMAN);
         setHealth(getMaxHealth());
         humanPhaseTimer = HUMAN_DURATION;
@@ -210,8 +227,10 @@ public class EntityIsharmla extends AbstractAbnormality {
     }
 
     private void enterMonsterForm() {
+        clearActiveAttack();
         setForm(Form.MONSTER);
         monsterHealth = MONSTER_MAX_HEALTH; // 进入巨兽回满巨兽血量
+        beamSkillCooldown = BEAM_SKILL_INTERVAL_TICKS;
         transitioning = true;
         transitionTimer = 20;
         setAnim("to_monster");
@@ -347,59 +366,70 @@ public class EntityIsharmla extends AbstractAbnormality {
 
     /**
      * 项6:光束攻击特效。
-     * 所有敌对目标脚下出现白色粒子围成3x3圆圈,一次动作内落下四段声波,
-     * 每段对圈内目标造成15点蓝色伤害。
+     * 施放时锁定该维度所有玩家脚下的3x3圆圈,声波缓慢下落后,
+     * 对仍停留在圈内的玩家造成15点蓝色伤害。
      */
     private void tickBeamAttack(ServerLevel level) {
         int t = this.tickCount - attackHitWindowStart; // 自光束开始的相对tick
 
-        if (!beamAttackStarted) {
-            beamAttackStarted = true;
-            // 锁定本次受影响的生物
-            beamCircleTargets.clear();
-            for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class,
-                    this.getBoundingBox().inflate(16, 6, 16), this::isHostileTarget)) {
-                beamCircleTargets.add(e);
+        if (beamTargetSpots.isEmpty()) {
+            return;
+        }
+
+        if (t % 5 == 0 && t <= BEAM_IMPACT_TICK) {
+            for (BeamTargetSpot spot : beamTargetSpots) {
+                spawnBeamWarningCircle(level, spot);
             }
         }
 
-        // 每5tick在每个目标脚下绘制白色粒子3x3圆圈
-        if (t % 5 == 0) {
-            for (LivingEntity e : beamCircleTargets) {
-                if (!e.isAlive()) continue;
-                double cx = e.getX(), cy = e.getY() + 0.1, cz = e.getZ();
-                for (int i = 0; i < 12; i++) {
-                    double ang = (Math.PI * 2 / 12) * i;
-                    double rx = cx + Math.cos(ang) * 1.5; // 半径1.5≈3x3范围
-                    double rz = cz + Math.sin(ang) * 1.5;
-                    level.sendParticles(net.minecraft.core.particles.ParticleTypes.SCULK_SOUL,
-                            rx, cy, rz, 1, 0.0, 0.02, 0.0, 0.0);
-                }
+        if (t <= BEAM_IMPACT_TICK) {
+            double progress = Math.min(1.0D, Math.max(0.0D, t / (double) BEAM_IMPACT_TICK));
+            double yOffset = BEAM_FALL_HEIGHT * (1.0D - progress);
+            for (BeamTargetSpot spot : beamTargetSpots) {
+                level.sendParticles(net.minecraft.core.particles.ParticleTypes.SONIC_BOOM,
+                        spot.x, spot.y + yOffset, spot.z, 1, 0.0, 0.0, 0.0, 0.0);
             }
         }
 
-        // 四段命中:监守者声波粒子从7格高落在每个圆圈中心 + 监守者声波音效
-        if (t == 10 || t == 20 || t == 30 || t == 40) {
-            for (LivingEntity e : beamCircleTargets) {
-                if (!e.isAlive()) continue;
-                double cx = e.getX(), cz = e.getZ();
-                for (int dy = 0; dy < 7; dy++) {
-                    level.sendParticles(net.minecraft.core.particles.ParticleTypes.SONIC_BOOM,
-                            cx, e.getY() + 7 - dy, cz, 1, 0.0, 0.0, 0.0, 0.0);
-                }
-                EntityUtil.clearHurtTime(e);
-                e.hurt(com.wzz.lobotocraft.util.DamageHelper.getDamage(this, "blue"), 15f);
-                if (e instanceof ServerPlayer sp) {
-                    MentalValueUtil.reduceMentalValue(sp, 15f);
-                }
+        if (t == BEAM_IMPACT_TICK) {
+            for (BeamTargetSpot spot : beamTargetSpots) {
+                hitPlayersInBeamSpot(level, spot);
             }
+
             level.playSound(null, this.blockPosition(),
                     net.minecraft.sounds.SoundEvents.WARDEN_SONIC_BOOM,
                     SoundSource.HOSTILE, 2.0f, 1.0f);
-            if (t == 40) {
-                beamCircleTargets.clear();
-            }
+            beamTargetSpots.clear();
         }
+    }
+
+    private void spawnBeamWarningCircle(ServerLevel level, BeamTargetSpot spot) {
+        for (int i = 0; i < 12; i++) {
+            double ang = (Math.PI * 2 / 12) * i;
+            double rx = spot.x + Math.cos(ang) * BEAM_TARGET_RADIUS;
+            double rz = spot.z + Math.sin(ang) * BEAM_TARGET_RADIUS;
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.SCULK_SOUL,
+                    rx, spot.y + 0.1, rz, 1, 0.0, 0.02, 0.0, 0.0);
+        }
+    }
+
+    private void hitPlayersInBeamSpot(ServerLevel level, BeamTargetSpot spot) {
+        for (ServerPlayer player : level.getPlayers(this::isBeamPlayerTarget)) {
+            if (currentAttackHitTargets.contains(player.getUUID()) || !isInBeamSpot(player, spot)) {
+                continue;
+            }
+            currentAttackHitTargets.add(player.getUUID());
+            EntityUtil.clearHurtTime(player);
+            player.hurt(com.wzz.lobotocraft.util.DamageHelper.getDamage(this, "blue"), 15f);
+            MentalValueUtil.reduceMentalValue(player, 15f);
+        }
+    }
+
+    private boolean isInBeamSpot(ServerPlayer player, BeamTargetSpot spot) {
+        double radius = BEAM_TARGET_RADIUS + Math.max(0.3D, player.getBbWidth() * 0.5D);
+        double dx = player.getX() - spot.x;
+        double dz = player.getZ() - spot.z;
+        return dx * dx + dz * dz <= radius * radius;
     }
 
     private void tickHumanForm(ServerLevel level) {
@@ -452,15 +482,28 @@ public class EntityIsharmla extends AbstractAbnormality {
                 return;
             }
         }
-        
+
+        if (beamSkillCooldown > 0) {
+            beamSkillCooldown--;
+        }
+
+        //FIX 3 防止在攻击时重复攻击导致攻击无效化(光线攻击会出bug)
+        if (tickCount < attackHitWindowEnd) {
+            if (attackCooldown > 0) {
+                attackCooldown--;
+            }
+            return;
+        }
+
+        if (beamSkillCooldown <= 0 && startPeriodicBeamSkill(level)) {
+            beamSkillCooldown = BEAM_SKILL_INTERVAL_TICKS;
+            attackCooldown = 40;
+            return;
+        }
+
         if (attackCooldown > 0) {
             attackCooldown--;
             return;
-        }
-        
-        //FIX 3 防止在攻击时重复攻击导致攻击无效化(光线攻击会出bug)
-        if (tickCount < attackHitWindowEnd) {
-        	return;
         }
         
         LivingEntity target = findNearestTarget(level, 24);
@@ -484,36 +527,61 @@ public class EntityIsharmla extends AbstractAbnormality {
     private int pendingAttackType = -1;
 
     private void performMonsterAttack(ServerLevel level, LivingEntity target) {
-        float roll = this.random.nextFloat();
         currentAttackHitTargets.clear();
         currentAttackTargetUuid = target.getUUID();
         faceAttackTarget(target);
 
         
-        if (roll < 0.40f) {
+        if (this.random.nextBoolean()) {
             // 撕咬:单体40黑伤,命中窗口约动画第6~12tick
             setAnimTimed("bite_monster", 20);
             playSoundToAll(ModSounds.ISHARMLA_BITE.get());
             attackAnimType = 0;
             attackHitWindowStart = this.tickCount + 6;
             attackHitWindowEnd = this.tickCount + 12;
-        } else if (roll < 0.80f) {
+        } else {
             // 甩尾:身前6x9范围25黑伤,命中窗口约第8~16tick
             setAnimTimed("tail_monster", 24);
             playSoundToAll(ModSounds.ISHARMLA_TAIL.get());
             attackAnimType = 1;
             attackHitWindowStart = this.tickCount + 8;
             attackHitWindowEnd = this.tickCount + 16;
-        } else {
-            // 光束:范围攻击(项6特效),命中窗口贯穿整个动画
-            setAnimTimed("attack_monster", BEAM_ATTACK_ANIMATION_TICKS);
-            
-            playSoundToAll(ModSounds.ISHARMLA_BEAM.get());
-            attackAnimType = 2;
-            attackHitWindowStart = this.tickCount + 1;
-            attackHitWindowEnd = this.tickCount + BEAM_ATTACK_ANIMATION_TICKS;
-            beamAttackStarted = false;
         }
+    }
+
+    private boolean startPeriodicBeamSkill(ServerLevel level) {
+        List<ServerPlayer> players = level.getPlayers(this::isBeamPlayerTarget);
+        if (players.isEmpty()) {
+            return false;
+        }
+
+        currentAttackHitTargets.clear();
+        currentAttackTargetUuid = null;
+        beamTargetSpots.clear();
+        for (ServerPlayer player : players) {
+            beamTargetSpots.add(new BeamTargetSpot(player));
+        }
+
+        this.getNavigation().stop();
+        setAnimTimed("attack_monster", BEAM_ATTACK_ANIMATION_TICKS);
+        playSoundToAll(ModSounds.ISHARMLA_BEAM.get());
+        attackAnimType = 2;
+        attackHitWindowStart = this.tickCount + 1;
+        attackHitWindowEnd = this.tickCount + BEAM_ATTACK_ANIMATION_TICKS;
+        return true;
+    }
+
+    private boolean isBeamPlayerTarget(ServerPlayer player) {
+        return player.isAlive() && !player.isCreative() && !player.isSpectator();
+    }
+
+    private void clearActiveAttack() {
+        attackAnimType = -1;
+        attackHitWindowStart = 0;
+        attackHitWindowEnd = 0;
+        currentAttackTargetUuid = null;
+        currentAttackHitTargets.clear();
+        beamTargetSpots.clear();
     }
 
     private void faceAttackTarget(LivingEntity target) {
@@ -716,6 +784,7 @@ public class EntityIsharmla extends AbstractAbnormality {
         tag.putInt("HumanPhaseTimer", humanPhaseTimer);
         tag.putInt("MonsterPhaseTimer", monsterPhaseTimer);
         tag.putInt("PendingMonster", pendingMonster);
+        tag.putInt("BeamSkillCooldown", beamSkillCooldown);
     }
 
     @Override
@@ -726,5 +795,8 @@ public class EntityIsharmla extends AbstractAbnormality {
         humanPhaseTimer = tag.getInt("HumanPhaseTimer");
         monsterPhaseTimer = tag.getInt("MonsterPhaseTimer");
         pendingMonster = tag.getInt("PendingMonster");
+        beamSkillCooldown = tag.contains("BeamSkillCooldown")
+                ? tag.getInt("BeamSkillCooldown")
+                : BEAM_SKILL_INTERVAL_TICKS;
     }
 }
