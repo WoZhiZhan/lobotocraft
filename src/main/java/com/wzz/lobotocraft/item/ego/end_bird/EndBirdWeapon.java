@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.item.ego.end_bird;
 
+import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.util.*;
@@ -14,6 +15,7 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.UseAnim;
@@ -87,6 +89,12 @@ public class EndBirdWeapon extends BaseEgoWeapon {
     private static final int ATK2_FREEZE_TICKS = 60;
     /** 三阶后的蓄力冷却:60 秒 */
     private static final int STAGE3_COOLDOWN_TICKS = 60 * 20;
+    public static final String THIN_DUSK_PASSIVE_MARK = "lobotocraft_thin_dusk_passive_until";
+    public static final String THIN_DUSK_SPECIAL_DAMAGE = "lobotocraft_thin_dusk_special_damage";
+    public static final String THIN_DUSK_SHIELD_COOLDOWN = "lobotocraft_thin_dusk_shield_cooldown_until";
+    private static final int THIN_DUSK_PASSIVE_VULNERABLE_TICKS = 15 * 20;
+    private static final int THIN_DUSK_SHIELD_TICKS = 15 * 20;
+    private static final int THIN_DUSK_SHIELD_COOLDOWN_TICKS = 25 * 20;
 
     // =======================================================================
     //  构造 / 基础
@@ -127,6 +135,22 @@ public class EndBirdWeapon extends BaseEgoWeapon {
             if (p.getOffhandItem().getItem() instanceof EndBirdWeapon) return true;
         }
         return false;
+    }
+
+    public static boolean hasThinDuskSetWithCurio(Player player, Item curio) {
+        return EgoArmorHelper.isFullEGO(player, "end_bird")
+                && EgoArmorHelper.isHoldingWeapon(player, "end_bird")
+                && CuriosUtil.hasCurios(player, curio);
+    }
+
+    public static void markPassiveVulnerable(LivingEntity target, Level level) {
+        if (target == null || level == null || level.isClientSide) return;
+        target.getPersistentData().putLong(THIN_DUSK_PASSIVE_MARK,
+                level.getGameTime() + THIN_DUSK_PASSIVE_VULNERABLE_TICKS);
+    }
+
+    public static boolean isThinDuskSpecialDamage(Player player) {
+        return player != null && player.getPersistentData().getBoolean(THIN_DUSK_SPECIAL_DAMAGE);
     }
 
     // =======================================================================
@@ -321,6 +345,7 @@ public class EndBirdWeapon extends BaseEgoWeapon {
 
     private void executeStage1Attack(Player player, ItemStack stack) {
         triggerAnimation(player, stack, ANIM_STAGE1_ATK);
+        tryGrantLargeBirdShield(player);
 
         TimerEntry timer = new TimerEntry() {
             private int t = 0;
@@ -362,6 +387,7 @@ public class EndBirdWeapon extends BaseEgoWeapon {
 
     private void executeStage2Attack(Player player, ItemStack stack) {
         triggerAnimation(player, stack, ANIM_STAGE2_ATK);
+        tryGrantLargeBirdShield(player);
         LivingEntity capturedTarget = getNearestEntityInFront(player, 20.0, 3.0);
 
         TimerEntry timer = new TimerEntry() {
@@ -396,7 +422,7 @@ public class EndBirdWeapon extends BaseEgoWeapon {
                     // 1 点红色伤害(特殊音效1)
                     target.hurtTime = 0; target.hurtDuration = 0;
                     target.hurtMarked = false; target.invulnerableTime = 0;
-                    target.hurt(DamageHelper.getDamage(p, "red"), 1f);
+                    hurtAsThinDuskSpecial(p, target, "red", 1f);
                     applySlowness(target);
                     playSpecialSound(p, 1);
                 }
@@ -440,6 +466,7 @@ public class EndBirdWeapon extends BaseEgoWeapon {
 
     private void executeStage3Attack(Player player, ItemStack stack) {
         triggerAnimation(player, stack, ANIM_STAGE3_ATK);
+        tryGrantLargeBirdShield(player);
 
         TimerEntry timer = new TimerEntry() {
             private int t = 0;
@@ -526,6 +553,49 @@ public class EndBirdWeapon extends BaseEgoWeapon {
         player.level().playSound(null, player.blockPosition(), sound, SoundSource.PLAYERS, 1.0f, 1.0f);
     }
 
+    private boolean isThinDuskSpecialVulnerable(Player player, LivingEntity target) {
+        if (!hasThinDuskSetWithCurio(player, ModItems.PUNISHING_BIRD_CURIO.get())) return false;
+        return target.getPersistentData().getLong(THIN_DUSK_PASSIVE_MARK) > player.level().getGameTime();
+    }
+
+    private float scaleSpecialDamage(Player player, LivingEntity target, float damage) {
+        return isThinDuskSpecialVulnerable(player, target) ? damage * 1.25f : damage;
+    }
+
+    private void hurtAsThinDuskSpecial(Player player, LivingEntity target, String color, float damage) {
+        player.getPersistentData().putBoolean(THIN_DUSK_SPECIAL_DAMAGE, true);
+        try {
+            target.hurt(DamageHelper.getDamage(player, color), scaleSpecialDamage(player, target, damage));
+        } finally {
+            player.getPersistentData().putBoolean(THIN_DUSK_SPECIAL_DAMAGE, false);
+        }
+    }
+
+    private void tryGrantLargeBirdShield(Player player) {
+        if (!hasThinDuskSetWithCurio(player, ModItems.LARGEBIRD_CURIO.get())) return;
+        long now = player.level().getGameTime();
+        if (player.getPersistentData().getLong(THIN_DUSK_SHIELD_COOLDOWN) > now) return;
+
+        float before = player.getAbsorptionAmount();
+        float targetAbsorption = Math.max(before, player.getMaxHealth() * 0.5f);
+        float granted = targetAbsorption - before;
+        if (granted <= 0.0f) return;
+
+        player.setAbsorptionAmount(targetAbsorption);
+        player.getPersistentData().putLong(THIN_DUSK_SHIELD_COOLDOWN, now + THIN_DUSK_SHIELD_COOLDOWN_TICKS);
+
+        TimerEntry timer = new TimerEntry() {
+            @Override
+            public void onEnd(@NotNull LivingEntity living) {
+                float current = living.getAbsorptionAmount();
+                if (current > before) {
+                    living.setAbsorptionAmount(Math.max(before, current - granted));
+                }
+            }
+        };
+        timer.addSkillTimer(player, 0, THIN_DUSK_SHIELD_TICKS * 50, 1);
+    }
+
     /** 对目标列表全体造成同色单段伤害(蓝色段可附带最大生命百分比伤害),命中附加最高级缓慢1秒 */
     private void dealHitToAll(Player player, List<LivingEntity> targets,
                               String color, float baseDamage, float bluePercent, float blueCap) {
@@ -537,7 +607,7 @@ public class EndBirdWeapon extends BaseEgoWeapon {
                 dmg += EntityUtil.addMaxHealthPercentageDamage(t, bluePercent, bluePercent, blueCap);
             }
             t.hurtTime = 0; t.hurtDuration = 0; t.hurtMarked = false; t.invulnerableTime = 0;
-            t.hurt(DamageHelper.getDamage(player, color), dmg);
+            hurtAsThinDuskSpecial(player, t, color, dmg);
             applySlowness(t);
         }
     }
@@ -568,7 +638,7 @@ public class EndBirdWeapon extends BaseEgoWeapon {
             }
             if (sounds != null && idx < sounds.length) playSpecialSound(player, sounds[idx]);
             target.hurtTime = 0; target.hurtDuration = 0; target.hurtMarked = false; target.invulnerableTime = 0;
-            target.hurt(DamageHelper.getDamage(player, color), dmg);
+            hurtAsThinDuskSpecial(player, target, color, dmg);
             applySlowness(target);
         }
     }

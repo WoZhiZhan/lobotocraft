@@ -106,48 +106,6 @@ public class ForgeModEvent {
 				}
 			}
 		}
-		if (event.getSource() != null && event.getSource().getEntity() instanceof ServerPlayer player) {
-			if (CuriosUtil.hasCurios(player, ModItems.APPROVAL_BIRD_CURIO.get())) {
-				TimerEntry timerEntry = new TimerEntry() {
-					private AttributeModifier speedModifier;
-					private AttributeModifier attackSpeedModifier;
-
-					@Override
-					public void onStart(@NotNull LivingEntity living) {
-						speedModifier = new AttributeModifier(
-								UUID.randomUUID(),
-								"punishing_bird_speed_boost",
-								0.1,
-								AttributeModifier.Operation.MULTIPLY_BASE
-						);
-						attackSpeedModifier = new AttributeModifier(
-								UUID.randomUUID(),
-								"punishing_bird_attack_speed_boost",
-								0.1,
-								AttributeModifier.Operation.MULTIPLY_BASE
-						);
-						if (living.getAttribute(Attributes.MOVEMENT_SPEED) != null) {
-							living.getAttribute(Attributes.MOVEMENT_SPEED).addTransientModifier(speedModifier);
-						}
-
-						if (living.getAttribute(Attributes.ATTACK_SPEED) != null) {
-							living.getAttribute(Attributes.ATTACK_SPEED).addTransientModifier(attackSpeedModifier);
-						}
-					}
-
-					@Override
-					public void onEnd(@NotNull LivingEntity living) {
-						if (living.getAttribute(Attributes.MOVEMENT_SPEED) != null) {
-							living.getAttribute(Attributes.MOVEMENT_SPEED).removeModifier(speedModifier);
-						}
-						if (living.getAttribute(Attributes.ATTACK_SPEED) != null) {
-							living.getAttribute(Attributes.ATTACK_SPEED).removeModifier(attackSpeedModifier);
-						}
-					}
-				};
-				timerEntry.addSkillTimer(player, 0, 15000, 1, true);
-			}
-		}
 	}
 
 	private static final UUID SPEED_MODIFIER_UUID = UUID.fromString("a1b2c3d4-e5f6-7890-abcd-ef1234567890");
@@ -168,9 +126,11 @@ public class ForgeModEvent {
 			com.wzz.lobotocraft.event.WeaponBuffEvent.triggerRepentanceBuff(player);
 			if (com.wzz.lobotocraft.event.WeaponBuffEvent.isRepentanceBuffActive(player)
 					&& EgoArmorHelper.isHoldingWeapon(player, "repentance") && isRedDamage(src)) {
-				event.setAmount(event.getAmount() + 5f);
+				event.setAmount(event.getAmount() * 1.1f);
 			}
-			if (EgoArmorHelper.isFullEGO(player, "punishing_bird") && player.random.nextFloat() <= 0.1f) {
+			if (EgoArmorHelper.isFullEGO(player, "punishing_bird")
+					&& EgoArmorHelper.isHoldingWeapon(player, "punishing_bird")
+					&& player.random.nextFloat() <= 0.1f) {
 				event.setAmount(event.getAmount() * 2f);
 			}
 			if (EgoArmorHelper.isFullEGO(player, "fourth_match_flame") && entity.isOnFire()) {
@@ -179,10 +139,14 @@ public class ForgeModEvent {
 			if (EgoArmorHelper.isFullEGO(player, "wingbeat") && EgoArmorHelper.isHoldingWeapon(player, "wingbeat")) {
 				player.heal(event.getAmount());
 			}
-			if (EgoArmorHelper.isFullEGO(player, "end_bird") && CuriosUtil.hasCurios(player, ModItems.PUNISHING_BIRD_CURIO.get())) {
+			if (EgoArmorHelper.isFullEGO(player, "end_bird")
+					&& EgoArmorHelper.isHoldingWeapon(player, "end_bird")
+					&& CuriosUtil.hasCurios(player, ModItems.PUNISHING_BIRD_CURIO.get())
+					&& !com.wzz.lobotocraft.item.ego.end_bird.EndBirdWeapon.isThinDuskSpecialDamage(player)) {
 				player.heal(event.getAmount() * 0.1f);
 			}
 			if (EgoArmorHelper.isFullEGO(player, "end_bird") &&
+					EgoArmorHelper.isHoldingWeapon(player, "end_bird") &&
 					CuriosUtil.hasCurios(player, ModItems.APPROVAL_BIRD_CURIO.get())) {
 				AttributeInstance attackSpeed = player.getAttribute(Attributes.ATTACK_SPEED);
 				AttributeInstance moveSpeed = player.getAttribute(Attributes.MOVEMENT_SPEED);
@@ -264,6 +228,7 @@ public class ForgeModEvent {
 				event.setAmount(event.getAmount() * 0.5f);
 			}
 			if (EgoArmorHelper.isFullEGO(player, "end_bird") &&
+					EgoArmorHelper.isHoldingWeapon(player, "end_bird") &&
 					CuriosUtil.hasCurios(player, ModItems.APPROVAL_BIRD_CURIO.get())) {
 				if (event.getAmount() >= player.getMaxHealth() * 0.2f) {
 					event.setAmount(player.getMaxHealth() * 0.2f);
@@ -512,6 +477,29 @@ public class ForgeModEvent {
 	@SubscribeEvent
 	public static void onLivingSwing(LivingSwingEvent.Pre event) {
 		if (event.getEntity() instanceof Player player && player.getPersistentData().getBoolean("isLargeBirdCharm") && !player.level.isClientSide) {
+			if (EgoArmorHelper.isFullEGO(player, "end_bird")
+					&& EgoArmorHelper.isHoldingWeapon(player, "end_bird")
+					&& CuriosUtil.hasCurios(player, ModItems.LARGEBIRD_CURIO.get())) {
+				if (player instanceof ServerPlayer serverPlayer) {
+					MessageLoader.getLoader().sendToPlayer(serverPlayer, new LargeBirdBorderPacket(0));
+				}
+				PlayerControlLock.unlock(player);
+				player.getPersistentData().remove("LeftCountLobocraft");
+				player.getPersistentData().remove("isLargeBirdCharm");
+				TimerEntry timerEntry = new TimerEntry() {
+					@Override
+					public void onStart(@NotNull LivingEntity living) {
+						living.getPersistentData().putBoolean("notLargeBirdCharm", true);
+					}
+
+					@Override
+					public void onEnd(@NotNull LivingEntity living) {
+						living.getPersistentData().putBoolean("notLargeBirdCharm", false);
+					}
+				};
+				timerEntry.addSkillTimer(player, 0, 20000, 1);
+				return;
+			}
 			for (Entity entity : EntityUtil.findEntitiesAround(player, 6, 100, EntityLargeBird.class)) {
 				if (entity instanceof EntityLargeBird entityLargeBird) {
 					if (EntityUtil.getDistanceBetweenEntities(player, entityLargeBird) >= 16D) {

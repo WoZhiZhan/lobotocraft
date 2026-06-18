@@ -1,12 +1,15 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
+import com.wzz.lobotocraft.block.entity.ElevatorBlockEntity;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.DamageHelper;
+import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -24,6 +27,8 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
@@ -63,6 +68,19 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
     private boolean wolfMode = false;   // 委托目标为狼:伤害与移速提升至150%
     private boolean rageMode = false;   // 狂暴:伤害200%、移速150%、受伤+35%
     private int rangedRollTimer = 0;
+    private BlockPos targetElevatorPos = null;
+    private int elevatorWaitTimer = 0;
+    private int chaseStateCheckTimer = 0;
+    private int chaseStuckTimer = 0;
+    private UUID chaseTargetId = null;
+
+    private enum ChaseState {
+        FINDING_PATH,
+        MOVING_TO_ELEVATOR,
+        WAITING_ON_ELEVATOR,
+        DIRECT_MOVE
+    }
+    private ChaseState chaseState = ChaseState.FINDING_PATH;
 
     public EntityRedHoodMercenary(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -341,7 +359,211 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
                     return;
                 }
             }
-            this.getNavigation().moveTo(target, CHASE_SPEED_MODIFIER);
+            chaseTarget(level, target);
+        } else {
+            chaseTarget(level, target);
+        }
+    }
+
+    private void chaseTarget(ServerLevel level, LivingEntity target) {
+        if (target == null || !target.isAlive()) return;
+        if (chaseTargetId == null || !chaseTargetId.equals(target.getUUID())) {
+            resetChasePath(target);
+        }
+        this.getLookControl().setLookAt(target);
+
+        chaseStateCheckTimer++;
+        if (chaseState == ChaseState.FINDING_PATH || chaseStateCheckTimer >= 40) {
+            chaseStateCheckTimer = 0;
+            evaluateChaseState(level, target);
+        }
+
+        switch (chaseState) {
+            case MOVING_TO_ELEVATOR -> tickMovingToElevator(level, target);
+            case WAITING_ON_ELEVATOR -> tickWaitingOnElevator(target);
+            case DIRECT_MOVE -> tickDirectMove(target);
+            default -> evaluateChaseState(level, target);
+        }
+    }
+
+    private void resetChasePath(LivingEntity target) {
+        chaseTargetId = target.getUUID();
+        targetElevatorPos = null;
+        elevatorWaitTimer = 0;
+        chaseStateCheckTimer = 0;
+        chaseStuckTimer = 0;
+        chaseState = ChaseState.FINDING_PATH;
+    }
+
+    private void evaluateChaseState(ServerLevel level, LivingEntity target) {
+        double yDiff = target.getY() - this.getY();
+        if (Math.abs(yDiff) <= 5.0D) {
+            chaseState = ChaseState.DIRECT_MOVE;
+            targetElevatorPos = null;
+            navigateDirectlyToTarget(target);
+            return;
+        }
+
+        BlockPos elevator = findBestElevator(level, target, yDiff);
+        if (elevator == null) {
+            chaseState = ChaseState.DIRECT_MOVE;
+            targetElevatorPos = null;
+            navigateDirectlyToTarget(target);
+            return;
+        }
+
+        targetElevatorPos = elevator;
+        elevatorWaitTimer = 0;
+        chaseStuckTimer = 0;
+        chaseState = ChaseState.MOVING_TO_ELEVATOR;
+        navigateToElevator(elevator);
+    }
+
+    private BlockPos findBestElevator(ServerLevel level, LivingEntity target, double yDiffToTarget) {
+        BlockPos redHoodPos = this.blockPosition();
+        boolean needGoUp = yDiffToTarget > 0;
+        int targetY = target.blockPosition().getY();
+        int currentY = redHoodPos.getY();
+        BlockPos bestElevator = null;
+        double bestScore = Double.MAX_VALUE;
+
+        for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level, redHoodPos, 30)) {
+            if (!(blockEntity instanceof ElevatorBlockEntity elevator)) continue;
+            BlockPos elevatorPos = blockEntity.getBlockPos();
+            int destY;
+            if (needGoUp && elevator.isTeleportUp()) {
+                destY = currentY + elevator.getTeleportDistance();
+            } else if (!needGoUp && !elevator.isTeleportUp()) {
+                destY = currentY - elevator.getTeleportDistance();
+            } else {
+                continue;
+            }
+
+            int currentDiff = Math.abs(targetY - currentY);
+            int diffAfterRide = Math.abs(targetY - destY);
+            if (diffAfterRide >= currentDiff) continue;
+
+            double score = Math.sqrt(redHoodPos.distSqr(elevatorPos)) + diffAfterRide * 2.0D;
+            if (score < bestScore) {
+                bestScore = score;
+                bestElevator = elevatorPos;
+            }
+        }
+
+        return bestElevator;
+    }
+
+    private void navigateToElevator(BlockPos elevatorPos) {
+        Path path = this.getNavigation().createPath(
+                elevatorPos.getX() + 0.5D,
+                elevatorPos.getY() + 1.0D,
+                elevatorPos.getZ() + 0.5D,
+                1
+        );
+        if (path != null && path.canReach()) {
+            this.getNavigation().moveTo(path, CHASE_SPEED_MODIFIER);
+        } else {
+            this.getNavigation().moveTo(
+                    elevatorPos.getX() + 0.5D,
+                    elevatorPos.getY() + 1.0D,
+                    elevatorPos.getZ() + 0.5D,
+                    CHASE_SPEED_MODIFIER
+            );
+        }
+    }
+
+    private void tickMovingToElevator(ServerLevel level, LivingEntity target) {
+        if (targetElevatorPos == null) {
+            evaluateChaseState(level, target);
+            return;
+        }
+
+        elevatorWaitTimer++;
+        double distToElevator = this.distanceToSqr(
+                targetElevatorPos.getX() + 0.5D,
+                targetElevatorPos.getY() + 1.0D,
+                targetElevatorPos.getZ() + 0.5D
+        );
+        if (distToElevator <= 2.5D) {
+            this.getNavigation().stop();
+            if (level.getBlockEntity(targetElevatorPos) instanceof ElevatorBlockEntity elevator) {
+                elevator.onStep(this);
+            }
+            elevatorWaitTimer = 0;
+            chaseStuckTimer = 0;
+            chaseState = ChaseState.WAITING_ON_ELEVATOR;
+            return;
+        }
+
+        if (elevatorWaitTimer > 160) {
+            evaluateChaseState(level, target);
+            return;
+        }
+
+        Path path = this.getNavigation().getPath();
+        if (path == null || path.isDone()) {
+            chaseStuckTimer++;
+            if (chaseStuckTimer > 40) {
+                chaseStuckTimer = 0;
+                Vec3 dir = new Vec3(
+                        targetElevatorPos.getX() + 0.5D - this.getX(),
+                        targetElevatorPos.getY() + 1.0D - this.getY(),
+                        targetElevatorPos.getZ() + 0.5D - this.getZ()
+                ).normalize();
+                this.setDeltaMovement(dir.scale(CHASE_SPEED_MODIFIER * 0.4D));
+                navigateToElevator(targetElevatorPos);
+            }
+        } else {
+            chaseStuckTimer = 0;
+        }
+    }
+
+    private void tickWaitingOnElevator(LivingEntity target) {
+        elevatorWaitTimer++;
+        this.getNavigation().stop();
+        this.setDeltaMovement(0, this.getDeltaMovement().y, 0);
+
+        if (Math.abs(target.getY() - this.getY()) <= 5.0D) {
+            chaseState = ChaseState.DIRECT_MOVE;
+            elevatorWaitTimer = 0;
+            targetElevatorPos = null;
+            navigateDirectlyToTarget(target);
+            return;
+        }
+
+        if (elevatorWaitTimer > 100) {
+            if (targetElevatorPos != null
+                    && this.level().getBlockEntity(targetElevatorPos) instanceof ElevatorBlockEntity elevator) {
+                elevator.onStep(this);
+            }
+            elevatorWaitTimer = 60;
+        }
+    }
+
+    private void tickDirectMove(LivingEntity target) {
+        if (Math.abs(target.getY() - this.getY()) > 5.0D) {
+            chaseState = ChaseState.FINDING_PATH;
+            return;
+        }
+
+        Path path = this.getNavigation().getPath();
+        if (path == null || path.isDone()) {
+            chaseStuckTimer++;
+            if (chaseStuckTimer > 30) {
+                chaseStuckTimer = 0;
+                Vec3 dir = target.position().subtract(this.position()).normalize();
+                this.setDeltaMovement(dir.scale(CHASE_SPEED_MODIFIER * 0.3D));
+                navigateDirectlyToTarget(target);
+            }
+        } else {
+            chaseStuckTimer = 0;
+        }
+    }
+
+    private void navigateDirectlyToTarget(LivingEntity target) {
+        Path path = this.getNavigation().createPath(target.blockPosition(), 1);
+        if (path != null && path.canReach()) {
+            this.getNavigation().moveTo(path, CHASE_SPEED_MODIFIER);
         } else {
             this.getNavigation().moveTo(target, CHASE_SPEED_MODIFIER);
         }

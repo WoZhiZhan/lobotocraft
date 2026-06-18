@@ -919,7 +919,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         // ========== 管理须知 ==========
         graphics.drawString(this.font, "管理须知",
                 x, y,
-                EncyclopediaGUIConfig.Colors.THEME_ORANGE);
+                EncyclopediaGUIConfig.Colors.TEXT_GRAY);
         y += EncyclopediaGUIConfig.Layout.CenterColumn.TITLE_SPACING;
 
         // 动态渲染所有管理须知
@@ -941,7 +941,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         // ========== 敏感信息 ==========
         graphics.drawString(this.font, "异想体的敏感信息",
                 x, y,
-                EncyclopediaGUIConfig.Colors.THEME_ORANGE);
+                EncyclopediaGUIConfig.Colors.TEXT_GRAY);
         y += EncyclopediaGUIConfig.Layout.CenterColumn.TITLE_SPACING;
 
         // 逆卡巴拉计数极值

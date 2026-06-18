@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
+import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModEntities;
@@ -105,8 +106,7 @@ public class EntityIsharmla extends AbstractAbnormality {
     private final java.util.Set<java.util.UUID> currentAttackHitTargets = new java.util.HashSet<>();
     private Vec3 attackForward = new Vec3(0.0, 0.0, 1.0);
     private java.util.UUID currentAttackTargetUuid = null;
-    // 光束累计命中次数(满4次造成15蓝伤)——项6
-    private int beamChargeCount = 0;
+    // 光束攻击在一次动作内分四段命中
     private boolean beamAttackStarted = false;
     private final List<LivingEntity> beamCircleTargets = new ArrayList<>();
 
@@ -343,16 +343,14 @@ public class EntityIsharmla extends AbstractAbnormality {
 
     /**
      * 项6:光束攻击特效。
-     * 动画注释:所有(敌对)生物脚下出现白色粒子围成3x3圆圈,
-     * 之后监守者声波粒子从7格高落在中心并播放监守者声波音效;
-     * 累计使用这种攻击4次后,对白圈内生物造成15点蓝色伤害,然后白粒子消散。
+     * 所有敌对目标脚下出现白色粒子围成3x3圆圈,一次动作内落下四段声波,
+     * 每段对圈内目标造成15点蓝色伤害。
      */
     private void tickBeamAttack(ServerLevel level) {
         int t = this.tickCount - attackHitWindowStart; // 自光束开始的相对tick
 
         if (!beamAttackStarted) {
             beamAttackStarted = true;
-            beamChargeCount++; // 累计使用次数
             // 锁定本次受影响的生物
             beamCircleTargets.clear();
             for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class,
@@ -376,8 +374,8 @@ public class EntityIsharmla extends AbstractAbnormality {
             }
         }
 
-        // t=30:监守者声波粒子从7格高落在每个圆圈中心 + 监守者声波音效
-        if (t == 30) {
+        // 四段命中:监守者声波粒子从7格高落在每个圆圈中心 + 监守者声波音效
+        if (t == 15 || t == 30 || t == 45 || t == 60) {
             for (LivingEntity e : beamCircleTargets) {
                 if (!e.isAlive()) continue;
                 double cx = e.getX(), cz = e.getZ();
@@ -385,23 +383,16 @@ public class EntityIsharmla extends AbstractAbnormality {
                     level.sendParticles(net.minecraft.core.particles.ParticleTypes.SONIC_BOOM,
                             cx, e.getY() + 7 - dy, cz, 1, 0.0, 0.0, 0.0, 0.0);
                 }
+                EntityUtil.clearHurtTime(e);
+                e.hurt(com.wzz.lobotocraft.util.DamageHelper.getDamage(this, "blue"), 15f);
+                if (e instanceof ServerPlayer sp) {
+                    MentalValueUtil.reduceMentalValue(sp, 15f);
+                }
             }
             level.playSound(null, this.blockPosition(),
                     net.minecraft.sounds.SoundEvents.WARDEN_SONIC_BOOM,
                     SoundSource.HOSTILE, 2.0f, 1.0f);
-        }
-
-        // t=45:若累计已达4次,对白圈内生物造成15蓝伤,然后白粒子消散(重置计数)
-        if (t == 45) {
-            if (beamChargeCount >= 4) {
-                for (LivingEntity e : beamCircleTargets) {
-                    if (!e.isAlive()) continue;
-                    e.hurt(com.wzz.lobotocraft.util.DamageHelper.getDamage(this, "blue"), 15f);
-                    if (e instanceof ServerPlayer sp) {
-                        MentalValueUtil.reduceMentalValue(sp, 15f);
-                    }
-                }
-                beamChargeCount = 0; // 白粒子消散,重新累计
+            if (t == 60) {
                 beamCircleTargets.clear();
             }
         }
@@ -513,9 +504,7 @@ public class EntityIsharmla extends AbstractAbnormality {
             attackHitWindowEnd = this.tickCount + 16;
         } else {
             // 光束:范围攻击(项6特效),命中窗口贯穿整个动画
-        	
-        	//FIX 动画就 2.1s * 20 tick/s = 30tick
-            setAnimTimed("attack_monster", 42);
+            setAnimTimed("attack_monster", 60);
             
             playSoundToAll(ModSounds.ISHARMLA_BEAM.get());
             attackAnimType = 2;
@@ -546,27 +535,31 @@ public class EntityIsharmla extends AbstractAbnormality {
     }
 
     private LivingEntity findNearestTarget(ServerLevel level, double range) {
-        List<Player> players = level.getEntitiesOfClass(Player.class,
+        List<LivingEntity> targets = level.getEntitiesOfClass(LivingEntity.class,
                 this.getBoundingBox().inflate(range),
-                p -> p.isAlive() && !p.isCreative() && !p.isSpectator()
-                        // 机制6:因伊莎玛拉攻击陷入恐慌的玩家不会被仇恨
-                        && !p.getPersistentData().getBoolean("isharmla_panic"));
+                this::isHostileTarget);
         LivingEntity best = null;
         double bestDist = Double.MAX_VALUE;
-        for (Player p : players) {
-            double d = p.distanceToSqr(this);
-            if (d < bestDist) { bestDist = d; best = p; }
+        for (LivingEntity target : targets) {
+            double d = target.distanceToSqr(this);
+            if (d < bestDist) { bestDist = d; best = target; }
         }
         return best;
     }
 
     private boolean isHostileTarget(LivingEntity e) {
-        if (e == this) return false;
+        if (e == this || !e.isAlive()) return false;
         if (e instanceof EntityIsharmlaTear) return false;
         if (e instanceof Player p) {
-            return p.isAlive() && !p.isCreative() && !p.isSpectator();
+            return !p.isCreative()
+                    && !p.isSpectator()
+                    && !p.getPersistentData().getBoolean("isharmla_panic");
         }
-        return false;
+        if (e instanceof EntityClerk) return true;
+        if (e instanceof AbstractAbnormality abnormality) {
+            return abnormality.hasEscape();
+        }
+        return true;
     }
 
     /** 造成伤害(黑色),并附带机制1的精神攻击 */
@@ -704,7 +697,7 @@ public class EntityIsharmla extends AbstractAbnormality {
     public static AttributeSupplier.Builder createAttributes() {
         return Mob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, 3000.0D)
-                .add(Attributes.MOVEMENT_SPEED, 0.25D)
+                .add(Attributes.MOVEMENT_SPEED, 0.125D)
                 .add(Attributes.ARMOR, 0.0D)
                 .add(Attributes.ATTACK_DAMAGE, 0.0D)
                 .add(Attributes.FOLLOW_RANGE, 32.0D)

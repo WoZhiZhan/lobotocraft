@@ -17,11 +17,11 @@ import java.util.UUID;
  *
  * 正义裁决者(补充4 第2条):使用正义裁决者武器攻击,获得 10% 攻速和移速加成,
  *   持续10秒,不可叠加,每次攻击刷新持续时间。
- * 悔恨(补充7):使用悔恨武器造成伤害后,10秒内减少 20% 移动速度、造成的红色伤害 +5,
+ * 悔恨(补充7):使用悔恨武器造成伤害后,10秒内减少 20% 移动速度、造成的红色伤害 +10%,
  *   不可叠加,每次造成伤害刷新持续时间。
  *
  * 实现:造成伤害时(在 ForgeModEvent.onLivingHurt 调用 trigger* 方法)记录到期时间到 persistentData,
- * 由此处 PlayerTick 维护属性 modifier 的增删,过期自动移除。红伤+5 由 ForgeModEvent 读取标记处理。
+ * 由此处 PlayerTick 维护属性 modifier 的增删,过期自动移除。红伤+10% 由 ForgeModEvent 读取标记处理。
  */
 @Mod.EventBusSubscriber(modid = ModMain.MODID)
 public class WeaponBuffEvent {
@@ -42,14 +42,14 @@ public class WeaponBuffEvent {
         player.getPersistentData().putLong(JUSTICE_BUFF_UNTIL, player.level().getGameTime() + BUFF_DURATION);
     }
 
-    /** 悔恨武器命中:刷新减速 buff(装备锁定+全套+饰品才生效);红伤+5 由调用方处理 */
+    /** 悔恨武器命中:刷新减速 buff(装备锁定+全套+饰品才生效);红伤+10% 由调用方处理 */
     public static void triggerRepentanceBuff(Player player) {
         if (!EgoArmorHelper.isFullSetWithCurioLocked(player, "repentance")) return;
         if (!EgoArmorHelper.isHoldingWeapon(player, "repentance")) return;
         player.getPersistentData().putLong(REPENTANCE_BUFF_UNTIL, player.level().getGameTime() + BUFF_DURATION);
     }
 
-    /** 悔恨 buff 是否激活(供 ForgeModEvent 判断红伤+5) */
+    /** 悔恨 buff 是否激活(供 ForgeModEvent 判断红伤+10%) */
     public static boolean isRepentanceBuffActive(Player player) {
         return player.getPersistentData().getLong(REPENTANCE_BUFF_UNTIL) > player.level().getGameTime();
     }

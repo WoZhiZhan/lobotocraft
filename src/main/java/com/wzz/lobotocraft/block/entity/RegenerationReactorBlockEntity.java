@@ -72,8 +72,31 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
         return (float) tickCounter / HEAL_INTERVAL;
     }
 
+    private AABB createEffectRange(Level level, BlockPos pos) {
+        boolean aboveBlocked = isCollisionBlocked(level, pos.above());
+        boolean belowBlocked = isCollisionBlocked(level, pos.below());
+        double minX = pos.getX() + 0.5D - EFFECT_RADIUS;
+        double maxX = pos.getX() + 0.5D + EFFECT_RADIUS;
+        double minZ = pos.getZ() + 0.5D - EFFECT_RADIUS;
+        double maxZ = pos.getZ() + 0.5D + EFFECT_RADIUS;
+
+        if (aboveBlocked && !belowBlocked) {
+            return new AABB(minX, pos.getY() - EFFECT_RADIUS, minZ,
+                    maxX, pos.getY() + 1.0D, maxZ);
+        }
+        if (belowBlocked && !aboveBlocked) {
+            return new AABB(minX, pos.getY(), minZ,
+                    maxX, pos.getY() + EFFECT_RADIUS, maxZ);
+        }
+        return new AABB(pos).inflate(EFFECT_RADIUS);
+    }
+
+    private boolean isCollisionBlocked(Level level, BlockPos checkPos) {
+        return !level.getBlockState(checkPos).getCollisionShape(level, checkPos).isEmpty();
+    }
+
     private void sendMessage(Level level, BlockPos pos) {
-        AABB range = new AABB(pos).inflate(EFFECT_RADIUS);
+        AABB range = createEffectRange(level, pos);
         List<Player> players = level.getEntitiesOfClass(Player.class, range);
 
         for (Player player : players) {
@@ -125,7 +148,7 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
      */
     private void performHealing(Level level, BlockPos pos) {
 
-        AABB range = new AABB(pos).inflate(EFFECT_RADIUS);
+        AABB range = createEffectRange(level, pos);
         List<Player> players = level.getEntitiesOfClass(Player.class, range);
 
         for (Player player : players) {

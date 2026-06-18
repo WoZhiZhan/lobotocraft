@@ -23,6 +23,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.util.DefaultRandomPos;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -198,6 +199,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
 
     private void startDying() {
         dyingTimer = DYING_ANIMATION_TICKS;
+        stopHorizontalMovement();
         pendingAttackHit = 0;
         normalAttackAnimationTimer = 0;
         pendingTarget = null;
@@ -220,7 +222,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
 
         if (dyingTimer > 0) {
             dyingTimer--;
-            this.setDeltaMovement(0, this.getDeltaMovement().y, 0);
+            stopHorizontalMovement();
             if (dyingTimer == 0) {
                 // 死亡动画播放完毕,正式死亡(基类die会回到出逃位置重置)
                 this.setHealth(0f);
@@ -238,6 +240,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
 
         // 普攻出伤帧
         if (pendingAttackHit > 0) {
+            stopHorizontalMovement();
             pendingAttackHit--;
             if (pendingAttackHit == 0) {
                 if (pendingTarget != null && isValidTarget(pendingTarget)) {
@@ -248,6 +251,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
         }
 
         if (normalAttackAnimationTimer > 0) {
+            stopHorizontalMovement();
             normalAttackAnimationTimer--;
             if (normalAttackAnimationTimer == 0) {
                 setAnimation("idle");
@@ -261,15 +265,32 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
         }
 
         // 索敌
-        if (attackCooldown <= 0 && pendingAttackHit <= 0) {
-            LivingEntity target = findTarget(level);
-            if (target != null && this.distanceToSqr(target) <= SKILL_RANGE * SKILL_RANGE) {
+        LivingEntity target = pendingAttackHit <= 0 ? findTarget(level) : null;
+        if (attackCooldown <= 0 && target != null) {
+            if (this.distanceToSqr(target) <= SKILL_RANGE * SKILL_RANGE) {
                 if (this.distanceToSqr(target) <= NORMAL_ATTACK_RANGE * NORMAL_ATTACK_RANGE
                         && this.random.nextFloat() < 0.65f) {
                     beginNormalAttack(target);
                 } else {
                     beginSkill(level, target);
                 }
+            }
+        } else if (target == null && pendingAttackHit <= 0 && normalAttackAnimationTimer <= 0) {
+            tickIdleWander();
+        }
+    }
+
+    private void stopHorizontalMovement() {
+        this.getNavigation().stop();
+        this.setDeltaMovement(0, this.getDeltaMovement().y, 0);
+    }
+
+    private void tickIdleWander() {
+        if (!hasEscape() || skillPhase > 0 || dyingTimer > 0) return;
+        if (this.getNavigation().isDone() && this.random.nextInt(80) == 0) {
+            Vec3 pos = DefaultRandomPos.getPos(this, 10, 7);
+            if (pos != null) {
+                this.getNavigation().moveTo(pos.x, pos.y, pos.z, 0.8D);
             }
         }
     }
@@ -322,6 +343,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     // ==================== 普通攻击 ====================
 
     private void beginNormalAttack(LivingEntity target) {
+        stopHorizontalMovement();
         String attackAnimation = this.random.nextBoolean() ? "attack" : "attack2";
         setAnimation(attackAnimation);
         pendingTarget = target;
@@ -382,6 +404,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     // ==================== 特殊攻击 ====================
 
     private void beginSkill(ServerLevel level, LivingEntity target) {
+        stopHorizontalMovement();
         skillPhase = 1;
         skillTimer = SKILL_WINDUP_TICKS;
         faceTargetForSkill(target);
@@ -411,7 +434,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
 
     private void tickSkill(ServerLevel level) {
         // 释放期间不可移动不可转向
-        this.setDeltaMovement(0, this.getDeltaMovement().y, 0);
+        stopHorizontalMovement();
         lockSkillRotation();
         skillTimer--;
 

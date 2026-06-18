@@ -52,7 +52,9 @@ public class LargeBirdCurio extends BaseEgoCurio {
     public void curioTick(SlotContext slotContext, ItemStack stack) {
         super.curioTick(slotContext, stack);
         if (slotContext.entity() instanceof ServerPlayer player) {
-            if (EgoArmorHelper.isFullEGO(player, "end_bird") && MentalValueUtil.getMentalValue(player) <= 0f) {
+            if (EgoArmorHelper.isFullEGO(player, "end_bird")
+                    && EgoArmorHelper.isHoldingWeapon(player, "end_bird")
+                    && MentalValueUtil.getMentalValue(player) <= 0f) {
                 MentalValueUtil.setMentalValue(player, MentalValueUtil.getEffectiveMaxMentalValue(player));
             }
         }

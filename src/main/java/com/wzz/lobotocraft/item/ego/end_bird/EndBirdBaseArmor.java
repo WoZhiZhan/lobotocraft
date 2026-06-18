@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.item.ego.end_bird;
 
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModArmorMaterial;
+import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoArmor;
 import com.wzz.lobotocraft.util.ClientInputUtil;
 import com.wzz.lobotocraft.util.DamageHelper;
@@ -83,8 +84,13 @@ public abstract class EndBirdBaseArmor extends BaseEgoArmor {
         super.onInventoryTick(stack, level, player, slotIndex, selectedIndex);
         if (player.tickCount % 100 == 0) {
             if (EgoArmorHelper.isFullEGO(player, getSetId())) {
+                boolean thinDuskPunishing = EndBirdWeapon.hasThinDuskSetWithCurio(
+                        player, ModItems.PUNISHING_BIRD_CURIO.get());
                 for (LivingEntity entity : EntityUtil.findAllEntities(player, 10)) {
                     if (entity.getClassification(true) == MobCategory.MONSTER) {
+                        if (thinDuskPunishing) {
+                            EndBirdWeapon.markPassiveVulnerable(entity, level);
+                        }
                         EntityUtil.clearHurtTime(entity, () -> {
                             entity.hurt(DamageHelper.getDamage(player, "black"), 5f);
                             EntityUtil.clearHurtTime(entity, () -> {

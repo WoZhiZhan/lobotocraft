@@ -53,7 +53,7 @@ public class ModEntities {
     public static final RegistryObject<EntityType<EntityIsharmla>> isharmla =
             ENTITIES.register("isharmla",
                     () -> EntityType.Builder.of(EntityIsharmla::new, MobCategory.MONSTER)
-                            .sized(0.6F, 1.8F)
+                            .sized(0.9F, 2.2F)
                             .clientTrackingRange(12)
                             .updateInterval(3)
                             .build("isharmla"));
