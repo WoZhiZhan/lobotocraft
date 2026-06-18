@@ -18,6 +18,7 @@ public class CommandRegistry {
         registerCommand(new EmployeeStatsCommand());
         registerCommand(new TestCommand());
         registerCommand(new TeleportToEntityCommand());
+        registerCommand(new CompleteDailyWorkCommand());
     }
     
     /**
