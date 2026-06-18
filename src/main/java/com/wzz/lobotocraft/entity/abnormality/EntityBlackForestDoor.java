@@ -165,7 +165,7 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
     private void spawnEggAt(LivingEntity egg, BlockPos reactorPos) {
         egg.addEffect(new MobEffectInstance(MobEffects.GLOWING, -1));
         // 仅在公司范围内寻找安全地面,避免鸟蛋刷到公司之外
-        BlockPos spawnPos = EntityUtil.findSafeGroundPositionInCompany(level(), reactorPos, 5);
+        BlockPos spawnPos = EntityUtil.findReactorSpawnPositionInCompany(level(), reactorPos, 5);
         if (spawnPos == null) {
             spawnPos = reactorPos;
         }

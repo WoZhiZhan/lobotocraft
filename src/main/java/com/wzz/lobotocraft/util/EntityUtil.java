@@ -722,4 +722,16 @@ public class EntityUtil {
         }
         return targetPos.above();
     }
+
+    /**
+     * 再生反应堆派生生成点。
+     * 如果反应堆正上方已有方块,从低 4 格的位置开始找地面,避免实体刷到上层房间。
+     */
+    public static BlockPos findReactorSpawnPositionInCompany(Level level, BlockPos reactorPos, int horizontalRange) {
+        if (level == null || reactorPos == null) return reactorPos;
+        BlockPos basePos = level.getBlockState(reactorPos.above()).isAir()
+                ? reactorPos
+                : reactorPos.below(4);
+        return findSafeGroundPositionInCompany(level, basePos, horizontalRange);
+    }
 }

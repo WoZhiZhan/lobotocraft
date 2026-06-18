@@ -44,7 +44,7 @@ public class RepentanceCurio extends BaseEgoCurio {
         tooltip.add(Component.literal("  • 对一罪与百善工作成功率 +10%").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal(""));
         tooltip.add(Component.literal("套装效果（装备锁定 + 装备 + 饰品）：").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("  • 玩家使用悔恨武器造成伤害后，10秒内减少20%的移动速度，使玩家造成的红色伤害+5点，不可叠加，每次造成伤害刷新持续时间").withStyle(ChatFormatting.LIGHT_PURPLE));
+        tooltip.add(Component.literal("  • 玩家使用悔恨武器造成伤害后，10秒内减少20%的移动速度，使玩家造成的红色伤害+10%，不可叠加，每次造成伤害刷新持续时间").withStyle(ChatFormatting.LIGHT_PURPLE));
         tooltip.add(Component.literal(""));
         tooltip.add(Component.literal("当“白夜”出逃时效果：").withStyle(ChatFormatting.YELLOW));
         tooltip.add(Component.literal("  • 免疫白夜和使徒的伤害").withStyle(ChatFormatting.LIGHT_PURPLE));

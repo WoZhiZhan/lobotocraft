@@ -69,6 +69,9 @@ public class EntityIsharmla extends AbstractAbnormality {
     private static final int HUMAN_DURATION = 25 * 20;   // 25秒
     private static final int MONSTER_BASE_DURATION = 60 * 20; // 60秒
     private static final int TEAR_KILL_EXTEND = 12 * 20; // 每个非玩家击杀的之泪延长12秒
+    private static final int HEAL_HUMAN_ANIMATION_TICKS = 30;
+    private static final int BEAM_ATTACK_ANIMATION_TICKS = 42;
+    private static final double MONSTER_ATTACK_DISTANCE = 8.0D;
 
     public EntityIsharmla(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -118,11 +121,11 @@ public class EntityIsharmla extends AbstractAbnormality {
         }
     }
 
-    // 项4②:巨兽形态使用更大的碰撞箱(按模型约 3.5x3.5),人形保持默认
+    // 巨兽形态使用更大的碰撞箱,人形保持默认
     private static final net.minecraft.world.entity.EntityDimensions HUMAN_SIZE =
             net.minecraft.world.entity.EntityDimensions.scalable(0.9f, 2.2f);
     private static final net.minecraft.world.entity.EntityDimensions MONSTER_SIZE =
-            net.minecraft.world.entity.EntityDimensions.scalable(3.5f, 3.5f);
+            net.minecraft.world.entity.EntityDimensions.scalable(8.0f, 5.0f);
 
     @Override
     public net.minecraft.world.entity.EntityDimensions getDimensions(net.minecraft.world.entity.Pose pose) {
@@ -162,7 +165,8 @@ public class EntityIsharmla extends AbstractAbnormality {
         net.minecraft.core.BlockPos reactor =
                 SpawnIsharmlaHook.findNearestReactorPublic(level, this.blockPosition());
         if (reactor != null) {
-            this.teleportTo(reactor.getX() + 0.5, reactor.getY(), reactor.getZ() + 0.5);
+            net.minecraft.core.BlockPos spawnPos = EntityUtil.findReactorSpawnPositionInCompany(level, reactor, 0);
+            this.teleportTo(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
         }
         // 机制2:若正处于"深蓝色正午"考验,立刻结束考验,场上海嗣集体瞬移到身边并死亡,每只供给+50点生命值
         if (com.wzz.lobotocraft.event.BlueMiddayEvent.isTrialActive()) {
@@ -280,10 +284,10 @@ public class EntityIsharmla extends AbstractAbnormality {
         }
         switch (attackAnimType) {
             case 0 -> { // 咬:身前较小范围
-                hitTargetsInForwardArea(level, 6.5, 2.4, 1.2, 40f);
+                hitTargetsInForwardArea(level, 8.0, 4.2, 1.2, 40f);
             }
             case 1 -> { // 甩尾:身前6x9大范围
-                hitTargetsInForwardArea(level, 9.0, 3.8, 2.5, 25f);
+                hitTargetsInForwardArea(level, 10.0, 5.0, 2.5, 25f);
             }
             case 2 -> tickBeamAttack(level); // 光束:见项6特效逻辑
         }
@@ -375,7 +379,7 @@ public class EntityIsharmla extends AbstractAbnormality {
         }
 
         // 四段命中:监守者声波粒子从7格高落在每个圆圈中心 + 监守者声波音效
-        if (t == 15 || t == 30 || t == 45 || t == 60) {
+        if (t == 10 || t == 20 || t == 30 || t == 40) {
             for (LivingEntity e : beamCircleTargets) {
                 if (!e.isAlive()) continue;
                 double cx = e.getX(), cz = e.getZ();
@@ -392,7 +396,7 @@ public class EntityIsharmla extends AbstractAbnormality {
             level.playSound(null, this.blockPosition(),
                     net.minecraft.sounds.SoundEvents.WARDEN_SONIC_BOOM,
                     SoundSource.HOSTILE, 2.0f, 1.0f);
-            if (t == 60) {
+            if (t == 40) {
                 beamCircleTargets.clear();
             }
         }
@@ -423,8 +427,7 @@ public class EntityIsharmla extends AbstractAbnormality {
     }
 
     private void cleanupTears(ServerLevel level) {
-        //FIX 动画就 1.5s * 20 tick/s = 30tick
-    	setAnimTimed("heal_human", 30); // 项4①:3秒后(进入巨兽前)自动切回待机
+        setAnimTimed("heal_human", HEAL_HUMAN_ANIMATION_TICKS);
         playSoundToAll(ModSounds.ISHARMLA_TEAR_SUMMON.get());
         int naturalKills = 0;
         for (java.util.UUID uuid : currentTears) {
@@ -438,8 +441,7 @@ public class EntityIsharmla extends AbstractAbnormality {
         currentTears.clear();
         // 巨兽持续时间 = 基础60秒 + 每个非玩家击杀的之泪12秒
         monsterPhaseTimer = MONSTER_BASE_DURATION + naturalKills * TEAR_KILL_EXTEND;
-        // 3秒后进入巨兽形态
-        pendingMonster = 3 * 20;
+        pendingMonster = HEAL_HUMAN_ANIMATION_TICKS;
     }
 
     private void tickMonsterForm(ServerLevel level) {
@@ -467,7 +469,7 @@ public class EntityIsharmla extends AbstractAbnormality {
         double dist = this.distanceTo(target);
         this.getLookControl().setLookAt(target);
         // 项4④:巨兽形态会移动追击(巨兽无move动画,沿用idle_monster表现)
-        if (dist > 6.0) {
+        if (dist > MONSTER_ATTACK_DISTANCE) {
             this.getNavigation().moveTo(target, 1.0);
             return;
         }
@@ -504,12 +506,12 @@ public class EntityIsharmla extends AbstractAbnormality {
             attackHitWindowEnd = this.tickCount + 16;
         } else {
             // 光束:范围攻击(项6特效),命中窗口贯穿整个动画
-            setAnimTimed("attack_monster", 60);
+            setAnimTimed("attack_monster", BEAM_ATTACK_ANIMATION_TICKS);
             
             playSoundToAll(ModSounds.ISHARMLA_BEAM.get());
             attackAnimType = 2;
             attackHitWindowStart = this.tickCount + 1;
-            attackHitWindowEnd = this.tickCount + 60;
+            attackHitWindowEnd = this.tickCount + BEAM_ATTACK_ANIMATION_TICKS;
             beamAttackStarted = false;
         }
     }

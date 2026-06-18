@@ -133,7 +133,7 @@ public class ClerkEvent {
     }
 
     private static void spawnClerk(ServerLevel level, BlockPos reactorPos) {
-        BlockPos spawnPos = EntityUtil.findSafeGroundPositionInCompany(level, reactorPos, 8);
+        BlockPos spawnPos = EntityUtil.findReactorSpawnPositionInCompany(level, reactorPos, 8);
         EntityClerk clerk = ModEntities.clerk.get().create(level);
         if (clerk == null) return;
 

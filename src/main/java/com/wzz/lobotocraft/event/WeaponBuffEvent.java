@@ -1,6 +1,8 @@
 package com.wzz.lobotocraft.event;
 
 import com.wzz.lobotocraft.ModMain;
+import com.wzz.lobotocraft.init.ModItems;
+import com.wzz.lobotocraft.item.ego.end_bird.EndBirdWeapon;
 import com.wzz.lobotocraft.util.EgoArmorHelper;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -28,10 +30,13 @@ public class WeaponBuffEvent {
 
     public static final String JUSTICE_BUFF_UNTIL = "lobotocraft_justice_buff_until";
     public static final String REPENTANCE_BUFF_UNTIL = "lobotocraft_repentance_buff_until";
+    public static final String THIN_DUSK_APPROVAL_BUFF_UNTIL = "lobotocraft_thin_dusk_approval_buff_until";
 
     private static final UUID JUSTICE_AS_UUID = UUID.fromString("c0ffee00-0001-4000-8000-000000000001");
     private static final UUID JUSTICE_MS_UUID = UUID.fromString("c0ffee00-0002-4000-8000-000000000002");
     private static final UUID REPENTANCE_MS_UUID = UUID.fromString("c0ffee00-0003-4000-8000-000000000003");
+    private static final UUID THIN_DUSK_APPROVAL_AS_UUID = UUID.fromString("c0ffee00-0004-4000-8000-000000000004");
+    private static final UUID THIN_DUSK_APPROVAL_MS_UUID = UUID.fromString("c0ffee00-0005-4000-8000-000000000005");
 
     private static final int BUFF_DURATION = 200; // 10秒
 
@@ -47,6 +52,12 @@ public class WeaponBuffEvent {
         if (!EgoArmorHelper.isFullSetWithCurioLocked(player, "repentance")) return;
         if (!EgoArmorHelper.isHoldingWeapon(player, "repentance")) return;
         player.getPersistentData().putLong(REPENTANCE_BUFF_UNTIL, player.level().getGameTime() + BUFF_DURATION);
+    }
+
+    /** 薄暝 + 破晓(审判鸟):命中后刷新 30% 攻速移速 buff */
+    public static void triggerThinDuskApprovalBuff(Player player) {
+        if (!EndBirdWeapon.hasThinDuskSetWithCurio(player, ModItems.APPROVAL_BIRD_CURIO.get())) return;
+        player.getPersistentData().putLong(THIN_DUSK_APPROVAL_BUFF_UNTIL, player.level().getGameTime() + BUFF_DURATION);
     }
 
     /** 悔恨 buff 是否激活(供 ForgeModEvent 判断红伤+10%) */
@@ -90,6 +101,25 @@ public class WeaponBuffEvent {
                 ms.addTransientModifier(new AttributeModifier(REPENTANCE_MS_UUID, "repentance_ms", -0.20, AttributeModifier.Operation.MULTIPLY_TOTAL));
             } else if (!repentanceActive && has) {
                 ms.removeModifier(REPENTANCE_MS_UUID);
+            }
+        }
+
+        // 薄暝 + 破晓(审判鸟):攻速+30% 移速+30%
+        boolean thinDuskApprovalActive = player.getPersistentData().getLong(THIN_DUSK_APPROVAL_BUFF_UNTIL) > now;
+        if (as != null) {
+            boolean has = as.getModifier(THIN_DUSK_APPROVAL_AS_UUID) != null;
+            if (thinDuskApprovalActive && !has) {
+                as.addTransientModifier(new AttributeModifier(THIN_DUSK_APPROVAL_AS_UUID, "thin_dusk_approval_as", 0.30, AttributeModifier.Operation.MULTIPLY_TOTAL));
+            } else if (!thinDuskApprovalActive && has) {
+                as.removeModifier(THIN_DUSK_APPROVAL_AS_UUID);
+            }
+        }
+        if (ms != null) {
+            boolean has = ms.getModifier(THIN_DUSK_APPROVAL_MS_UUID) != null;
+            if (thinDuskApprovalActive && !has) {
+                ms.addTransientModifier(new AttributeModifier(THIN_DUSK_APPROVAL_MS_UUID, "thin_dusk_approval_ms", 0.30, AttributeModifier.Operation.MULTIPLY_TOTAL));
+            } else if (!thinDuskApprovalActive && has) {
+                ms.removeModifier(THIN_DUSK_APPROVAL_MS_UUID);
             }
         }
     }

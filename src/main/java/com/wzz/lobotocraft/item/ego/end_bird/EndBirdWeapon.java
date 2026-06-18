@@ -43,7 +43,7 @@ import java.util.*;
  *                  期间玩家无法转向并获得最高级缓慢，生物无法移动；
  *                  收刀后造成 红/白/黑/蓝 四段 45 点(蓝段+10%HP≤15，四段顺序播放特殊音效1/2/3/4)，随后转向恢复。
  *   三阶(3-4→3-5)：对身前 5x5 造成 红/白/黑/蓝 四段 100 点(蓝段+20%HP≤30)；
- *                  播放特殊音效1/2/3，造成伤害时播放特殊音效4；结束后蓄力攻击进入 60 秒冷却。
+ *                  播放特殊音效1/2/3，造成伤害时播放特殊音效4；结束后蓄力攻击进入 30 秒冷却。
  * ※特殊攻击命中生物后给予其最高等级缓慢 1 秒。
  * ※持有此武器时终末鸟不会出现(见 hasWeaponHolder，由黑森林之门召唤处检查)。
  * 隐藏机制：蓄力进行与后摇期间无法左键普攻；蓄力期间移动速度大幅降低(约80%)。
@@ -85,10 +85,29 @@ public class EndBirdWeapon extends BaseEgoWeapon {
     private static final int CHARGE_ANIM_TICKS = 40;
     /** 连招窗口:最后一段伤害后 1.5 秒(30 tick)内再次右键可升阶 */
     private static final int COMBO_WINDOW_TICKS = 30;
-    /** 二阶冻结时长(玩家锁定视角+目标定身),建议与 3-3 动画收刀前摇对齐 */
-    private static final int ATK2_FREEZE_TICKS = 60;
-    /** 三阶后的蓄力冷却:60 秒 */
-    private static final int STAGE3_COOLDOWN_TICKS = 60 * 20;
+    /** 三阶后的蓄力冷却:30 秒 */
+    private static final int STAGE3_COOLDOWN_TICKS = 30 * 20;
+    private static final int TIMER_TICKS_PER_SECOND = 20;
+
+    // 伤害帧来自 animations/weapon/end_bird_weapon.animation.json,按 20 tick/s 换算。
+    private static final int NORMAL_1_HIT_TICK = animationTick(1.0833); // animation.model.new 挥出
+    private static final int NORMAL_2_HIT_TICK = animationTick(0.6667); // "2" 挥出
+    private static final int STAGE1_RED_HIT_TICK = animationTick(0.2917);
+    private static final int STAGE1_WHITE_HIT_TICK = animationTick(0.4167);
+    private static final int STAGE1_BLACK_HIT_TICK = animationTick(0.5417);
+    private static final int STAGE1_BLUE_1_HIT_TICK = animationTick(0.6667);
+    private static final int STAGE1_BLUE_2_HIT_TICK = animationTick(0.7917);
+    private static final int STAGE1_END_TICK = animationTick(2.4167);
+    private static final int STAGE2_RED_HIT_TICK = animationTick(1.75);
+    private static final int STAGE2_WHITE_HIT_TICK = animationTick(1.875);
+    private static final int STAGE2_BLACK_HIT_TICK = animationTick(2.0);
+    private static final int STAGE2_BLUE_HIT_TICK = animationTick(2.125);
+    private static final int STAGE2_END_TICK = animationTick(2.25);
+    private static final int STAGE3_RED_HIT_TICK = animationTick(0.2917);
+    private static final int STAGE3_WHITE_HIT_TICK = animationTick(0.4583);
+    private static final int STAGE3_BLACK_HIT_TICK = animationTick(0.625);
+    private static final int STAGE3_BLUE_HIT_TICK = animationTick(0.875);
+    private static final int STAGE3_END_TICK = animationTick(1.875);
     public static final String THIN_DUSK_PASSIVE_MARK = "lobotocraft_thin_dusk_passive_until";
     public static final String THIN_DUSK_SPECIAL_DAMAGE = "lobotocraft_thin_dusk_special_damage";
     public static final String THIN_DUSK_SHIELD_COOLDOWN = "lobotocraft_thin_dusk_shield_cooldown_until";
@@ -185,27 +204,61 @@ public class EndBirdWeapon extends BaseEgoWeapon {
 
         // 10% 概率播放特殊攻击动画1 / 10% 概率播放特殊攻击动画2,触发时每段伤害+5
         float bonus = 0f;
+        int animatedHitTick = 0;
         float roll = player.getRandom().nextFloat();
         if (roll < 0.10f) {
             triggerAnimation(player, stack, ANIM_NORMAL_1);
             bonus = 5f;
+            animatedHitTick = NORMAL_1_HIT_TICK;
         } else if (roll < 0.20f) {
             triggerAnimation(player, stack, ANIM_NORMAL_2);
             bonus = 5f;
+            animatedHitTick = NORMAL_2_HIT_TICK;
         }
-
-        playSound(player, ModSounds.END_BIRD_WEAPON_NORMAL.get());
 
         if (!player.level().isClientSide) {
-            // 四段链式:红/白/黑/蓝 各18(+特殊动画时+5);蓝段额外附带目标最大生命10%伤害(上限5)
-            // 每段前清除无敌帧,确保四段都能命中
-            dealStep(player, target, "red", 18f + bonus);
-            dealStep(player, target, "white", 18f + bonus);
-            dealStep(player, target, "black", 18f + bonus);
-            float blueExtra = EntityUtil.addMaxHealthPercentageDamage(target, 0.1f, 0.1f, 5f);
-            dealStep(player, target, "blue", 18f + bonus + blueExtra);
+            if (animatedHitTick > 0) {
+                scheduleNormalHit(player, target, bonus, animatedHitTick);
+            } else {
+                playSound(player, ModSounds.END_BIRD_WEAPON_NORMAL.get());
+                dealNormalHit(player, target, bonus);
+            }
         }
         return true;
+    }
+
+    private static int animationTick(double seconds) {
+        return Math.max(1, (int) Math.round(seconds * TIMER_TICKS_PER_SECOND));
+    }
+
+    private void scheduleNormalHit(Player player, LivingEntity target, float bonus, int hitTick) {
+        TimerEntry timer = new TimerEntry() {
+            private int t = 0;
+
+            @Override
+            public void onRunning(@NotNull LivingEntity living) {
+                if (!(living instanceof Player p)) return;
+                t++;
+                if (t == hitTick) {
+                    playSound(p, ModSounds.END_BIRD_WEAPON_NORMAL.get());
+                    if (target.isAlive()) {
+                        dealNormalHit(p, target, bonus);
+                    }
+                    this.removeTimer(p.getUUID());
+                }
+            }
+        };
+        timer.addSkillTimer(player, 0, (hitTick + 2) * 50, TIMER_TICKS_PER_SECOND);
+    }
+
+    private void dealNormalHit(Player player, LivingEntity target, float bonus) {
+        // 四段链式:红/白/黑/蓝 各18(+特殊动画时+5);蓝段额外附带目标最大生命10%伤害(上限5)
+        // 每段前清除无敌帧,确保四段都能命中
+        dealStep(player, target, "red", 18f + bonus);
+        dealStep(player, target, "white", 18f + bonus);
+        dealStep(player, target, "black", 18f + bonus);
+        float blueExtra = EntityUtil.addMaxHealthPercentageDamage(target, 0.1f, 0.1f, 5f);
+        dealStep(player, target, "blue", 18f + bonus + blueExtra);
     }
 
     /** 单段伤害:清除目标无敌帧后立即结算,保证多段连击每段都生效 */
@@ -362,22 +415,22 @@ public class EndBirdWeapon extends BaseEgoWeapon {
                     p.level().playSound(null, p.blockPosition(),
                             net.minecraft.sounds.SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 1.0f, 1.0f);
                 }
-                // 剑影五段(每10tick一段):红30→白30→黑30→蓝30(+10%≤8)→蓝30(+10%≤8)
-                if (t == 20) { dealHitToAll(p, targets, "red",   30f, 0f,   0f); playSpecialSound(p, 1); }
-                if (t == 30) { dealHitToAll(p, targets, "white", 30f, 0f,   0f); playSpecialSound(p, 2); }
-                if (t == 40) { dealHitToAll(p, targets, "black", 30f, 0f,   0f); playSpecialSound(p, 3); }
-                if (t == 50) { dealHitToAll(p, targets, "blue",  30f, 0.1f, 8f); playSpecialSound(p, 4); }
-                if (t == 60) { dealHitToAll(p, targets, "blue",  30f, 0.1f, 8f); playSpecialSound(p, 4); }
+                // 剑影五段跟随 3-1 动画里骨骼 "2" 的五次显现帧。
+                if (t == STAGE1_RED_HIT_TICK) { dealHitToAll(p, targets, "red",   30f, 0f,   0f); playSpecialSound(p, 1); }
+                if (t == STAGE1_WHITE_HIT_TICK) { dealHitToAll(p, targets, "white", 30f, 0f,   0f); playSpecialSound(p, 2); }
+                if (t == STAGE1_BLACK_HIT_TICK) { dealHitToAll(p, targets, "black", 30f, 0f,   0f); playSpecialSound(p, 3); }
+                if (t == STAGE1_BLUE_1_HIT_TICK) { dealHitToAll(p, targets, "blue",  30f, 0.1f, 8f); playSpecialSound(p, 4); }
+                if (t == STAGE1_BLUE_2_HIT_TICK) { dealHitToAll(p, targets, "blue",  30f, 0.1f, 8f); playSpecialSound(p, 4); }
 
-                if (t == 61) {
-                    // 最后一段伤害造成后:开启 1.5 秒连招窗口(可升二阶),解除演出锁
+                if (t == STAGE1_END_TICK) {
+                    // 等 3-1 演出收完后开启连招窗口,避免新蓄力打断剩余动画。
                     openComboWindow(p, stack, STAGE_1);
                     endAnimation(stack);
                     this.removeTimer(p.getUUID());
                 }
             }
         };
-        timer.addSkillTimer(player, 0, 10000, 1);
+        timer.addSkillTimer(player, 0, (STAGE1_END_TICK + 2) * 50, TIMER_TICKS_PER_SECOND);
     }
 
     // =======================================================================
@@ -418,7 +471,7 @@ public class EndBirdWeapon extends BaseEgoWeapon {
                     lockedYaw = p.getYRot();
                     lockedPitch = p.getXRot();
                     p.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN,
-                            ATK2_FREEZE_TICKS + 5, 255, false, false));
+                            STAGE2_END_TICK + 5, 255, false, false));
                     // 1 点红色伤害(特殊音效1)
                     target.hurtTime = 0; target.hurtDuration = 0;
                     target.hurtMarked = false; target.invulnerableTime = 0;
@@ -427,8 +480,8 @@ public class EndBirdWeapon extends BaseEgoWeapon {
                     playSpecialSound(p, 1);
                 }
 
-                // 冻结期:每tick锁定玩家视角(服务端),目标定身
-                if (t >= 2 && t <= ATK2_FREEZE_TICKS) {
+                // 冻结期:每tick锁定玩家视角(服务端),目标定身,持续到 3-3 动画收完。
+                if (t >= 2 && t <= STAGE2_END_TICK) {
                     p.setYRot(lockedYaw);
                     p.setXRot(lockedPitch);
                     p.yRotO = lockedYaw;
@@ -439,29 +492,28 @@ public class EndBirdWeapon extends BaseEgoWeapon {
                     }
                 }
 
-                // 收刀:四段伤害 红45→白45→黑45→蓝45(+10%≤15),顺序播特殊音效1/2/3/4;转向恢复
-                if (t == ATK2_FREEZE_TICKS + 1) {
-                    frozenPos = null;
-                    if (target != null && target.isAlive()) {
-                        dealChainedWithSounds(p, target,
-                                new String[]{"red", "white", "black", "blue"},
-                                new int[]{1, 2, 3, 4},
-                                45f, 0.1f, 15f);
-                    }
+                // 收刀段:红45→白45→黑45→蓝45(+10%≤15),顺序播特殊音效1/2/3/4。
+                if (target != null && target.isAlive()) {
+                    if (t == STAGE2_RED_HIT_TICK) dealOneWithSound(p, target, "red", 1, 45f, 0f, 0f);
+                    if (t == STAGE2_WHITE_HIT_TICK) dealOneWithSound(p, target, "white", 2, 45f, 0f, 0f);
+                    if (t == STAGE2_BLACK_HIT_TICK) dealOneWithSound(p, target, "black", 3, 45f, 0f, 0f);
+                    if (t == STAGE2_BLUE_HIT_TICK) dealOneWithSound(p, target, "blue", 4, 45f, 0.1f, 15f);
                 }
-                if (t == ATK2_FREEZE_TICKS + 2) {
+
+                if (t == STAGE2_END_TICK) {
+                    frozenPos = null;
                     openComboWindow(p, stack, STAGE_2);
                     endAnimation(stack);
                     this.removeTimer(p.getUUID());
                 }
             }
         };
-        timer.addSkillTimer(player, 0, 10000, 1);
+        timer.addSkillTimer(player, 0, (STAGE2_END_TICK + 2) * 50, TIMER_TICKS_PER_SECOND);
     }
 
     // =======================================================================
     //  ★ 三阶:身前5x5 红/白/黑/蓝 四段100(蓝段+20%HP≤30)
-    //          音效:特殊1/2/3 蓄势,造成伤害时特殊4;结束后蓄力进入60秒冷却
+    //          音效:特殊1/2/3 蓄势,造成伤害时特殊4;结束后蓄力进入30秒冷却
     // =======================================================================
 
     private void executeStage3Attack(Player player, ItemStack stack) {
@@ -478,21 +530,16 @@ public class EndBirdWeapon extends BaseEgoWeapon {
                 t++;
 
                 if (t == 1)  { targets = getEntitiesInFront(p, 5.0, 2.5); playSpecialSound(p, 1); }
-                if (t == 10) playSpecialSound(p, 2);
-                if (t == 20) playSpecialSound(p, 3);
+                if (t == Math.max(1, STAGE3_RED_HIT_TICK - 2)) playSpecialSound(p, 2);
+                if (t == Math.max(1, STAGE3_RED_HIT_TICK - 1)) playSpecialSound(p, 3);
 
-                if (t == 30 && targets != null) {
-                    playSpecialSound(p, 4);
-                    for (LivingEntity target : targets) {
-                        if (!target.isAlive()) continue;
-                        dealChainedColors(p, target,
-                                new String[]{"red", "white", "black", "blue"},
-                                100f, 0.2f, 30f);
-                    }
-                }
+                if (t == STAGE3_RED_HIT_TICK) { playSpecialSound(p, 4); dealHitToAll(p, targets, "red", 100f, 0f, 0f); }
+                if (t == STAGE3_WHITE_HIT_TICK) { playSpecialSound(p, 4); dealHitToAll(p, targets, "white", 100f, 0f, 0f); }
+                if (t == STAGE3_BLACK_HIT_TICK) { playSpecialSound(p, 4); dealHitToAll(p, targets, "black", 100f, 0f, 0f); }
+                if (t == STAGE3_BLUE_HIT_TICK) { playSpecialSound(p, 4); dealHitToAll(p, targets, "blue", 100f, 0.2f, 30f); }
 
-                if (t == 31) {
-                    // 三阶为最终阶段:不开连招窗口,蓄力攻击进入60秒冷却
+                if (t == STAGE3_END_TICK) {
+                    // 三阶为最终阶段:不开连招窗口,蓄力攻击进入30秒冷却
                     stack.getOrCreateTag().putInt(KEY_COOLDOWN, STAGE3_COOLDOWN_TICKS);
                     stack.getOrCreateTag().putInt(KEY_CHARGE_STAGE, STAGE_NONE);
                     endAnimation(stack);
@@ -500,7 +547,7 @@ public class EndBirdWeapon extends BaseEgoWeapon {
                 }
             }
         };
-        timer.addSkillTimer(player, 0, 10000, 1);
+        timer.addSkillTimer(player, 0, (STAGE3_END_TICK + 2) * 50, TIMER_TICKS_PER_SECOND);
     }
 
     // =======================================================================
@@ -612,17 +659,11 @@ public class EndBirdWeapon extends BaseEgoWeapon {
         }
     }
 
-    /** 对单个目标按颜色序列链式造成多段伤害(无音效版,三阶用) */
-    private void dealChainedColors(Player player, LivingEntity target,
-                                   String[] colors, float baseDamage, float bluePercent, float blueCap) {
-        dealChainedStep(player, target, colors, null, baseDamage, bluePercent, blueCap);
-    }
-
-    /** 对单个目标按颜色序列链式多段伤害,每段配一个特殊音效(二阶收刀用) */
-    private void dealChainedWithSounds(Player player, LivingEntity target,
-                                       String[] colors, int[] sounds,
-                                       float baseDamage, float bluePercent, float blueCap) {
-        dealChainedStep(player, target, colors, sounds, baseDamage, bluePercent, blueCap);
+    /** 对单个目标造成一个动画帧上的单段伤害,并播放对应特殊音效。 */
+    private void dealOneWithSound(Player player, LivingEntity target,
+                                  String color, int sound,
+                                  float baseDamage, float bluePercent, float blueCap) {
+        dealChainedStep(player, target, new String[]{color}, new int[]{sound}, baseDamage, bluePercent, blueCap);
     }
 
     /** 顺序结算多段伤害(每段前清无敌帧,保证段段命中) */

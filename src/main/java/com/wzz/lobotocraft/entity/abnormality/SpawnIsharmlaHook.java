@@ -20,8 +20,9 @@ public class SpawnIsharmlaHook {
         }
         EntityIsharmla isharmla = ModEntities.isharmla.get().create(level);
         if (isharmla == null) return;
-        isharmla.moveTo(reactorPos.getX() + 0.5, reactorPos.getY(), reactorPos.getZ() + 0.5, 0f, 0f);
-        isharmla.finalizeSpawn(level, level.getCurrentDifficultyAt(reactorPos),
+        BlockPos spawnPos = EntityUtil.findReactorSpawnPositionInCompany(level, reactorPos, 0);
+        isharmla.moveTo(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5, 0f, 0f);
+        isharmla.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos),
                 MobSpawnType.EVENT, null, null);
         isharmla.setPersistenceRequired();
         level.addFreshEntity(isharmla);

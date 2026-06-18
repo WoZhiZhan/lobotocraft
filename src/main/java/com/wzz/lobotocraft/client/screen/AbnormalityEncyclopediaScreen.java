@@ -1124,13 +1124,13 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         graphics.drawString(this.font, title,
                 x + EncyclopediaGUIConfig.Layout.RightColumn.TEXT_PADDING_X,
                 y + EncyclopediaGUIConfig.Layout.RightColumn.TEXT_PADDING_Y,
-                EncyclopediaGUIConfig.Colors.THEME_ORANGE);
+                EncyclopediaGUIConfig.Colors.TEXT_GRAY);
 
         if (unlocked) {
             drawWrappedText(graphics, content,
                     x + EncyclopediaGUIConfig.Layout.RightColumn.TEXT_PADDING_X,
                     y + 22, width - 20,
-                    EncyclopediaGUIConfig.Colors.STATUS_RED);
+                    EncyclopediaGUIConfig.Colors.TEXT_GRAY);
 
         } else {
             boolean canUnlock = observationLevel >= reqLevel;

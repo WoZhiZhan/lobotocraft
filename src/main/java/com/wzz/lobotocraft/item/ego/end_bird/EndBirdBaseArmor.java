@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.item.ego.end_bird;
 
+import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModArmorMaterial;
 import com.wzz.lobotocraft.init.ModItems;
@@ -87,7 +88,7 @@ public abstract class EndBirdBaseArmor extends BaseEgoArmor {
                 boolean thinDuskPunishing = EndBirdWeapon.hasThinDuskSetWithCurio(
                         player, ModItems.PUNISHING_BIRD_CURIO.get());
                 for (LivingEntity entity : EntityUtil.findAllEntities(player, 10)) {
-                    if (entity.getClassification(true) == MobCategory.MONSTER) {
+                    if (isPassiveTarget(entity)) {
                         if (thinDuskPunishing) {
                             EndBirdWeapon.markPassiveVulnerable(entity, level);
                         }
@@ -108,13 +109,18 @@ public abstract class EndBirdBaseArmor extends BaseEgoArmor {
             } else {
                 if (EgoArmorHelper.isWearingFullSet(player, getSetId())) {
                     for (LivingEntity entity : EntityUtil.findAllEntities(player, 2.5D)) {
-                        if (entity.getClassification(true) == MobCategory.MONSTER) {
+                        if (isPassiveTarget(entity)) {
                             entity.hurt(DamageHelper.getDamage(player, "black"), 5f);
                         }
                     }
                 }
             }
         }
+    }
+
+    private boolean isPassiveTarget(LivingEntity entity) {
+        return entity.getClassification(true) == MobCategory.MONSTER
+                || (entity instanceof AbstractAbnormality abnormality && abnormality.hasEscape());
     }
 
     @Override
