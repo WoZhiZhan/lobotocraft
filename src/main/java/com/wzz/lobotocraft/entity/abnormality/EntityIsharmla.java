@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.item.SkadiBanishData;
+import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.nbt.CompoundTag;
@@ -23,6 +24,8 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
 import software.bernie.geckolib.core.animation.AnimationState;
@@ -100,6 +103,8 @@ public class EntityIsharmla extends AbstractAbnormality {
     private int attackHitWindowStart = 0;
     private int attackHitWindowEnd = 0;
     private final java.util.Set<java.util.UUID> currentAttackHitTargets = new java.util.HashSet<>();
+    private Vec3 attackForward = new Vec3(0.0, 0.0, 1.0);
+    private java.util.UUID currentAttackTargetUuid = null;
     // 光束累计命中次数(满4次造成15蓝伤)——项6
     private int beamChargeCount = 0;
     private boolean beamAttackStarted = false;
@@ -269,24 +274,71 @@ public class EntityIsharmla extends AbstractAbnormality {
         if (this.tickCount > attackHitWindowEnd) {
             // 窗口结束,清理
             attackAnimType = -1;
+            currentAttackTargetUuid = null;
             currentAttackHitTargets.clear();
             return;
         }
         switch (attackAnimType) {
             case 0 -> { // 咬:身前较小范围
-                net.minecraft.world.phys.AABB box = this.getBoundingBox().inflate(2.0, 1.0, 2.0);
-                for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, box, this::isHostileTarget)) {
-                    if (currentAttackHitTargets.add(e.getUUID())) dealDamageWithMental(e, 40f);
-                }
+                hitTargetsInForwardArea(level, 6.5, 2.4, 1.2, 40f);
             }
             case 1 -> { // 甩尾:身前6x9大范围
-                net.minecraft.world.phys.AABB box = this.getBoundingBox().inflate(6, 3, 9);
-                for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, box, this::isHostileTarget)) {
-                    if (currentAttackHitTargets.add(e.getUUID())) dealDamageWithMental(e, 25f);
-                }
+                hitTargetsInForwardArea(level, 9.0, 3.8, 2.5, 25f);
             }
             case 2 -> tickBeamAttack(level); // 光束:见项6特效逻辑
         }
+    }
+
+    private void hitTargetsInForwardArea(ServerLevel level, double reach, double halfWidth,
+                                         double verticalPadding, float damage) {
+        AABB box = createForwardAttackBox(reach, halfWidth, verticalPadding);
+        for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, box, this::isHostileTarget)) {
+            tryHitForwardTarget(e, reach, halfWidth, verticalPadding, damage);
+        }
+        if (currentAttackTargetUuid != null
+                && level.getEntity(currentAttackTargetUuid) instanceof LivingEntity target) {
+            tryHitForwardTarget(target, reach, halfWidth, verticalPadding, damage);
+        }
+    }
+
+    private void tryHitForwardTarget(LivingEntity target, double reach, double halfWidth,
+                                     double verticalPadding, float damage) {
+        if (!isHostileTarget(target) || currentAttackHitTargets.contains(target.getUUID())) {
+            return;
+        }
+        if (!isInForwardAttackArea(target, reach, halfWidth, verticalPadding)) {
+            return;
+        }
+        currentAttackHitTargets.add(target.getUUID());
+        dealDamageWithMental(target, damage);
+    }
+
+    private AABB createForwardAttackBox(double reach, double halfWidth, double verticalPadding) {
+        AABB selfBox = this.getBoundingBox();
+        Vec3 from = new Vec3(this.getX(), selfBox.minY, this.getZ());
+        Vec3 to = new Vec3(
+                this.getX() + attackForward.x * reach,
+                selfBox.maxY,
+                this.getZ() + attackForward.z * reach);
+        return new AABB(from, to).inflate(halfWidth, verticalPadding, halfWidth);
+    }
+
+    private boolean isInForwardAttackArea(LivingEntity target, double reach, double halfWidth,
+                                          double verticalPadding) {
+        AABB selfBox = this.getBoundingBox();
+        AABB targetBox = target.getBoundingBox();
+        if (targetBox.maxY < selfBox.minY - verticalPadding
+                || targetBox.minY > selfBox.maxY + verticalPadding) {
+            return false;
+        }
+
+        Vec3 toTarget = target.position().subtract(this.position());
+        double forwardDistance = toTarget.x * attackForward.x + toTarget.z * attackForward.z;
+        double sideDistance = Math.abs(toTarget.x * attackForward.z - toTarget.z * attackForward.x);
+        double targetRadius = Math.max(0.3, target.getBbWidth() * 0.5);
+        return forwardDistance >= -targetRadius
+                && forwardDistance <= reach + targetRadius
+                && sideDistance <= halfWidth + targetRadius;
     }
 
     /**
@@ -441,6 +493,8 @@ public class EntityIsharmla extends AbstractAbnormality {
     private void performMonsterAttack(ServerLevel level, LivingEntity target) {
         float roll = this.random.nextFloat();
         currentAttackHitTargets.clear();
+        currentAttackTargetUuid = target.getUUID();
+        faceAttackTarget(target);
 
         
         if (roll < 0.40f) {
@@ -471,6 +525,26 @@ public class EntityIsharmla extends AbstractAbnormality {
         }
     }
 
+    private void faceAttackTarget(LivingEntity target) {
+        attackForward = getHorizontalDirectionTo(target);
+        float yaw = (float) (Math.atan2(attackForward.z, attackForward.x) * 180.0D / Math.PI) - 90.0F;
+        this.setYRot(yaw);
+        this.yBodyRot = yaw;
+        this.yHeadRot = yaw;
+        this.getLookControl().setLookAt(target, 30.0F, 30.0F);
+    }
+
+    private Vec3 getHorizontalDirectionTo(LivingEntity target) {
+        double dx = target.getX() - this.getX();
+        double dz = target.getZ() - this.getZ();
+        double length = Math.sqrt(dx * dx + dz * dz);
+        if (length < 1.0E-4D) {
+            double yaw = this.getYRot() * Math.PI / 180.0D;
+            return new Vec3(-Math.sin(yaw), 0.0D, Math.cos(yaw));
+        }
+        return new Vec3(dx / length, 0.0D, dz / length);
+    }
+
     private LivingEntity findNearestTarget(ServerLevel level, double range) {
         List<Player> players = level.getEntitiesOfClass(Player.class,
                 this.getBoundingBox().inflate(range),
@@ -497,7 +571,8 @@ public class EntityIsharmla extends AbstractAbnormality {
 
     /** 造成伤害(黑色),并附带机制1的精神攻击 */
     private void dealDamageWithMental(LivingEntity target, float damage) {
-//        target.hurt(com.wzz.lobotocraft.util.DamageHelper.getDamage(this, "black"), damage);
+        EntityUtil.clearHurtTime(target);
+        target.hurt(com.wzz.lobotocraft.util.DamageHelper.getDamage(this, "black"), damage);
         if (target instanceof ServerPlayer player) {
             // 机制1:额外强行扣除3-6%精神值(无视精神抗性)
             float maxMental = MentalValueUtil.getEffectiveMaxMentalValue(player);
