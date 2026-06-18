@@ -25,8 +25,10 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
 import software.bernie.geckolib.core.animation.RawAnimation;
+import software.bernie.geckolib.core.object.PlayState;
 
 import java.util.*;
 
@@ -35,7 +37,6 @@ import java.util.*;
  *
  * ※只有全属性(勇气/谨慎/自律/正义)满级(V)的玩家才能拿起这把武器。
  * ※普通攻击造成 红/白/黑/蓝 各一段 18 点伤害；蓝色段额外附带目标最大生命 10% 伤害(上限5点)。
- * ※左键攻击时各有 10% 概率播放特殊攻击动画(animation.model.new / "2")，该次攻击每段伤害 +5。
  * ※右键长按蓄力(蓄力时间必须超过蓄力动画时长)，松开释放特殊攻击；
  *   在阶段攻击造成最后一段伤害后 1.5 秒内再次长按右键可提升至下一蓄力阶段。
  *   一阶(3→3-1)：无伤挥砍后剑影对身前 5x5 造成 红/白/黑/蓝/蓝 五段 30 点(蓝段+10%HP≤8)，顺序播放特殊音效1/2/3/4/4。
@@ -49,8 +50,6 @@ import java.util.*;
  * 隐藏机制：蓄力进行与后摇期间无法左键普攻；蓄力期间移动速度大幅降低(约80%)。
  *
  * ─── 动画对照表 ─────────────────────────────
- *  animation.model.new  左键10%概率特殊攻击动画1(+5伤害)
- *  "2"                  左键10%概率特殊攻击动画2(+5伤害)
  *  "3"                  一阶蓄力   "3-1" 一阶攻击
  *  "3-2"                二阶蓄力   "3-3" 二阶攻击
  *  "3-4"                三阶蓄力   "3-5" 三阶攻击
@@ -72,8 +71,6 @@ public class EndBirdWeapon extends BaseEgoWeapon {
     private static final String KEY_IS_ANIMATING     = "IsAnimating";     // 蓄力/攻击/后摇进行中
 
     // ───────────── 动画名 ─────────────
-    private static final String ANIM_NORMAL_1   = "animation.model.new";
-    private static final String ANIM_NORMAL_2   = "2";
     private static final String ANIM_CHARGE_1   = "3";
     private static final String ANIM_STAGE1_ATK = "3-1";
     private static final String ANIM_CHARGE_2   = "3-2";
@@ -90,8 +87,6 @@ public class EndBirdWeapon extends BaseEgoWeapon {
     private static final int TIMER_TICKS_PER_SECOND = 20;
 
     // 伤害帧来自 animations/weapon/end_bird_weapon.animation.json,按 20 tick/s 换算。
-    private static final int NORMAL_1_HIT_TICK = animationTick(1.0833); // animation.model.new 挥出
-    private static final int NORMAL_2_HIT_TICK = animationTick(0.6667); // "2" 挥出
     private static final int STAGE1_RED_HIT_TICK = animationTick(0.2917);
     private static final int STAGE1_WHITE_HIT_TICK = animationTick(0.4167);
     private static final int STAGE1_BLACK_HIT_TICK = animationTick(0.5417);
@@ -141,7 +136,6 @@ public class EndBirdWeapon extends BaseEgoWeapon {
 
     @Override public int getUseDuration(ItemStack stack)      { return 72000; }
     @Override public UseAnim getUseAnimation(ItemStack stack) { return UseAnim.BOW; }
-    @Override protected String getAttackName()  { return ANIM_NORMAL_1; }
     @Override protected boolean hasIdle()       { return false; }
     @Override public boolean hasAnimatable()    { return true; }
 
@@ -177,10 +171,16 @@ public class EndBirdWeapon extends BaseEgoWeapon {
     // =======================================================================
 
     @Override
+    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        AnimationController<BaseEgoWeapon> controller = new AnimationController<>(
+                this, "controller", 0, state -> PlayState.CONTINUE);
+        registerAdditionalAnimations(controller);
+        controllers.add(controller);
+    }
+
+    @Override
     protected void registerAdditionalAnimations(AnimationController<BaseEgoWeapon> controller) {
-        // ANIM_NORMAL_1(=getAttackName) 已由基类注册,这里注册其余全部
         for (String name : new String[]{
-                ANIM_NORMAL_2,
                 ANIM_CHARGE_1, ANIM_STAGE1_ATK,
                 ANIM_CHARGE_2, ANIM_STAGE2_ATK,
                 ANIM_CHARGE_3, ANIM_STAGE3_ATK
@@ -190,7 +190,7 @@ public class EndBirdWeapon extends BaseEgoWeapon {
     }
 
     // =======================================================================
-    //  左键普通攻击:红/白/黑/蓝各18点,蓝段+10%HP(≤5);10%/10%概率特殊动画(+5伤)
+    //  左键普通攻击:红/白/黑/蓝各18点,蓝段+10%HP(≤5)
     // =======================================================================
 
     @Override
@@ -202,27 +202,9 @@ public class EndBirdWeapon extends BaseEgoWeapon {
         if (!canUseItem(player)) return false;
         if (!(entity instanceof LivingEntity target)) return false;
 
-        // 10% 概率播放特殊攻击动画1 / 10% 概率播放特殊攻击动画2,触发时每段伤害+5
-        float bonus = 0f;
-        int animatedHitTick = 0;
-        float roll = player.getRandom().nextFloat();
-        if (roll < 0.10f) {
-            triggerAnimation(player, stack, ANIM_NORMAL_1);
-            bonus = 5f;
-            animatedHitTick = NORMAL_1_HIT_TICK;
-        } else if (roll < 0.20f) {
-            triggerAnimation(player, stack, ANIM_NORMAL_2);
-            bonus = 5f;
-            animatedHitTick = NORMAL_2_HIT_TICK;
-        }
-
         if (!player.level().isClientSide) {
-            if (animatedHitTick > 0) {
-                scheduleNormalHit(player, target, bonus, animatedHitTick);
-            } else {
-                playSound(player, ModSounds.END_BIRD_WEAPON_NORMAL.get());
-                dealNormalHit(player, target, bonus);
-            }
+            playSound(player, ModSounds.END_BIRD_WEAPON_NORMAL.get());
+            dealNormalHit(player, target, 0f);
         }
         return true;
     }
@@ -231,28 +213,8 @@ public class EndBirdWeapon extends BaseEgoWeapon {
         return Math.max(1, (int) Math.round(seconds * TIMER_TICKS_PER_SECOND));
     }
 
-    private void scheduleNormalHit(Player player, LivingEntity target, float bonus, int hitTick) {
-        TimerEntry timer = new TimerEntry() {
-            private int t = 0;
-
-            @Override
-            public void onRunning(@NotNull LivingEntity living) {
-                if (!(living instanceof Player p)) return;
-                t++;
-                if (t == hitTick) {
-                    playSound(p, ModSounds.END_BIRD_WEAPON_NORMAL.get());
-                    if (target.isAlive()) {
-                        dealNormalHit(p, target, bonus);
-                    }
-                    this.removeTimer(p.getUUID());
-                }
-            }
-        };
-        timer.addSkillTimer(player, 0, (hitTick + 2) * 50, TIMER_TICKS_PER_SECOND);
-    }
-
     private void dealNormalHit(Player player, LivingEntity target, float bonus) {
-        // 四段链式:红/白/黑/蓝 各18(+特殊动画时+5);蓝段额外附带目标最大生命10%伤害(上限5)
+        // 四段链式:红/白/黑/蓝 各18;蓝段额外附带目标最大生命10%伤害(上限5)
         // 每段前清除无敌帧,确保四段都能命中
         dealStep(player, target, "red", 18f + bonus);
         dealStep(player, target, "white", 18f + bonus);
