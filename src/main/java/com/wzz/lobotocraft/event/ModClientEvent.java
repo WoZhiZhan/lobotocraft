@@ -61,16 +61,16 @@ public class ModClientEvent {
         event.registerEntityRenderer(ModEntities.primalsea_piercer.get(), (r) -> new GeoEntityRenderer<>(r, 1.0f, 1.0f));
         event.registerEntityRenderer(ModEntities.nucleic_maleficent.get(), (r) -> new GeoEntityRenderer<>(r, 1.2f, 1.2f));
         event.registerEntityRenderer(ModEntities.basinsea_reaper.get(), (r) -> new GeoEntityRenderer<>(r, 1.4f, 1.4f));
-        event.registerEntityRenderer(ModEntities.cleaner.get(), (r) -> new GeoEntityRenderer<>(r, 1.0f, 1.0f));
+        event.registerEntityRenderer(ModEntities.cleaner.get(), (r) -> new GeoEntityRenderer<>(r, 1.01f, 1.0f));
         event.registerEntityRenderer(ModEntities.bloody_small.get(), (r) -> new GeoEntityRenderer<>(r, 0.5f, 0.5f));
         event.registerEntityRenderer(ModEntities.butterfly_funeral.get(), (r) -> new AbnormalityRenderer<>(r, "butterfly", "butterfly", 0.6f, 0.6f));
         event.registerEntityRenderer(ModEntities.fragment_of_the_universe.get(), (r) -> new AbnormalityRenderer<>(r, 1.0f, 1.0f));
         event.registerEntityRenderer(ModEntities.helper.get(), (r) -> new AbnormalityRenderer<>(r, 1.0f, 1.0f));
         event.registerEntityRenderer(ModEntities.bigbadwolf.get(), (r) -> new com.wzz.lobotocraft.client.renderer.entity.abnormality.EntityBigBadWolfRenderer(r, 1.0f, 1.0f));
-        event.registerEntityRenderer(ModEntities.redhat_mercenary.get(), (r) -> new AbnormalityRenderer<>(r, "redhat", "redhat", 0.73f, 0.73f));
+        event.registerEntityRenderer(ModEntities.redhat_mercenary.get(), (r) -> new AbnormalityRenderer<>(r, "redhat", "redhat", 0.72f, 0.72f));
         event.registerEntityRenderer(ModEntities.iron_maiden.get(), (r) -> new AbnormalityRenderer<>(r, 1.5f, 1.5f));
         event.registerEntityRenderer(ModEntities.meat_idol.get(), (r) -> new AbnormalityRenderer<>(r, 1.2f, 1.0f));
-        event.registerEntityRenderer(ModEntities.abandoned_murderer.get(), (r) -> new AbnormalityRenderer<>(r, 1.2f, 1.0f));
+        event.registerEntityRenderer(ModEntities.abandoned_murderer.get(), (r) -> new AbnormalityRenderer<>(r, 0.8f, 0.8f));
         event.registerBlockEntityRenderer(ModBlockEntities.REGENERATION_REACTOR.get(), context -> new BaseGeoBlockRenderer(
                 new GenericGeoBlockModel<>("regeneration_reactor.geo.json", "regeneration_reactor.png", "regeneration_reactor.animation.json")
         ));
@@ -95,7 +95,7 @@ public class ModClientEvent {
         event.registerEntityRenderer(ModEntities.ppodae.get(), (r) -> new EntityPpodaeRenderer(r, 0.9f, 0.8f));
         event.registerEntityRenderer(ModEntities.gallows.get(), (r) -> new GeoEntityRenderer<>(r, 1.4f, 1f));
         event.registerEntityRenderer(ModEntities.children_galaxy.get(), (r) -> new AbnormalityRenderer<>(r, 0.8f, 0.8f));
-        event.registerEntityRenderer(ModEntities.blue_star.get(), (r) -> new AbnormalityRenderer<>(r, 2f, 2f));
+        event.registerEntityRenderer(ModEntities.blue_star.get(), (r) -> new AbnormalityRenderer<>(r, 2.02f, 2f));
         event.registerEntityRenderer(ModEntities.thorn_bus.get(), (r) -> new AbnormalityRenderer<>(r, 1.2f, 0.9f));
         event.registerEntityRenderer(ModEntities.black_forest_door.get(), BlackForestDoorRenderer::new);
         event.registerEntityRenderer(ModEntities.end_bird_egg_eye.get(), (r) -> new AbnormalityRenderer<>(r,

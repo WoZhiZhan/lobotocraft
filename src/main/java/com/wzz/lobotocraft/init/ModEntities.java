@@ -102,7 +102,7 @@ public class ModEntities {
     public static final RegistryObject<EntityType<EntityRedHoodMercenary>> redhat_mercenary =
             ENTITIES.register("redhat_mercenary",
                     () -> EntityType.Builder.of(EntityRedHoodMercenary::new, MobCategory.CREATURE)
-                            .sized(0.6F, 1.9F)
+                            .sized(2.0F, 2.7F)
                             .clientTrackingRange(10)
                             .updateInterval(3)
                             .build("redhat_mercenary"));
@@ -110,7 +110,7 @@ public class ModEntities {
     public static final RegistryObject<EntityType<EntityCleaner>> cleaner =
             ENTITIES.register("cleaner",
                     () -> EntityType.Builder.of(EntityCleaner::new, MobCategory.MONSTER)
-                            .sized(0.7F, 1.95F)
+                            .sized(6.1F, 3.45F)
                             .clientTrackingRange(8)
                             .updateInterval(3)
                             .build("cleaner"));
@@ -165,14 +165,14 @@ public class ModEntities {
     public static final RegistryObject<EntityType<EntityMeatIdol>> meat_idol =
             ENTITIES.register("meat_idol", () -> EntityType.Builder
                     .of(EntityMeatIdol::new, MobCategory.CREATURE)
-                    .sized(2.0f, 1.0f)
+                    .sized(2.25F, 6.0F)
                     .build("meat_idol")
             );
 
     public static final RegistryObject<EntityType<EntityAbandonedMurderer>> abandoned_murderer =
             ENTITIES.register("abandoned_murderer",
                     () -> EntityType.Builder.of(EntityAbandonedMurderer::new, MobCategory.CREATURE)
-                            .sized(1F, 2.3F)
+                            .sized(1.4F, 2.7F)
                             .clientTrackingRange(8)
                             .updateInterval(3)
                             .build("abandoned_murderer"));
@@ -214,7 +214,7 @@ public class ModEntities {
     public static final RegistryObject<EntityType<EntityApprovalBird>> approval_bird =
             ENTITIES.register("approval_bird",
                     () -> EntityType.Builder.of(EntityApprovalBird::new, MobCategory.CREATURE)
-                            .sized(2.5F, 3F)
+                            .sized(4.4F, 5.7F)
                             .clientTrackingRange(8)
                             .updateInterval(3)
                             .build("approval_bird"));
@@ -238,7 +238,7 @@ public class ModEntities {
     public static final RegistryObject<EntityType<EntitySnowQueen>> snowqueen =
             ENTITIES.register("snowqueen",
                     () -> EntityType.Builder.of(EntitySnowQueen::new, MobCategory.CREATURE)
-                            .sized(1.3F, 2.8F)
+                            .sized(2.85F, 5.35F)
                             .clientTrackingRange(8)
                             .updateInterval(3)
                             .build("snowqueen"));
@@ -270,7 +270,7 @@ public class ModEntities {
     public static final RegistryObject<EntityType<EntityBlueStar>> blue_star =
             ENTITIES.register("blue_star",
                     () -> EntityType.Builder.of(EntityBlueStar::new, MobCategory.MONSTER)
-                            .sized(1.8F, 1.8F)
+                            .sized(3.5F, 5.0F)
                             .clientTrackingRange(8)
                             .updateInterval(16)
                             .build("blue_star"));

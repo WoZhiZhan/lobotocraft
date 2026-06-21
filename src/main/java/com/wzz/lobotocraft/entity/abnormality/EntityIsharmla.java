@@ -4,7 +4,6 @@ import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModEntities;
-import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.item.SkadiBanishData;
 import com.wzz.lobotocraft.network.MessageLoader;
@@ -432,7 +431,7 @@ public class EntityIsharmla extends AbstractAbnormality {
                     mouth.x, mouth.y + i * 0.7D, mouth.z,
                     1, 0.0D, 0.0D, 0.0D, 0.0D);
         }
-        level.sendParticles((net.minecraft.core.particles.SimpleParticleType) ModParticleTypes.WHITE.get(),
+        level.sendParticles(net.minecraft.core.particles.ParticleTypes.END_ROD,
                 this.getX(), this.getY() + this.getBbHeight() * 0.5D, this.getZ(),
                 90, this.getBbWidth() * 0.55D, this.getBbHeight() * 0.35D, this.getBbWidth() * 0.55D, 0.1D);
         level.playSound(null, this.blockPosition(), SoundEvents.WARDEN_SONIC_BOOM,
