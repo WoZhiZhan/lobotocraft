@@ -137,7 +137,8 @@ public class StructureLoader {
         private final int xChunks, yChunks, zChunks, chunkSize;
         private volatile boolean cancelled = false;
         private final long startTime;
-
+        private FastSectionPlacer fastPlacer;
+        private final AtomicInteger savedTickCounter = new AtomicInteger(0);
         // 计数：pipeline 入队数 / 主线程已放置数
         private final AtomicInteger enqueuedCount = new AtomicInteger(0);
         private final AtomicInteger placedCount = new AtomicInteger(0);
@@ -147,7 +148,28 @@ public class StructureLoader {
 
         // 放置队列（跨线程）
         private final LinkedBlockingQueue<PlaceTask> placeQueue =
-                new LinkedBlockingQueue<>(500);
+                new LinkedBlockingQueue<>(computeQueueCapacity());
+
+        /** 单个 Template 的保守内存估算上限（字节）。64³ 满块约 20MB。 */
+        private static final long EST_BYTES_PER_TEMPLATE = 20L * 1024 * 1024;
+        /** 队列可占用的堆内存比例 */
+        private static final double QUEUE_HEAP_FRACTION = 0.15;
+        /** 队列容量上下限 */
+        private static final int QUEUE_MIN = 16;
+        private static final int QUEUE_MAX = 256;
+
+        /**
+         * 根据可用堆内存动态计算 placeQueue 容量。
+         * 队列里每个元素是一个待放置的 StructureTemplate，
+         * 容量过大会 OOM，过小会让 IO 流水线频繁阻塞。
+         */
+        public static int computeQueueCapacity() {
+            long maxHeap = Runtime.getRuntime().maxMemory();
+            long budget = (long) (maxHeap * QUEUE_HEAP_FRACTION);
+            int cap = (int) (budget / EST_BYTES_PER_TEMPLATE);
+            cap = Math.max(QUEUE_MIN, Math.min(QUEUE_MAX, cap));
+            return cap;
+        }
 
         // pipeline 状态标记：主线程只依赖它，不依赖 nbtLoader
         private volatile boolean pipelineFinished = false;
@@ -217,20 +239,25 @@ public class StructureLoader {
         private void finalizeLoadingWhenDone(int totalChunks) {
             level.getServer().execute(() -> {
                 if (cancelled) {
-                    if (player != null) player.displayClientMessage(Component.literal("§6结构加载已取消"), false);
-                    // 取消也做一次清理
-                    if (this.callBack != null)
-                        this.callBack.run();
+                    if (player != null) player.displayClientMessage(
+                            Component.literal("§6结构加载已取消"), false);
+                    if (this.callBack != null) this.callBack.run();
                     cleanup();
                     return;
                 }
-                if (!pipelineFinished || !placeQueue.isEmpty() || placedCount.get() < totalChunks) {
+
+                // 真正的完成判据：pipeline 结束 + 队列空 + 放完所有已入队的
+                boolean done = pipelineFinished
+                        && placeQueue.isEmpty()
+                        && placedCount.get() >= enqueuedCount.get();
+
+                if (!done) {
                     level.getServer().execute(() -> finalizeLoadingWhenDone(totalChunks));
                     return;
                 }
 
-                finalizeLoading(totalChunks); // 只会走一次
-                cleanup();                    // 放完后再清理（非常关键）
+                finalizeLoading(totalChunks);
+                cleanup();
             });
         }
 
@@ -276,7 +303,12 @@ public class StructureLoader {
                     BlockPos placePos = targetPos.offset(rotatedOffset);
 
                     // 入队：不清 template，不算 success
-                    placeQueue.add(new PlaceTask(template, placePos));
+                    try {
+                        placeQueue.put(new PlaceTask(template, placePos));
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break; // 被中断（多半是取消），退出加载循环
+                    }
                     enqueuedCount.incrementAndGet();
                     enqueued++;
 
@@ -297,15 +329,19 @@ public class StructureLoader {
         }
 
         private void startMainThreadPlacer(StructurePlaceSettings settings, AABB structureBounds) {
-            // 收集需要刷新的区块
-            Set<ChunkPos> affectedChunks = ConcurrentHashMap.newKeySet();
-
             level.getServer().execute(new Runnable() {
                 @Override
                 public void run() {
                     if (cancelled) return;
 
-                    final int MAX_PER_RUN = 20;
+                    // 首次：创建流水线 placer + 预计算区块覆盖（不再 force-load）
+                    if (fastPlacer == null) {
+                        fastPlacer = new FastSectionPlacer(
+                                level, settings, STATIC_RANDOM, targetPos, chunkSize);
+                        fastPlacer.precomputeCoverage(xChunks, yChunks, zChunks);
+                    }
+
+                    final int MAX_PER_RUN = 8; // 队列小了，每 tick 消费 8 个即可让 IO 持续供给
                     int processed = 0;
 
                     while (processed < MAX_PER_RUN) {
@@ -313,46 +349,55 @@ public class StructureLoader {
                         if (task == null) break;
 
                         try {
-                            // 记录受影响的区块
-                            ChunkPos chunkPos = new ChunkPos(task.placePos);
-                            affectedChunks.add(chunkPos);
-
-                            placeChunkSafely(task.template, task.placePos, settings, structureBounds);
+                            // 保护方块（沿用原逻辑）
+                            if (!task.template().palettes.isEmpty()) {
+                                Set<BlockPos> placedPositions = new HashSet<>();
+                                for (StructureTemplate.StructureBlockInfo blockInfo
+                                        : task.template().palettes.get(0).blocks()) {
+                                    BlockPos worldPos = StructureTemplate
+                                            .calculateRelativePosition(settings, blockInfo.pos())
+                                            .offset(task.placePos());
+                                    placedPositions.add(worldPos);
+                                }
+                                fastPlacer.placeTemplate(task.template(), task.placePos());
+                                if (!placedPositions.isEmpty()) {
+                                    ProtectionHelper.markProtectedBatch(level, placedPositions);
+                                }
+                            } else {
+                                fastPlacer.placeTemplate(task.template(), task.placePos());
+                            }
                             successCount.incrementAndGet();
                         } catch (Exception e) {
                             failCount.incrementAndGet();
-                            ModLogger.getLogger().error("主线程放置失败", e);
+                            ModLogger.getLogger().error("主线程直写放置失败", e);
                         } finally {
-                            task.template.palettes.clear();
-                            task.template.entityInfoList.clear();
+                            // 放完立刻清空 Template，释放内存（关键！）
+                            task.template().palettes.clear();
+                            task.template().entityInfoList.clear();
                         }
 
                         placedCount.incrementAndGet();
                         processed++;
                     }
 
-                    // 批量刷新区块（降低频率）
-                    if (placedCount.get() % 100 == 0) {
-                        refreshAffectedChunks(affectedChunks);
-                        affectedChunks.clear();
+                    // 周期性 save：每 ~100 tick 存一次，把已收尾区块落盘
+                    if (savedTickCounter.incrementAndGet() % 100 == 0) {
+                        try { level.getChunkSource().save(false); } catch (Exception ignore) {}
                     }
 
                     if (!placeQueue.isEmpty() || !pipelineFinished) {
                         level.getServer().execute(this);
                     } else {
-                        // 最后刷新所有剩余区块
-                        refreshAffectedChunks(affectedChunks);
+                        // 全部放完：处理延迟实体/BE + 兜底收尾 + 最终存盘
+                        try {
+                            fastPlacer.finalizeAll();
+                            level.getChunkSource().save(false);
+                        } catch (Exception e) {
+                            ModLogger.getLogger().error("最终收尾失败", e);
+                        }
                     }
                 }
             });
-        }
-
-        private void refreshAffectedChunks(Set<ChunkPos> chunks) {
-            for (ChunkPos chunkPos : chunks) {
-                LevelChunk chunk = level.getChunk(chunkPos.x, chunkPos.z);
-                // 批量标记区块需要更新
-                chunk.setUnsaved(true);
-            }
         }
 
         private void updateProgressWithPipeline(int enqueued, int total, OptimizedNBTReader.LoaderStats stats) {
@@ -368,33 +413,6 @@ public class StructureLoader {
                         )),
                         true
                 );
-            }
-        }
-
-        private void placeChunkSafely(StructureTemplate template, BlockPos placePos,
-                                      StructurePlaceSettings settings, AABB structureBounds) {
-            try {
-                Set<BlockPos> placedPositions = new HashSet<>();
-                if (!template.palettes.isEmpty()) {
-                    for (StructureTemplate.StructureBlockInfo blockInfo : template.palettes.get(0).blocks()) {
-                        BlockPos worldPos = StructureTemplate.calculateRelativePosition(settings, blockInfo.pos)
-                                .offset(placePos);
-                        placedPositions.add(worldPos);
-                    }
-                }
-                template.placeInWorld(level, placePos, placePos, settings, STATIC_RANDOM, 2 | 16 | 128);
-                if (!placedPositions.isEmpty()) {
-                    ProtectionHelper.markProtectedBatch(level, placedPositions);
-                }
-            } catch (ClassCastException e) {
-                if (player != null) {
-                    player.displayClientMessage(Component.literal("§c检测到损坏的方块实体，正在修复..."), false);
-                }
-                level.removeBlockEntity(placePos);
-                template.placeInWorld(level, placePos, placePos, settings, STATIC_RANDOM, 2);
-            } catch (Exception e) {
-                ModLogger.getLogger().error("放置结构失败", e);
-                throw e;
             }
         }
 

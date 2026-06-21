@@ -336,6 +336,7 @@ public class ForgeModEvent {
 					() -> serverLevel.getServer().execute(() ->  {
 						if (player instanceof ServerPlayer serverPlayer) {
 							serverPlayer.teleportTo(195, 273, 29);
+							serverPlayer.resetFallDistance();
 							BlockPos bedPos = new BlockPos(195, 273, 29);
 							serverPlayer.setRespawnPosition(serverLevel.dimension(), bedPos, 0.0F, true, false);
 						}
