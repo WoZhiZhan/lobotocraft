@@ -31,6 +31,30 @@
       }
     ]
   },
+  "special_record": {
+    "sounds": [
+      {
+        "name": "lobotocraft:special_record",
+        "stream": true
+      }
+    ]
+  },
+  "bloody_dawn_start": {
+    "sounds": [
+      {
+        "name": "lobotocraft:bloody_dawn_start",
+        "stream": true
+      }
+    ]
+  },
+  "bloody_dawn_end": {
+    "sounds": [
+      {
+        "name": "lobotocraft:bloody_dawn_end",
+        "stream": true
+      }
+    ]
+  },
   "iron_maiden_closing": {
     "sounds": [
       {

@@ -8,6 +8,7 @@ import com.wzz.lobotocraft.entity.EntityGallows;
 import com.wzz.lobotocraft.entity.EntityImmortalItem;
 import com.wzz.lobotocraft.entity.EntityLightFollower;
 import com.wzz.lobotocraft.entity.abnormality.*;
+import com.wzz.lobotocraft.entity.ordeal.EntityBloodySmall;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.registries.DeferredRegister;
@@ -113,6 +114,14 @@ public class ModEntities {
                             .clientTrackingRange(8)
                             .updateInterval(3)
                             .build("cleaner"));
+
+    public static final RegistryObject<EntityType<EntityBloodySmall>> bloody_small =
+            ENTITIES.register("bloody_small",
+                    () -> EntityType.Builder.of(EntityBloodySmall::new, MobCategory.MONSTER)
+                            .sized(0.55F, 1.35F)
+                            .clientTrackingRange(8)
+                            .updateInterval(3)
+                            .build("bloody_small"));
 
     // ============ 海嗣(深蓝色正午——大群的意志) ============
     public static final RegistryObject<EntityType<com.wzz.lobotocraft.entity.seaborn.EntityShellSeaRunner>> shell_sea_runner =

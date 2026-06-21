@@ -140,7 +140,8 @@ public class EntityEndBirdEggSmall extends AbstractAbnormality {
                     .build();
             MessageLoader.getLoader().sendToPlayer(player, msg);
         }
-        EntityEndBird.endBirdEggDie(level);
+        EntityEndBird.endBirdEggDie(level,
+                damageSource.getEntity() instanceof ServerPlayer player ? player : null);
         super.die(damageSource);
     }
 

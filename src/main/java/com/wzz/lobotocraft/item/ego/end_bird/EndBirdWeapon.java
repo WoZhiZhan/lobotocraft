@@ -93,15 +93,9 @@ public class EndBirdWeapon extends BaseEgoWeapon {
     private static final int STAGE1_BLUE_1_HIT_TICK = animationTick(0.6667);
     private static final int STAGE1_BLUE_2_HIT_TICK = animationTick(0.7917);
     private static final int STAGE1_END_TICK = animationTick(2.4167);
-    private static final int STAGE2_RED_HIT_TICK = animationTick(1.75);
-    private static final int STAGE2_WHITE_HIT_TICK = animationTick(1.875);
-    private static final int STAGE2_BLACK_HIT_TICK = animationTick(2.0);
-    private static final int STAGE2_BLUE_HIT_TICK = animationTick(2.125);
+    private static final int STAGE2_DAMAGE_HIT_TICK = animationTick(1.75);
     private static final int STAGE2_END_TICK = animationTick(2.25);
-    private static final int STAGE3_RED_HIT_TICK = animationTick(0.2917);
-    private static final int STAGE3_WHITE_HIT_TICK = animationTick(0.4583);
-    private static final int STAGE3_BLACK_HIT_TICK = animationTick(0.625);
-    private static final int STAGE3_BLUE_HIT_TICK = animationTick(0.875);
+    private static final int STAGE3_DAMAGE_HIT_TICK = animationTick(0.875);
     private static final int STAGE3_END_TICK = animationTick(1.875);
     public static final String THIN_DUSK_PASSIVE_MARK = "lobotocraft_thin_dusk_passive_until";
     public static final String THIN_DUSK_SPECIAL_DAMAGE = "lobotocraft_thin_dusk_special_damage";
@@ -454,12 +448,14 @@ public class EndBirdWeapon extends BaseEgoWeapon {
                     }
                 }
 
-                // 收刀段:红45→白45→黑45→蓝45(+10%≤15),顺序播特殊音效1/2/3/4。
+                // 收刀命中帧:同一瞬间结算 红45→白45→黑45→蓝45(+10%≤15)。
                 if (target != null && target.isAlive()) {
-                    if (t == STAGE2_RED_HIT_TICK) dealOneWithSound(p, target, "red", 1, 45f, 0f, 0f);
-                    if (t == STAGE2_WHITE_HIT_TICK) dealOneWithSound(p, target, "white", 2, 45f, 0f, 0f);
-                    if (t == STAGE2_BLACK_HIT_TICK) dealOneWithSound(p, target, "black", 3, 45f, 0f, 0f);
-                    if (t == STAGE2_BLUE_HIT_TICK) dealOneWithSound(p, target, "blue", 4, 45f, 0.1f, 15f);
+                    if (t == STAGE2_DAMAGE_HIT_TICK) {
+                        dealChainedStep(p, target,
+                                new String[]{"red", "white", "black", "blue"},
+                                new int[]{1, 2, 3, 4},
+                                45f, 0.1f, 15f);
+                    }
                 }
 
                 if (t == STAGE2_END_TICK) {
@@ -492,13 +488,16 @@ public class EndBirdWeapon extends BaseEgoWeapon {
                 t++;
 
                 if (t == 1)  { targets = getEntitiesInFront(p, 5.0, 2.5); playSpecialSound(p, 1); }
-                if (t == Math.max(1, STAGE3_RED_HIT_TICK - 2)) playSpecialSound(p, 2);
-                if (t == Math.max(1, STAGE3_RED_HIT_TICK - 1)) playSpecialSound(p, 3);
+                if (t == Math.max(1, STAGE3_DAMAGE_HIT_TICK - 2)) playSpecialSound(p, 2);
+                if (t == Math.max(1, STAGE3_DAMAGE_HIT_TICK - 1)) playSpecialSound(p, 3);
 
-                if (t == STAGE3_RED_HIT_TICK) { playSpecialSound(p, 4); dealHitToAll(p, targets, "red", 100f, 0f, 0f); }
-                if (t == STAGE3_WHITE_HIT_TICK) { playSpecialSound(p, 4); dealHitToAll(p, targets, "white", 100f, 0f, 0f); }
-                if (t == STAGE3_BLACK_HIT_TICK) { playSpecialSound(p, 4); dealHitToAll(p, targets, "black", 100f, 0f, 0f); }
-                if (t == STAGE3_BLUE_HIT_TICK) { playSpecialSound(p, 4); dealHitToAll(p, targets, "blue", 100f, 0.2f, 30f); }
+                if (t == STAGE3_DAMAGE_HIT_TICK) {
+                    playSpecialSound(p, 4);
+                    dealHitToAll(p, targets, "red", 100f, 0f, 0f);
+                    dealHitToAll(p, targets, "white", 100f, 0f, 0f);
+                    dealHitToAll(p, targets, "black", 100f, 0f, 0f);
+                    dealHitToAll(p, targets, "blue", 100f, 0.2f, 30f);
+                }
 
                 if (t == STAGE3_END_TICK) {
                     // 三阶为最终阶段:不开连招窗口,蓄力攻击进入30秒冷却

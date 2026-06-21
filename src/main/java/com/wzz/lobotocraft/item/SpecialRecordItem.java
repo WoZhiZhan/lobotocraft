@@ -49,7 +49,7 @@ public class SpecialRecordItem extends Item {
 
         // 播放唱片镇压音效
         serverLevel.playSound(null, player.blockPosition(),
-                ModSounds.ISHARMLA_TO_HUMAN.get(), SoundSource.RECORDS, 1.2f, 1.0f);
+                ModSounds.SPECIAL_RECORD.get(), SoundSource.RECORDS, 1.2f, 1.0f);
 
         AABB whole = new AABB(-30000000, serverLevel.getMinBuildHeight(), -30000000,
                 30000000, serverLevel.getMaxBuildHeight(), 30000000);

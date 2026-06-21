@@ -18,6 +18,9 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> TOUCH_OFF = register("touch_off");
 	public static final RegistryObject<SoundEvent> UNLOCK_INFORMATION = register("unlock_information");
 	public static final RegistryObject<SoundEvent> ENERGY_SHORTAGE_INFORMATION = register("energy_shortage_information");
+	public static final RegistryObject<SoundEvent> SPECIAL_RECORD = register("special_record");
+	public static final RegistryObject<SoundEvent> BLOODY_DAWN_START = register("bloody_dawn_start");
+	public static final RegistryObject<SoundEvent> BLOODY_DAWN_END = register("bloody_dawn_end");
 	public static final RegistryObject<SoundEvent> IRON_MAIDEN_CLOSING = register("iron_maiden_closing");
 	public static final RegistryObject<SoundEvent> IRON_MAIDEN_DAMAGE = register("iron_maiden_damage");
 	public static final RegistryObject<SoundEvent> IRON_MAIDEN_OPENING = register("iron_maiden_opening");

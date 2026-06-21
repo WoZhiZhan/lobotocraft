@@ -39,7 +39,7 @@ import java.util.List;
 
 /**
  * 亡蝶葬仪 (T-01-68) —— HE 级异想体。
- * 出逃后在设施内游荡,攻击除出逃异想体、不会出逃异想体外的所有单位。
+ * 出逃后在设施内游荡,8格内索敌并靠近生物,攻击除出逃异想体、不会出逃异想体外的所有单位。
  * 普攻(65%,冷却7秒):射击手势后出伤,蝴蝶绽放在目标上,10-15点白色伤害。
  * 特殊攻击(35%):停止移动放下棺材,持续15秒向前方50格、42°扇形喷出蝴蝶群,
  *   身处其中的单位每秒受3-4点白色伤害,村民被定身。
@@ -48,6 +48,9 @@ import java.util.List;
  */
 public class EntityButterflyFuneral extends AbstractAbnormality {
 
+    private static final double TARGET_SEARCH_RANGE = 8.0D;
+    private static final double CHASE_SPEED_MODIFIER = 1.0D;
+    private static final double CHASE_STOP_RANGE = 3.0D;
     private static final double NORMAL_ATTACK_RANGE = 16.0D;
     private static final double SKILL_RANGE = 50.0D;
     private static final double SKILL_CONE_DEGREES = 42.0D;
@@ -266,6 +269,9 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
 
         // 索敌
         LivingEntity target = pendingAttackHit <= 0 ? findTarget(level) : null;
+        if (target != null && normalAttackAnimationTimer <= 0) {
+            tickChaseTarget(target);
+        }
         if (attackCooldown <= 0 && target != null) {
             if (this.distanceToSqr(target) <= SKILL_RANGE * SKILL_RANGE) {
                 if (this.distanceToSqr(target) <= NORMAL_ATTACK_RANGE * NORMAL_ATTACK_RANGE
@@ -277,6 +283,15 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
             }
         } else if (target == null && pendingAttackHit <= 0 && normalAttackAnimationTimer <= 0) {
             tickIdleWander();
+        }
+    }
+
+    private void tickChaseTarget(LivingEntity target) {
+        this.getLookControl().setLookAt(target);
+        if (this.distanceToSqr(target) > CHASE_STOP_RANGE * CHASE_STOP_RANGE) {
+            this.getNavigation().moveTo(target, CHASE_SPEED_MODIFIER);
+        } else {
+            this.getNavigation().stop();
         }
     }
 
@@ -311,7 +326,8 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     /** 优先攻击玩家,其次攻击其它有效单位;不锁定出逃状态异想体和不会出逃的异想体 */
     private LivingEntity findTarget(ServerLevel level) {
         List<LivingEntity> candidates = level.getEntitiesOfClass(LivingEntity.class,
-                this.getBoundingBox().inflate(SKILL_RANGE), e -> isValidTarget(e));
+                this.getBoundingBox().inflate(TARGET_SEARCH_RANGE),
+                e -> isValidTarget(e) && this.distanceToSqr(e) <= TARGET_SEARCH_RANGE * TARGET_SEARCH_RANGE);
         LivingEntity bestPlayer = null;
         LivingEntity bestOther = null;
         double bestPlayerDist = Double.MAX_VALUE;
@@ -559,7 +575,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
                 .add(Attributes.MAX_HEALTH, 400.0D)
                 .add(Attributes.MOVEMENT_SPEED, 0.2D)   // 行走玩家
                 .add(Attributes.ATTACK_DAMAGE, 0.0D)
-                .add(Attributes.FOLLOW_RANGE, 32.0D)
+                .add(Attributes.FOLLOW_RANGE, TARGET_SEARCH_RANGE)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D);
     }
 

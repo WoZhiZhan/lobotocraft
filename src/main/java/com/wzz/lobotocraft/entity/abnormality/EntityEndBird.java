@@ -18,6 +18,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
@@ -90,6 +91,7 @@ public class EntityEndBird extends AbstractAbnormality {
     /** 当前被魅惑的玩家 UUID 集合 */
     private final Set<UUID> charmedPlayers = new HashSet<>();
     private Map<String, Pair<String, BlockPos>> birdReturnInfo = new HashMap<>();
+    private UUID thinDuskRewardPlayer = null;
 
     // ══════════════════════════════════════════════════════════════
     //  构造 & 初始化
@@ -669,10 +671,11 @@ public class EntityEndBird extends AbstractAbnormality {
                             .texture(ResourceUtil.createInstance("textures/gui/end_bird_cg/cg8.png"))
                             .build();
                     MessageLoader.getLoader().sendToPlayer(player, msg);
-                    ItemUtil.addItem(player, new ItemStack(ModItems.END_BIRD_CHESTPLATE.get()));
-                    ItemUtil.addItem(player, new ItemStack(ModItems.END_BIRD_LEGGINGS.get()));
-                    ItemUtil.addItem(player, new ItemStack(ModItems.END_BIRD_BOOTS.get()));
                     ItemUtil.addItem(player, new ItemStack(ModItems.END_BIRD_CURIO.get()));
+                }
+                ServerPlayer rewardPlayer = resolveThinDuskRewardPlayer(serverLevel);
+                if (rewardPlayer != null) {
+                    grantThinDuskEquipment(rewardPlayer);
                 }
 
                 restoreThreeBirds(serverLevel);
@@ -691,6 +694,31 @@ public class EntityEndBird extends AbstractAbnormality {
             }
         }
         super.setHealth(f);
+    }
+
+    private void setThinDuskRewardPlayer(@Nullable ServerPlayer player) {
+        if (player != null) {
+            thinDuskRewardPlayer = player.getUUID();
+        }
+    }
+
+    @Nullable
+    private ServerPlayer resolveThinDuskRewardPlayer(ServerLevel serverLevel) {
+        if (thinDuskRewardPlayer != null) {
+            ServerPlayer player = serverLevel.getServer().getPlayerList().getPlayer(thinDuskRewardPlayer);
+            if (player != null) return player;
+        }
+        return serverLevel.getServer().getPlayerList().getPlayers().stream()
+                .min(Comparator.comparingDouble(player -> player.distanceToSqr(this)))
+                .orElse(null);
+    }
+
+    private void grantThinDuskEquipment(ServerPlayer player) {
+        ItemUtil.addItem(player, new ItemStack(ModItems.END_BIRD_WEAPON.get()));
+        ItemUtil.addItem(player, new ItemStack(ModItems.END_BIRD_CHESTPLATE.get()));
+        ItemUtil.addItem(player, new ItemStack(ModItems.END_BIRD_LEGGINGS.get()));
+        ItemUtil.addItem(player, new ItemStack(ModItems.END_BIRD_BOOTS.get()));
+        player.sendSystemMessage(Component.literal("§5你取得了薄暝的武器与装备。"));
     }
 
     /**
@@ -935,6 +963,10 @@ public class EntityEndBird extends AbstractAbnormality {
      * 鸟蛋死亡时调用，扣除终末鸟血量。所有蛋死亡或血量归零时直接击杀。
      */
     public static void endBirdEggDie(Level level) {
+        endBirdEggDie(level, null);
+    }
+
+    public static void endBirdEggDie(Level level, @Nullable ServerPlayer eggKiller) {
         if (!level.isClientSide && level instanceof ServerLevel serverLevel) {
             EndBirdEggTracker tracker = EndBirdEggTracker.get(serverLevel);
             if (tracker.getEndBirdUUID() != null) {
@@ -942,6 +974,7 @@ public class EntityEndBird extends AbstractAbnormality {
                 if (entity instanceof EntityEndBird endBird && endBird.isAlive()) {
                     float newHealth = endBird.getHealth() - 110000f;
                     if (tracker.areAllEggsDestroyed() || newHealth <= 0) {
+                        endBird.setThinDuskRewardPlayer(eggKiller);
                         endBird.setHealth(0);
                     } else {
                         endBird.setHealth(newHealth);

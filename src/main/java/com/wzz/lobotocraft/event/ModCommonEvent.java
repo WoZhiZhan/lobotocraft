@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.event;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.EntityGallows;
 import com.wzz.lobotocraft.entity.abnormality.*;
+import com.wzz.lobotocraft.entity.ordeal.EntityBloodySmall;
 import com.wzz.lobotocraft.init.ModEntities;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -25,6 +26,7 @@ public class ModCommonEvent {
 		event.put(ModEntities.nucleic_maleficent.get(), com.wzz.lobotocraft.entity.seaborn.EntityNucleicMaleficent.createAttributes().build());
 		event.put(ModEntities.basinsea_reaper.get(), com.wzz.lobotocraft.entity.seaborn.EntityBasinSeaReaper.createAttributes().build());
 		event.put(ModEntities.cleaner.get(), EntityCleaner.createAttributes().build());
+		event.put(ModEntities.bloody_small.get(), EntityBloodySmall.createAttributes().build());
 		event.put(ModEntities.butterfly_funeral.get(), EntityButterflyFuneral.createAttributes().build());
 		event.put(ModEntities.fragment_of_the_universe.get(), EntityFragmentOfUniverse.createAttributes().build());
 		event.put(ModEntities.bigbadwolf.get(), EntityBigBadWolf.createAttributes().build());

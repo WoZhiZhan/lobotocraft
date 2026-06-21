@@ -15,6 +15,7 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
@@ -38,7 +39,7 @@ import java.util.List;
 
 /**
  * 伊莎玛拉 (S-03-07-1) —— ALEPH 级异想体,由浊心斯卡蒂计数器归零后生成。
- * 双形态(人形/巨兽),血量独立;人形抗性1.0、巨兽抗性0.1;
+ * 双形态(人形/巨兽),血量独立;人形抗性1.0、巨兽抗性0.4;
  * 出逃瞬移到最近再生反应堆;攻击附带精神伤害;
  * 人形态生成伊莎玛拉之泪并在25秒后进入巨兽形态,巨兽形态60秒后变回人形循环。
  */
@@ -73,7 +74,8 @@ public class EntityIsharmla extends AbstractAbnormality {
     private static final int HEAL_HUMAN_ANIMATION_TICKS = 30;
     private static final int BEAM_ATTACK_ANIMATION_TICKS = 42;
     private static final int BEAM_SKILL_INTERVAL_TICKS = 30 * 20;
-    private static final int BEAM_IMPACT_TICK = 36;
+    private static final int[] BEAM_IMPACT_TICKS = {12, 20, 28, 36};
+    private static final int LAST_BEAM_IMPACT_TICK = BEAM_IMPACT_TICKS[BEAM_IMPACT_TICKS.length - 1];
     private static final double BEAM_TARGET_RADIUS = 1.5D;
     private static final double BEAM_FALL_HEIGHT = 10.0D;
     private static final double MONSTER_ATTACK_DISTANCE = 8.0D;
@@ -116,6 +118,7 @@ public class EntityIsharmla extends AbstractAbnormality {
     private java.util.UUID currentAttackTargetUuid = null;
     // 光束攻击会锁定施放瞬间该维度所有玩家脚下的位置,之后可通过离开圈躲避.
     private final List<BeamTargetSpot> beamTargetSpots = new ArrayList<>();
+    private final java.util.Set<Integer> completedBeamImpacts = new java.util.HashSet<>();
 
     private static class BeamTargetSpot {
         private final double x;
@@ -367,7 +370,7 @@ public class EntityIsharmla extends AbstractAbnormality {
     /**
      * 项6:光束攻击特效。
      * 施放时锁定该维度所有玩家脚下的3x3圆圈,声波缓慢下落后,
-     * 对仍停留在圈内的玩家造成15点蓝色伤害。
+     * 分四段对仍停留在圈内的玩家造成15点蓝色伤害。
      */
     private void tickBeamAttack(ServerLevel level) {
         int t = this.tickCount - attackHitWindowStart; // 自光束开始的相对tick
@@ -376,14 +379,14 @@ public class EntityIsharmla extends AbstractAbnormality {
             return;
         }
 
-        if (t % 5 == 0 && t <= BEAM_IMPACT_TICK) {
+        if (t % 5 == 0 && t <= LAST_BEAM_IMPACT_TICK) {
             for (BeamTargetSpot spot : beamTargetSpots) {
                 spawnBeamWarningCircle(level, spot);
             }
         }
 
-        if (t <= BEAM_IMPACT_TICK) {
-            double progress = Math.min(1.0D, Math.max(0.0D, t / (double) BEAM_IMPACT_TICK));
+        if (t <= LAST_BEAM_IMPACT_TICK) {
+            double progress = Math.min(1.0D, Math.max(0.0D, t / (double) LAST_BEAM_IMPACT_TICK));
             double yOffset = BEAM_FALL_HEIGHT * (1.0D - progress);
             for (BeamTargetSpot spot : beamTargetSpots) {
                 level.sendParticles(net.minecraft.core.particles.ParticleTypes.SONIC_BOOM,
@@ -391,14 +394,19 @@ public class EntityIsharmla extends AbstractAbnormality {
             }
         }
 
-        if (t == BEAM_IMPACT_TICK) {
-            for (BeamTargetSpot spot : beamTargetSpots) {
-                hitPlayersInBeamSpot(level, spot);
+        for (int impactTick : BEAM_IMPACT_TICKS) {
+            if (t == impactTick && completedBeamImpacts.add(impactTick)) {
+                java.util.Set<java.util.UUID> hitThisImpact = new java.util.HashSet<>();
+                for (BeamTargetSpot spot : beamTargetSpots) {
+                    hitPlayersInBeamSpot(level, spot, hitThisImpact);
+                }
+                level.playSound(null, this.blockPosition(),
+                        net.minecraft.sounds.SoundEvents.WARDEN_SONIC_BOOM,
+                        SoundSource.HOSTILE, 2.0f, 1.0f);
             }
+        }
 
-            level.playSound(null, this.blockPosition(),
-                    net.minecraft.sounds.SoundEvents.WARDEN_SONIC_BOOM,
-                    SoundSource.HOSTILE, 2.0f, 1.0f);
+        if (t >= LAST_BEAM_IMPACT_TICK && completedBeamImpacts.size() >= BEAM_IMPACT_TICKS.length) {
             beamTargetSpots.clear();
         }
     }
@@ -413,12 +421,13 @@ public class EntityIsharmla extends AbstractAbnormality {
         }
     }
 
-    private void hitPlayersInBeamSpot(ServerLevel level, BeamTargetSpot spot) {
+    private void hitPlayersInBeamSpot(ServerLevel level, BeamTargetSpot spot,
+                                      java.util.Set<java.util.UUID> hitThisImpact) {
         for (ServerPlayer player : level.getPlayers(this::isBeamPlayerTarget)) {
-            if (currentAttackHitTargets.contains(player.getUUID()) || !isInBeamSpot(player, spot)) {
+            if (hitThisImpact.contains(player.getUUID()) || !isInBeamSpot(player, spot)) {
                 continue;
             }
-            currentAttackHitTargets.add(player.getUUID());
+            hitThisImpact.add(player.getUUID());
             EntityUtil.clearHurtTime(player);
             player.hurt(com.wzz.lobotocraft.util.DamageHelper.getDamage(this, "blue"), 15f);
             MentalValueUtil.reduceMentalValue(player, 15f);
@@ -534,15 +543,17 @@ public class EntityIsharmla extends AbstractAbnormality {
         
         if (this.random.nextBoolean()) {
             // 撕咬:单体40黑伤,命中窗口约动画第6~12tick
-            setAnimTimed("bite_monster", 20);
-            playSoundToAll(ModSounds.ISHARMLA_BITE.get());
+            setAnimTimed("bite_monster", 40);
+            playSoundToAll(ModSounds.WOLF_CLAW.get());
             attackAnimType = 0;
             attackHitWindowStart = this.tickCount + 6;
             attackHitWindowEnd = this.tickCount + 12;
         } else {
             // 甩尾:身前6x9范围25黑伤,命中窗口约第8~16tick
-            setAnimTimed("tail_monster", 24);
+            setAnimTimed("tail_monster", 28);
             playSoundToAll(ModSounds.ISHARMLA_TAIL.get());
+            level.playSound(null, this.blockPosition(), SoundEvents.PLAYER_ATTACK_SWEEP,
+                    SoundSource.HOSTILE, 1.2f, 0.9f);
             attackAnimType = 1;
             attackHitWindowStart = this.tickCount + 8;
             attackHitWindowEnd = this.tickCount + 16;
@@ -551,13 +562,11 @@ public class EntityIsharmla extends AbstractAbnormality {
 
     private boolean startPeriodicBeamSkill(ServerLevel level) {
         List<ServerPlayer> players = level.getPlayers(this::isBeamPlayerTarget);
-        if (players.isEmpty()) {
-            return false;
-        }
 
         currentAttackHitTargets.clear();
         currentAttackTargetUuid = null;
         beamTargetSpots.clear();
+        completedBeamImpacts.clear();
         for (ServerPlayer player : players) {
             beamTargetSpots.add(new BeamTargetSpot(player));
         }
@@ -582,6 +591,7 @@ public class EntityIsharmla extends AbstractAbnormality {
         currentAttackTargetUuid = null;
         currentAttackHitTargets.clear();
         beamTargetSpots.clear();
+        completedBeamImpacts.clear();
     }
 
     private void faceAttackTarget(LivingEntity target) {
@@ -653,15 +663,15 @@ public class EntityIsharmla extends AbstractAbnormality {
         }
     }
 
-    // ==================== 抗性:人形1.0 / 巨兽0.1;双血量 ====================
+    // ==================== 抗性:人形1.0 / 巨兽0.4;双血量 ====================
 
     @Override
     public boolean hurt(DamageSource source, float amount) {
         if (this.level().isClientSide) return false;
         // 始终允许受击表现:重置无敌帧计时,避免连续攻击被吞
         if (getForm() == Form.MONSTER) {
-            // 巨兽抗性0.1(只受到10%伤害),走独立血量
-            float actual = amount * 0.1f;
+            // 巨兽抗性0.4(只受到40%伤害),走独立血量
+            float actual = amount * 0.4f;
             monsterHealth -= actual;
             // 受击表现(红光/声音/仇恨),但不通过原版血量
             this.hurtTime = 10;
