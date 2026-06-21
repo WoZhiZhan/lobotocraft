@@ -201,8 +201,7 @@ public class EntityAbandonedMurderer extends AbstractAbnormality {
 
     @Override
     public void onQliphothMeltdown() {
-        // 计数器归零时不做任何事（根据需求）
-        super.onQliphothMeltdown();
+        triggerEscape();
     }
 
     /**

@@ -37,7 +37,10 @@ public class CrimsonDawnEvent {
     private static final int UNLOCK_DAY = 3;
     private static final int CHANCE_STEP = 3;
     private static final int MAX_STAGE_TRIGGERS_PER_DAY = 3;
+    private static final int MAX_BLOOD_DAWN_ENTITIES = 5;
+    private static final int LOCATION_NOTICE_INTERVAL_TICKS = 10 * 20;
     private static final int SEARCH_LIMIT = 30_000_000;
+    private static long lastLocationNoticeGameTime = Long.MIN_VALUE;
 
     @SubscribeEvent
     public static void onWorkComplete(WorkCompleteEvent event) {
@@ -72,7 +75,8 @@ public class CrimsonDawnEvent {
         data.incrementDawnTriggersToday();
 
         MinecraftServer server = level.getServer();
-        int count = Math.max(1, server.getPlayerList().getPlayers().size());
+        int count = Math.min(MAX_BLOOD_DAWN_ENTITIES,
+                Math.max(1, server.getPlayerList().getPlayers().size()));
         data.startBloodDawn(count);
 
         showBloodDawnTitle(server,
@@ -102,6 +106,12 @@ public class CrimsonDawnEvent {
 
     public static void notifyAbnormalityLocation(EntityBloodySmall clown, AbstractAbnormality abnormality) {
         if (!(clown.level() instanceof ServerLevel level)) return;
+        long gameTime = level.getGameTime();
+        if (lastLocationNoticeGameTime != Long.MIN_VALUE
+                && gameTime - lastLocationNoticeGameTime < LOCATION_NOTICE_INTERVAL_TICKS) {
+            return;
+        }
+        lastLocationNoticeGameTime = gameTime;
         Component message = Component.literal("§4开始欢呼吧！§7出现在 §c"
                 + abnormality.getAbnormalityName() + " §7附近。");
         for (ServerPlayer player : level.getServer().getPlayerList().getPlayers()) {
@@ -112,7 +122,10 @@ public class CrimsonDawnEvent {
     public static List<AbstractAbnormality> findCandidateAbnormalities(ServerLevel level) {
         AABB whole = new AABB(-SEARCH_LIMIT, level.getMinBuildHeight(), -SEARCH_LIMIT,
                 SEARCH_LIMIT, level.getMaxBuildHeight(), SEARCH_LIMIT);
-        return level.getEntitiesOfClass(AbstractAbnormality.class, whole, AbstractAbnormality::isAlive);
+        return level.getEntitiesOfClass(AbstractAbnormality.class, whole,
+                abnormality -> abnormality.isAlive()
+                        && !abnormality.hasEscape()
+                        && abnormality.getQliphothCounter() > 0);
     }
 
     private static void spawnBloodySmall(ServerLevel level) {

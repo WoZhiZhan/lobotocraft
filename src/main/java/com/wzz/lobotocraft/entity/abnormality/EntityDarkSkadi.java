@@ -144,7 +144,7 @@ public class EntityDarkSkadi extends AbstractAbnormality {
 
     @Override
     public void onQliphothMeltdown() {
-        // 不会突破收容
+        onCounterZero();
     }
 
     // ==================== tick:聊天事件 + 复活台词 ====================
@@ -221,9 +221,6 @@ public class EntityDarkSkadi extends AbstractAbnormality {
         player.sendSystemMessage(Component.literal("§3[浊心斯卡蒂] §7"
                 + reviveLines[this.random.nextInt(reviveLines.length)]));
 
-        if (getQliphothCounter() <= 0) {
-            onCounterZero();
-        }
     }
 
     /**

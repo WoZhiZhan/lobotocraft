@@ -4,8 +4,11 @@ import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModEntities;
+import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.item.SkadiBanishData;
+import com.wzz.lobotocraft.network.MessageLoader;
+import com.wzz.lobotocraft.network.packet.TriggerShakePacket;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.work.WorkType;
@@ -72,8 +75,13 @@ public class EntityIsharmla extends AbstractAbnormality {
     private static final int MONSTER_BASE_DURATION = 60 * 20; // 60秒
     private static final int TEAR_KILL_EXTEND = 12 * 20; // 每个非玩家击杀的之泪延长12秒
     private static final int HEAL_HUMAN_ANIMATION_TICKS = 30;
+    private static final int BITE_MONSTER_ANIMATION_TICKS = 40;
+    private static final int TAIL_MONSTER_ANIMATION_TICKS = 26;
     private static final int BEAM_ATTACK_ANIMATION_TICKS = 42;
     private static final int BEAM_SKILL_INTERVAL_TICKS = 30 * 20;
+    private static final int BEAM_MOUTH_EFFECT_TICK = 12;
+    private static final int SPECIAL_SHAKE_TICKS = 10;
+    private static final float SPECIAL_SHAKE_INTENSITY = 20.0F;
     private static final int[] BEAM_IMPACT_TICKS = {12, 20, 28, 36};
     private static final int LAST_BEAM_IMPACT_TICK = BEAM_IMPACT_TICKS[BEAM_IMPACT_TICKS.length - 1];
     private static final double BEAM_TARGET_RADIUS = 1.5D;
@@ -129,6 +137,12 @@ public class EntityIsharmla extends AbstractAbnormality {
             this.x = player.getX();
             this.y = player.getY();
             this.z = player.getZ();
+        }
+
+        private BeamTargetSpot(Vec3 pos) {
+            this.x = pos.x;
+            this.y = pos.y;
+            this.z = pos.z;
         }
     }
 
@@ -369,14 +383,14 @@ public class EntityIsharmla extends AbstractAbnormality {
 
     /**
      * 项6:光束攻击特效。
-     * 施放时锁定该维度所有玩家脚下的3x3圆圈,声波缓慢下落后,
-     * 分四段对仍停留在圈内的玩家造成15点蓝色伤害。
+     * 施放时锁定该维度所有玩家脚下的3x3圆圈;没有玩家时锁定自身前方落点。
+     * 声波缓慢下落后,分四段对仍停留在圈内的玩家造成15点蓝色伤害。
      */
     private void tickBeamAttack(ServerLevel level) {
         int t = this.tickCount - attackHitWindowStart; // 自光束开始的相对tick
 
-        if (beamTargetSpots.isEmpty()) {
-            return;
+        if (t == BEAM_MOUTH_EFFECT_TICK) {
+            spawnMouthSonicBurst(level);
         }
 
         if (t % 5 == 0 && t <= LAST_BEAM_IMPACT_TICK) {
@@ -409,6 +423,36 @@ public class EntityIsharmla extends AbstractAbnormality {
         if (t >= LAST_BEAM_IMPACT_TICK && completedBeamImpacts.size() >= BEAM_IMPACT_TICKS.length) {
             beamTargetSpots.clear();
         }
+    }
+
+    private void spawnMouthSonicBurst(ServerLevel level) {
+        Vec3 mouth = getMonsterMouthPosition();
+        for (int i = 0; i < 8; i++) {
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.SONIC_BOOM,
+                    mouth.x, mouth.y + i * 0.7D, mouth.z,
+                    1, 0.0D, 0.0D, 0.0D, 0.0D);
+        }
+        level.sendParticles((net.minecraft.core.particles.SimpleParticleType) ModParticleTypes.WHITE.get(),
+                this.getX(), this.getY() + this.getBbHeight() * 0.5D, this.getZ(),
+                90, this.getBbWidth() * 0.55D, this.getBbHeight() * 0.35D, this.getBbWidth() * 0.55D, 0.1D);
+        level.playSound(null, this.blockPosition(), SoundEvents.WARDEN_SONIC_BOOM,
+                SoundSource.HOSTILE, 2.0F, 1.0F);
+        for (ServerPlayer player : level.getPlayers(this::isBeamPlayerTarget)) {
+            MessageLoader.getLoader().sendToPlayer(player,
+                    new TriggerShakePacket(SPECIAL_SHAKE_TICKS, SPECIAL_SHAKE_INTENSITY));
+        }
+    }
+
+    private Vec3 getMonsterMouthPosition() {
+        Vec3 forward = getHorizontalFacingVector();
+        return this.position()
+                .add(forward.scale(3.2D))
+                .add(0.0D, this.getBbHeight() * 0.72D, 0.0D);
+    }
+
+    private Vec3 getHorizontalFacingVector() {
+        double yaw = this.getYRot() * Math.PI / 180.0D;
+        return new Vec3(-Math.sin(yaw), 0.0D, Math.cos(yaw));
     }
 
     private void spawnBeamWarningCircle(ServerLevel level, BeamTargetSpot spot) {
@@ -543,14 +587,14 @@ public class EntityIsharmla extends AbstractAbnormality {
         
         if (this.random.nextBoolean()) {
             // 撕咬:单体40黑伤,命中窗口约动画第6~12tick
-            setAnimTimed("bite_monster", 40);
-            playSoundToAll(ModSounds.WOLF_CLAW.get());
+            setAnimTimed("bite_monster", BITE_MONSTER_ANIMATION_TICKS);
+            playSoundToAll(SoundEvents.EVOKER_FANGS_ATTACK);
             attackAnimType = 0;
             attackHitWindowStart = this.tickCount + 6;
             attackHitWindowEnd = this.tickCount + 12;
         } else {
             // 甩尾:身前6x9范围25黑伤,命中窗口约第8~16tick
-            setAnimTimed("tail_monster", 28);
+            setAnimTimed("tail_monster", TAIL_MONSTER_ANIMATION_TICKS);
             playSoundToAll(ModSounds.ISHARMLA_TAIL.get());
             level.playSound(null, this.blockPosition(), SoundEvents.PLAYER_ATTACK_SWEEP,
                     SoundSource.HOSTILE, 1.2f, 0.9f);
@@ -567,8 +611,21 @@ public class EntityIsharmla extends AbstractAbnormality {
         currentAttackTargetUuid = null;
         beamTargetSpots.clear();
         completedBeamImpacts.clear();
+        if (!players.isEmpty()) {
+            ServerPlayer nearestPlayer = players.stream()
+                    .min(java.util.Comparator.comparingDouble(player -> player.distanceToSqr(this)))
+                    .orElse(null);
+            if (nearestPlayer != null) {
+                faceAttackTarget(nearestPlayer);
+            }
+        } else {
+            attackForward = getHorizontalFacingVector();
+        }
         for (ServerPlayer player : players) {
             beamTargetSpots.add(new BeamTargetSpot(player));
+        }
+        if (beamTargetSpots.isEmpty()) {
+            beamTargetSpots.add(new BeamTargetSpot(getFallbackBeamTargetPosition()));
         }
 
         this.getNavigation().stop();
@@ -578,6 +635,14 @@ public class EntityIsharmla extends AbstractAbnormality {
         attackHitWindowStart = this.tickCount + 1;
         attackHitWindowEnd = this.tickCount + BEAM_ATTACK_ANIMATION_TICKS;
         return true;
+    }
+
+    private Vec3 getFallbackBeamTargetPosition() {
+        Vec3 forward = attackForward;
+        if (forward.lengthSqr() < 1.0E-6D) {
+            forward = getHorizontalFacingVector();
+        }
+        return this.position().add(forward.normalize().scale(8.0D));
     }
 
     private boolean isBeamPlayerTarget(ServerPlayer player) {
@@ -768,10 +833,17 @@ public class EntityIsharmla extends AbstractAbnormality {
         if (getForm() == Form.MONSTER) {
             return event.setAndContinue(RawAnimation.begin().thenLoop("animation.isharmla.idle_monster"));
         }
-        if (event.isMoving()) {
+        if (isHumanMovingForAnimation(event)) {
             return event.setAndContinue(RawAnimation.begin().thenLoop("animation.isharmla.move_human"));
         }
         return event.setAndContinue(RawAnimation.begin().thenLoop("animation.isharmla.idle_human"));
+    }
+
+    private boolean isHumanMovingForAnimation(AnimationState<EntityIsharmla> event) {
+        Vec3 movement = this.getDeltaMovement();
+        return event.isMoving()
+                || movement.x * movement.x + movement.z * movement.z > 1.0E-6D
+                || !this.getNavigation().isDone();
     }
 
     public static AttributeSupplier.Builder createAttributes() {

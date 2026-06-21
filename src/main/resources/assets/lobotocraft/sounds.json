@@ -635,6 +635,14 @@
       }
     ]
   },
+  "end_bird_weapon_stage2_hit": {
+    "sounds": [
+      {
+        "name": "lobotocraft:end_bird_weapon_stage2_hit",
+        "stream": false
+      }
+    ]
+  },
   "skadi_ambient": {
     "sounds": [
       {

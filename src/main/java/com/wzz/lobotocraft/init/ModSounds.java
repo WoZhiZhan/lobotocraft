@@ -93,6 +93,7 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> END_BIRD_WEAPON_SPECIAL_2 = register("end_bird_weapon_special_2");
 	public static final RegistryObject<SoundEvent> END_BIRD_WEAPON_SPECIAL_3 = register("end_bird_weapon_special_3");
 	public static final RegistryObject<SoundEvent> END_BIRD_WEAPON_SPECIAL_4 = register("end_bird_weapon_special_4");
+	public static final RegistryObject<SoundEvent> END_BIRD_WEAPON_STAGE2_HIT = register("end_bird_weapon_stage2_hit");
 
 	// 浊心斯卡蒂
 	public static final RegistryObject<SoundEvent> SKADI_AMBIENT = register("skadi_ambient");

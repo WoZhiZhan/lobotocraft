@@ -43,6 +43,7 @@ import java.util.UUID;
  */
 public class EntityBloodySmall extends BaseGeoEntity {
     private static final int TELEPORT_INTERVAL = 20 * 20;
+    private static final int NOTICE_COOLDOWN_TICKS = 10 * 20;
     private static final double ABNORMALITY_NOTICE_RANGE_SQR = 8.0D * 8.0D;
 
     private UUID trackedAbnormality;
@@ -78,7 +79,7 @@ public class EntityBloodySmall extends BaseGeoEntity {
     public void setTrackedAbnormality(AbstractAbnormality abnormality) {
         if (abnormality == null) return;
         this.trackedAbnormality = abnormality.getUUID();
-        CrimsonDawnEvent.notifyAbnormalityLocation(this, abnormality);
+        tryNotifyAbnormalityLocation(abnormality);
     }
 
     @Override
@@ -106,10 +107,16 @@ public class EntityBloodySmall extends BaseGeoEntity {
         Entity entity = level.getEntity(trackedAbnormality);
         if (entity instanceof AbstractAbnormality abnormality
                 && abnormality.isAlive()
+                && !abnormality.hasEscape()
                 && this.distanceToSqr(abnormality) <= ABNORMALITY_NOTICE_RANGE_SQR) {
-            noticeCooldown = 120;
-            CrimsonDawnEvent.notifyAbnormalityLocation(this, abnormality);
+            tryNotifyAbnormalityLocation(abnormality);
         }
+    }
+
+    private void tryNotifyAbnormalityLocation(AbstractAbnormality abnormality) {
+        if (noticeCooldown > 0) return;
+        noticeCooldown = NOTICE_COOLDOWN_TICKS;
+        CrimsonDawnEvent.notifyAbnormalityLocation(this, abnormality);
     }
 
     private void burstAndMove(ServerLevel level) {
@@ -120,7 +127,7 @@ public class EntityBloodySmall extends BaseGeoEntity {
                 40, 1.0D, 0.8D, 1.0D, 0.02D);
 
         AbstractAbnormality current = getTrackedAbnormality(level);
-        if (current != null && current.canEscape() && current.getQliphothCounter() > 0) {
+        if (current != null && !current.hasEscape() && current.getQliphothCounter() > 0) {
             current.decreaseQliphothCounter(1);
         }
 
@@ -137,7 +144,11 @@ public class EntityBloodySmall extends BaseGeoEntity {
     private AbstractAbnormality getTrackedAbnormality(ServerLevel level) {
         if (trackedAbnormality == null) return null;
         Entity entity = level.getEntity(trackedAbnormality);
-        return entity instanceof AbstractAbnormality abnormality && abnormality.isAlive() ? abnormality : null;
+        return entity instanceof AbstractAbnormality abnormality
+                && abnormality.isAlive()
+                && !abnormality.hasEscape()
+                ? abnormality
+                : null;
     }
 
     @Nullable
@@ -192,6 +203,7 @@ public class EntityBloodySmall extends BaseGeoEntity {
         super.addAdditionalSaveData(tag);
         if (trackedAbnormality != null) tag.putUUID("TrackedAbnormality", trackedAbnormality);
         tag.putInt("TeleportTimer", teleportTimer);
+        tag.putInt("NoticeCooldown", noticeCooldown);
         tag.putBoolean("CountedDeath", countedDeath);
     }
 
@@ -200,6 +212,7 @@ public class EntityBloodySmall extends BaseGeoEntity {
         super.readAdditionalSaveData(tag);
         if (tag.hasUUID("TrackedAbnormality")) trackedAbnormality = tag.getUUID("TrackedAbnormality");
         teleportTimer = tag.getInt("TeleportTimer");
+        noticeCooldown = tag.getInt("NoticeCooldown");
         countedDeath = tag.getBoolean("CountedDeath");
     }
 }

@@ -236,6 +236,11 @@ public class EntityLargeBird extends AbstractAbnormality {
         increaseQliphothCounter(1);
     }
 
+    @Override
+    public void onQliphothMeltdown() {
+        triggerEscape();
+    }
+
     /**
      * 触发出逃机制
      */

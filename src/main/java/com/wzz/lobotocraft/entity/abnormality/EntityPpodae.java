@@ -303,6 +303,11 @@ public class EntityPpodae extends AbstractAbnormality {
     }
 
     @Override
+    public void onQliphothMeltdown() {
+        triggerEscape();
+    }
+
+    @Override
     public void triggerEscape() {
         super.triggerEscape();
         Vec3 centerPos = this.position();

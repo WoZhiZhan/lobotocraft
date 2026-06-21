@@ -118,7 +118,7 @@ public class ModEntities {
     public static final RegistryObject<EntityType<EntityBloodySmall>> bloody_small =
             ENTITIES.register("bloody_small",
                     () -> EntityType.Builder.of(EntityBloodySmall::new, MobCategory.MONSTER)
-                            .sized(0.55F, 1.35F)
+                            .sized(0.3F, 0.975F)
                             .clientTrackingRange(8)
                             .updateInterval(3)
                             .build("bloody_small"));
