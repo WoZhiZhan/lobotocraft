@@ -201,6 +201,7 @@ public class FastSectionPlacer {
         return placed;
     }
 
+    @SuppressWarnings("unchecked")
     private void collectEntities(StructureTemplate template, BlockPos placePos) {
         try {
             List<StructureTemplate.StructureEntityInfo> list = template.entityInfoList;
@@ -219,11 +220,61 @@ public class FastSectionPlacer {
                 tag.putDouble("_fsp_x", pos.x);
                 tag.putDouble("_fsp_y", pos.y);
                 tag.putDouble("_fsp_z", pos.z);
+
+                // 挂画/物品展示框：位置由 TileX/TileY/TileZ（依附方块坐标）决定，
+                // 不由 Pos 决定。必须对依附坐标做和方块相同的变换（旋转/镜像 + 偏移），
+                // 否则依附块落在结构外 → "Hanging entity at invalid position"。
+                fixHangingEntity(tag, placePos);
+
                 deferredEntities.add(tag);
             }
         } catch (Exception e) {
             ModLogger.getLogger().error("收集实体失败", e);
         }
+    }
+
+    /**
+     * 修正挂画类实体（含 TileX/TileY/TileZ 的实体）的依附方块坐标与朝向。
+     * entityInfo.nbt 里的 TileX/Y/Z 是结构局部坐标（fillFromWorld 存的相对坐标），
+     * 需做 calculateRelativePosition（旋转/镜像）+ offset(placePos)。
+     */
+    private void fixHangingEntity(CompoundTag tag, BlockPos placePos) {
+        if (!tag.contains("TileX") || !tag.contains("TileY") || !tag.contains("TileZ")) {
+            return; // 非挂画类，跳过
+        }
+        // 局部依附坐标
+        BlockPos localTile = new BlockPos(
+                tag.getInt("TileX"), tag.getInt("TileY"), tag.getInt("TileZ"));
+        // 与方块完全相同的变换
+        BlockPos worldTile = StructureTemplate
+                .calculateRelativePosition(settings, localTile)
+                .offset(placePos);
+        tag.putInt("TileX", worldTile.getX());
+        tag.putInt("TileY", worldTile.getY());
+        tag.putInt("TileZ", worldTile.getZ());
+
+        // 朝向也要跟着旋转/镜像。挂画 facing 用 3D Direction 索引（byte "Facing"）
+        // 1.20.1：ItemFrame/Painting 用 "facing"(int, 3D) 或老的 "Facing"(byte, 2D)
+        // 优先处理 3D facing
+        if (tag.contains("facing")) {
+            net.minecraft.core.Direction dir =
+                    net.minecraft.core.Direction.from3DDataValue(tag.getInt("facing"));
+            dir = applyDirectionTransform(dir);
+            tag.putInt("facing", dir.get3DDataValue());
+        } else if (tag.contains("Facing")) {
+            // 老格式：2D 朝向（仅水平），用 from2DDataValue
+            net.minecraft.core.Direction dir =
+                    net.minecraft.core.Direction.from2DDataValue(tag.getByte("Facing"));
+            dir = applyDirectionTransform(dir);
+            tag.putByte("Facing", (byte) dir.get2DDataValue());
+        }
+    }
+
+    /** 对 Direction 应用当前 settings 的镜像 + 旋转 */
+    private net.minecraft.core.Direction applyDirectionTransform(net.minecraft.core.Direction dir) {
+        dir = settings.getMirror().mirror(dir);
+        dir = settings.getRotation().rotate(dir);
+        return dir;
     }
 
     // ========================= 收尾 =========================
@@ -325,15 +376,24 @@ public class FastSectionPlacer {
                 double z = tag.getDouble("_fsp_z");
                 tag.remove("_fsp_x"); tag.remove("_fsp_y"); tag.remove("_fsp_z");
 
+                // 挂画类：TileX/Y/Z + facing 已在 collectEntities 里变换好，
+                // 实体位置由依附坐标决定。不能再 rotate/moveTo（会二次旋转、错位）。
+                boolean isHanging = tag.contains("TileX")
+                        && tag.contains("TileY") && tag.contains("TileZ");
+
                 EntityType.create(tag, level).ifPresent(entity -> {
-                    float yaw = entity.rotate(settings.getRotation());
-                    yaw += entity.mirror(settings.getMirror()) - entity.getYRot();
-                    entity.moveTo(x, y, z, yaw, entity.getXRot());
-                    if (settings.shouldFinalizeEntities() && entity instanceof Mob mob) {
-                        mob.finalizeSpawn(level,
-                                level.getCurrentDifficultyAt(BlockPos.containing(x, y, z)),
-                                MobSpawnType.STRUCTURE, null, tag);
+                    if (!isHanging) {
+                        // 普通实体：原版逻辑，旋转/镜像朝向 + 移到目标位置
+                        float yaw = entity.rotate(settings.getRotation());
+                        yaw += entity.mirror(settings.getMirror()) - entity.getYRot();
+                        entity.moveTo(x, y, z, yaw, entity.getXRot());
+                        if (settings.shouldFinalizeEntities() && entity instanceof Mob mob) {
+                            mob.finalizeSpawn(level,
+                                    level.getCurrentDifficultyAt(BlockPos.containing(x, y, z)),
+                                    MobSpawnType.STRUCTURE, null, tag);
+                        }
                     }
+                    // 挂画类：create 时已用变换好的 TileXYZ/facing 定位，直接加入世界
                     level.addFreshEntityWithPassengers(entity);
                 });
             } catch (Exception e) {
