@@ -3,6 +3,8 @@ package com.wzz.lobotocraft.network.packet;
 import com.wzz.lobotocraft.client.ShockwaveEffectManager;
 import com.wzz.lobotocraft.network.IMessage;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 public class ShockwaveEffectPacket implements IMessage {
@@ -32,11 +34,9 @@ public class ShockwaveEffectPacket implements IMessage {
         color = buf.readInt();
     }
 
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void run(NetworkEvent.Context ctx) {
-        ctx.enqueueWork(() ->
-            ShockwaveEffectManager.addShockwave(x, y, z, maxRadius, color)
-        );
-        ctx.setPacketHandled(true);
+    public void runClient(NetworkEvent.Context ctx) {
+        ShockwaveEffectManager.addShockwave(x, y, z, maxRadius, color);
     }
 }

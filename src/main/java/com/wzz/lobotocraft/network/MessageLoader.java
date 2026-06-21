@@ -68,6 +68,7 @@ public class MessageLoader {
 				.encoder(MessageCreater::toBuf)
 				.decoder(MessageCreater::fromBuf)
 				.consumerMainThread(MessageCreater::run)
+
 				.add();
 	}
 

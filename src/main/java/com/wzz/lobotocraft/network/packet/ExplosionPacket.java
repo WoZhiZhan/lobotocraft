@@ -5,6 +5,8 @@ import com.wzz.lobotocraft.network.IMessage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 public class ExplosionPacket implements IMessage {
@@ -38,16 +40,14 @@ public class ExplosionPacket implements IMessage {
         buf.writeFloat(radius);
     }
 
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void run(NetworkEvent.Context ctx) {
-        ctx.enqueueWork(() -> {
-            Minecraft mc = Minecraft.getInstance();
-            if (mc.player != null) {
-                Vec3 pos = new Vec3(x, y, z);
-                ExplosionRenderer.createExplosion(pos, time, radius);
-            }
-        });
-        ctx.setPacketHandled(true);
+    public void runClient(NetworkEvent.Context ctx) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null) {
+            Vec3 pos = new Vec3(x, y, z);
+            ExplosionRenderer.createExplosion(pos, time, radius);
+        }
     }
 
     @Override

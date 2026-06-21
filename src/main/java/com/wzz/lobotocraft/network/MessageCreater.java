@@ -53,7 +53,11 @@ public class MessageCreater {
 	public static void run(MessageCreater creater, Supplier<NetworkEvent.Context> ctx) {
 		NetworkEvent.Context ct = ctx.get();
 		ct.enqueueWork(() -> {
-			creater.message.run(ct);
+			if (!ct.getDirection().getReceptionSide().isClient() && !creater.message.sendToClient()) {
+				creater.message.run(ct);
+			} else {
+				creater.message.runClient(ct);
+			}
 		});
 		ct.setPacketHandled(true);
 	}

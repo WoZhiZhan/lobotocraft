@@ -7,7 +7,6 @@
   "mixins": [
     "MixinAbstractContainerMenu",
     "MixinDamageSource",
-    "MixinDimensionType",
     "MixinEntity",
     "MixinInventory",
     "MixinLevel",
@@ -22,7 +21,8 @@
     "ChannelHandleAccessor",
     "MixinInventoryScreen",
     "MixinLocalPlayer",
-    "MixinMultiPlayerGameMode"
+    "MixinMultiPlayerGameMode",
+    "MixinDimensionType"
   ],
   "injectors": {
     "defaultRequire": 1

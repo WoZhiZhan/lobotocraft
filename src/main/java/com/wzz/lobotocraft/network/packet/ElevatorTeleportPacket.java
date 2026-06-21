@@ -4,6 +4,8 @@ import com.wzz.lobotocraft.network.ClientPacketHandler;
 import com.wzz.lobotocraft.network.IMessage;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 public class ElevatorTeleportPacket implements IMessage {
@@ -39,12 +41,10 @@ public class ElevatorTeleportPacket implements IMessage {
         buf.writeInt(duration);
     }
 
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void run(NetworkEvent.Context ctx) {
-        ctx.enqueueWork(() -> {
-            ClientPacketHandler.handleElevatorTeleport(this);
-        });
-        ctx.setPacketHandled(true);
+    public void runClient(NetworkEvent.Context ctx) {
+        ClientPacketHandler.handleElevatorTeleport(this);
     }
 
     @Override

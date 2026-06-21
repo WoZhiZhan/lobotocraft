@@ -3,6 +3,8 @@ package com.wzz.lobotocraft.network.packet;
 import com.wzz.lobotocraft.event.ScreenSnakeEvent;
 import com.wzz.lobotocraft.network.IMessage;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 public class TriggerShakePacket implements IMessage {
@@ -33,10 +35,10 @@ public class TriggerShakePacket implements IMessage {
         buf.writeInt(tick);
         buf.writeFloat(intensity);
     }
-    
+
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void run(NetworkEvent.Context ctx) {
-        ctx.enqueueWork(() -> ScreenSnakeEvent.triggerShake(tick, intensity));
-        ctx.setPacketHandled(true);
+    public void runClient(NetworkEvent.Context ctx) {
+        ScreenSnakeEvent.triggerShake(tick, intensity);
     }
 }

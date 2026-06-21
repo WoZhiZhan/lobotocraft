@@ -5,6 +5,8 @@ import com.wzz.lobotocraft.network.IMessage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 public class StartUsingToolResultPacket implements IMessage {
@@ -43,21 +45,19 @@ public class StartUsingToolResultPacket implements IMessage {
         buf.writeUtf(abnormalityName);
     }
 
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void run(NetworkEvent.Context ctx) {
-        ctx.enqueueWork(() -> {
-            if (!success) {
-                if (Minecraft.getInstance().player != null && !message.isEmpty()) {
-                    Minecraft.getInstance().player
-                            .sendSystemMessage(Component.literal(message));
-                }
-                Minecraft.getInstance().setScreen(null);
-            } else {
-                Minecraft.getInstance().setScreen(new ToolUsageProgressScreen(
-                        abnormalityId, abnormalityName
-                ));
+    public void runClient(NetworkEvent.Context ctx) {
+        if (!success) {
+            if (Minecraft.getInstance().player != null && !message.isEmpty()) {
+                Minecraft.getInstance().player
+                        .sendSystemMessage(Component.literal(message));
             }
-        });
-        ctx.setPacketHandled(true);
+            Minecraft.getInstance().setScreen(null);
+        } else {
+            Minecraft.getInstance().setScreen(new ToolUsageProgressScreen(
+                    abnormalityId, abnormalityName
+            ));
+        }
     }
 }

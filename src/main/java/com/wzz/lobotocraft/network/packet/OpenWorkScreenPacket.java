@@ -5,6 +5,8 @@ import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.network.IMessage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 public class OpenWorkScreenPacket implements IMessage {
@@ -76,14 +78,12 @@ public class OpenWorkScreenPacket implements IMessage {
         }
     }
 
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void run(NetworkEvent.Context ctx) {
-        ctx.enqueueWork(() -> {
-            Minecraft.getInstance().setScreen(new AbnormalityWorkScreen(
-                    abnormalityId, fullWorkPreferences, riskLevel, observationLevel, employeeLevel, workPrefsUnlocked
-            ));
-        });
-        ctx.setPacketHandled(true);
+    public void runClient(NetworkEvent.Context ctx) {
+        Minecraft.getInstance().setScreen(new AbnormalityWorkScreen(
+                abnormalityId, fullWorkPreferences, riskLevel, observationLevel, employeeLevel, workPrefsUnlocked
+        ));
     }
 
     @Override

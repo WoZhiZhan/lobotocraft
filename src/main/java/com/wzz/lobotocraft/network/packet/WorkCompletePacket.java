@@ -7,6 +7,8 @@ import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 /**
@@ -56,17 +58,15 @@ public class WorkCompletePacket implements IMessage {
         buf.writeInt(failureCount);
     }
 
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void run(NetworkEvent.Context ctx) {
-        ctx.enqueueWork(() -> {
-            // 获取当前打开的界面
-            Screen currentScreen = Minecraft.getInstance().screen;
-            
-            if (currentScreen instanceof WorkProgressScreen screen) {
-                // 显示最终结果
-                screen.onWorkComplete(result, peOutput);
-            }
-        });
-        ctx.setPacketHandled(true);
+    public void runClient(NetworkEvent.Context ctx) {
+        // 获取当前打开的界面
+        Screen currentScreen = Minecraft.getInstance().screen;
+
+        if (currentScreen instanceof WorkProgressScreen screen) {
+            // 显示最终结果
+            screen.onWorkComplete(result, peOutput);
+        }
     }
 }

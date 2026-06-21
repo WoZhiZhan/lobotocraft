@@ -1,10 +1,11 @@
 package com.wzz.lobotocraft.block;
 
 import com.wzz.lobotocraft.block.entity.ElevatorBlockEntity;
-import com.wzz.lobotocraft.client.screen.ElevatorScreen;
 import com.wzz.lobotocraft.init.ModBlockEntities;
-import net.minecraft.client.Minecraft;
+import com.wzz.lobotocraft.network.MessageLoader;
+import com.wzz.lobotocraft.network.packet.OpenElevatorScreenPacket;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
@@ -62,11 +63,9 @@ public class ElevatorBlock extends BaseEntityBlock {
     @Override
     public InteractionResult use(BlockState state, Level level, BlockPos pos,
                                  Player player, InteractionHand hand, BlockHitResult hit) {
-        if (level.isClientSide() && player.isCreative()) {
+        if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
             if (level.getBlockEntity(pos) instanceof ElevatorBlockEntity be) {
-                Minecraft.getInstance().setScreen(
-                        new ElevatorScreen(pos, be.getTeleportDistance(), be.isTeleportUp())
-                );
+                MessageLoader.getLoader().sendToPlayer(serverPlayer, new OpenElevatorScreenPacket(pos, be.getTeleportDistance(), be.isTeleportUp()));
             }
             return InteractionResult.SUCCESS;
         }

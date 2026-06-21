@@ -3,6 +3,8 @@ package com.wzz.lobotocraft.network.packet;
 import com.wzz.lobotocraft.event.ForgeModClientEvent;
 import com.wzz.lobotocraft.network.IMessage;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 public class LargeBirdBorderPacket implements IMessage {
@@ -24,18 +26,16 @@ public class LargeBirdBorderPacket implements IMessage {
     public void toBytes(FriendlyByteBuf buf) {
         buf.writeInt(ms);
     }
-    
+
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void run(NetworkEvent.Context ctx) {
-        ctx.enqueueWork(() -> {
-            if (ms <= 0) {
-                ForgeModClientEvent.clearAllBorderEffects();
-            } else {
-                ForgeModClientEvent.LargeBirdCharmEffect effect =
-                        new ForgeModClientEvent.LargeBirdCharmEffect(ms);
-                ForgeModClientEvent.addBorderEffect(effect);
-            }
-        });
-        ctx.setPacketHandled(true);
+    public void runClient(NetworkEvent.Context ctx) {
+        if (ms <= 0) {
+            ForgeModClientEvent.clearAllBorderEffects();
+        } else {
+            ForgeModClientEvent.LargeBirdCharmEffect effect =
+                    new ForgeModClientEvent.LargeBirdCharmEffect(ms);
+            ForgeModClientEvent.addBorderEffect(effect);
+        }
     }
 }

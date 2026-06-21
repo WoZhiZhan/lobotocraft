@@ -2,21 +2,13 @@ package com.wzz.lobotocraft.network.packet;
 
 import com.wzz.lobotocraft.network.IMessage;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
-public class StopAllSoundPacket implements IMessage {
-
-    public StopAllSoundPacket() {
-    }
-
-    @Override
-    public boolean sendToClient() {
-        return true;
-    }
-
+public class LockInputPacket implements IMessage {
     @Override
     public void fromBytes(FriendlyByteBuf buf) {
     }
@@ -28,9 +20,19 @@ public class StopAllSoundPacket implements IMessage {
     @OnlyIn(Dist.CLIENT)
     @Override
     public void runClient(NetworkEvent.Context ctx) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.getSoundManager() != null) {
-            mc.getSoundManager().stop();
+        if (Minecraft.getInstance().player != null) {
+            LocalPlayer player = Minecraft.getInstance().player;
+            player.input.leftImpulse = 0;
+            player.input.forwardImpulse = 0;
+            player.input.jumping = false;
+            player.input.shiftKeyDown = false;
+            player.input.up = false;
+            player.input.down = false;
         }
+    }
+
+    @Override
+    public boolean sendToClient() {
+        return true;
     }
 }

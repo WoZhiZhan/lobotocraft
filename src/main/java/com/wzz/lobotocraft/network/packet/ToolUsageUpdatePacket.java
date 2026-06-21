@@ -5,6 +5,8 @@ import com.wzz.lobotocraft.network.IMessage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 /**
@@ -62,22 +64,20 @@ public class ToolUsageUpdatePacket implements IMessage {
         buf.writeFloat(playerMaxHealth);
     }
 
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void run(NetworkEvent.Context ctx) {
-        ctx.enqueueWork(() -> {
-            Minecraft mc = Minecraft.getInstance();
-            Screen screen = mc.screen;
+    public void runClient(NetworkEvent.Context ctx) {
+        Minecraft mc = Minecraft.getInstance();
+        Screen screen = mc.screen;
 
-            // 如果当前界面是ToolUsageProgressScreen，更新状态
-            if (screen instanceof ToolUsageProgressScreen progressScreen) {
-                progressScreen.onStatusUpdate(
-                        usageTimeSeconds, currentDamage, damageInterval,
-                        totalEnergyProduced, currentEnergyOutput, energyInterval,
-                        playerHealth, playerMaxHealth
-                );
-            }
-        });
-        ctx.setPacketHandled(true);
+        // 如果当前界面是ToolUsageProgressScreen，更新状态
+        if (screen instanceof ToolUsageProgressScreen progressScreen) {
+            progressScreen.onStatusUpdate(
+                    usageTimeSeconds, currentDamage, damageInterval,
+                    totalEnergyProduced, currentEnergyOutput, energyInterval,
+                    playerHealth, playerMaxHealth
+            );
+        }
     }
 
     @Override

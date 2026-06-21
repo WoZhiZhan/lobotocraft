@@ -1,6 +1,5 @@
 package com.wzz.lobotocraft.item.block;
 
-import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.client.model.item.GenericGeoItemModel;
 import com.wzz.lobotocraft.client.renderer.item.BaseGeoItemRenderer;
 import com.wzz.lobotocraft.init.ModBlocks;
@@ -9,6 +8,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.extensions.common.IClientItemExtensions;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
@@ -20,7 +21,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.function.Consumer;
 
-public class ElevatorBlockItem extends BaseGeoBlockItem implements IClientItemExtensions {
+public class ElevatorBlockItem extends BaseGeoBlockItem {
     private static final RawAnimation IDLE_ANIMATION = RawAnimation.begin().thenLoop("dt-3");
 
     public ElevatorBlockItem() {
@@ -43,6 +44,7 @@ public class ElevatorBlockItem extends BaseGeoBlockItem implements IClientItemEx
         //p_40574_.add(Component.translatable("regeneration_reactor.text.1"));
     }
 
+    @OnlyIn(Dist.CLIENT)
     @Override
     public void initializeClient(Consumer<IClientItemExtensions> consumer) {
         consumer.accept(new IClientItemExtensions() {

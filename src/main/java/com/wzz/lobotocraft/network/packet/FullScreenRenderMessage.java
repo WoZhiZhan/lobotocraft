@@ -4,6 +4,8 @@ import com.wzz.lobotocraft.client.renderer.FullScreenRenderer;
 import com.wzz.lobotocraft.network.IMessage;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.ArrayList;
@@ -104,54 +106,53 @@ public class FullScreenRenderMessage implements IMessage {
         if (perImageDuration != null) buf.writeInt(perImageDuration);
     }
 
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void run(NetworkEvent.Context ctx) {
-        if (ctx.getDirection().getReceptionSide().isClient()) {
-            FullScreenRenderer renderer = FullScreenRenderer.getInstance();
+    public void runClient(NetworkEvent.Context ctx) {
+        FullScreenRenderer renderer = FullScreenRenderer.getInstance();
 
-            if (Boolean.TRUE.equals(stopImmediately)) {
-                renderer.stopImmediately();
-                return;
+        if (Boolean.TRUE.equals(stopImmediately)) {
+            renderer.stopImmediately();
+            return;
+        }
+
+        if (Boolean.TRUE.equals(forceStop)) {
+            renderer.forceStop();
+            return;
+        }
+
+        if (fadeInDuration != null || fadeOutDuration != null) {
+            renderer.setFadeDuration(
+                    fadeInDuration != null ? fadeInDuration : 1000,
+                    fadeOutDuration != null ? fadeOutDuration : 1000
+            );
+        }
+
+        if (backgroundColor != null) {
+            renderer.setBackgroundColor(backgroundColor);
+        }
+
+        if (textureList != null && !textureList.isEmpty()) {
+            int switchTime = textureSwitchDuration != null ? textureSwitchDuration : 500;
+            int perDuration = perImageDuration != null ? perImageDuration : 3000; // 默认每张3秒
+
+            renderer.setTextureQueue(textureList, perDuration, switchTime);
+        } else if (texturePath != null) {
+            // 单图模式（保持向后兼容）
+            int switchTime = textureSwitchDuration != null ? textureSwitchDuration : 500;
+            if (renderer.isRendering()) {
+                renderer.switchTexture(texturePath, switchTime);
+            } else {
+                renderer.setBackgroundTexture(texturePath);
             }
+        }
 
-            if (Boolean.TRUE.equals(forceStop)) {
-                renderer.forceStop();
-                return;
-            }
+        if (text != null) {
+            renderer.setText(text, textColor != null ? textColor : 0xFFFFFF);
+        }
 
-            if (fadeInDuration != null || fadeOutDuration != null) {
-                renderer.setFadeDuration(
-                        fadeInDuration != null ? fadeInDuration : 1000,
-                        fadeOutDuration != null ? fadeOutDuration : 1000
-                );
-            }
-
-            if (backgroundColor != null) {
-                renderer.setBackgroundColor(backgroundColor);
-            }
-
-            if (textureList != null && !textureList.isEmpty()) {
-                int switchTime = textureSwitchDuration != null ? textureSwitchDuration : 500;
-                int perDuration = perImageDuration != null ? perImageDuration : 3000; // 默认每张3秒
-
-                renderer.setTextureQueue(textureList, perDuration, switchTime);
-            } else if (texturePath != null) {
-                // 单图模式（保持向后兼容）
-                int switchTime = textureSwitchDuration != null ? textureSwitchDuration : 500;
-                if (renderer.isRendering()) {
-                    renderer.switchTexture(texturePath, switchTime);
-                } else {
-                    renderer.setBackgroundTexture(texturePath);
-                }
-            }
-
-            if (text != null) {
-                renderer.setText(text, textColor != null ? textColor : 0xFFFFFF);
-            }
-
-            if (showDuration != null) {
-                renderer.startRender(showDuration);
-            }
+        if (showDuration != null) {
+            renderer.startRender(showDuration);
         }
     }
 

@@ -5,6 +5,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 public class OpenChatScreenPacket implements IMessage {
@@ -22,15 +24,13 @@ public class OpenChatScreenPacket implements IMessage {
     @Override
     public void toBytes(FriendlyByteBuf buf) {
     }
-    
+
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void run(NetworkEvent.Context ctx) {
-        ctx.enqueueWork(() -> {
-            if (!(Minecraft.getInstance().screen instanceof ChatScreen) && !(Minecraft.getInstance().screen instanceof PauseScreen) && Minecraft.getInstance().player != null &&
-            !Minecraft.getInstance().player.isDeadOrDying()) {
-                Minecraft.getInstance().setScreen(new ChatScreen(""));
-            }
-        });
-        ctx.setPacketHandled(true);
+    public void runClient(NetworkEvent.Context ctx) {
+        if (!(Minecraft.getInstance().screen instanceof ChatScreen) && !(Minecraft.getInstance().screen instanceof PauseScreen) && Minecraft.getInstance().player != null &&
+                !Minecraft.getInstance().player.isDeadOrDying()) {
+            Minecraft.getInstance().setScreen(new ChatScreen(""));
+        }
     }
 }

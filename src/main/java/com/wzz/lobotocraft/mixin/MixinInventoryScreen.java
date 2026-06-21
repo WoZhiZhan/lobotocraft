@@ -100,7 +100,8 @@ public class MixinInventoryScreen {
                 // 打开员工属性界面
                 if (screen.getMinecraft().player != null) {
                     screen.getMinecraft().getSoundManager().play(new
-                            SimpleSoundInstance(SoundEvents.UI_BUTTON_CLICK.get(), SoundSource.VOICE, 1, 1, RandomSource.create(), screen.getMinecraft().player.blockPosition()));
+                            SimpleSoundInstance(SoundEvents.UI_BUTTON_CLICK.get(), SoundSource.VOICE,
+                            0.5f, 1, RandomSource.create(), screen.getMinecraft().player.blockPosition()));
                 }
                 screen.getMinecraft().setScreen(new EmployeeStatsScreen(screen));
 

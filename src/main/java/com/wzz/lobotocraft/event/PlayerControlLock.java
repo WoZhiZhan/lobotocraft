@@ -1,6 +1,8 @@
 package com.wzz.lobotocraft.event;
 
-import net.minecraft.client.player.LocalPlayer;
+import com.wzz.lobotocraft.network.MessageLoader;
+import com.wzz.lobotocraft.network.packet.LockInputPacket;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -54,22 +56,11 @@ public class PlayerControlLock {
             return;
         }
         moveToTarget(player, target, data.speed, data.range);
-        if (player.level.isClientSide && player instanceof LocalPlayer local) {
-            lockInput(local);
-            lookAtTarget(local, target, 5f, 5f); // 旋转速度可调
+        if (player.level.isClientSide) {
+            lookAtTarget(player, target, 5f, 5f); // 旋转速度可调
+        } else if (player instanceof ServerPlayer serverPlayer) {
+            MessageLoader.getLoader().sendToPlayer(serverPlayer, new LockInputPacket());
         }
-    }
-
-    /**
-     * 阻止玩家移动和跳跃
-     */
-    private static void lockInput(LocalPlayer player) {
-        player.input.leftImpulse = 0;
-        player.input.forwardImpulse = 0;
-        player.input.jumping = false;
-        player.input.shiftKeyDown = false;
-        player.input.up = false;
-        player.input.down = false;
     }
 
     /**

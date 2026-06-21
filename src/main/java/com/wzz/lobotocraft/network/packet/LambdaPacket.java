@@ -7,6 +7,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
 
+// 有bug别用
 public class LambdaPacket implements IMessage {
     private String actionId;
     private CompoundTag data;
@@ -45,14 +46,11 @@ public class LambdaPacket implements IMessage {
 
     @Override
     public void run(NetworkEvent.Context ctx) {
-        ctx.enqueueWork(() -> {
-            if (ctx.getDirection().getReceptionSide().isClient()) {
-                LambdaPacketHandler.runClient(actionId, data);
-            } else {
-                ServerPlayer sender = ctx.getSender();
-                LambdaPacketHandler.runServer(actionId, data, sender);
-            }
-        });
-        ctx.setPacketHandled(true);
+        if (ctx.getDirection().getReceptionSide().isClient()) {
+            LambdaPacketHandler.runClient(actionId, data);
+        } else {
+            ServerPlayer sender = ctx.getSender();
+            LambdaPacketHandler.runServer(actionId, data, sender);
+        }
     }
 }

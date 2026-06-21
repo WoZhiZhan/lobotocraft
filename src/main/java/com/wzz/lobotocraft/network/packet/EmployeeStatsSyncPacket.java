@@ -6,7 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.DistExecutor;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 /**
@@ -18,11 +18,7 @@ public class EmployeeStatsSyncPacket implements IMessage {
     private int prudence;
     private int temperance;
     private int justice;
-    
-    public EmployeeStatsSyncPacket() {
-        // 无参构造器，用于反序列化
-    }
-    
+
     public EmployeeStatsSyncPacket(int fortitude, int prudence, int temperance, int justice) {
         this.fortitude = fortitude;
         this.prudence = prudence;
@@ -45,31 +41,23 @@ public class EmployeeStatsSyncPacket implements IMessage {
         buf.writeInt(temperance);
         buf.writeInt(justice);
     }
-    
+
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void run(NetworkEvent.Context ctx) {
-        ctx.enqueueWork(() -> {
-            DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
-                Player player = Minecraft.getInstance().player;
-                if (player != null) {
-                    player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(stats -> {
-                        stats.setFortitude(fortitude);
-                        stats.setPrudence(prudence);
-                        stats.setTemperance(temperance);
-                        stats.setJustice(justice);
-                    });
-                }
+    public void runClient(NetworkEvent.Context ctx) {
+        Player player = Minecraft.getInstance().player;
+        if (player != null) {
+            player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(stats -> {
+                stats.setFortitude(fortitude);
+                stats.setPrudence(prudence);
+                stats.setTemperance(temperance);
+                stats.setJustice(justice);
             });
-        });
+        }
     }
     
     @Override
     public boolean sendToClient() {
         return true;
-    }
-    
-    @Override
-    public boolean sendToServer() {
-        return false;
     }
 }

@@ -9,6 +9,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.extensions.common.IClientItemExtensions;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
@@ -20,7 +22,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.function.Consumer;
 
-public class RegenerationReactorBlockItem extends BaseGeoBlockItem implements IClientItemExtensions {
+public class RegenerationReactorBlockItem extends BaseGeoBlockItem {
     private static final RawAnimation IDLE_ANIMATION = RawAnimation.begin().thenLoop("animation.hx-1.1");
     
     public RegenerationReactorBlockItem() {
@@ -43,6 +45,7 @@ public class RegenerationReactorBlockItem extends BaseGeoBlockItem implements IC
         p_40574_.add(Component.translatable("regeneration_reactor.text.1"));
     }
 
+    @OnlyIn(Dist.CLIENT)
     @Override
     public void initializeClient(Consumer<IClientItemExtensions> consumer) {
         consumer.accept(new IClientItemExtensions() {

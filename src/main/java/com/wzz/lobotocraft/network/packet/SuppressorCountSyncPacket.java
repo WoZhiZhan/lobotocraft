@@ -5,6 +5,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Player;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 /**
@@ -34,18 +36,16 @@ public class SuppressorCountSyncPacket implements IMessage {
         buf.writeInt(count);
     }
 
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void run(NetworkEvent.Context ctx) {
-        ctx.enqueueWork(() -> {
-            Player player = Minecraft.getInstance().player;
-            if (player != null) {
-                CompoundTag root = player.getPersistentData();
-                CompoundTag persist = root.getCompound(Player.PERSISTED_NBT_TAG);
-                persist.putBoolean("lobotocraft_suppressor_init", true);
-                persist.putInt("lobotocraft_suppressor_count", count);
-                root.put(Player.PERSISTED_NBT_TAG, persist);
-            }
-        });
-        ctx.setPacketHandled(true);
+    public void runClient(NetworkEvent.Context ctx) {
+        Player player = Minecraft.getInstance().player;
+        if (player != null) {
+            CompoundTag root = player.getPersistentData();
+            CompoundTag persist = root.getCompound(Player.PERSISTED_NBT_TAG);
+            persist.putBoolean("lobotocraft_suppressor_init", true);
+            persist.putInt("lobotocraft_suppressor_count", count);
+            root.put(Player.PERSISTED_NBT_TAG, persist);
+        }
     }
 }

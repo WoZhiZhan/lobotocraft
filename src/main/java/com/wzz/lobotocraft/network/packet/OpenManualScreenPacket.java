@@ -6,6 +6,8 @@ import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.network.IMessage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 /**
@@ -152,28 +154,26 @@ public class OpenManualScreenPacket implements IMessage {
         buf.writeBoolean(isToolType);
     }
 
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void run(NetworkEvent.Context ctx) {
-        ctx.enqueueWork(() -> {
-            AbnormalityEncyclopediaData.EntryData data =
-                    AbnormalityEncyclopediaData.getData(abnormalityCode);
+    public void runClient(NetworkEvent.Context ctx) {
+        AbnormalityEncyclopediaData.EntryData data =
+                AbnormalityEncyclopediaData.getData(abnormalityCode);
 
-            // 从数据中获取管理须知文本
-            int manualCount = data.getManualCount();
-            String[] manualTexts = new String[manualCount];
-            for (int i = 0; i < manualCount; i++) {
-                manualTexts[i] = data.getManual(i);
-            }
+        // 从数据中获取管理须知文本
+        int manualCount = data.getManualCount();
+        String[] manualTexts = new String[manualCount];
+        for (int i = 0; i < manualCount; i++) {
+            manualTexts[i] = data.getManual(i);
+        }
 
-            Minecraft.getInstance().setScreen(new AbnormalityEncyclopediaScreen(
-                    abnormalityId, abnormalityCode, abnormalityName, riskLevel,
-                    damageType, maxPEOutput, workPreferences, observationLevel,
-                    manualTexts,
-                    data.sensitiveInfo(),
-                    basicInfoUnlocked, workPreferencesUnlocked, sensitiveInfoUnlocked, manualsUnlocked,
-                    basicInfoCost, workPreferencesCost, sensitiveInfoCost, manualCost, developmentWeaponCount, developmentArmorCount, scrollOffset, isToolType
-            ));
-        });
-        ctx.setPacketHandled(true);
+        Minecraft.getInstance().setScreen(new AbnormalityEncyclopediaScreen(
+                abnormalityId, abnormalityCode, abnormalityName, riskLevel,
+                damageType, maxPEOutput, workPreferences, observationLevel,
+                manualTexts,
+                data.sensitiveInfo(),
+                basicInfoUnlocked, workPreferencesUnlocked, sensitiveInfoUnlocked, manualsUnlocked,
+                basicInfoCost, workPreferencesCost, sensitiveInfoCost, manualCost, developmentWeaponCount, developmentArmorCount, scrollOffset, isToolType
+        ));
     }
 }

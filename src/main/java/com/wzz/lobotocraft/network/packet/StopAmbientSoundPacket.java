@@ -5,6 +5,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundSource;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 /**
@@ -18,10 +20,6 @@ public class StopAmbientSoundPacket implements IMessage {
     public StopAmbientSoundPacket(ResourceLocation soundLocation, SoundSource soundSource) {
         this.soundLocation = soundLocation;
         this.soundSource = soundSource;
-    }
-    
-    // 用于网络传输的构造函数
-    public StopAmbientSoundPacket() {
     }
 
     @Override
@@ -41,14 +39,12 @@ public class StopAmbientSoundPacket implements IMessage {
         buf.writeEnum(soundSource);
     }
 
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void run(NetworkEvent.Context ctx) {
-        ctx.enqueueWork(() -> {
-            Minecraft mc = Minecraft.getInstance();
-            if (mc.getSoundManager() != null) {
-                mc.getSoundManager().stop(soundLocation, soundSource);
-            }
-        });
-        ctx.setPacketHandled(true);
+    public void runClient(NetworkEvent.Context ctx) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getSoundManager() != null) {
+            mc.getSoundManager().stop(soundLocation, soundSource);
+        }
     }
 }

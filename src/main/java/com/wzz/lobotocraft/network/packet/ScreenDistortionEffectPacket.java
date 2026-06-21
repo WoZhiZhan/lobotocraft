@@ -3,6 +3,8 @@ package com.wzz.lobotocraft.network.packet;
 import com.wzz.lobotocraft.client.ScreenDistortionState;
 import com.wzz.lobotocraft.network.IMessage;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 public class ScreenDistortionEffectPacket implements IMessage {
@@ -28,11 +30,9 @@ public class ScreenDistortionEffectPacket implements IMessage {
         buf.writeInt(durationTicks);
     }
 
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void run(NetworkEvent.Context ctx) {
-        ctx.enqueueWork(() -> {
-            ScreenDistortionState.activate(intensity, durationTicks);
-        });
-        ctx.setPacketHandled(true);
+    public void runClient(NetworkEvent.Context ctx) {
+        ScreenDistortionState.activate(intensity, durationTicks);
     }
 }

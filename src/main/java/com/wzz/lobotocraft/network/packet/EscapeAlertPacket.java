@@ -3,6 +3,8 @@ package com.wzz.lobotocraft.network.packet;
 import com.wzz.lobotocraft.client.alert.EscapeAlertManager;
 import com.wzz.lobotocraft.network.IMessage;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 /**
@@ -16,8 +18,6 @@ import net.minecraftforge.network.NetworkEvent;
 public class EscapeAlertPacket implements IMessage {
 
     private int alertLevel;
-
-    public EscapeAlertPacket() {}
 
     public EscapeAlertPacket(int alertLevel) {
         this.alertLevel = alertLevel;
@@ -33,10 +33,10 @@ public class EscapeAlertPacket implements IMessage {
         buf.writeInt(alertLevel);
     }
 
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void run(NetworkEvent.Context ctx) {
-        ctx.enqueueWork(() -> EscapeAlertManager.getInstance().onAlertReceived(alertLevel));
-        ctx.setPacketHandled(true);
+    public void runClient(NetworkEvent.Context ctx) {
+        EscapeAlertManager.getInstance().onAlertReceived(alertLevel);
     }
 
     @Override

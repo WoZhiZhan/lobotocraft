@@ -5,6 +5,8 @@ import com.wzz.lobotocraft.capability.MentalValueProvider;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Player;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 public class MentalValueSyncPacket implements IMessage {
@@ -31,17 +33,15 @@ public class MentalValueSyncPacket implements IMessage {
         buf.writeFloat(maxMentalValue);
     }
 
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void run(NetworkEvent.Context ctx) {
-        ctx.enqueueWork(() -> {
-            Player player = Minecraft.getInstance().player;
-            if (player != null) {
-                player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
-                    mental.setMentalValue(mentalValue);
-                    mental.setMaxMentalValue(maxMentalValue);
-                });
-            }
-        });
-        ctx.setPacketHandled(true);
+    public void runClient(NetworkEvent.Context ctx) {
+        Player player = Minecraft.getInstance().player;
+        if (player != null) {
+            player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
+                mental.setMentalValue(mentalValue);
+                mental.setMaxMentalValue(maxMentalValue);
+            });
+        }
     }
 }

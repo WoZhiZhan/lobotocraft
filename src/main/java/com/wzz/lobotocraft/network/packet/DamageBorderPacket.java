@@ -4,6 +4,8 @@ import com.wzz.lobotocraft.client.damage_border.DamageBorderEffect;
 import com.wzz.lobotocraft.client.damage_border.DamageBorderHud;
 import com.wzz.lobotocraft.network.IMessage;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 /**
@@ -29,15 +31,13 @@ public class DamageBorderPacket implements IMessage {
     public void toBytes(FriendlyByteBuf buf) {
         buf.writeUtf(damageTypeId);
     }
-    
+
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void run(NetworkEvent.Context ctx) {
-        ctx.enqueueWork(() -> {
-            DamageBorderEffect.DamageType damageType = DamageBorderEffect.DamageType.fromString(damageTypeId);
-            if (damageType != null) {
-                DamageBorderHud.addBorderEffect(damageType);
-            }
-        });
-        ctx.setPacketHandled(true);
+    public void runClient(NetworkEvent.Context ctx) {
+        DamageBorderEffect.DamageType damageType = DamageBorderEffect.DamageType.fromString(damageTypeId);
+        if (damageType != null) {
+            DamageBorderHud.addBorderEffect(damageType);
+        }
     }
 }

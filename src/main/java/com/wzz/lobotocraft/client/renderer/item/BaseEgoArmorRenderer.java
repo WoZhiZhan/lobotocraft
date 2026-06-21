@@ -7,6 +7,8 @@ import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.renderer.GeoArmorRenderer;
 
@@ -14,6 +16,7 @@ import software.bernie.geckolib.renderer.GeoArmorRenderer;
  * E.G.O装备通用渲染器（支持多个geo.json）
  * 适用于所有E.G.O装备套装
  */
+@OnlyIn(Dist.CLIENT)
 public class BaseEgoArmorRenderer extends GeoArmorRenderer<BaseEgoArmor> {
     
     private final BaseEgoArmorModel model;

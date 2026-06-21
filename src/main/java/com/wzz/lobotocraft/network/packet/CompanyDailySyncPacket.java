@@ -5,6 +5,8 @@ import com.wzz.lobotocraft.network.IMessage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Player;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 /**
@@ -46,23 +48,21 @@ public class CompanyDailySyncPacket implements IMessage {
         buf.writeBoolean(isHasSleep);
     }
 
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void run(NetworkEvent.Context ctx) {
-        ctx.enqueueWork(() -> {
-            Player player = Minecraft.getInstance().player;
-            if (player != null) {
-                player.getCapability(CompanyDailyDataProvider.COMPANY_DAILY_DATA).ifPresent(data -> {
-                    data.setCurrentDay(currentDay);
-                    data.setTodayWorkCount(todayWorkCount);
-                    data.setHasSleep(isHasSleep);
-                    if (armorLocked) {
-                        data.lockArmor();
-                    } else {
-                        data.unlockArmor();
-                    }
-                });
-            }
-        });
-        ctx.setPacketHandled(true);
+    public void runClient(NetworkEvent.Context ctx) {
+        Player player = Minecraft.getInstance().player;
+        if (player != null) {
+            player.getCapability(CompanyDailyDataProvider.COMPANY_DAILY_DATA).ifPresent(data -> {
+                data.setCurrentDay(currentDay);
+                data.setTodayWorkCount(todayWorkCount);
+                data.setHasSleep(isHasSleep);
+                if (armorLocked) {
+                    data.lockArmor();
+                } else {
+                    data.unlockArmor();
+                }
+            });
+        }
     }
 }
