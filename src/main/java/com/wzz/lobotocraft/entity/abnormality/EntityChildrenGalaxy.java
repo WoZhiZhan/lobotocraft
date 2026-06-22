@@ -142,6 +142,11 @@ public class EntityChildrenGalaxy extends AbstractAbnormality {
     public void onWorkComplete(ServerPlayer player,
                                WorkType workType,
                                WorkResult result) {
+        if (BuffUtil.hasFriendshipProof(player)) {
+            decreaseQliphothCounter(1);
+            player.sendSystemMessage(Component.literal("§c「友谊之证」让银河之子的计数器减少了。"));
+            return;
+        }
         increaseQliphothCounter(1);
         if (qliphothCounter <= 0) {
             qliphothCounter = 1;

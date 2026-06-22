@@ -20,6 +20,6 @@
     }
   },
   "textures": {
-    "particle": "item/texture"
+    "particle": "lobotocraft:item/abandoned_murderer_curio"
   }
 }

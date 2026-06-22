@@ -112,6 +112,6 @@
     }
   },
   "textures": {
-    "particle": "item/fourth_match_flame_weapon"
+    "particle": "lobotocraft:weapon/fourth_match_flame_weapon"
   }
 }

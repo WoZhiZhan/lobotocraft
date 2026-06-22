@@ -169,5 +169,7 @@
   "item.lobotocraft.blue_star_leggings": "新星之声 护腿",
   "item.lobotocraft.blue_star_boots": "新星之声 靴子",
   "item.lobotocraft.blue_star_weapon": "新星之声",
-  "item.lobotocraft.blue_star_curio": "新星之声"
+  "item.lobotocraft.blue_star_curio": "新星之声",
+  "advancements.lobotocraft.ordeal.title": "考验",
+  "advancements.lobotocraft.ordeal.description": "到达第三天"
 }

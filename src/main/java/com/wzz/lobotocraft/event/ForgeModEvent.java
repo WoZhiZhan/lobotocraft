@@ -68,6 +68,8 @@ import static com.wzz.lobotocraft.util.DamageHelper.*;
 
 @Mod.EventBusSubscriber
 public class ForgeModEvent {
+	private static final net.minecraft.resources.ResourceLocation ORDEAL_ADVANCEMENT =
+			ResourceUtil.createInstance("ordeal");
 
 	@SubscribeEvent
 	public static void onLivingAttack(LivingAttackEvent event) {
@@ -472,7 +474,9 @@ public class ForgeModEvent {
 
 	@SubscribeEvent
 	public static void onWorkStart(WorkStartEvent event) {
-		if (!event.getAbnormality().isToolType() && com.wzz.lobotocraft.util.BuffUtil.hasFriendshipProof(event.getEntity())) {
+		if (!(event.getAbnormality() instanceof EntityChildrenGalaxy)
+				&& !event.getAbnormality().isToolType()
+				&& com.wzz.lobotocraft.util.BuffUtil.hasFriendshipProof(event.getEntity())) {
 			int count = com.wzz.lobotocraft.util.BuffUtil.getFriendshipProofCounter(event.getEntity());
 			if (count != -1) {
 				event.getEntity().setHealth(event.getEntity().getHealth() - (count * 4));
@@ -671,6 +675,16 @@ public class ForgeModEvent {
 		}
 		if (event.getNewDay() == 2 && !ItemUtil.hasItem(event.getPlayer(), ModItems.WORK_DEVICE.get())) {
 			ItemUtil.addItem(event.getPlayer(), new ItemStack(ModItems.WORK_DEVICE.get()));
+		}
+		if (event.getNewDay() >= 3) {
+			grantOrdealAdvancement(event.getPlayer());
+		}
+	}
+
+	private static void grantOrdealAdvancement(ServerPlayer player) {
+		var advancement = player.server.getAdvancements().getAdvancement(ORDEAL_ADVANCEMENT);
+		if (advancement != null) {
+			player.getAdvancements().award(advancement, "reached_day_three");
 		}
 	}
 

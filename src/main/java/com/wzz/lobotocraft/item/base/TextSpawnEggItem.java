@@ -57,11 +57,11 @@ public class TextSpawnEggItem extends ForgeSpawnEggItem {
             return InteractionResult.SUCCESS;
         }
 
-        BlockPos spawnPos = clickedState.getCollisionShape(level, clickedPos).isEmpty()
+        BlockPos spawnSearchPos = clickedState.getCollisionShape(level, clickedPos).isEmpty()
                 ? clickedPos
-                : clickedPos.relative(context.getClickedFace());
+                : clickedPos.relative(context.getClickedFace()).below();
         AbstractAbnormality spawned = AbnormalitySpawnHelper.spawnPersistent(
-                (ServerLevel) level, (EntityType) type, spawnPos, MobSpawnType.SPAWN_EGG);
+                (ServerLevel) level, (EntityType) type, spawnSearchPos, MobSpawnType.SPAWN_EGG);
         if (spawned == null) {
             return InteractionResult.FAIL;
         }

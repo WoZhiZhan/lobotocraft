@@ -169,5 +169,7 @@
   "item.lobotocraft.blue_star_leggings": "Voice of Nova Leggings",
   "item.lobotocraft.blue_star_boots": "Voice of Nova Boots",
   "item.lobotocraft.blue_star_weapon": "Voice of Nova",
-  "item.lobotocraft.blue_star_curio": "Voice of Nova"
+  "item.lobotocraft.blue_star_curio": "Voice of Nova",
+  "advancements.lobotocraft.ordeal.title": "Ordeal",
+  "advancements.lobotocraft.ordeal.description": "Reach the third day"
 }

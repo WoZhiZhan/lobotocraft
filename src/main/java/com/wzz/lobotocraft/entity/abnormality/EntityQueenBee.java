@@ -27,6 +27,7 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
 import software.bernie.geckolib.core.animation.AnimationState;
@@ -41,6 +42,11 @@ public class EntityQueenBee extends AbstractAbnormality {
     private static final int SPORE_DURATION = 20 * 20;
     private static final int SPORE_RELEASE_TICKS = 28;
     private static final int SPORE_PARTICLE_INTERVAL_TICKS = 2;
+    private static final Vec3[] SPORE_EMITTERS = new Vec3[]{
+            new Vec3(-0.45D, 0.55D, -0.12D),
+            new Vec3(0.0D, 0.48D, -0.28D),
+            new Vec3(0.45D, 0.55D, -0.12D)
+    };
 
     private int sporeReleaseTimer = 0;
     private boolean sporesApplied = false;
@@ -98,40 +104,34 @@ public class EntityQueenBee extends AbstractAbnormality {
             return;
         }
 
-        for (int i = 0; i < 20; i++) {
-            double angle = this.random.nextDouble() * Math.PI * 2.0D;
-            double radius = this.random.nextDouble() * this.getBbWidth() * 0.48D;
-            double x = this.getX() + Math.cos(angle) * radius;
-            double y = this.getY() + this.getBbHeight() * (0.10D + this.random.nextDouble() * 0.18D);
-            double z = this.getZ() + Math.sin(angle) * radius;
-            serverLevel.sendParticles(
-                    ParticleUtil.getDustParticle(1.0f, 0.78f, 0.08f, 1.2f),
-                    x, y, z,
-                    1,
-                    0.03D, -0.06D, 0.03D,
-                    0.03D);
+        for (Vec3 emitter : SPORE_EMITTERS) {
+            for (int i = 0; i < 14; i++) {
+                double localX = emitter.x + (this.random.nextDouble() - 0.5D) * 0.18D;
+                double localZ = emitter.z + (this.random.nextDouble() - 0.5D) * 0.18D;
+                double y = this.getY() + this.getBbHeight() * emitter.y
+                        + (this.random.nextDouble() - 0.5D) * 0.12D;
+                Vec3 pos = localToWorld(localX, y, localZ);
+                Vec3 spray = pos.subtract(this.position()).normalize().scale(0.08D)
+                        .add(0.0D, -0.035D + this.random.nextDouble() * 0.035D, 0.0D);
+                serverLevel.sendParticles(
+                        ParticleUtil.getDustParticle(1.0f, 0.78f, 0.08f, 1.25f),
+                        pos.x, pos.y, pos.z,
+                        1,
+                        spray.x, spray.y, spray.z,
+                        0.035D);
+            }
         }
+    }
 
-        for (int i = 0; i < 18; i++) {
-            double angle = this.random.nextDouble() * Math.PI * 2.0D;
-            double radius = this.getBbWidth() * (0.18D + this.random.nextDouble() * 0.42D);
-            double x = this.getX() + Math.cos(angle) * radius;
-            double y = this.getY() + this.getBbHeight() * (0.02D + this.random.nextDouble() * 0.16D);
-            double z = this.getZ() + Math.sin(angle) * radius;
-            serverLevel.sendParticles(
-                    ParticleUtil.getDustParticle(1.0f, 0.68f, 0.06f, 1.35f),
-                    x, y, z,
-                    1,
-                    0.05D, -0.08D, 0.05D,
-                    0.035D);
-        }
-
-        serverLevel.sendParticles(
-                ParticleUtil.getDustParticle(1.0f, 0.92f, 0.25f, 1.0f),
-                this.getX(), this.getY() + this.getBbHeight() * 0.08D, this.getZ(),
-                16,
-                this.getBbWidth() * 0.34D, 0.08D, this.getBbWidth() * 0.34D,
-                0.015D);
+    private Vec3 localToWorld(double localX, double y, double localZ) {
+        double yaw = Math.toRadians(-this.getYRot());
+        double sin = Math.sin(yaw);
+        double cos = Math.cos(yaw);
+        return new Vec3(
+                this.getX() + localX * cos - localZ * sin,
+                y,
+                this.getZ() + localX * sin + localZ * cos
+        );
     }
 
     @Override

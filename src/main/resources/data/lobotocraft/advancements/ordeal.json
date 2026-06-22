@@ -1,0 +1,27 @@
+{
+  "display": {
+    "icon": {
+      "item": "lobotocraft:pe_box"
+    },
+    "title": {
+      "translate": "advancements.lobotocraft.ordeal.title"
+    },
+    "description": {
+      "translate": "advancements.lobotocraft.ordeal.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "reached_day_three": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "reached_day_three"
+    ]
+  ]
+}

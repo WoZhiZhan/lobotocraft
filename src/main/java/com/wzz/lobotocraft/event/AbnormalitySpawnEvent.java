@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.entity.abnormality.*;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.init.ModBlocks;
 import com.wzz.lobotocraft.init.ModEntities;
+import com.wzz.lobotocraft.item.PEBoxItem;
 import com.wzz.lobotocraft.util.AbnormalitySpawnHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -20,7 +21,6 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.animal.Animal;
-import net.minecraft.world.entity.animal.Bee;
 import net.minecraft.world.entity.animal.Pig;
 import net.minecraft.world.entity.animal.Wolf;
 import net.minecraft.world.entity.TamableAnimal;
@@ -67,29 +67,6 @@ public class AbnormalitySpawnEvent {
 
         Entity target = event.getTarget();
         ServerLevel serverLevel = (ServerLevel) level;
-
-        // 13. 蜂后:对蜜蜂使用任意异想体能源(消耗一个)
-        if (target instanceof Bee bee) {
-            if (AbnormalitySpawnHelper.hasAnyPEBox(player)) {
-                BlockPos pos = bee.blockPosition();
-                if (AbnormalitySpawnHelper.existsNearby(serverLevel, pos,
-                        AbnormalitySpawnHelper.DEFAULT_DEDUP_RADIUS, EntityQueenBee.class)) {
-                    player.displayClientMessage(Component.literal("§c附近已经存在「蜂后」"), true);
-                    event.setCanceled(true);
-                    event.setCancellationResult(InteractionResult.SUCCESS);
-                    return;
-                }
-                if (AbnormalitySpawnHelper.consumeAnyPEBox(player)) {
-                    bee.discard();
-                    AbnormalitySpawnHelper.spawnPersistent(serverLevel,
-                            ModEntities.queen_bee.get(), pos);
-                    player.displayClientMessage(Component.literal("蜂群散去，女王矗立在此处，身躯破碎不堪..."), false);
-                    event.setCanceled(true);
-                    event.setCancellationResult(InteractionResult.SUCCESS);
-                }
-            }
-            return;
-        }
 
         // 6. 被遗弃的杀人魔:对卫道士使用任意异想体能源(消耗一个)
         if (target instanceof Vindicator vindicator) {
@@ -187,6 +164,14 @@ public class AbnormalitySpawnEvent {
         BlockState state = level.getBlockState(pos);
         ItemStack stack = event.getItemStack();
 
+        if (AbnormalitySpawnHelper.isOverworld(level) && isBeeHive(state) && stack.getItem() instanceof PEBoxItem) {
+            if (trySpawnQueenBeeFromHive(serverLevel, player, pos)) {
+                event.setCanceled(true);
+                event.setCancellationResult(InteractionResult.SUCCESS);
+            }
+            return;
+        }
+
         if (state.is(ModBlocks.TOMBSTONE.get())) {
             if (stack.is(ItemTags.FLOWERS)) {
                 if (trySpawnButterflyFuneral(serverLevel, player, pos)) {
@@ -218,6 +203,29 @@ public class AbnormalitySpawnEvent {
                 && isRiverOrOceanBiome(level, player.blockPosition())) {
             startSkadiSongTimer(player, pos);
         }
+    }
+
+    private static boolean isBeeHive(BlockState state) {
+        return state.is(Blocks.BEEHIVE) || state.is(Blocks.BEE_NEST);
+    }
+
+    private static boolean trySpawnQueenBeeFromHive(ServerLevel level, Player player, BlockPos hivePos) {
+        if (!AbnormalitySpawnHelper.hasAnyPEBox(player)) {
+            return false;
+        }
+        if (AbnormalitySpawnHelper.existsNearby(level, hivePos,
+                AbnormalitySpawnHelper.DEFAULT_DEDUP_RADIUS, EntityQueenBee.class)) {
+            player.displayClientMessage(Component.literal("§c附近已经存在「蜂后」"), true);
+            return true;
+        }
+        if (!AbnormalitySpawnHelper.consumeAnyPEBox(player)) {
+            return false;
+        }
+
+        level.destroyBlock(hivePos, true, player);
+        AbnormalitySpawnHelper.spawnPersistent(level, ModEntities.queen_bee.get(), hivePos);
+        player.displayClientMessage(Component.literal("蜂巢破裂，女王矗立在此处，身躯破碎不堪..."), false);
+        return true;
     }
 
     private static boolean trySpawnButterflyFuneral(ServerLevel level, Player player, BlockPos tombstonePos) {
@@ -441,9 +449,6 @@ public class AbnormalitySpawnEvent {
         EntityRedHoodMercenary redhat = spawnNearbyIfAbsent(level, player, wolf.blockPosition(),
                 ModEntities.redhat_mercenary.get(), EntityRedHoodMercenary.class, 2,
                 "在这只狼在的地方，就会有她的身影");
-        if (redhat != null) {
-            redhat.forceWolfTarget(wolf);
-        }
     }
 
     private static boolean isSameWolfHayArea(CompoundTag data, BlockPos hayPos) {
