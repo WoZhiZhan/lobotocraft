@@ -283,6 +283,54 @@
       }
     ]
   },
+  "queen_bee_idle": {
+    "sounds": [
+      {
+        "name": "lobotocraft:queen_bee_idle",
+        "stream": false
+      }
+    ]
+  },
+  "queen_bee_spore": {
+    "sounds": [
+      {
+        "name": "lobotocraft:queen_bee_spore",
+        "stream": false
+      }
+    ]
+  },
+  "worker_bee_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:worker_bee_attack",
+        "stream": false
+      }
+    ]
+  },
+  "worker_bee_death": {
+    "sounds": [
+      {
+        "name": "lobotocraft:worker_bee_death",
+        "stream": false
+      }
+    ]
+  },
+  "worker_bee_death2": {
+    "sounds": [
+      {
+        "name": "lobotocraft:worker_bee_death2",
+        "stream": false
+      }
+    ]
+  },
+  "worker_bee_spawn": {
+    "sounds": [
+      {
+        "name": "lobotocraft:worker_bee_spawn",
+        "stream": false
+      }
+    ]
+  },
   "ppodae_death": {
     "sounds": [
       {

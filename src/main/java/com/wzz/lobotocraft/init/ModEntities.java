@@ -235,6 +235,22 @@ public class ModEntities {
                             .updateInterval(12)
                             .build("wingbeat"));
 
+    public static final RegistryObject<EntityType<EntityQueenBee>> queen_bee =
+            ENTITIES.register("queen_bee",
+                    () -> EntityType.Builder.of(EntityQueenBee::new, MobCategory.CREATURE)
+                            .sized(1.8F, 2.2F)
+                            .clientTrackingRange(8)
+                            .updateInterval(3)
+                            .build("queen_bee"));
+
+    public static final RegistryObject<EntityType<EntityWorkerBee>> worker_bee =
+            ENTITIES.register("worker_bee",
+                    () -> EntityType.Builder.of(EntityWorkerBee::new, MobCategory.MONSTER)
+                            .sized(1.2F, 1.2F)
+                            .clientTrackingRange(8)
+                            .updateInterval(3)
+                            .build("worker_bee"));
+
     public static final RegistryObject<EntityType<EntitySnowQueen>> snowqueen =
             ENTITIES.register("snowqueen",
                     () -> EntityType.Builder.of(EntitySnowQueen::new, MobCategory.CREATURE)

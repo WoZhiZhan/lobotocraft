@@ -91,6 +91,8 @@ public class ModClientEvent {
         event.registerEntityRenderer(ModEntities.approval_bird.get(), (r) -> new AbnormalityRenderer<>(r, 1.5f, 2f));
         event.registerEntityRenderer(ModEntities.fourth_match_flame.get(), (r) -> new EntityFourthMatchFlameRenderer(r, 0.8f, 1.0f));
         event.registerEntityRenderer(ModEntities.wingbeat.get(), (r) -> new EntityWingBestRenderer(r, 1.2f, 0.9f));
+        event.registerEntityRenderer(ModEntities.queen_bee.get(), (r) -> new AbnormalityRenderer<>(r, 1.2f, 1.2f));
+        event.registerEntityRenderer(ModEntities.worker_bee.get(), (r) -> new GeoEntityRenderer<>(r, 0.9f, 0.9f));
         event.registerEntityRenderer(ModEntities.snowqueen.get(), (r) -> new AbnormalityRenderer<>(r, 1.6f, 1.2f));
         event.registerEntityRenderer(ModEntities.ppodae.get(), (r) -> new EntityPpodaeRenderer(r, 0.9f, 0.8f));
         event.registerEntityRenderer(ModEntities.gallows.get(), (r) -> new GeoEntityRenderer<>(r, 1.4f, 1f));

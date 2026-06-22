@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.block.entity;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.init.ModBlockEntities;
+import com.wzz.lobotocraft.init.ModEffects;
 import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.MentalValueSyncPacket;
@@ -224,6 +225,9 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
         if (WorkManager.isPlayerWorking(serverPlayer)) {
             return;
         }
+        if (player.hasEffect(ModEffects.QUEEN_BEE_SPORE.get())) {
+            return;
+        }
         float maxHealth = player.getMaxHealth();
         if (MentalValueUtil.getMentalValue(serverPlayer) <= 0) {
             return;
@@ -249,6 +253,9 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
     }
 
     private void healClerk(EntityClerk clerk) {
+        if (clerk.hasEffect(ModEffects.QUEEN_BEE_SPORE.get())) {
+            return;
+        }
         float maxHealth = clerk.getMaxHealth();
         float healAmount = maxHealth * HEAL_PERCENTAGE;
         float newHealth = Math.min(clerk.getHealth() + healAmount, maxHealth);

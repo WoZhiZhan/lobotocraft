@@ -72,6 +72,14 @@ public class ModItems {
             () -> new TextSpawnEggItem(ModEntities.wingbeat, ExtendedColor.EMERALD_GEM.getRGB(), ExtendedColor.CHARCOAL.getRGB(), new Item.Properties(),
                     "§c只要有了小精灵们的祝福，一切争端都会平息下来的。"));
 
+    public static final RegistryObject<Item> QUEEN_BEE_SPAWN_EGG = REGISTRY.register("queen_bee_spawn_egg",
+            () -> new TextSpawnEggItem(ModEntities.queen_bee, 0xC79A22, 0x4A130F, new Item.Properties(),
+                    "§c如果你感到胃部剧痛或是颈部发痒，那么唯一能做的事就是最后一次仰望蓝天。"));
+
+    public static final RegistryObject<Item> WORKER_BEE_SPAWN_EGG = REGISTRY.register("worker_bee_spawn_egg",
+            () -> new TextSpawnEggItem(ModEntities.worker_bee, 0xD7B63B, 0x2A2012, new Item.Properties(),
+                    "§c工蜂们绝不能容忍损坏的蜂巢。"));
+
     public static final RegistryObject<Item> SNOWQUEEN_SPAWN_EGG = REGISTRY.register("snowqueen_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.snowqueen, ExtendedColor.NEON_CYAN.getRGB(), ExtendedColor.LAVENDER_BLUSH.getRGB(), new Item.Properties(),
                     "§c冰雪正在消融...是因为宫殿正在崩塌吗？又或许是因为春天即将来临？"));

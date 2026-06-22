@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.init;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.effect.FriendshipProofEffect;
 import com.wzz.lobotocraft.effect.KissEffect;
+import com.wzz.lobotocraft.effect.QueenBeeSporeEffect;
 import com.wzz.lobotocraft.effect.WishWithoutLightEffect;
 import com.wzz.lobotocraft.effect.ButterflyShroudEffect;
 import net.minecraft.world.effect.MobEffect;
@@ -34,4 +35,8 @@ public class ModEffects {
     // 蝴蝶缠身(亡蝶葬仪处决)
     public static final RegistryObject<MobEffect> BUTTERFLY_SHROUD =
             EFFECTS.register("butterfly_shroud", ButterflyShroudEffect::new);
+
+    // 蜂后孢子
+    public static final RegistryObject<MobEffect> QUEEN_BEE_SPORE =
+            EFFECTS.register("queen_bee_spore", QueenBeeSporeEffect::new);
 }

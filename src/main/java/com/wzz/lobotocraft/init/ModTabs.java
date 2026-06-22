@@ -24,6 +24,8 @@ public class ModTabs {
 						tabData.accept(ModItems.APPROVAL_BIRD_SPAWN_EGG.get());
 						tabData.accept(ModItems.FOURTH_MATCH_FLAME_SPAWN_EGG.get());
 						tabData.accept(ModItems.WINGBEAT_SPAWN_EGG.get());
+						tabData.accept(ModItems.QUEEN_BEE_SPAWN_EGG.get());
+						tabData.accept(ModItems.WORKER_BEE_SPAWN_EGG.get());
 						tabData.accept(ModItems.SNOWQUEEN_SPAWN_EGG.get());
 						tabData.accept(ModItems.PPODAE_SPAWN_EGG.get());
 						tabData.accept(ModItems.CHILDREN_GALAXY_SPAWN_EGG.get());

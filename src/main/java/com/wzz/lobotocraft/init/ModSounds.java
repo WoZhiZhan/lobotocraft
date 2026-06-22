@@ -49,6 +49,12 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> WINGBEAT_WEAPON = register("wingbeat_weapon");
 	public static final RegistryObject<SoundEvent> WINGBEAT_HEAL_HEALTH = register("wingbeat_heal_health");
 	public static final RegistryObject<SoundEvent> WINGBEAT_KILL_PLAYER = register("wingbeat_kill_player");
+	public static final RegistryObject<SoundEvent> QUEEN_BEE_IDLE = register("queen_bee_idle");
+	public static final RegistryObject<SoundEvent> QUEEN_BEE_SPORE = register("queen_bee_spore");
+	public static final RegistryObject<SoundEvent> WORKER_BEE_ATTACK = register("worker_bee_attack");
+	public static final RegistryObject<SoundEvent> WORKER_BEE_DEATH = register("worker_bee_death");
+	public static final RegistryObject<SoundEvent> WORKER_BEE_DEATH2 = register("worker_bee_death2");
+	public static final RegistryObject<SoundEvent> WORKER_BEE_SPAWN = register("worker_bee_spawn");
 	public static final RegistryObject<SoundEvent> PPODAE_DEATH = register("ppodae_death");
 	public static final RegistryObject<SoundEvent> PPODAE_ATTACK = register("ppodae_attack");
 	public static final RegistryObject<SoundEvent> PPODAE_RETURN = register("ppodae_return");
