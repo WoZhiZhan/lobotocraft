@@ -38,8 +38,8 @@ public class AbandonedMurdererCurio extends BaseEgoCurio {
         tooltip.add(Component.literal("  • 最大精神值 + 2").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal("  • 玩家手持任意EGO时伤害 + 1").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("套装效果（装备+武器+饰品）：").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("  • 玩家造成伤害后，10 秒内减少 20% 的移动速度使造成的红色伤害+10").withStyle(ChatFormatting.LIGHT_PURPLE));
+        tooltip.add(Component.literal("套装效果（装备锁定 + 装备 + 武器 + 饰品）：").withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("  • 玩家使用悔恨武器造成伤害后，10秒内减少20%的移动速度，使玩家造成的红色伤害+10%，不可叠加，每次造成伤害刷新持续时间").withStyle(ChatFormatting.LIGHT_PURPLE));
         super.appendHoverText(stack, level, tooltip, flag);
     }
 

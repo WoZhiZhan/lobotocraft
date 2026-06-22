@@ -12,6 +12,7 @@ import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
@@ -39,6 +40,7 @@ import java.util.List;
 public class EntityQueenBee extends AbstractAbnormality {
     private static final int SPORE_DURATION = 20 * 20;
     private static final int SPORE_RELEASE_TICKS = 28;
+    private static final int SPORE_PARTICLE_INTERVAL_TICKS = 2;
 
     private int sporeReleaseTimer = 0;
     private boolean sporesApplied = false;
@@ -76,6 +78,9 @@ public class EntityQueenBee extends AbstractAbnormality {
 
         if (sporeReleaseTimer > 0) {
             sporeReleaseTimer--;
+            if (sporeReleaseTimer % SPORE_PARTICLE_INTERVAL_TICKS == 0) {
+                spawnSkillParticles();
+            }
             if (!sporesApplied && sporeReleaseTimer <= 16) {
                 sporesApplied = true;
                 releaseSpores();
@@ -86,6 +91,47 @@ public class EntityQueenBee extends AbstractAbnormality {
                 sporesApplied = false;
             }
         }
+    }
+
+    private void spawnSkillParticles() {
+        if (!(this.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
+        for (int i = 0; i < 20; i++) {
+            double angle = this.random.nextDouble() * Math.PI * 2.0D;
+            double radius = this.random.nextDouble() * this.getBbWidth() * 0.48D;
+            double x = this.getX() + Math.cos(angle) * radius;
+            double y = this.getY() + this.getBbHeight() * (0.10D + this.random.nextDouble() * 0.18D);
+            double z = this.getZ() + Math.sin(angle) * radius;
+            serverLevel.sendParticles(
+                    ParticleUtil.getDustParticle(1.0f, 0.78f, 0.08f, 1.2f),
+                    x, y, z,
+                    1,
+                    0.03D, -0.06D, 0.03D,
+                    0.03D);
+        }
+
+        for (int i = 0; i < 18; i++) {
+            double angle = this.random.nextDouble() * Math.PI * 2.0D;
+            double radius = this.getBbWidth() * (0.18D + this.random.nextDouble() * 0.42D);
+            double x = this.getX() + Math.cos(angle) * radius;
+            double y = this.getY() + this.getBbHeight() * (0.02D + this.random.nextDouble() * 0.16D);
+            double z = this.getZ() + Math.sin(angle) * radius;
+            serverLevel.sendParticles(
+                    ParticleUtil.getDustParticle(1.0f, 0.68f, 0.06f, 1.35f),
+                    x, y, z,
+                    1,
+                    0.05D, -0.08D, 0.05D,
+                    0.035D);
+        }
+
+        serverLevel.sendParticles(
+                ParticleUtil.getDustParticle(1.0f, 0.92f, 0.25f, 1.0f),
+                this.getX(), this.getY() + this.getBbHeight() * 0.08D, this.getZ(),
+                16,
+                this.getBbWidth() * 0.34D, 0.08D, this.getBbWidth() * 0.34D,
+                0.015D);
     }
 
     @Override

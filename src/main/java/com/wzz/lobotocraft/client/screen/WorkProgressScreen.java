@@ -5,10 +5,12 @@ import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.logger.ModLogger;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.ObtainGiftPacket;
+import com.wzz.lobotocraft.network.packet.StopContinuousWorkPacket;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -84,7 +86,10 @@ public class WorkProgressScreen extends Screen {
     private final float successRate;
     private final int maxExtractions;
     private final int entityID;
+    private final boolean continuousMode;
     private int observationLevel;
+    private boolean continuousStopRequested = false;
+    private Button stopContinuousButton;
 
     private int currentExtraction = 0;
     private int positiveCount = 0;
@@ -135,6 +140,11 @@ public class WorkProgressScreen extends Screen {
     private float speedMultiplier = 1.0f;
 
     public WorkProgressScreen(int abnormalityId, WorkType workType, float successRate, int maxExtractions, int entityID, int observationLevel) {
+        this(abnormalityId, workType, successRate, maxExtractions, entityID, observationLevel, false);
+    }
+
+    public WorkProgressScreen(int abnormalityId, WorkType workType, float successRate, int maxExtractions,
+                              int entityID, int observationLevel, boolean continuousMode) {
         super(Component.literal("工作进行中"));
         this.minecraft = Minecraft.getInstance();
         this.abnormalityId = abnormalityId;
@@ -144,6 +154,7 @@ public class WorkProgressScreen extends Screen {
         this.extractionResults = new boolean[maxExtractions];
         this.entityID = entityID;
         this.observationLevel = observationLevel;
+        this.continuousMode = continuousMode;
         calculateDynamicSizes();
         initializeDescriptions();
         selectRandomDescFrame();
@@ -297,6 +308,28 @@ public class WorkProgressScreen extends Screen {
         super.init();
         calculateDynamicSizes();
         generateRandomPosition();
+        if (continuousMode) {
+            int buttonWidth = 112;
+            int buttonHeight = 20;
+            stopContinuousButton = Button.builder(
+                            Component.literal(continuousStopRequested ? "本次结束后停止" : "停止连续工作"),
+                            button -> requestStopContinuousWork())
+                    .bounds(this.width - buttonWidth - 14, this.height - buttonHeight - 14,
+                            buttonWidth, buttonHeight)
+                    .build();
+            stopContinuousButton.active = !continuousStopRequested;
+            addRenderableWidget(stopContinuousButton);
+        }
+    }
+
+    private void requestStopContinuousWork() {
+        if (continuousStopRequested) return;
+        continuousStopRequested = true;
+        MessageLoader.getLoader().sendToServer(new StopContinuousWorkPacket());
+        if (stopContinuousButton != null) {
+            stopContinuousButton.setMessage(Component.literal("本次结束后停止"));
+            stopContinuousButton.active = false;
+        }
     }
 
     public void onExtractionReceived(boolean success, int extractionCount,

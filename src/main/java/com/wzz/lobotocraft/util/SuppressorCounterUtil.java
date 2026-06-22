@@ -56,6 +56,11 @@ public class SuppressorCounterUtil {
         set(player, get(player) + amount);
     }
 
+    /** 回满计数 */
+    public static void restoreToFull(Player player) {
+        set(player, MAX_COUNT);
+    }
+
     public static boolean isEmpty(Player player) {
         return get(player) <= 0;
     }

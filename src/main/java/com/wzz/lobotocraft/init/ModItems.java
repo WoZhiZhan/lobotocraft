@@ -73,12 +73,8 @@ public class ModItems {
                     "§c只要有了小精灵们的祝福，一切争端都会平息下来的。"));
 
     public static final RegistryObject<Item> QUEEN_BEE_SPAWN_EGG = REGISTRY.register("queen_bee_spawn_egg",
-            () -> new TextSpawnEggItem(ModEntities.queen_bee, 0xC79A22, 0x4A130F, new Item.Properties(),
+            () -> new TextSpawnEggItem(ModEntities.queen_bee, 0xEDC343, 0x43241B, new Item.Properties(),
                     "§c如果你感到胃部剧痛或是颈部发痒，那么唯一能做的事就是最后一次仰望蓝天。"));
-
-    public static final RegistryObject<Item> WORKER_BEE_SPAWN_EGG = REGISTRY.register("worker_bee_spawn_egg",
-            () -> new TextSpawnEggItem(ModEntities.worker_bee, 0xD7B63B, 0x2A2012, new Item.Properties(),
-                    "§c工蜂们绝不能容忍损坏的蜂巢。"));
 
     public static final RegistryObject<Item> SNOWQUEEN_SPAWN_EGG = REGISTRY.register("snowqueen_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.snowqueen, ExtendedColor.NEON_CYAN.getRGB(), ExtendedColor.LAVENDER_BLUSH.getRGB(), new Item.Properties(),
@@ -162,6 +158,7 @@ public class ModItems {
     public static final RegistryObject<Item> ARMOR_LOCK = REGISTRY.register("armor_lock", ArmorLockItem::new);
     public static final RegistryObject<Item> SPECIAL_RECORD = REGISTRY.register("special_record", SpecialRecordItem::new);
     public static final RegistryObject<Item> TARGET_MARKER = REGISTRY.register("target_marker", TargetMarkerItem::new);
+    public static final RegistryObject<Item> WORK_DEVICE = REGISTRY.register("work_device", WorkDeviceItem::new);
     /** 又大又可能很坏的狼的特殊E.G.O饰品"羊皮"(不显示在图鉴内,不受观察等级影响) */
     public static final RegistryObject<Item> SHEEPSKIN_CURIO = REGISTRY.register("sheepskin_curio",
             () -> new Item(new Item.Properties().stacksTo(1).rarity(net.minecraft.world.item.Rarity.EPIC)) {

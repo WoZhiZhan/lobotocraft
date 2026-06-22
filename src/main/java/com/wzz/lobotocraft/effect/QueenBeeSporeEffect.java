@@ -31,7 +31,7 @@ public class QueenBeeSporeEffect extends MobEffect {
 
     @Override
     public boolean isDurationEffectTick(int duration, int amplifier) {
-        return duration % 5 == 0;
+        return duration > 0 && duration % 40 == 0;
     }
 
     @Override
@@ -40,8 +40,16 @@ public class QueenBeeSporeEffect extends MobEffect {
             return;
         }
         ParticleUtil.spawnParticles(living, ParticleUtil.getDustParticle(1.0f, 0.78f, 0.08f, 1.2f), 8, 0.02D);
-        if (living.tickCount % 40 == 0) {
-            living.hurt(DamageHelper.getDamage(living, "lobotocraft:red"), 8.0F);
+        boolean markedNoTombstone = false;
+        if (living instanceof EntityClerk clerk && clerk.getHealth() <= 8.0F
+                && !clerk.getPersistentData().getBoolean(EntityClerk.NO_TOMBSTONE_TAG)) {
+            EntityClerk.markNoTombstone(clerk);
+            markedNoTombstone = true;
+        }
+
+        living.hurt(DamageHelper.getDamage(living, "lobotocraft:red"), 8.0F);
+        if (markedNoTombstone && living.isAlive()) {
+            living.getPersistentData().remove(EntityClerk.NO_TOMBSTONE_TAG);
         }
     }
 

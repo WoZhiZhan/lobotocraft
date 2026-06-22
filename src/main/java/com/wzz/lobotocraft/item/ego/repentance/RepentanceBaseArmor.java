@@ -92,9 +92,6 @@ public abstract class RepentanceBaseArmor extends BaseEgoArmor {
             p_41423_.add(Component.literal("§7然而，对于那些毫无负罪感的人而言，他们不会从这件护甲中获得丝毫的益处。"));
         } else {
             p_41423_.add(Component.literal("§6当穿戴者受到物理或侵蚀伤害时，有5%的概率恢复10点精神值。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§b套装效果（装备锁定 + 装备 + 饰品）："));
-            p_41423_.add(Component.literal("§d  • 玩家使用悔恨武器造成伤害后，10秒内减少20%的移动速度，使玩家造成的红色伤害+10%，不可叠加，每次造成伤害刷新持续时间"));
             p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
         }
     }

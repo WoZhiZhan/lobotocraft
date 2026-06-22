@@ -33,6 +33,7 @@ import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 
 public class EntityWorkerBee extends BaseGeoEntity {
+    private static final int ATTACK_ANIMATION_TICKS = 16;
     private int attackAnimationTimer = 0;
 
     public EntityWorkerBee(EntityType<? extends TamableAnimal> entityType, Level level) {
@@ -60,6 +61,9 @@ public class EntityWorkerBee extends BaseGeoEntity {
         super.tick();
         if (!this.level().isClientSide && attackAnimationTimer > 0) {
             attackAnimationTimer--;
+            if (attackAnimationTimer == 0) {
+                setAnimation("idle");
+            }
         }
     }
 
@@ -68,7 +72,8 @@ public class EntityWorkerBee extends BaseGeoEntity {
         if (!(target instanceof LivingEntity living)) {
             return false;
         }
-        attackAnimationTimer = 16;
+        attackAnimationTimer = ATTACK_ANIMATION_TICKS;
+        setAnimation("attack");
         float damage = 6.0F + this.random.nextFloat() * 4.0F;
         boolean hurt = living.hurt(DamageHelper.getDamage(this, "lobotocraft:red"), damage);
         playWorkerSound(ModSounds.WORKER_BEE_ATTACK.get());
@@ -104,7 +109,7 @@ public class EntityWorkerBee extends BaseGeoEntity {
     }
 
     private PlayState predicate(AnimationState<EntityWorkerBee> event) {
-        if (attackAnimationTimer > 0) {
+        if ("attack".equals(getAnimation())) {
             return event.setAndContinue(RawAnimation.begin().thenPlay("attack"));
         }
         if (event.isMoving()) {

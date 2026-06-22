@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.wzz.lobotocraft.client.screen.config.EncyclopediaGUIConfig;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
+import com.wzz.lobotocraft.item.WorkDeviceItem;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.StartWorkPacket;
 import com.wzz.lobotocraft.util.ResourceUtil;
@@ -231,7 +232,8 @@ public class AbnormalityWorkScreen extends Screen {
                     successRate, // 使用根据观察等级计算出的成功率
                     abnormality.getMaxPEOutput(),
                     abnormality.getEntityId(),
-                    observationLevel
+                    observationLevel,
+                    WorkDeviceItem.hasEnabledDevice(this.minecraft.player)
             ));
         }
     }

@@ -20,8 +20,10 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.animal.Bee;
 import net.minecraft.world.entity.animal.Pig;
 import net.minecraft.world.entity.animal.Wolf;
+import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.monster.AbstractIllager;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.monster.Vindicator;
@@ -52,7 +54,7 @@ import net.minecraftforge.fml.common.Mod;
 public class AbnormalitySpawnEvent {
 
     // ============================================================
-    //  右键触发:棘刺公交 / 波迪 / 被遗弃的杀人魔
+    //  右键触发:棘刺公交 / 波迪 / 被遗弃的杀人魔 / 蜂后
     // ============================================================
 
     @SubscribeEvent
@@ -65,6 +67,29 @@ public class AbnormalitySpawnEvent {
 
         Entity target = event.getTarget();
         ServerLevel serverLevel = (ServerLevel) level;
+
+        // 13. 蜂后:对蜜蜂使用任意异想体能源(消耗一个)
+        if (target instanceof Bee bee) {
+            if (AbnormalitySpawnHelper.hasAnyPEBox(player)) {
+                BlockPos pos = bee.blockPosition();
+                if (AbnormalitySpawnHelper.existsNearby(serverLevel, pos,
+                        AbnormalitySpawnHelper.DEFAULT_DEDUP_RADIUS, EntityQueenBee.class)) {
+                    player.displayClientMessage(Component.literal("§c附近已经存在「蜂后」"), true);
+                    event.setCanceled(true);
+                    event.setCancellationResult(InteractionResult.SUCCESS);
+                    return;
+                }
+                if (AbnormalitySpawnHelper.consumeAnyPEBox(player)) {
+                    bee.discard();
+                    AbnormalitySpawnHelper.spawnPersistent(serverLevel,
+                            ModEntities.queen_bee.get(), pos);
+                    player.displayClientMessage(Component.literal("蜂群散去，女王矗立在此处，身躯破碎不堪..."), false);
+                    event.setCanceled(true);
+                    event.setCancellationResult(InteractionResult.SUCCESS);
+                }
+            }
+            return;
+        }
 
         // 6. 被遗弃的杀人魔:对卫道士使用任意异想体能源(消耗一个)
         if (target instanceof Vindicator vindicator) {
@@ -154,7 +179,7 @@ public class AbnormalitySpawnEvent {
         Player player = event.getEntity();
         Level level = player.level();
         if (level.isClientSide) return;
-        if (!AbnormalitySpawnHelper.isOverworld(level)) return;
+        if (!AbnormalitySpawnHelper.isOverworld(level) && !AbnormalitySpawnHelper.isCompany(level)) return;
         if (event.getHand() != InteractionHand.MAIN_HAND) return;
         if (!(level instanceof ServerLevel serverLevel)) return;
 
@@ -181,6 +206,8 @@ public class AbnormalitySpawnEvent {
                 return;
             }
         }
+
+        if (!AbnormalitySpawnHelper.isOverworld(level)) return;
 
         if (state.is(Blocks.NOTE_BLOCK) && serverLevel.isNight()) {
             trySpawnFragmentFromNoteBlock(serverLevel, player, pos);
@@ -267,23 +294,28 @@ public class AbnormalitySpawnEvent {
         LivingEntity dead = event.getEntity();
         Level level = dead.level();
         if (level.isClientSide) return;
-        if (!AbnormalitySpawnHelper.isOverworld(level)) return;
+        boolean overworld = AbnormalitySpawnHelper.isOverworld(level);
+        boolean company = AbnormalitySpawnHelper.isCompany(level);
+        if (!overworld && !company) return;
         ServerLevel serverLevel = (ServerLevel) level;
         BlockPos pos = dead.blockPosition();
         DamageSource source = event.getSource();
         Entity killer = source != null ? source.getEntity() : null;
+        Player responsiblePlayer = getResponsiblePlayer(source);
 
-        if (killer instanceof Player player) {
+        if (responsiblePlayer != null) {
             if (dead instanceof Pig) {
-                handleWolfPigKill(serverLevel, player, pos);
+                handleWolfPigKill(serverLevel, responsiblePlayer, pos);
             }
-            if ((dead instanceof Monster || dead instanceof Animal)
+            if (overworld && (dead instanceof Monster || dead instanceof Animal)
                     && AbnormalitySpawnHelper.isDarkForestBiome(level, pos)) {
-                spawnNearbyIfAbsent(serverLevel, player, pos,
+                spawnNearbyIfAbsent(serverLevel, responsiblePlayer, pos,
                         ModEntities.punishing_bird.get(), EntityPunishingBird.class, 3,
                         "惩戒鸟会来惩罚破坏了森林的家伙");
             }
         }
+
+        if (!overworld) return;
 
         // 3. 冰雪女皇:在冰原/冰刺地形,击杀一只带有近战武器的敌对生物
         if (dead instanceof Monster monster && isArmedMeleeMob(monster)
@@ -317,6 +349,25 @@ public class AbnormalitySpawnEvent {
                 announce(killer, "§4「血肉偶像」在祭坛旁显现……");
             }
         }
+    }
+
+    private static Player getResponsiblePlayer(DamageSource source) {
+        if (source == null) return null;
+        Entity causing = source.getEntity();
+        if (causing instanceof Player player) {
+            return player;
+        }
+        if (causing instanceof TamableAnimal tamable && tamable.getOwner() instanceof Player owner) {
+            return owner;
+        }
+        Entity direct = source.getDirectEntity();
+        if (direct instanceof Player player) {
+            return player;
+        }
+        if (direct instanceof TamableAnimal tamable && tamable.getOwner() instanceof Player owner) {
+            return owner;
+        }
+        return null;
     }
 
     /** 是否为手持近战武器的敌对生物(包括自带武器的卫道士等) */
@@ -356,6 +407,9 @@ public class AbnormalitySpawnEvent {
     private static final String WOLF_HAY_Y_TAG = "lobotocraft_wolf_hay_y";
     private static final String WOLF_HAY_Z_TAG = "lobotocraft_wolf_hay_z";
     private static final String WOLF_PIG_KILLS_TAG = "lobotocraft_wolf_pig_kills";
+    private static final int WOLF_HAY_HORIZONTAL_RANGE = 4;
+    private static final int WOLF_HAY_VERTICAL_RANGE = 3;
+    private static final int WOLF_HAY_MATCH_RADIUS_SQR = 64;
 
     private static void handleWolfPigKill(ServerLevel level, Player player, BlockPos pigPos) {
         BlockPos hayPos = findNearbyHayBlock(level, pigPos);
@@ -363,9 +417,7 @@ public class AbnormalitySpawnEvent {
 
         CompoundTag data = player.getPersistentData();
         int kills = data.getInt(WOLF_PIG_KILLS_TAG);
-        if (data.getInt(WOLF_HAY_X_TAG) != hayPos.getX()
-                || data.getInt(WOLF_HAY_Y_TAG) != hayPos.getY()
-                || data.getInt(WOLF_HAY_Z_TAG) != hayPos.getZ()) {
+        if (kills > 0 && !isSameWolfHayArea(data, hayPos)) {
             kills = 0;
         }
 
@@ -375,7 +427,10 @@ public class AbnormalitySpawnEvent {
         data.putInt(WOLF_HAY_Z_TAG, hayPos.getZ());
         data.putInt(WOLF_PIG_KILLS_TAG, kills);
 
-        if (kills < 3) return;
+        if (kills < 3) {
+            player.displayClientMessage(Component.literal("§7干草旁的气味变得更浓了... §c(" + kills + "/3)"), true);
+            return;
+        }
         clearWolfPigKillCounter(data);
 
         EntityBigBadWolf wolf = spawnNearbyIfAbsent(level, player, hayPos,
@@ -391,6 +446,14 @@ public class AbnormalitySpawnEvent {
         }
     }
 
+    private static boolean isSameWolfHayArea(CompoundTag data, BlockPos hayPos) {
+        BlockPos previous = new BlockPos(
+                data.getInt(WOLF_HAY_X_TAG),
+                data.getInt(WOLF_HAY_Y_TAG),
+                data.getInt(WOLF_HAY_Z_TAG));
+        return previous.distSqr(hayPos) <= WOLF_HAY_MATCH_RADIUS_SQR;
+    }
+
     private static void clearWolfPigKillCounter(CompoundTag data) {
         data.remove(WOLF_HAY_X_TAG);
         data.remove(WOLF_HAY_Y_TAG);
@@ -401,9 +464,9 @@ public class AbnormalitySpawnEvent {
     private static BlockPos findNearbyHayBlock(Level level, BlockPos center) {
         BlockPos best = null;
         double bestDistance = Double.MAX_VALUE;
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dz = -2; dz <= 2; dz++) {
-                for (int dy = -2; dy <= 2; dy++) {
+        for (int dx = -WOLF_HAY_HORIZONTAL_RANGE; dx <= WOLF_HAY_HORIZONTAL_RANGE; dx++) {
+            for (int dz = -WOLF_HAY_HORIZONTAL_RANGE; dz <= WOLF_HAY_HORIZONTAL_RANGE; dz++) {
+                for (int dy = -WOLF_HAY_VERTICAL_RANGE; dy <= WOLF_HAY_VERTICAL_RANGE; dy++) {
                     BlockPos pos = center.offset(dx, dy, dz);
                     if (!level.getBlockState(pos).is(Blocks.HAY_BLOCK)) continue;
                     double distance = pos.distSqr(center);

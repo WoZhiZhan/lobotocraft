@@ -25,7 +25,6 @@ public class ModTabs {
 						tabData.accept(ModItems.FOURTH_MATCH_FLAME_SPAWN_EGG.get());
 						tabData.accept(ModItems.WINGBEAT_SPAWN_EGG.get());
 						tabData.accept(ModItems.QUEEN_BEE_SPAWN_EGG.get());
-						tabData.accept(ModItems.WORKER_BEE_SPAWN_EGG.get());
 						tabData.accept(ModItems.SNOWQUEEN_SPAWN_EGG.get());
 						tabData.accept(ModItems.PPODAE_SPAWN_EGG.get());
 						tabData.accept(ModItems.CHILDREN_GALAXY_SPAWN_EGG.get());
@@ -58,6 +57,7 @@ public class ModTabs {
 						tabData.accept(ModItems.ARMOR_LOCK.get());
 						tabData.accept(ModItems.SPECIAL_RECORD.get());
 						tabData.accept(ModItems.TARGET_MARKER.get());
+						tabData.accept(ModItems.WORK_DEVICE.get());
 						tabData.accept(ModItems.SHEEPSKIN_CURIO.get());
 						tabData.accept(ModItems.STRANGE_BADGE.get());
 						tabData.accept(ModItems.OTTO.get());

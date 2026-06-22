@@ -4,16 +4,22 @@ import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
+import com.wzz.lobotocraft.event.BlueMiddayEvent;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.item.PEBoxItem;
+import com.wzz.lobotocraft.item.WorkDeviceItem;
 import com.wzz.lobotocraft.item.ego.base.IWorkBonusItem;
 import com.wzz.lobotocraft.network.MessageLoader;
+import com.wzz.lobotocraft.network.packet.OpenWorkProgressPacket;
 import com.wzz.lobotocraft.network.packet.WorkExtractionPacket;
 import com.wzz.lobotocraft.network.packet.WorkCompletePacket;
 import com.wzz.lobotocraft.event.work.*;
+import com.wzz.lobotocraft.util.MentalValueUtil;
+import com.wzz.lobotocraft.world.data.OrdealData;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
@@ -55,6 +61,7 @@ public class WorkManager {
         public final int itemSpeedBonus;           // 饰品速度加成（tick减少）
         public final float itemSuccessBonus;       // 饰品成功率加成（百分比）
         public final String itemBonusMessage;      // 饰品加成显示信息
+        public final boolean continuousMode;
 
         public int workDuration = 0; // 总工作时间
         public int currentTick = 0;
@@ -62,6 +69,7 @@ public class WorkManager {
         public int successCount = 0;
         public int failureCount = 0;
         public boolean forcedEnd = false;  // 是否被强制结束（恐慌）
+        public boolean stopContinuousAfterCurrent = false;
 
         private float currentSpeedMultiplier = 1.0f;
         private int currentExtractionInterval;
@@ -70,10 +78,11 @@ public class WorkManager {
         private int lastMultiplierCalcTick = 0;
         private static final int MULTIPLIER_CALC_INTERVAL = 10; // 每10tick重新计算一次倍率
 
-        public WorkSession(ServerPlayer player, IAbnormality abnormality, WorkType workType) {
+        public WorkSession(ServerPlayer player, IAbnormality abnormality, WorkType workType, boolean continuousMode) {
             this.player = player;
             this.abnormality = abnormality;
             this.workType = workType;
+            this.continuousMode = continuousMode;
             final int[] empLevel = {1};
             player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS)
                     .ifPresent(stats -> empLevel[0] = stats.getEmployeeLevel());
@@ -187,7 +196,21 @@ public class WorkManager {
         return activeWorks.containsKey(player.getUUID());
     }
 
-    public static void startWork(ServerPlayer player, IAbnormality abnormality, WorkType workType) {
+    public static boolean startWork(ServerPlayer player, IAbnormality abnormality, WorkType workType) {
+        return startWork(player, abnormality, workType, WorkDeviceItem.hasEnabledDevice(player), false);
+    }
+
+    private static boolean startWork(ServerPlayer player, IAbnormality abnormality, WorkType workType,
+                                     boolean continuousMode, boolean openClientScreen) {
+        if (!(abnormality instanceof Entity entity) || !entity.isAlive() || entity.isRemoved()) {
+            player.sendSystemMessage(Component.literal("§c异想体不存在或已消失"));
+            return false;
+        }
+        if (player.distanceToSqr(entity) > 100.0) {
+            player.sendSystemMessage(Component.literal("§c距离异想体太远了"));
+            return false;
+        }
+
         // 检查精神值是否为空
         final boolean[] mentalEmpty = {false};
         player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
@@ -199,7 +222,7 @@ public class WorkManager {
         if (mentalEmpty[0]) {
             player.sendSystemMessage(Component.literal("§c你的精神值已经耗尽，无法进行工作！"));
             player.sendSystemMessage(Component.literal("§e提示：你可以去一罪与百善那里祈祷恢复精神值。"));
-            return;
+            return false;
         }
 
         // 检查员工等级是否满足要求
@@ -214,22 +237,22 @@ public class WorkManager {
             player.sendSystemMessage(Component.literal(
                     String.format("§c你的员工等级不足！需要等级 %d，当前等级 %d", requiredLevel, playerLevel[0])
             ));
-            return;
+            return false;
         }
         WorkStartEvent startEvent = new WorkStartEvent(player, abnormality, workType);
         if (MinecraftForge.EVENT_BUS.post(startEvent)) {
             // 事件被取消
             player.sendSystemMessage(Component.literal("§c" + startEvent.getCancelReason()));
-            return;
+            return false;
         }
         // 调用异想体的工作开始回调
         if (!abnormality.onWorkStart(player, workType)) {
             // 异想体阻止了工作开始
             player.sendSystemMessage(Component.literal("§c无法开始工作！"));
-            return;
+            return false;
         }
 
-        WorkSession session = new WorkSession(player, abnormality, workType);
+        WorkSession session = new WorkSession(player, abnormality, workType, continuousMode);
         activeWorks.put(player.getUUID(), session);
 
         // 显示自律加成信息
@@ -280,6 +303,25 @@ public class WorkManager {
         player.sendSystemMessage(Component.literal(
                 "§a开始进行" + workType.getDisplayName() + "工作..."
         ));
+
+        if (continuousMode) {
+            player.sendSystemMessage(Component.literal("§b工作装置：连续工作模式已启用。"));
+        }
+
+        if (openClientScreen) {
+            MessageLoader.getLoader().sendToPlayer(player,
+                    new OpenWorkProgressPacket(
+                            abnormality.getEntityId(),
+                            workType,
+                            session.actualSuccessRate,
+                            abnormality.getMaxPEOutput(),
+                            abnormality.getEntityId(),
+                            session.observationLevel,
+                            continuousMode
+                    )
+            );
+        }
+        return true;
     }
 
     public static void cancelWork(ServerPlayer player, String reason) {
@@ -327,6 +369,13 @@ public class WorkManager {
                 session.player.sendSystemMessage(Component.literal("§c你因为恐慌而无法继续工作！"));
             }
 
+            if (session.continuousMode && !session.stopContinuousAfterCurrent) {
+                String stopReason = getContinuousStopReason(session);
+                if (stopReason != null) {
+                    markContinuousStop(session, stopReason);
+                }
+            }
+
             // 更新速度倍率（每tick调用，内部有缓存机制）
             session.updateSpeedMultiplier(session.workDuration);
 
@@ -347,8 +396,11 @@ public class WorkManager {
                 session.currentTick = 0;
                 performExtraction(session);
                 if (session.isComplete()) {
-                    completeWork(session);
+                    boolean restartContinuous = completeWork(session);
                     iterator.remove();
+                    if (restartContinuous) {
+                        startWork(session.player, session.abnormality, session.workType, true, true);
+                    }
                 }
             }
         }
@@ -360,6 +412,71 @@ public class WorkManager {
             isPanic[0] = mental.isMentalValueEmpty();
         });
         return isPanic[0];
+    }
+
+    public static void requestStopContinuousWork(ServerPlayer player, String reason) {
+        WorkDeviceItem.disableAll(player);
+        WorkSession session = activeWorks.get(player.getUUID());
+        if (session != null && session.continuousMode) {
+            markContinuousStop(session, reason);
+        } else {
+            player.sendSystemMessage(Component.literal("§7连续工作已停止。"));
+        }
+    }
+
+    private static void markContinuousStop(WorkSession session, String reason) {
+        if (session.stopContinuousAfterCurrent) return;
+        session.stopContinuousAfterCurrent = true;
+        WorkDeviceItem.disableAll(session.player);
+        session.player.sendSystemMessage(Component.literal(
+                "§e工作装置将在本次工作结束后停止连续工作：" + reason));
+    }
+
+    private static boolean shouldRestartContinuous(WorkSession session) {
+        if (!session.continuousMode || session.forcedEnd || session.stopContinuousAfterCurrent) {
+            return false;
+        }
+        if (!WorkDeviceItem.hasEnabledDevice(session.player)) {
+            return false;
+        }
+        String stopReason = getContinuousStopReason(session);
+        if (stopReason != null) {
+            markContinuousStop(session, stopReason);
+            return false;
+        }
+        return true;
+    }
+
+    private static String getContinuousStopReason(WorkSession session) {
+        ServerPlayer player = session.player;
+        if (isOrdealActive(player)) {
+            return "触发考验";
+        }
+        if (isInventoryFull(player)) {
+            return "背包已满";
+        }
+        if (player.getHealth() <= player.getMaxHealth() * 0.2f) {
+            return "生命值不足20%";
+        }
+        float maxMental = MentalValueUtil.getEffectiveMaxMentalValue(player);
+        if (maxMental > 0 && MentalValueUtil.getMentalValue(player) <= maxMental * 0.2f) {
+            return "精神值不足20%";
+        }
+        return null;
+    }
+
+    private static boolean isOrdealActive(ServerPlayer player) {
+        if (!(player.level() instanceof ServerLevel level)) return false;
+        return OrdealData.get(level).isBloodDawnActive() || BlueMiddayEvent.isTrialActive();
+    }
+
+    private static boolean isInventoryFull(ServerPlayer player) {
+        for (ItemStack stack : player.getInventory().items) {
+            if (stack.isEmpty()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static void performExtraction(WorkSession session) {
@@ -428,7 +545,7 @@ public class WorkManager {
         abnormality.attackPlayerOnFailure(player, null);
     }
 
-    private static void completeWork(WorkSession session) {
+    private static boolean completeWork(WorkSession session) {
         ServerPlayer player = session.player;
         IAbnormality abnormality = session.abnormality;
         WorkType workType = session.workType;
@@ -463,9 +580,21 @@ public class WorkManager {
                 session.forcedEnd
         ));
         givePEBox(player, abnormality, workType, result, peOutput);
+        if (session.continuousMode && !session.stopContinuousAfterCurrent) {
+            String stopReason = getContinuousStopReason(session);
+            if (stopReason != null) {
+                markContinuousStop(session, stopReason);
+            }
+        }
         handleWorkResult(player, abnormality, workType, result);
         applyAttributeGain(player, abnormality, workType);
         abnormality.onWorkComplete(player, workType, result);
+        if (session.continuousMode && !session.stopContinuousAfterCurrent) {
+            String stopReason = getContinuousStopReason(session);
+            if (stopReason != null) {
+                markContinuousStop(session, stopReason);
+            }
+        }
         if (player.level().dimension() == ModDimensions.LOBOTO_KEY) {
             player.getCapability(CompanyDailyDataProvider.COMPANY_DAILY_DATA).ifPresent(data -> {
                 data.addWorkCount();
@@ -515,6 +644,7 @@ public class WorkManager {
                     String.format("工作完成！时长：%s，结果：%s，获得 %d PE-BOX", session.getFormattedDuration(), resultText, peOutput)
             ));
         }
+        return shouldRestartContinuous(session);
     }
 
     /**

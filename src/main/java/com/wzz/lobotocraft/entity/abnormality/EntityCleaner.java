@@ -38,6 +38,7 @@ import software.bernie.geckolib.core.object.PlayState;
  * 每次造成伤害回复等量血量;抗性 红1.0/白1.2/黑0.5/蓝0.8。
  */
 public class EntityCleaner extends BaseGeoEntity {
+    private static final double SPEED_II_WALKING_PLAYER_SPEED = 0.28D;
 
     private static final EntityDataAccessor<String> ANIM =
             SynchedEntityData.defineId(EntityCleaner.class, EntityDataSerializers.STRING);
@@ -61,6 +62,20 @@ public class EntityCleaner extends BaseGeoEntity {
     public EntityCleaner(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
         this.setPersistenceRequired();
+    }
+
+    @Override
+    public boolean removeWhenFarAway(double distanceToClosestPlayer) {
+        return false;
+    }
+
+    @Override
+    public boolean requiresCustomPersistence() {
+        return true;
+    }
+
+    @Override
+    public void knockback(double strength, double x, double z) {
     }
 
     @Override
@@ -298,10 +313,11 @@ public class EntityCleaner extends BaseGeoEntity {
     public static AttributeSupplier.Builder createAttributes() {
         return Mob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, 80.0D)
-                .add(Attributes.MOVEMENT_SPEED, 0.23D)    // ≈僵尸
+                .add(Attributes.MOVEMENT_SPEED, SPEED_II_WALKING_PLAYER_SPEED)
                 .add(Attributes.ATTACK_DAMAGE, 3.0D)
                 .add(Attributes.FOLLOW_RANGE, 35.0D)
-                .add(Attributes.ATTACK_KNOCKBACK, 0.0D);
+                .add(Attributes.ATTACK_KNOCKBACK, 0.0D)
+                .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D);
     }
 
     @Override

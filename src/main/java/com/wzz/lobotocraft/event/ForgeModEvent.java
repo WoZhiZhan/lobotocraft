@@ -43,8 +43,6 @@ import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -120,10 +118,10 @@ public class ForgeModEvent {
 		if (src.getEntity() instanceof Player player) {
 			// 补充4第2条:正义裁决者武器命中刷新攻速移速buff
 			com.wzz.lobotocraft.event.WeaponBuffEvent.triggerJusticeBuff(player);
-			// 补充7:悔恨武器命中刷新减速buff,且buff期间造成的红色伤害+5
-			com.wzz.lobotocraft.event.WeaponBuffEvent.triggerRepentanceBuff(player);
-			if (com.wzz.lobotocraft.event.WeaponBuffEvent.isRepentanceBuffActive(player)
-					&& EgoArmorHelper.isHoldingWeapon(player, "repentance") && isRedDamage(src)) {
+			// 悔恨武器命中刷新减速buff,且buff期间造成的红色伤害+10%
+			com.wzz.lobotocraft.event.WeaponBuffEvent.triggerAbandonedMurdererBuff(player);
+			if (com.wzz.lobotocraft.event.WeaponBuffEvent.isAbandonedMurdererBuffActive(player)
+					&& EgoArmorHelper.isHoldingWeapon(player, "abandoned_murderer") && isRedDamage(src)) {
 				event.setAmount(event.getAmount() * 1.1f);
 			}
 			if (EgoArmorHelper.isFullEGO(player, "punishing_bird")
@@ -154,37 +152,6 @@ public class ForgeModEvent {
 			}
 			if (CuriosUtil.hasCurios(player, ModItems.END_BIRD_CURIO.get())) {
 				event.setAmount(event.getAmount() * 1.1f);
-			}
-			if (EgoArmorHelper.isFullEGO(player, "abandoned_murderer")) {
-				player.getPersistentData().putBoolean("isAbandonedMurdererRedDamage", true);
-				TimerEntry timerEntry = new TimerEntry() {
-					private AttributeModifier speedModifier;
-
-					@Override
-					public void onStart(@NotNull LivingEntity living) {
-						speedModifier = new AttributeModifier(
-								UUID.randomUUID(),
-								"abandoned_murderer_speed",
-								-0.2,
-								AttributeModifier.Operation.MULTIPLY_BASE
-						);
-						if (living.getAttribute(Attributes.MOVEMENT_SPEED) != null) {
-							living.getAttribute(Attributes.MOVEMENT_SPEED).addTransientModifier(speedModifier);
-						}
-					}
-
-					@Override
-					public void onEnd(@NotNull LivingEntity living) {
-						if (living.getAttribute(Attributes.MOVEMENT_SPEED) != null) {
-							living.getAttribute(Attributes.MOVEMENT_SPEED).removeModifier(speedModifier);
-						}
-						living.getPersistentData().putBoolean("isAbandonedMurdererRedDamage", false);
-					}
-				};
-				timerEntry.addSkillTimer(player, 0, 10000, 1, true);
-				if (player.getPersistentData().getBoolean("isAbandonedMurdererRedDamage") && isRedDamage(src)) {
-					event.setAmount(event.getAmount() * 1.1f);
-				}
 			}
 		}
 		if (entity instanceof ServerPlayer player) {
@@ -691,6 +658,9 @@ public class ForgeModEvent {
 
 	@SubscribeEvent
 	public static void onDayAdvance(CompanyDayAdvanceEvent event) {
+		SuppressorCounterUtil.restoreToFull(event.getPlayer());
+		MessageLoader.getLoader().sendToPlayer(event.getPlayer(),
+				new com.wzz.lobotocraft.network.packet.SuppressorCountSyncPacket(SuppressorCounterUtil.MAX_COUNT));
 		com.wzz.lobotocraft.util.BuffUtil.removeFriendshipProof(event.getPlayer());
 		com.wzz.lobotocraft.util.BuffUtil.removeKiss(event.getPlayer());
 		if (event.getPlayer().getPersistentData().getBoolean("isSnowQueen")) {
@@ -698,6 +668,9 @@ public class ForgeModEvent {
 		}
 		if (event.getNewDay() == 2 && !ItemUtil.hasItem(event.getPlayer(), ModItems.TT2.get())) {
 			ItemUtil.addItem(event.getPlayer(), new ItemStack(ModItems.TT2.get()));
+		}
+		if (event.getNewDay() == 2 && !ItemUtil.hasItem(event.getPlayer(), ModItems.WORK_DEVICE.get())) {
+			ItemUtil.addItem(event.getPlayer(), new ItemStack(ModItems.WORK_DEVICE.get()));
 		}
 	}
 

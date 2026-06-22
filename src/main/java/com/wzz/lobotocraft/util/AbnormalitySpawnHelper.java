@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.util;
 
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.item.PEBoxItem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -33,6 +34,11 @@ public class AbnormalitySpawnHelper {
     /** 是否处于主世界 */
     public static boolean isOverworld(Level level) {
         return level.dimension() == Level.OVERWORLD;
+    }
+
+    /** 是否处于公司维度 */
+    public static boolean isCompany(Level level) {
+        return level.dimension() == ModDimensions.LOBOTO_KEY;
     }
 
     // ===================== PE-BOX(异想体能源) =====================
@@ -118,7 +124,7 @@ public class AbnormalitySpawnHelper {
 
     private static <T extends AbstractAbnormality> BlockPos findSafeSpawnPosition(
             ServerLevel level, T entity, BlockPos pos) {
-        BlockPos direct = EntityUtil.findSafeGroundPosition(level, pos, 0);
+        BlockPos direct = findSpawnGround(level, pos, 0);
         if (canSpawnAt(level, entity, direct)) {
             return direct;
         }
@@ -128,15 +134,21 @@ public class AbnormalitySpawnHelper {
         for (int attempt = 0; attempt < 32; attempt++) {
             int offsetX = level.random.nextInt(radius * 2 + 1) - radius;
             int offsetZ = level.random.nextInt(radius * 2 + 1) - radius;
-            BlockPos candidate = EntityUtil.findSafeGroundPosition(level,
-                    pos.offset(offsetX, 0, offsetZ), 0);
+            BlockPos candidate = findSpawnGround(level, pos.offset(offsetX, 0, offsetZ), 0);
             if (canSpawnAt(level, entity, candidate)) {
                 return candidate;
             }
         }
 
-        BlockPos fallback = EntityUtil.findSafeGroundPosition(level, pos, radius);
+        BlockPos fallback = findSpawnGround(level, pos, radius);
         return fallback != null ? fallback : pos.above();
+    }
+
+    private static BlockPos findSpawnGround(ServerLevel level, BlockPos pos, int horizontalRange) {
+        if (isCompany(level)) {
+            return EntityUtil.findSafeGroundPositionInCompany(level, pos, horizontalRange);
+        }
+        return EntityUtil.findSafeGroundPosition(level, pos, horizontalRange);
     }
 
     private static boolean canSpawnAt(ServerLevel level, Entity entity, BlockPos pos) {

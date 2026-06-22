@@ -5,7 +5,9 @@ import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
 import com.wzz.lobotocraft.block.entity.TombstoneBlockEntity;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.abnormality.EntityBlueStar;
+import com.wzz.lobotocraft.entity.abnormality.EntityCleaner;
 import com.wzz.lobotocraft.entity.abnormality.EntityIronMaiden;
+import com.wzz.lobotocraft.entity.abnormality.EntityWorkerBee;
 import com.wzz.lobotocraft.event.company.CompanyDayAdvanceEvent;
 import com.wzz.lobotocraft.init.ModBlocks;
 import com.wzz.lobotocraft.init.ModDimensions;
@@ -145,7 +147,10 @@ public class ClerkEvent {
     }
 
     private static boolean isSpecialDeath(DamageSource source) {
-        return source.getEntity() instanceof EntityIronMaiden || source.getEntity() instanceof EntityBlueStar;
+        return source.getEntity() instanceof EntityIronMaiden
+                || source.getEntity() instanceof EntityBlueStar
+                || source.getEntity() instanceof EntityWorkerBee
+                || source.getEntity() instanceof EntityCleaner;
     }
 
     private static void placeTombstone(ServerLevel level, BlockPos deathPos) {
