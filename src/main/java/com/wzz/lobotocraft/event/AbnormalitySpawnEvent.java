@@ -2,15 +2,25 @@ package com.wzz.lobotocraft.event;
 
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.entity.abnormality.*;
+import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.init.ModBlocks;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.util.AbnormalitySpawnHelper;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.animal.Pig;
 import net.minecraft.world.entity.animal.Wolf;
 import net.minecraft.world.entity.monster.AbstractIllager;
 import net.minecraft.world.entity.monster.Monster;
@@ -19,9 +29,17 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.RecordItem;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -131,6 +149,115 @@ public class AbnormalitySpawnEvent {
         return false;
     }
 
+    @SubscribeEvent
+    public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        Player player = event.getEntity();
+        Level level = player.level();
+        if (level.isClientSide) return;
+        if (!AbnormalitySpawnHelper.isOverworld(level)) return;
+        if (event.getHand() != InteractionHand.MAIN_HAND) return;
+        if (!(level instanceof ServerLevel serverLevel)) return;
+
+        BlockPos pos = event.getPos();
+        BlockState state = level.getBlockState(pos);
+        ItemStack stack = event.getItemStack();
+
+        if (state.is(ModBlocks.TOMBSTONE.get())) {
+            if (stack.is(ItemTags.FLOWERS)) {
+                if (trySpawnButterflyFuneral(serverLevel, player, pos)) {
+                    if (!player.isCreative()) {
+                        stack.shrink(1);
+                    }
+                    event.setCanceled(true);
+                    event.setCancellationResult(InteractionResult.SUCCESS);
+                }
+                return;
+            }
+            if (stack.is(Items.BRUSH)) {
+                if (trySpawnHelper(serverLevel, player, pos)) {
+                    event.setCanceled(true);
+                    event.setCancellationResult(InteractionResult.SUCCESS);
+                }
+                return;
+            }
+        }
+
+        if (state.is(Blocks.NOTE_BLOCK) && serverLevel.isNight()) {
+            trySpawnFragmentFromNoteBlock(serverLevel, player, pos);
+            return;
+        }
+
+        if (state.is(Blocks.JUKEBOX) && isMusicDisc(stack)
+                && isRiverOrOceanBiome(level, player.blockPosition())) {
+            startSkadiSongTimer(player, pos);
+        }
+    }
+
+    private static boolean trySpawnButterflyFuneral(ServerLevel level, Player player, BlockPos tombstonePos) {
+        EntityButterflyFuneral butterfly = spawnNearbyIfAbsent(level, player, tombstonePos,
+                ModEntities.butterfly_funeral.get(), EntityButterflyFuneral.class, 3,
+                "亡蝶葬仪来为员工送上救赎");
+        return butterfly != null;
+    }
+
+    private static boolean trySpawnHelper(ServerLevel level, Player player, BlockPos tombstonePos) {
+        EntityHelper helper = spawnNearbyIfAbsent(level, player, tombstonePos,
+                ModEntities.helper.get(), EntityHelper.class, 3,
+                "小帮手凝视着你，似乎希望能够提供帮助");
+        return helper != null;
+    }
+
+    private static void trySpawnFragmentFromNoteBlock(ServerLevel level, Player player, BlockPos noteBlockPos) {
+        if (level.random.nextFloat() >= 0.10f) return;
+        spawnNearbyIfAbsent(level, player, noteBlockPos,
+                ModEntities.fragment_of_the_universe.get(), EntityFragmentOfUniverse.class, 3,
+                "夜晚的歌声，引来了宇宙碎片的注意");
+    }
+
+    private static boolean isMusicDisc(ItemStack stack) {
+        return !stack.isEmpty() && stack.getItem() instanceof RecordItem;
+    }
+
+    private static final int SKADI_SONG_REQUIRED_TICKS = 10 * 20;
+    private static final String SKADI_SONG_DUE_TICK_TAG = "lobotocraft_skadi_song_due_tick";
+    private static final String SKADI_SONG_X_TAG = "lobotocraft_skadi_song_x";
+    private static final String SKADI_SONG_Y_TAG = "lobotocraft_skadi_song_y";
+    private static final String SKADI_SONG_Z_TAG = "lobotocraft_skadi_song_z";
+
+    private static void startSkadiSongTimer(Player player, BlockPos jukeboxPos) {
+        CompoundTag data = player.getPersistentData();
+        data.putLong(SKADI_SONG_DUE_TICK_TAG, player.level().getGameTime() + SKADI_SONG_REQUIRED_TICKS);
+        data.putInt(SKADI_SONG_X_TAG, jukeboxPos.getX());
+        data.putInt(SKADI_SONG_Y_TAG, jukeboxPos.getY());
+        data.putInt(SKADI_SONG_Z_TAG, jukeboxPos.getZ());
+    }
+
+    private static void handleSkadiSong(Player player, ServerLevel level) {
+        CompoundTag data = player.getPersistentData();
+        long dueTick = data.getLong(SKADI_SONG_DUE_TICK_TAG);
+        if (dueTick <= 0 || level.getGameTime() < dueTick) return;
+
+        BlockPos jukeboxPos = new BlockPos(
+                data.getInt(SKADI_SONG_X_TAG),
+                data.getInt(SKADI_SONG_Y_TAG),
+                data.getInt(SKADI_SONG_Z_TAG));
+        clearSkadiSongTimer(data);
+
+        if (!level.getBlockState(jukeboxPos).is(Blocks.JUKEBOX)) return;
+        if (!isRiverOrOceanBiome(level, jukeboxPos)) return;
+
+        spawnNearbyIfAbsent(level, player, jukeboxPos,
+                ModEntities.skadi_corrupted.get(), EntityDarkSkadi.class, 3,
+                "悠扬的歌声，让她想起了身体过往的记忆");
+    }
+
+    private static void clearSkadiSongTimer(CompoundTag data) {
+        data.remove(SKADI_SONG_DUE_TICK_TAG);
+        data.remove(SKADI_SONG_X_TAG);
+        data.remove(SKADI_SONG_Y_TAG);
+        data.remove(SKADI_SONG_Z_TAG);
+    }
+
     // ============================================================
     //  击杀触发:冰雪女皇 / 血肉偶像 / 焦化少女
     // ============================================================
@@ -145,6 +272,18 @@ public class AbnormalitySpawnEvent {
         BlockPos pos = dead.blockPosition();
         DamageSource source = event.getSource();
         Entity killer = source != null ? source.getEntity() : null;
+
+        if (killer instanceof Player player) {
+            if (dead instanceof Pig) {
+                handleWolfPigKill(serverLevel, player, pos);
+            }
+            if ((dead instanceof Monster || dead instanceof Animal)
+                    && AbnormalitySpawnHelper.isDarkForestBiome(level, pos)) {
+                spawnNearbyIfAbsent(serverLevel, player, pos,
+                        ModEntities.punishing_bird.get(), EntityPunishingBird.class, 3,
+                        "惩戒鸟会来惩罚破坏了森林的家伙");
+            }
+        }
 
         // 3. 冰雪女皇:在冰原/冰刺地形,击杀一只带有近战武器的敌对生物
         if (dead instanceof Monster monster && isArmedMeleeMob(monster)
@@ -213,21 +352,101 @@ public class AbnormalitySpawnEvent {
         }
     }
 
+    private static final String WOLF_HAY_X_TAG = "lobotocraft_wolf_hay_x";
+    private static final String WOLF_HAY_Y_TAG = "lobotocraft_wolf_hay_y";
+    private static final String WOLF_HAY_Z_TAG = "lobotocraft_wolf_hay_z";
+    private static final String WOLF_PIG_KILLS_TAG = "lobotocraft_wolf_pig_kills";
+
+    private static void handleWolfPigKill(ServerLevel level, Player player, BlockPos pigPos) {
+        BlockPos hayPos = findNearbyHayBlock(level, pigPos);
+        if (hayPos == null) return;
+
+        CompoundTag data = player.getPersistentData();
+        int kills = data.getInt(WOLF_PIG_KILLS_TAG);
+        if (data.getInt(WOLF_HAY_X_TAG) != hayPos.getX()
+                || data.getInt(WOLF_HAY_Y_TAG) != hayPos.getY()
+                || data.getInt(WOLF_HAY_Z_TAG) != hayPos.getZ()) {
+            kills = 0;
+        }
+
+        kills++;
+        data.putInt(WOLF_HAY_X_TAG, hayPos.getX());
+        data.putInt(WOLF_HAY_Y_TAG, hayPos.getY());
+        data.putInt(WOLF_HAY_Z_TAG, hayPos.getZ());
+        data.putInt(WOLF_PIG_KILLS_TAG, kills);
+
+        if (kills < 3) return;
+        clearWolfPigKillCounter(data);
+
+        EntityBigBadWolf wolf = spawnNearbyIfAbsent(level, player, hayPos,
+                ModEntities.bigbadwolf.get(), EntityBigBadWolf.class, 2,
+                "正如童话中的一样，来了一只又大又可能很坏的狼");
+        if (wolf == null) return;
+
+        EntityRedHoodMercenary redhat = spawnNearbyIfAbsent(level, player, wolf.blockPosition(),
+                ModEntities.redhat_mercenary.get(), EntityRedHoodMercenary.class, 2,
+                "在这只狼在的地方，就会有她的身影");
+        if (redhat != null) {
+            redhat.forceWolfTarget(wolf);
+        }
+    }
+
+    private static void clearWolfPigKillCounter(CompoundTag data) {
+        data.remove(WOLF_HAY_X_TAG);
+        data.remove(WOLF_HAY_Y_TAG);
+        data.remove(WOLF_HAY_Z_TAG);
+        data.remove(WOLF_PIG_KILLS_TAG);
+    }
+
+    private static BlockPos findNearbyHayBlock(Level level, BlockPos center) {
+        BlockPos best = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dz = -2; dz <= 2; dz++) {
+                for (int dy = -2; dy <= 2; dy++) {
+                    BlockPos pos = center.offset(dx, dy, dz);
+                    if (!level.getBlockState(pos).is(Blocks.HAY_BLOCK)) continue;
+                    double distance = pos.distSqr(center);
+                    if (distance < bestDistance) {
+                        bestDistance = distance;
+                        best = pos.immutable();
+                    }
+                }
+            }
+        }
+        return best;
+    }
+
+    @SubscribeEvent
+    public static void onBlockPlaced(BlockEvent.EntityPlaceEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        if (!(event.getLevel() instanceof ServerLevel level)) return;
+        if (!AbnormalitySpawnHelper.isOverworld(level)) return;
+        if (!event.getPlacedBlock().is(Blocks.TNT)) return;
+        if (!AbnormalitySpawnHelper.isDarkForestBiome(level, player.blockPosition())) return;
+
+        Vec3 look = player.getLookAngle();
+        BlockPos behind = BlockPos.containing(player.getX() - look.x * 3.0D,
+                player.getY(), player.getZ() - look.z * 3.0D);
+        spawnNearbyIfAbsent(level, player, behind,
+                ModEntities.approval_bird.get(), EntityApprovalBird.class, 2,
+                "肆意破坏森林的人，将会招来正义的裁决");
+    }
+
     // ============================================================
-    //  Tick 触发:银河之子(观星) / 快乐泰迪 & 我们可以改变一切(废弃矿井) / 三鸟(黑森林)
+    //  Tick 触发:银河之子(观星) / 大鸟(观察灯笼) / 斯卡蒂(唱片机) / 废弃矿井随机刷新
     // ============================================================
 
     // 观星所需的持续 tick 数(5秒)
     private static final int STARGAZE_REQUIRED_TICKS = 100;
     private static final String STARGAZE_TAG = "lobotocraft_stargaze_ticks";
 
-    // 矿井 / 黑森林检测节流:每隔多少 tick 检测一次
+    // 矿井检测节流:每隔多少 tick 检测一次
     private static final int STRUCTURE_CHECK_INTERVAL = 100;
     // 局部刷新去重半径
     private static final double STRUCTURE_DEDUP_RADIUS = 96.0;
     // 每次检测的随机生成概率
     private static final float MINESHAFT_SPAWN_CHANCE = 0.15f;
-    private static final float DARK_FOREST_SPAWN_CHANCE = 0.12f;
 
     @SubscribeEvent
     public static void onPlayerTick(net.minecraftforge.event.TickEvent.PlayerTickEvent event) {
@@ -240,6 +459,8 @@ public class AbnormalitySpawnEvent {
 
         // ---- 7. 银河之子:使用望远镜观察夜空 5 秒 ----
         handleStargaze(player, serverLevel);
+        handleLargeBirdObservation(player, serverLevel);
+        handleSkadiSong(player, serverLevel);
 
         // ---- 结构相关检测(节流) ----
         if (player.tickCount % STRUCTURE_CHECK_INTERVAL == 0) {
@@ -249,13 +470,6 @@ public class AbnormalitySpawnEvent {
             if (isInMineshaft(serverLevel, pos)) {
                 if (serverLevel.random.nextFloat() < MINESHAFT_SPAWN_CHANCE) {
                     trySpawnMineshaftAbnormality(serverLevel, pos);
-                }
-            }
-
-            // 12/13/14. 大鸟 / 惩戒鸟 / 审判鸟:黑森林地形刷新(各最多一只)
-            if (AbnormalitySpawnHelper.isDarkForestBiome(level, pos)) {
-                if (serverLevel.random.nextFloat() < DARK_FOREST_SPAWN_CHANCE) {
-                    trySpawnDarkForestBird(serverLevel, pos);
                 }
             }
         }
@@ -289,6 +503,71 @@ public class AbnormalitySpawnEvent {
         }
     }
 
+    private static final int LARGE_BIRD_OBSERVE_REQUIRED_TICKS = 10 * 20;
+    private static final String LARGE_BIRD_OBSERVE_TICKS_TAG = "lobotocraft_large_bird_observe_ticks";
+    private static final String LARGE_BIRD_LANTERN_X_TAG = "lobotocraft_large_bird_lantern_x";
+    private static final String LARGE_BIRD_LANTERN_Y_TAG = "lobotocraft_large_bird_lantern_y";
+    private static final String LARGE_BIRD_LANTERN_Z_TAG = "lobotocraft_large_bird_lantern_z";
+
+    private static void handleLargeBirdObservation(Player player, ServerLevel level) {
+        CompoundTag data = player.getPersistentData();
+        boolean canObserve = player.isUsingItem()
+                && player.getUseItem().is(Items.SPYGLASS)
+                && level.isNight()
+                && AbnormalitySpawnHelper.isDarkForestBiome(level, player.blockPosition());
+        if (!canObserve) {
+            clearLargeBirdObservation(data);
+            return;
+        }
+
+        BlockPos lanternPos = getLookedAtLantern(player, 48.0D);
+        if (lanternPos == null) {
+            clearLargeBirdObservation(data);
+            return;
+        }
+
+        int ticks = data.getInt(LARGE_BIRD_OBSERVE_TICKS_TAG);
+        if (data.getInt(LARGE_BIRD_LANTERN_X_TAG) != lanternPos.getX()
+                || data.getInt(LARGE_BIRD_LANTERN_Y_TAG) != lanternPos.getY()
+                || data.getInt(LARGE_BIRD_LANTERN_Z_TAG) != lanternPos.getZ()) {
+            ticks = 0;
+        }
+
+        ticks++;
+        data.putInt(LARGE_BIRD_OBSERVE_TICKS_TAG, ticks);
+        data.putInt(LARGE_BIRD_LANTERN_X_TAG, lanternPos.getX());
+        data.putInt(LARGE_BIRD_LANTERN_Y_TAG, lanternPos.getY());
+        data.putInt(LARGE_BIRD_LANTERN_Z_TAG, lanternPos.getZ());
+
+        if (ticks < LARGE_BIRD_OBSERVE_REQUIRED_TICKS) return;
+        clearLargeBirdObservation(data);
+        if (!isLantern(level.getBlockState(lanternPos))) return;
+        level.removeBlock(lanternPos, false);
+        spawnNearbyIfAbsent(level, player, lanternPos,
+                ModEntities.large_bird.get(), EntityLargeBird.class, 3,
+                "在黑暗的森林里渴求光明的人得到了回应");
+    }
+
+    private static BlockPos getLookedAtLantern(Player player, double range) {
+        HitResult hit = player.pick(range, 0.0F, false);
+        if (!(hit instanceof BlockHitResult blockHit) || hit.getType() != HitResult.Type.BLOCK) {
+            return null;
+        }
+        BlockPos pos = blockHit.getBlockPos();
+        return isLantern(player.level().getBlockState(pos)) ? pos : null;
+    }
+
+    private static boolean isLantern(BlockState state) {
+        return state.is(Blocks.LANTERN) || state.is(Blocks.SOUL_LANTERN);
+    }
+
+    private static void clearLargeBirdObservation(CompoundTag data) {
+        data.remove(LARGE_BIRD_OBSERVE_TICKS_TAG);
+        data.remove(LARGE_BIRD_LANTERN_X_TAG);
+        data.remove(LARGE_BIRD_LANTERN_Y_TAG);
+        data.remove(LARGE_BIRD_LANTERN_Z_TAG);
+    }
+
     /** 玩家所在区块是否处于废弃矿井结构内 */
     private static boolean isInMineshaft(ServerLevel level, BlockPos pos) {
         return level.structureManager()
@@ -314,40 +593,47 @@ public class AbnormalitySpawnEvent {
         }
     }
 
-    /** 黑森林:在大鸟/惩戒鸟/审判鸟之间随机生成一只(各自局部去重) */
-    private static void trySpawnDarkForestBird(ServerLevel level, BlockPos pos) {
-        BlockPos spawnPos = findGroundNear(level, pos);
-        int start = level.random.nextInt(3);
-        for (int i = 0; i < 3; i++) {
-            switch ((start + i) % 3) {
-                case 0 -> {
-                    if (!AbnormalitySpawnHelper.existsNearby(level, pos, STRUCTURE_DEDUP_RADIUS, EntityLargeBird.class)) {
-                        AbnormalitySpawnHelper.spawnPersistent(level, ModEntities.large_bird.get(), spawnPos);
-                        return;
-                    }
-                }
-                case 1 -> {
-                    if (!AbnormalitySpawnHelper.existsNearby(level, pos, STRUCTURE_DEDUP_RADIUS, EntityPunishingBird.class)) {
-                        AbnormalitySpawnHelper.spawnPersistent(level, ModEntities.punishing_bird.get(), spawnPos);
-                        return;
-                    }
-                }
-                default -> {
-                    if (!AbnormalitySpawnHelper.existsNearby(level, pos, STRUCTURE_DEDUP_RADIUS, EntityApprovalBird.class)) {
-                        AbnormalitySpawnHelper.spawnPersistent(level, ModEntities.approval_bird.get(), spawnPos);
-                        return;
-                    }
-                }
-            }
-        }
-    }
-
     /** 在玩家附近偏移一段距离寻找安全地面,避免直接生成在玩家脸上 */
     private static BlockPos findGroundNear(ServerLevel level, BlockPos center) {
-        int ox = level.random.nextInt(13) - 6;
-        int oz = level.random.nextInt(13) - 6;
+        return findGroundNear(level, center, 6);
+    }
+
+    private static BlockPos findGroundNear(ServerLevel level, BlockPos center, int radius) {
+        int ox = level.random.nextInt(radius * 2 + 1) - radius;
+        int oz = level.random.nextInt(radius * 2 + 1) - radius;
         BlockPos target = center.offset(ox, 0, oz);
         BlockPos safe = com.wzz.lobotocraft.util.EntityUtil.findSafeGroundPosition(level, target, 4);
         return safe != null ? safe : target;
+    }
+
+    private static <T extends AbstractAbnormality> T spawnNearbyIfAbsent(ServerLevel level, Player player,
+                                                                         BlockPos origin, EntityType<T> type,
+                                                                         Class<T> clazz, int radius,
+                                                                         String successMessage) {
+        if (AbnormalitySpawnHelper.existsNearby(level, origin,
+                AbnormalitySpawnHelper.DEFAULT_DEDUP_RADIUS, clazz)) {
+            return null;
+        }
+        T entity = AbnormalitySpawnHelper.spawnPersistent(level, type,
+                findGroundNear(level, origin, radius), MobSpawnType.EVENT);
+        if (entity != null) {
+            player.displayClientMessage(Component.literal(successMessage), false);
+        }
+        return entity;
+    }
+
+    private static boolean isRiverOrOceanBiome(Level level, BlockPos pos) {
+        Holder<Biome> biome = level.getBiome(pos);
+        return biome.is(Biomes.RIVER)
+                || biome.is(Biomes.FROZEN_RIVER)
+                || biome.is(Biomes.OCEAN)
+                || biome.is(Biomes.DEEP_OCEAN)
+                || biome.is(Biomes.COLD_OCEAN)
+                || biome.is(Biomes.DEEP_COLD_OCEAN)
+                || biome.is(Biomes.LUKEWARM_OCEAN)
+                || biome.is(Biomes.DEEP_LUKEWARM_OCEAN)
+                || biome.is(Biomes.WARM_OCEAN)
+                || biome.is(Biomes.FROZEN_OCEAN)
+                || biome.is(Biomes.DEEP_FROZEN_OCEAN);
     }
 }

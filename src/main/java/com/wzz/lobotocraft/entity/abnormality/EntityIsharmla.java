@@ -547,7 +547,7 @@ public class EntityIsharmla extends AbstractAbnormality {
             return;
         }
 
-        if (beamSkillCooldown <= 0 && startPeriodicBeamSkill(level)) {
+        if (beamSkillCooldown <= 0 && this.random.nextBoolean() && startPeriodicBeamSkill(level)) {
             beamSkillCooldown = BEAM_SKILL_INTERVAL_TICKS;
             attackCooldown = 40;
             return;

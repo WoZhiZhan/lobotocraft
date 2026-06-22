@@ -110,7 +110,7 @@ public class ModEntities {
     public static final RegistryObject<EntityType<EntityCleaner>> cleaner =
             ENTITIES.register("cleaner",
                     () -> EntityType.Builder.of(EntityCleaner::new, MobCategory.MONSTER)
-                            .sized(6.1F, 3.45F)
+                            .sized(0.9F, 1.8F)
                             .clientTrackingRange(8)
                             .updateInterval(3)
                             .build("cleaner"));
