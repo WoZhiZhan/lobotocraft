@@ -96,7 +96,7 @@ public class EntityBasinSeaReaper extends EntityBasinSeaborn {
             scheduleAttackDamage(15, 8, () -> {
                 if (player.isAlive() && this.distanceToSqr(player) <= 9.0) {
                     EntityUtil.clearHurtTime(player, () ->
-                            player.hurt(DamageHelper.getDamage(this, "black"), 7f));
+                            player.hurt(DamageHelper.getDamage(this, "lobotocraft:black"), 7f));
                 }
             });
         }
@@ -126,7 +126,7 @@ public class EntityBasinSeaReaper extends EntityBasinSeaborn {
                 for (Player p : players) {
                     int prevInvul = p.invulnerableTime;
                     p.invulnerableTime = 0;
-                    p.hurt(DamageHelper.getDamage(this, "white"), 5f);
+                    p.hurt(DamageHelper.getDamage(this, "lobotocraft:white"), 5f);
                     p.invulnerableTime = prevInvul;
                 }
             }

@@ -178,6 +178,9 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
 
     /** 由"目标"道具调用:进入委托状态,前往并只攻击标记目标 */
     public void startCommission(LivingEntity target) {
+        if (isNonEscapedAbnormality(target)) {
+            return;
+        }
         this.commissionTargetId = target.getUUID();
         this.commissionMode = true;
         if (!hasEscape()) {
@@ -189,6 +192,9 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
     private LivingEntity getCommissionTarget(ServerLevel level) {
         if (commissionTargetId == null) return null;
         if (level.getEntity(commissionTargetId) instanceof LivingEntity living && living.isAlive()) {
+            if (isNonEscapedAbnormality(living)) {
+                return null;
+            }
             return living;
         }
         return null;
@@ -300,6 +306,11 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
         super.tick();
         if (this.level().isClientSide) return;
         ServerLevel level = (ServerLevel) this.level();
+        LivingEntity currentTarget = getTarget();
+        if (currentTarget != null && isNonEscapedAbnormality(currentTarget)) {
+            setTarget(null);
+            getNavigation().stop();
+        }
         if (!hasEscape()) return;
         syncMovementSpeed();
 
@@ -717,12 +728,16 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
     private boolean isValidTarget(LivingEntity e) {
         if (e == this || !e.isAlive()) return false;
         if (e instanceof Player p && (p.isCreative() || p.isSpectator())) return false;
-        if (e instanceof AbstractAbnormality abnormality && !abnormality.hasEscape()) return false;
+        if (isNonEscapedAbnormality(e)) return false;
         // 委托状态:只攻击标记目标
         if (commissionMode) {
             return commissionTargetId != null && commissionTargetId.equals(e.getUUID());
         }
         return true;
+    }
+
+    private boolean isNonEscapedAbnormality(LivingEntity entity) {
+        return entity instanceof AbstractAbnormality abnormality && !abnormality.hasEscape();
     }
 
     private LivingEntity findTarget(ServerLevel level) {

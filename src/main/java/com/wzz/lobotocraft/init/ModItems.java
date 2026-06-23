@@ -12,6 +12,7 @@ import com.wzz.lobotocraft.item.debug.*;
 import com.wzz.lobotocraft.item.ego.OttoItem;
 import com.wzz.lobotocraft.item.ego.abandoned_murderer.*;
 import com.wzz.lobotocraft.item.ego.approval_birds.*;
+import com.wzz.lobotocraft.item.ego.crumbling_armor.*;
 import com.wzz.lobotocraft.item.ego.end_bird.*;
 import com.wzz.lobotocraft.item.ego.fourth_match_flame.*;
 import com.wzz.lobotocraft.item.ego.largebird.*;
@@ -131,11 +132,13 @@ public class ModItems {
             () -> new TextSpawnEggItem(ModEntities.cleaner, 0x2b2b2b, 0x8b0000, new Item.Properties(),
                     "§c夜幕降临之际，他们悄悄地来到后巷……"));
     public static final RegistryObject<Item> ARMY_IN_BLACK_SPAWN_EGG = REGISTRY.register("army_in_black_spawn_egg",
-            () -> new TextSpawnEggItem(ModEntities.army_in_black, 0xff69b4, 0x1a1a1a, new Item.Properties(),
-                    "§c在最黑暗的日子里，他们走向深处。"));
+            () -> new TextSpawnEggItem(ModEntities.army_in_black, 0xff69b4, 0x8a8a8a, new Item.Properties(),
+                    "§c人类的心是粉红色的，与之同色的迷彩能让我们融入他们的内心。"));
     public static final RegistryObject<Item> CRUMBLING_ARMOR_SPAWN_EGG = REGISTRY.register("crumbling_armor_spawn_egg",
-            () -> new TextSpawnEggItem(ModEntities.crumbling_armor, 0x050505, 0x707070, new Item.Properties(),
-                    "§c沉默的盔甲仍在等待下一次处决。"));
+            () -> new TextSpawnEggItem(ModEntities.crumbling_armor, 0x050505, 0x2f5fb3, new Item.Properties(),
+                    "§c“不畏死，方可生。”"));
+    public static final RegistryObject<Item> INNER_COURAGE_CURIO = REGISTRY.register("inner_courage_curio", InnerCourageCurio::new);
+    public static final RegistryObject<Item> FOOLHARDY_COURAGE_CURIO = REGISTRY.register("foolhardy_courage_curio", FoolhardyCourageCurio::new);
     public static final RegistryObject<Item> SHELL_SEA_RUNNER_SPAWN_EGG = REGISTRY.register("shell_sea_runner_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.shell_sea_runner, 0x2e5a6b, 0x9ed0d8, new Item.Properties(),
                     "§c长出四肢的恐鱼。"));

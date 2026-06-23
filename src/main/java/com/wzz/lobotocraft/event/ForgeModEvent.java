@@ -11,6 +11,7 @@ import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.event.company.CompanyDayAdvanceEvent;
 import com.wzz.lobotocraft.event.living.LivingSwingEvent;
 import com.wzz.lobotocraft.event.mental_value.MentalValueEvent;
+import com.wzz.lobotocraft.event.work.WorkCompleteEvent;
 import com.wzz.lobotocraft.event.work.WorkDamageEvent;
 import com.wzz.lobotocraft.event.work.WorkScreenOpenEvent;
 import com.wzz.lobotocraft.event.work.WorkStartEvent;
@@ -157,6 +158,9 @@ public class ForgeModEvent {
 			}
 		}
 		if (entity instanceof ServerPlayer player) {
+			if (EntityArmyInBlack.hasActiveProtection(player) && !DamageHelper.isExecution(src)) {
+				event.setAmount(event.getAmount() * 0.8f);
+			}
 			if (EgoArmorHelper.isFullEGO(player, "punishing_bird") && player.random.nextFloat() <= 0.1f) {
 				event.setAmount(event.getAmount() * 0.5f);
 			}
@@ -474,6 +478,13 @@ public class ForgeModEvent {
 
 	@SubscribeEvent
 	public static void onWorkStart(WorkStartEvent event) {
+		if (event.getWorkType() == WorkType.ATTACHMENT && EntityCrumblingArmor.hasCourageCurio(event.getEntity())) {
+			EntityCrumblingArmor.clearCourage(event.getEntity());
+			EntityCrumblingArmor.executeWorker(event.getEntity(), "§4你背离了破裂盔甲赐予的勇气。");
+			event.setCancelReason("你背离了破裂盔甲赐予的勇气。");
+			event.setCanceled(true);
+			return;
+		}
 		if (!(event.getAbnormality() instanceof EntityChildrenGalaxy)
 				&& !event.getAbnormality().isToolType()
 				&& com.wzz.lobotocraft.util.BuffUtil.hasFriendshipProof(event.getEntity())) {
@@ -527,6 +538,13 @@ public class ForgeModEvent {
 					);
 				}
 			}
+		}
+	}
+
+	@SubscribeEvent
+	public static void onWorkComplete(WorkCompleteEvent event) {
+		if (!event.isForcedEnd() && event.getWorkType() == WorkType.REPRESSION) {
+			EntityCrumblingArmor.recordRepressionWork(event.getEntity());
 		}
 	}
 
