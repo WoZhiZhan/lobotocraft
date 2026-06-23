@@ -8,10 +8,14 @@ import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -43,10 +47,12 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     private static final int PROTECTION_DURATION_TICKS = 20 * 120;
     private static final int PROTECTION_HEAL_INTERVAL = 20 * 10;
     private static final double PROTECTION_FOLLOW_DISTANCE_SQR = 25.0D;
+    private static final double PROTECTION_TELEPORT_DISTANCE_SQR = 100.0D;
     private static final double PROTECTION_HEAL_RADIUS = 10.0D;
     private static final float PROTECTION_HEAL_AMOUNT = 12.0F;
 
     private UUID protectedPlayerId = null;
+    private BlockPos protectionReturnPos = null;
     private long protectionEndsAt = 0L;
     private int protectionHealTimer = 0;
 
@@ -160,6 +166,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     private void protectEmployee(ServerPlayer player) {
         stopProtection();
         this.protectedPlayerId = player.getUUID();
+        this.protectionReturnPos = this.blockPosition();
         this.protectionEndsAt = player.level().getGameTime() + PROTECTION_DURATION_TICKS;
         this.protectionHealTimer = 0;
         refreshProtectionTag(player);
@@ -184,12 +191,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         this.noPhysics = true;
         setTarget(null);
 
-        if (this.distanceToSqr(player) > PROTECTION_FOLLOW_DISTANCE_SQR) {
-            this.getNavigation().moveTo(player, 0.9D);
-        } else {
-            this.getNavigation().stop();
-            setDeltaMovement(0, getDeltaMovement().y, 0);
-        }
+        followProtectedPlayer(player);
 
         this.protectionHealTimer++;
         if (this.protectionHealTimer >= PROTECTION_HEAL_INTERVAL) {
@@ -199,30 +201,63 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         return true;
     }
 
+    private void followProtectedPlayer(ServerPlayer player) {
+        double distanceSqr = this.distanceToSqr(player);
+        if (distanceSqr > PROTECTION_TELEPORT_DISTANCE_SQR) {
+            Vec3 followPos = player.position().subtract(player.getLookAngle().scale(1.5D));
+            this.moveTo(followPos.x, player.getY(), followPos.z, this.getYRot(), this.getXRot());
+            this.getNavigation().stop();
+            setDeltaMovement(Vec3.ZERO);
+            return;
+        }
+
+        if (distanceSqr > PROTECTION_FOLLOW_DISTANCE_SQR) {
+            this.getNavigation().moveTo(player, 0.9D);
+            return;
+        }
+
+        this.getNavigation().stop();
+        setDeltaMovement(0, getDeltaMovement().y, 0);
+    }
+
     private void healProtectedArea(ServerPlayer protectedPlayer) {
         for (ServerPlayer nearby : protectedPlayer.level().getEntitiesOfClass(ServerPlayer.class,
                 protectedPlayer.getBoundingBox().inflate(PROTECTION_HEAL_RADIUS), ServerPlayer::isAlive)) {
             nearby.heal(PROTECTION_HEAL_AMOUNT);
             MentalValueUtil.addMentalValue(nearby, PROTECTION_HEAL_AMOUNT);
+            if (nearby.level() instanceof ServerLevel serverLevel) {
+                serverLevel.sendParticles(ParticleTypes.HEART,
+                        nearby.getX(), nearby.getY() + 1.0D, nearby.getZ(),
+                        5, 0.35D, 0.35D, 0.35D, 0.02D);
+            }
         }
     }
 
     private void refreshProtectionTag(ServerPlayer player) {
         player.getPersistentData().putLong(PROTECTION_UNTIL_TAG, this.protectionEndsAt);
+        player.addEffect(new MobEffectInstance(MobEffects.GLOWING, 40, 0, false, false, true));
     }
 
     private void stopProtection() {
+        BlockPos returnPos = this.protectionReturnPos;
         if (this.protectedPlayerId != null && this.level() instanceof ServerLevel serverLevel) {
             ServerPlayer player = serverLevel.getServer().getPlayerList().getPlayer(this.protectedPlayerId);
             if (player != null && player.getPersistentData().getLong(PROTECTION_UNTIL_TAG) <= this.protectionEndsAt) {
                 player.getPersistentData().remove(PROTECTION_UNTIL_TAG);
+                player.removeEffect(MobEffects.GLOWING);
             }
         }
         this.protectedPlayerId = null;
+        this.protectionReturnPos = null;
         this.protectionEndsAt = 0L;
         this.protectionHealTimer = 0;
         this.noPhysics = false;
         this.getNavigation().stop();
+        if (returnPos != null) {
+            this.moveTo(returnPos.getX() + 0.5D, returnPos.getY(), returnPos.getZ() + 0.5D,
+                    this.getYRot(), this.getXRot());
+            setDeltaMovement(Vec3.ZERO);
+        }
     }
 
     public static boolean hasActiveProtection(ServerPlayer player) {
@@ -305,6 +340,9 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         if (this.protectedPlayerId != null) {
             tag.putUUID("ProtectedPlayer", this.protectedPlayerId);
         }
+        if (this.protectionReturnPos != null) {
+            tag.putLong("ProtectionReturnPos", this.protectionReturnPos.asLong());
+        }
         tag.putLong("ProtectionEndsAt", this.protectionEndsAt);
         tag.putInt("ProtectionHealTimer", this.protectionHealTimer);
     }
@@ -314,6 +352,9 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         super.readAdditionalSaveData(tag);
         if (tag.hasUUID("ProtectedPlayer")) {
             this.protectedPlayerId = tag.getUUID("ProtectedPlayer");
+        }
+        if (tag.contains("ProtectionReturnPos")) {
+            this.protectionReturnPos = BlockPos.of(tag.getLong("ProtectionReturnPos"));
         }
         this.protectionEndsAt = tag.getLong("ProtectionEndsAt");
         this.protectionHealTimer = tag.getInt("ProtectionHealTimer");
