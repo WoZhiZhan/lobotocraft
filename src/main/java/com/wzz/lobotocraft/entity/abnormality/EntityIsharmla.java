@@ -66,6 +66,8 @@ public class EntityIsharmla extends AbstractAbnormality {
     private boolean transitioning = false;
     private int transitionTimer = 0;
     private int pendingMonster = 0;      // 之泪清理后到进入巨兽的3秒缓冲
+    private int monsterNoTargetTicks = 0;
+    private int monsterIdleBeamCooldown = 0;
 
     // 本轮人形态召唤的之泪
     private final List<java.util.UUID> currentTears = new ArrayList<>();
@@ -78,6 +80,8 @@ public class EntityIsharmla extends AbstractAbnormality {
     private static final int TAIL_MONSTER_ANIMATION_TICKS = 26;
     private static final int BEAM_ATTACK_ANIMATION_TICKS = 42;
     private static final int BEAM_SKILL_INTERVAL_TICKS = 30 * 20;
+    private static final int NO_TARGET_BEAM_DELAY_TICKS = 15 * 20;
+    private static final int NO_TARGET_BEAM_INTERVAL_TICKS = 7 * 20;
     private static final int BEAM_MOUTH_EFFECT_TICK = 12;
     private static final int SPECIAL_SHAKE_TICKS = 10;
     private static final float SPECIAL_SHAKE_INTENSITY = 20.0F;
@@ -231,6 +235,7 @@ public class EntityIsharmla extends AbstractAbnormality {
 
     private void enterHumanForm(boolean firstTime) {
         clearActiveAttack();
+        resetMonsterNoTargetBeam();
         setForm(Form.HUMAN);
         setHealth(getMaxHealth());
         humanPhaseTimer = HUMAN_DURATION;
@@ -244,6 +249,7 @@ public class EntityIsharmla extends AbstractAbnormality {
 
     private void enterMonsterForm() {
         clearActiveAttack();
+        resetMonsterNoTargetBeam();
         setForm(Form.MONSTER);
         monsterHealth = MONSTER_MAX_HEALTH; // 进入巨兽回满巨兽血量
         beamSkillCooldown = BEAM_SKILL_INTERVAL_TICKS;
@@ -547,19 +553,17 @@ public class EntityIsharmla extends AbstractAbnormality {
             return;
         }
 
-        if (beamSkillCooldown <= 0 && this.random.nextBoolean() && startPeriodicBeamSkill(level)) {
-            beamSkillCooldown = BEAM_SKILL_INTERVAL_TICKS;
-            attackCooldown = 40;
+        LivingEntity target = findNearestTarget(level, 24);
+        if (target == null) {
+            tickMonsterNoTargetBeam(level);
             return;
         }
+        resetMonsterNoTargetBeam();
 
         if (attackCooldown > 0) {
             attackCooldown--;
             return;
         }
-        
-        LivingEntity target = findNearestTarget(level, 24);
-        if (target == null) return;
 
         double dist = this.distanceTo(target);
         this.getLookControl().setLookAt(target);
@@ -583,15 +587,15 @@ public class EntityIsharmla extends AbstractAbnormality {
         currentAttackTargetUuid = target.getUUID();
         faceAttackTarget(target);
 
-        
-        if (this.random.nextBoolean()) {
+        int roll = this.random.nextInt(100);
+        if (roll < 30) {
             // 撕咬:单体40黑伤,命中窗口约动画第6~12tick
             setAnimTimed("bite_monster", BITE_MONSTER_ANIMATION_TICKS);
             playSoundToAll(SoundEvents.EVOKER_FANGS_ATTACK);
             attackAnimType = 0;
             attackHitWindowStart = this.tickCount + 6;
             attackHitWindowEnd = this.tickCount + 12;
-        } else {
+        } else if (roll < 60) {
             // 甩尾:身前6x9范围25黑伤,命中窗口约第8~16tick
             setAnimTimed("tail_monster", TAIL_MONSTER_ANIMATION_TICKS);
             playSoundToAll(ModSounds.ISHARMLA_TAIL.get());
@@ -600,7 +604,31 @@ public class EntityIsharmla extends AbstractAbnormality {
             attackAnimType = 1;
             attackHitWindowStart = this.tickCount + 8;
             attackHitWindowEnd = this.tickCount + 16;
+        } else {
+            startPeriodicBeamSkill(level);
+            beamSkillCooldown = BEAM_SKILL_INTERVAL_TICKS;
         }
+    }
+
+    private void tickMonsterNoTargetBeam(ServerLevel level) {
+        this.getNavigation().stop();
+        monsterNoTargetTicks++;
+        if (monsterIdleBeamCooldown > 0) {
+            monsterIdleBeamCooldown--;
+        }
+        if (monsterNoTargetTicks <= NO_TARGET_BEAM_DELAY_TICKS || monsterIdleBeamCooldown > 0) {
+            return;
+        }
+        if (startPeriodicBeamSkill(level)) {
+            monsterIdleBeamCooldown = Math.max(1, NO_TARGET_BEAM_INTERVAL_TICKS - BEAM_ATTACK_ANIMATION_TICKS);
+            beamSkillCooldown = BEAM_SKILL_INTERVAL_TICKS;
+            attackCooldown = 40;
+        }
+    }
+
+    private void resetMonsterNoTargetBeam() {
+        monsterNoTargetTicks = 0;
+        monsterIdleBeamCooldown = 0;
     }
 
     private boolean startPeriodicBeamSkill(ServerLevel level) {
@@ -866,6 +894,8 @@ public class EntityIsharmla extends AbstractAbnormality {
         tag.putInt("MonsterPhaseTimer", monsterPhaseTimer);
         tag.putInt("PendingMonster", pendingMonster);
         tag.putInt("BeamSkillCooldown", beamSkillCooldown);
+        tag.putInt("MonsterNoTargetTicks", monsterNoTargetTicks);
+        tag.putInt("MonsterIdleBeamCooldown", monsterIdleBeamCooldown);
     }
 
     @Override
@@ -879,5 +909,7 @@ public class EntityIsharmla extends AbstractAbnormality {
         beamSkillCooldown = tag.contains("BeamSkillCooldown")
                 ? tag.getInt("BeamSkillCooldown")
                 : BEAM_SKILL_INTERVAL_TICKS;
+        monsterNoTargetTicks = tag.getInt("MonsterNoTargetTicks");
+        monsterIdleBeamCooldown = tag.getInt("MonsterIdleBeamCooldown");
     }
 }

@@ -40,11 +40,16 @@ public class EntityShellSeaRunner extends EntityBasinSeaborn {
     }
 
     @Override
+    protected int getAttackCooldownTicks() {
+        return 24;
+    }
+
+    @Override
     public boolean doHurtTarget(Entity target) {
         if (target instanceof Player player) {
             scheduleAttackDamage(15, 7, () -> {
                 if (player.isAlive() && this.distanceToSqr(player) <= 9.0) {
-                    player.hurt(DamageHelper.getDamage().getDamageSources().mobAttack(this), 4f); // 红色伤害
+                    player.hurt(DamageHelper.getDamage(this, "red"), 4f);
                 }
             });
         }
@@ -65,7 +70,7 @@ public class EntityShellSeaRunner extends EntityBasinSeaborn {
         if (isPlayingAttackAnim()) {
             return event.setAndContinue(RawAnimation.begin().thenPlay("animation.shell_sea_runner.attack"));
         }
-        if (event.isMoving()) {
+        if (isMovingForAnimation(event)) {
             return event.setAndContinue(RawAnimation.begin().thenLoop("animation.shell_sea_runner.move"));
         }
         return event.setAndContinue(RawAnimation.begin().thenLoop("animation.shell_sea_runner.idle"));

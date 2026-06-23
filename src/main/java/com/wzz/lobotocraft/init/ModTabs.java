@@ -39,6 +39,8 @@ public class ModTabs {
 						tabData.accept(ModItems.HELPER_SPAWN_EGG.get());
 						tabData.accept(ModItems.SKADI_SPAWN_EGG.get());
 						tabData.accept(ModItems.CLEANER_SPAWN_EGG.get());
+						tabData.accept(ModItems.ARMY_IN_BLACK_SPAWN_EGG.get());
+						tabData.accept(ModItems.CRUMBLING_ARMOR_SPAWN_EGG.get());
 						tabData.accept(ModItems.SHELL_SEA_RUNNER_SPAWN_EGG.get());
 						tabData.accept(ModItems.DEEPSEA_SLIDER_SPAWN_EGG.get());
 						tabData.accept(ModItems.RIDGESEA_SPITTER_SPAWN_EGG.get());

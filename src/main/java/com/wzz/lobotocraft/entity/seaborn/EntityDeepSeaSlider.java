@@ -1,6 +1,8 @@
 package com.wzz.lobotocraft.entity.seaborn;
 
 import com.wzz.lobotocraft.util.DamageHelper;
+import com.wzz.lobotocraft.util.EntityUtil;
+import com.wzz.lobotocraft.util.MentalValueUtil;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
@@ -8,6 +10,7 @@ import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
@@ -32,14 +35,20 @@ public class EntityDeepSeaSlider extends EntityBasinSeaborn {
     protected float getDamageMultiplier() { return 1.2f; }
 
     @Override
+    protected int getAttackCooldownTicks() {
+        return 26;
+    }
+
+    @Override
     public boolean doHurtTarget(Entity target) {
-        // 项11:动画与伤害同步——播放攻击动画,命中帧(第8tick)再结算伤害
         if (target instanceof Player player) {
-            scheduleAttackDamage(15, 8, () -> {
+            scheduleAttackDamage(16, 8, () -> {
                 if (player.isAlive() && this.distanceToSqr(player) <= 9.0) {
-                    // 3点黑色伤害 + 命中后额外3点白色伤害
-                    player.hurt(DamageHelper.getDamage().getDamageSources().mobAttack(this), 3f);
-                    player.hurt(DamageHelper.getDamage().getDamageSources().mobAttack(this), 3f);
+                    EntityUtil.clearHurtTime(player, () ->
+                            player.hurt(DamageHelper.getDamage(this, "black"), 3f));
+                    if (player instanceof ServerPlayer serverPlayer) {
+                        MentalValueUtil.reduceMentalValue(serverPlayer, 2 + this.random.nextInt(2));
+                    }
                 }
             });
         }
@@ -52,10 +61,13 @@ public class EntityDeepSeaSlider extends EntityBasinSeaborn {
     }
 
     private PlayState predicate(AnimationState<EntityDeepSeaSlider> event) {
+        if (this.isDeadOrDying()) {
+            return event.setAndContinue(RawAnimation.begin().thenPlayAndHold("animation.deepsea_slider.die"));
+        }
         if (isPlayingAttackAnim()) {
             return event.setAndContinue(RawAnimation.begin().thenPlay("animation.deepsea_slider.attack"));
         }
-        if (event.isMoving()) {
+        if (isMovingForAnimation(event)) {
             return event.setAndContinue(RawAnimation.begin().thenLoop("animation.deepsea_slider.move"));
         }
         return event.setAndContinue(RawAnimation.begin().thenLoop("animation.deepsea_slider.idle"));

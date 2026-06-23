@@ -27,8 +27,6 @@ import software.bernie.geckolib.core.object.PlayState;
  */
 public class EntityPrimalSeaPiercer extends EntityBasinSeaborn implements RangedAttackMob {
 
-    private int attackAnimTimer = 0;
-
     public EntityPrimalSeaPiercer(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
     }
@@ -46,10 +44,13 @@ public class EntityPrimalSeaPiercer extends EntityBasinSeaborn implements Ranged
     }
 
     @Override
+    protected boolean usesMeleeAttackGoal() {
+        return false;
+    }
+
+    @Override
     protected void registerGoals() {
         super.registerGoals();
-        // 项11:移除基类的近战攻击goal,避免与远程攻击goal冲突导致站桩不动
-        this.goalSelector.removeAllGoals(g -> g instanceof net.minecraft.world.entity.ai.goal.MeleeAttackGoal);
         // 远程攻击:射程16格,冷却30~60tick;速度1.0使其在射程外会主动靠近
         this.goalSelector.addGoal(1, new RangedAttackGoal(this, 1.0D, 30, 60, 16.0F));
         // 无目标时水中/陆地漫游,使其会自行移动
@@ -59,7 +60,7 @@ public class EntityPrimalSeaPiercer extends EntityBasinSeaborn implements Ranged
     @Override
     public void performRangedAttack(LivingEntity target, float velocity) {
         if (this.level().isClientSide) return;
-        attackAnimTimer = 15;
+        startAttackAnimation(19);
         this.level().playSound(null, this.blockPosition(),
                 SoundEvents.ARROW_SHOOT, SoundSource.HOSTILE, 1.0f, 1.0f);
 
@@ -81,21 +82,18 @@ public class EntityPrimalSeaPiercer extends EntityBasinSeaborn implements Ranged
     }
 
     @Override
-    public void tick() {
-        super.tick();
-        if (attackAnimTimer > 0) attackAnimTimer--;
-    }
-
-    @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar registrar) {
         registrar.add(new AnimationController<>(this, "controller", 2, this::predicate));
     }
 
     private PlayState predicate(AnimationState<EntityPrimalSeaPiercer> event) {
-        if (attackAnimTimer > 0) {
+        if (this.isDeadOrDying()) {
+            return event.setAndContinue(RawAnimation.begin().thenPlayAndHold("animation.primalsea_piercer.die"));
+        }
+        if (isPlayingAttackAnim()) {
             return event.setAndContinue(RawAnimation.begin().thenPlay("animation.primalsea_piercer.attack"));
         }
-        if (event.isMoving()) {
+        if (isMovingForAnimation(event)) {
             return event.setAndContinue(RawAnimation.begin().thenLoop("animation.primalsea_piercer.move"));
         }
         return event.setAndContinue(RawAnimation.begin().thenLoop("animation.primalsea_piercer.idle"));

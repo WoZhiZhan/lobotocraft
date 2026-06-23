@@ -79,7 +79,7 @@ public class EntityApprovalBird extends AbstractAbnormality {
 
     @Override
     protected float[] getWorkPreferencesModifier() {
-        return new float[]{0.1f, 0.1f, 0.1f, 0.0f};
+        return new float[]{0.15f, 0.15f, 0.15f, 0.0f};
     }
 
     @Override

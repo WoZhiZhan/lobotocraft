@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.entity.seaborn;
 
 import com.wzz.lobotocraft.util.DamageHelper;
+import com.wzz.lobotocraft.util.EntityUtil;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -62,6 +63,11 @@ public class EntityNucleicMaleficent extends EntityBasinSeaborn {
         return this.entityData.get(ENRAGED);
     }
 
+    @Override
+    protected int getAttackCooldownTicks() {
+        return 30;
+    }
+
     private void setEnraged(boolean v) {
         this.entityData.set(ENRAGED, v);
     }
@@ -89,9 +95,12 @@ public class EntityNucleicMaleficent extends EntityBasinSeaborn {
     @Override
     public boolean doHurtTarget(Entity target) {
         if (target instanceof Player player) {
-            scheduleAttackDamage(15, 8, () -> {
+            scheduleAttackDamage(19, 9, () -> {
                 if (player.isAlive() && this.distanceToSqr(player) <= 9.0) {
-                    player.hurt(DamageHelper.getDamage().getDamageSources().mobAttack(this), 6f); // 黑色伤害
+                    EntityUtil.clearHurtTime(player, () ->
+                            player.hurt(DamageHelper.getDamage(this, "black"), 6f));
+                    EntityUtil.clearHurtTime(player, () ->
+                            player.hurt(DamageHelper.getDamage(this, "white"), 4f + this.random.nextInt(3)));
                 }
             });
         }
@@ -123,7 +132,7 @@ public class EntityNucleicMaleficent extends EntityBasinSeaborn {
                 for (Player p : players) {
                     int prevInvul = p.invulnerableTime;
                     p.invulnerableTime = 0;
-                    p.hurt(this.damageSources().mobAttack(this), 5f);
+                    p.hurt(DamageHelper.getDamage(this, "white"), 5f);
                     p.invulnerableTime = prevInvul;
                 }
             }
@@ -136,6 +145,9 @@ public class EntityNucleicMaleficent extends EntityBasinSeaborn {
     }
 
     private PlayState predicate(AnimationState<EntityNucleicMaleficent> event) {
+        if (this.isDeadOrDying()) {
+            return event.setAndContinue(RawAnimation.begin().thenPlayAndHold("animation.nucleic_maleficent.die"));
+        }
         if (isEnraged()) {
             if (isPlayingAttackAnim()) {
                 return event.setAndContinue(RawAnimation.begin().thenPlay("animation.nucleic_maleficent.attack"));

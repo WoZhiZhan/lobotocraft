@@ -26,6 +26,8 @@ public class ModCommonEvent {
 		event.put(ModEntities.nucleic_maleficent.get(), com.wzz.lobotocraft.entity.seaborn.EntityNucleicMaleficent.createAttributes().build());
 		event.put(ModEntities.basinsea_reaper.get(), com.wzz.lobotocraft.entity.seaborn.EntityBasinSeaReaper.createAttributes().build());
 		event.put(ModEntities.cleaner.get(), EntityCleaner.createAttributes().build());
+		event.put(ModEntities.army_in_black.get(), EntityArmyInBlack.createAttributes().build());
+		event.put(ModEntities.crumbling_armor.get(), EntityCrumblingArmor.createAttributes().build());
 		event.put(ModEntities.bloody_small.get(), EntityBloodySmall.createAttributes().build());
 		event.put(ModEntities.butterfly_funeral.get(), EntityButterflyFuneral.createAttributes().build());
 		event.put(ModEntities.fragment_of_the_universe.get(), EntityFragmentOfUniverse.createAttributes().build());

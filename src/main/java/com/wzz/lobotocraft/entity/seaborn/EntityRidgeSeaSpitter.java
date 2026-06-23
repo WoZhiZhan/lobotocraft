@@ -1,8 +1,6 @@
 package com.wzz.lobotocraft.entity.seaborn;
 
-import com.wzz.lobotocraft.util.DamageHelper;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.server.level.ServerLevel;
+import com.wzz.lobotocraft.entity.EntityWaterSpit;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.EntityType;
@@ -13,11 +11,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.RangedAttackGoal;
 import net.minecraft.world.entity.monster.RangedAttackMob;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.AbstractArrow;
-import net.minecraft.world.entity.projectile.Arrow;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
 import software.bernie.geckolib.core.animation.AnimationState;
@@ -30,8 +24,6 @@ import software.bernie.geckolib.core.object.PlayState;
  */
 public class EntityRidgeSeaSpitter extends EntityBasinSeaborn implements RangedAttackMob {
 
-    private int attackAnimTimer = 0;
-
     public EntityRidgeSeaSpitter(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
     }
@@ -43,6 +35,11 @@ public class EntityRidgeSeaSpitter extends EntityBasinSeaborn implements RangedA
     protected float getDamageMultiplier() { return 1.2f; }
 
     @Override
+    protected boolean usesMeleeAttackGoal() {
+        return false;
+    }
+
+    @Override
     protected void registerGoals() {
         super.registerGoals();
         // 远程攻击:射程10格,每40tick一次
@@ -52,38 +49,20 @@ public class EntityRidgeSeaSpitter extends EntityBasinSeaborn implements RangedA
     @Override
     public void performRangedAttack(LivingEntity target, float velocity) {
         if (this.level().isClientSide) return;
-        attackAnimTimer = 15;
+        startAttackAnimation(13);
         // 攻击音效:羊驼吐口水
         this.level().playSound(null, this.blockPosition(),
                 SoundEvents.LLAMA_SPIT, SoundSource.HOSTILE, 1.0f, 1.0f);
 
-        // 抛物线投射(类似弓箭、飞行较慢可躲开)
         double dx = target.getX() - this.getX();
         double dy = target.getY(0.3333) - (this.getEyeY() - 0.1);
         double dz = target.getZ() - this.getZ();
         double dist = Math.sqrt(dx * dx + dz * dz);
 
-        Arrow arrow = new Arrow(this.level(), this);
-        arrow.setBaseDamage(0); // 伤害由命中事件处理,这里设0避免双重计算
-        arrow.shoot(dx, dy + dist * 0.15, dz, 0.8f, 6.0f); // 速度较慢
-        arrow.setOwner(this);
-        // 标记为喷吐者的投射物,用于命中判定
-        arrow.getPersistentData().putFloat("ridgesea_spit_damage", 6f);
-        arrow.pickup = AbstractArrow.Pickup.DISALLOWED;
-        this.level().addFreshEntity(arrow);
-
-        // 蓝色粒子拖尾(从口部喷出)
-        if (this.level() instanceof ServerLevel server) {
-            Vec3 mouth = this.position().add(0, this.getEyeHeight(), 0);
-            server.sendParticles(ParticleTypes.SPLASH,
-                    mouth.x, mouth.y, mouth.z, 12, 0.2, 0.2, 0.2, 0.02);
-        }
-    }
-
-    @Override
-    public void tick() {
-        super.tick();
-        if (attackAnimTimer > 0) attackAnimTimer--;
+        EntityWaterSpit spit = new EntityWaterSpit(this.level(), this, 6f);
+        spit.moveTo(this.getX(), this.getEyeY() - 0.1D, this.getZ(), this.getYRot(), this.getXRot());
+        spit.shoot(dx, dy + dist * 0.15, dz, 0.8f, 6.0f);
+        this.level().addFreshEntity(spit);
     }
 
     @Override
@@ -92,10 +71,10 @@ public class EntityRidgeSeaSpitter extends EntityBasinSeaborn implements RangedA
     }
 
     private PlayState predicate(AnimationState<EntityRidgeSeaSpitter> event) {
-        if (attackAnimTimer > 0) {
+        if (isPlayingAttackAnim()) {
             return event.setAndContinue(RawAnimation.begin().thenPlay("animation.ridgesea_spitter.attack"));
         }
-        if (event.isMoving()) {
+        if (isMovingForAnimation(event)) {
             return event.setAndContinue(RawAnimation.begin().thenLoop("animation.ridgesea_spitter.move"));
         }
         return event.setAndContinue(RawAnimation.begin().thenLoop("animation.ridgesea_spitter.idle"));

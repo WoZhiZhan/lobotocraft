@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.entity.seaborn;
 
 import com.wzz.lobotocraft.util.DamageHelper;
+import com.wzz.lobotocraft.util.EntityUtil;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -62,6 +63,11 @@ public class EntityBasinSeaReaper extends EntityBasinSeaborn {
         return this.entityData.get(ENRAGED);
     }
 
+    @Override
+    protected int getAttackCooldownTicks() {
+        return 28;
+    }
+
     private void setEnraged(boolean v) {
         this.entityData.set(ENRAGED, v);
     }
@@ -89,7 +95,8 @@ public class EntityBasinSeaReaper extends EntityBasinSeaborn {
         if (target instanceof Player player) {
             scheduleAttackDamage(15, 8, () -> {
                 if (player.isAlive() && this.distanceToSqr(player) <= 9.0) {
-                    player.hurt(DamageHelper.getDamage().getDamageSources().mobAttack(this), 7f); // 黑色伤害
+                    EntityUtil.clearHurtTime(player, () ->
+                            player.hurt(DamageHelper.getDamage(this, "black"), 7f));
                 }
             });
         }
@@ -119,7 +126,7 @@ public class EntityBasinSeaReaper extends EntityBasinSeaborn {
                 for (Player p : players) {
                     int prevInvul = p.invulnerableTime;
                     p.invulnerableTime = 0;
-                    p.hurt(this.damageSources().mobAttack(this), 5f);
+                    p.hurt(DamageHelper.getDamage(this, "white"), 5f);
                     p.invulnerableTime = prevInvul;
                 }
             }
@@ -138,7 +145,7 @@ public class EntityBasinSeaReaper extends EntityBasinSeaborn {
             }
             return event.setAndContinue(RawAnimation.begin().thenLoop("animation.basinsea_reaper.sprint"));
         }
-        if (event.isMoving()) {
+        if (isMovingForAnimation(event)) {
             return event.setAndContinue(RawAnimation.begin().thenLoop("animation.basinsea_reaper.move"));
         }
         return event.setAndContinue(RawAnimation.begin().thenLoop("animation.basinsea_reaper.idle"));

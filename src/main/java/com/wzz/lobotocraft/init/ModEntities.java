@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.init;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.EntityLightOrb;
+import com.wzz.lobotocraft.entity.EntityWaterSpit;
 import com.wzz.lobotocraft.entity.abnormality.EntityBlackForestDoor;
 import com.wzz.lobotocraft.entity.EntityGallows;
 import com.wzz.lobotocraft.entity.EntityImmortalItem;
@@ -115,6 +116,22 @@ public class ModEntities {
                             .updateInterval(3)
                             .build("cleaner"));
 
+    public static final RegistryObject<EntityType<EntityArmyInBlack>> army_in_black =
+            ENTITIES.register("army_in_black",
+                    () -> EntityType.Builder.of(EntityArmyInBlack::new, MobCategory.MONSTER)
+                            .sized(0.9F, 2.7F)
+                            .clientTrackingRange(8)
+                            .updateInterval(3)
+                            .build("army_in_black"));
+
+    public static final RegistryObject<EntityType<EntityCrumblingArmor>> crumbling_armor =
+            ENTITIES.register("crumbling_armor",
+                    () -> EntityType.Builder.of(EntityCrumblingArmor::new, MobCategory.MONSTER)
+                            .sized(0.9F, 2.3F)
+                            .clientTrackingRange(8)
+                            .updateInterval(3)
+                            .build("crumbling_armor"));
+
     public static final RegistryObject<EntityType<EntityBloodySmall>> bloody_small =
             ENTITIES.register("bloody_small",
                     () -> EntityType.Builder.of(EntityBloodySmall::new, MobCategory.MONSTER)
@@ -153,6 +170,14 @@ public class ModEntities {
             ENTITIES.register("basinsea_reaper",
                     () -> EntityType.Builder.of(com.wzz.lobotocraft.entity.seaborn.EntityBasinSeaReaper::new, MobCategory.MONSTER)
                             .sized(1.6F, 1.8F).clientTrackingRange(12).updateInterval(3).build("basinsea_reaper"));
+
+    public static final RegistryObject<EntityType<EntityWaterSpit>> water_spit =
+            ENTITIES.register("water_spit",
+                    () -> EntityType.Builder.<EntityWaterSpit>of(EntityWaterSpit::new, MobCategory.MISC)
+                            .sized(0.4F, 0.4F)
+                            .clientTrackingRange(8)
+                            .updateInterval(1)
+                            .build("water_spit"));
 
     public static final RegistryObject<EntityType<EntityIronMaiden>> iron_maiden =
             ENTITIES.register("iron_maiden",
