@@ -15,6 +15,7 @@ public class CommandRegistry {
         registerCommand(new MentalValueCommand());
         registerCommand(new ResistanceCommand());
         registerCommand(new AttackCommand());
+        registerCommand(new KillCommand());
         registerCommand(new EmployeeStatsCommand());
         registerCommand(new TestCommand());
         registerCommand(new TeleportToEntityCommand());
