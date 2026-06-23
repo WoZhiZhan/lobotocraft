@@ -707,6 +707,18 @@ public class ForgeModEvent {
 	}
 
 	@SubscribeEvent
+	public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+		Player player = event.getEntity();
+		if (player.getPersistentData().getBoolean("isSnowQueen")
+				|| player.getPersistentData().getBoolean("isSnowQueenDuel")) {
+			player.getPersistentData().remove("isSnowQueen");
+			player.getPersistentData().remove("isSnowQueenDuel");
+			player.setTicksFrozen(0);
+			BuffUtil.removeKiss(player);
+		}
+	}
+
+	@SubscribeEvent
 	public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
 		TimerEntry.shutdown(event.getEntity());
 	}
