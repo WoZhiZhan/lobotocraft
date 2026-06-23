@@ -63,10 +63,10 @@ public class EntityCrumblingArmor extends AbstractAbnormality {
         this.abnormalityCode = "O-05-61";
         this.abnormalityName = "破裂盔甲";
         this.riskLevel = RiskLevel.TETH;
-        this.damageType = "BLACK";
+        this.damageType = "RED";
         this.maxPEOutput = 12;
 
-        float[] basePreferences = {0.35f, 0.45f, 0.0f, 0.70f};
+        float[] basePreferences = {0.50f, 0.40f, 0.0f, 0.60f};
         initializeWorkPreferences(basePreferences);
         initializeQliphothCounter(2);
     }
@@ -74,10 +74,10 @@ public class EntityCrumblingArmor extends AbstractAbnormality {
     @Override
     public float[][] getFullWorkPreferences() {
         float[][] prefs = new float[4][5];
-        prefs[WorkType.INSTINCT.ordinal()] = new float[]{0.35f, 0.35f, 0.30f, 0.30f, 0.30f};
-        prefs[WorkType.INSIGHT.ordinal()] = new float[]{0.45f, 0.45f, 0.40f, 0.40f, 0.40f};
+        prefs[WorkType.INSTINCT.ordinal()] = new float[]{0.50f, 0.50f, 0.55f, 0.55f, 0.60f};
+        prefs[WorkType.INSIGHT.ordinal()] = new float[]{0.40f, 0.40f, 0.40f, 0.40f, 0.40f};
         prefs[WorkType.ATTACHMENT.ordinal()] = new float[]{0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-        prefs[WorkType.REPRESSION.ordinal()] = new float[]{0.60f, 0.65f, 0.70f, 0.75f, 0.80f};
+        prefs[WorkType.REPRESSION.ordinal()] = new float[]{0.60f, 0.60f, 0.65f, 0.65f, 0.70f};
         return prefs;
     }
 
@@ -273,7 +273,7 @@ public class EntityCrumblingArmor extends AbstractAbnormality {
 
     @Override
     public void attackPlayerOnFailure(Player player, WorkType workType) {
-        player.hurt(DamageHelper.getDamage(this, "lobotocraft:black"), 4.0F + this.random.nextInt(3));
+        player.hurt(DamageHelper.getDamage(this, "lobotocraft:red"), 2.0F + this.random.nextInt(2));
     }
 
     @Override
