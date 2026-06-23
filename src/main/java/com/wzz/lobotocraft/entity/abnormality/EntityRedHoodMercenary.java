@@ -717,6 +717,7 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
     private boolean isValidTarget(LivingEntity e) {
         if (e == this || !e.isAlive()) return false;
         if (e instanceof Player p && (p.isCreative() || p.isSpectator())) return false;
+        if (e instanceof AbstractAbnormality abnormality && !abnormality.hasEscape()) return false;
         // 委托状态:只攻击标记目标
         if (commissionMode) {
             return commissionTargetId != null && commissionTargetId.equals(e.getUUID());

@@ -579,7 +579,9 @@ public class WorkManager {
                 session,
                 session.forcedEnd
         ));
-        givePEBox(player, abnormality, workType, result, peOutput);
+        if (abnormality.shouldGivePEBox(player, workType, result, peOutput)) {
+            givePEBox(player, abnormality, workType, result, peOutput);
+        }
         if (session.continuousMode && !session.stopContinuousAfterCurrent) {
             String stopReason = getContinuousStopReason(session);
             if (stopReason != null) {

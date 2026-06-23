@@ -378,6 +378,13 @@ public interface IAbnormality {
     }
 
     /**
+     * 是否发放本次工作的 PE-BOX。
+     */
+    default boolean shouldGivePEBox(ServerPlayer player, WorkType workType, WorkResult result, int peOutput) {
+        return true;
+    }
+
+    /**
      * 工作中断时回调
      *
      * @param player   工作的玩家
