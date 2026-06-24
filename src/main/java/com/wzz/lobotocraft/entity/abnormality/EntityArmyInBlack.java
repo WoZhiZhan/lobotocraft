@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModAttributes;
+import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.MentalValueUtil;
@@ -55,21 +56,28 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     private static final double PROTECTION_TELEPORT_DISTANCE_SQR = 100.0D;
     private static final double PROTECTION_HEAL_RADIUS = 10.0D;
     private static final float PROTECTION_HEAL_AMOUNT = 12.0F;
+    private static final int PROTECTION_ATTACK_ANIMATION_TICKS = 30;
     private static final int ESCAPE_ATTACK_CHARGE_TICKS = 30;
-    private static final int ESCAPE_ATTACK_COOLDOWN_TICKS = 20 * 12;
+    private static final int ESCAPE_ATTACK_COOLDOWN_TICKS = 20 * 6;
     private static final double ESCAPE_ATTACK_RADIUS = 12.0D;
     private static final double REACTOR_DETONATE_DISTANCE_SQR = 9.0D;
-    private static final double ESCAPE_REACTOR_SPEED = 0.9D;
+    private static final double ESCAPE_REACTOR_SPEED = 0.45D;
+    private static final int SELF_DETONATION_TICKS = 60;
+    private static final int SELF_DETONATION_SOUND_TICK = SELF_DETONATION_TICKS / 2;
 
     private UUID protectedPlayerId = null;
     private BlockPos protectionReturnPos = null;
     private long protectionEndsAt = 0L;
     private int protectionHealTimer = 0;
+    private int protectionAttackAnimationTicks = 0;
     private BlockPos targetReactorPos = null;
     private UUID retaliateTargetId = null;
     private int attackChargeTicks = 0;
     private int attackCooldownTicks = 0;
     private int reactorRepathTicks = 0;
+    private int clerkOrVillagerDeathCount = 0;
+    private int selfDetonationTicks = 0;
+    private boolean selfDetonationSoundPlayed = false;
 
     public EntityArmyInBlack(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -86,7 +94,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
 
         float[] basePreferences = {0.45f, 0.45f, 1.0f, 0.0f};
         initializeWorkPreferences(basePreferences);
-        initializeQliphothCounter(2);
+        initializeQliphothCounter(3);
     }
 
     @Override
@@ -188,6 +196,10 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         this.protectionEndsAt = player.level().getGameTime() + PROTECTION_DURATION_TICKS;
         this.protectionHealTimer = 0;
         refreshProtectionTag(player);
+        if (this.level() instanceof ServerLevel level) {
+            level.playSound(null, player.blockPosition(), ModSounds.ARMY_IN_BLACK_PROTECT_START.get(),
+                    SoundSource.NEUTRAL, 1.2F, 1.0F);
+        }
     }
 
     private boolean tickProtection() {
@@ -206,10 +218,16 @@ public class EntityArmyInBlack extends AbstractAbnormality {
 
         refreshProtectionTag(player);
         setNoAi(false);
-        this.noPhysics = true;
+        this.noPhysics = false;
         setTarget(null);
 
         followProtectedPlayer(player);
+        if (this.protectionAttackAnimationTicks > 0) {
+            this.protectionAttackAnimationTicks--;
+            if (this.protectionAttackAnimationTicks == 0 && "attack".equals(getAnimation())) {
+                setAnimation("idle");
+            }
+        }
 
         this.protectionHealTimer++;
         if (this.protectionHealTimer >= PROTECTION_HEAL_INTERVAL) {
@@ -239,6 +257,12 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     }
 
     private void healProtectedArea(ServerPlayer protectedPlayer) {
+        setAnimation("attack");
+        this.protectionAttackAnimationTicks = PROTECTION_ATTACK_ANIMATION_TICKS;
+        if (protectedPlayer.level() instanceof ServerLevel serverLevel) {
+            serverLevel.playSound(null, protectedPlayer.blockPosition(), ModSounds.ARMY_IN_BLACK_ATTACK.get(),
+                    SoundSource.NEUTRAL, 1.0F, 1.0F);
+        }
         for (ServerPlayer nearby : protectedPlayer.level().getEntitiesOfClass(ServerPlayer.class,
                 protectedPlayer.getBoundingBox().inflate(PROTECTION_HEAL_RADIUS), ServerPlayer::isAlive)) {
             nearby.heal(PROTECTION_HEAL_AMOUNT);
@@ -260,17 +284,27 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         BlockPos returnPos = this.protectionReturnPos;
         if (this.protectedPlayerId != null && this.level() instanceof ServerLevel serverLevel) {
             ServerPlayer player = serverLevel.getServer().getPlayerList().getPlayer(this.protectedPlayerId);
-            if (player != null && player.getPersistentData().getLong(PROTECTION_UNTIL_TAG) <= this.protectionEndsAt) {
-                player.getPersistentData().remove(PROTECTION_UNTIL_TAG);
-                player.removeEffect(MobEffects.GLOWING);
+            if (player != null) {
+                boolean ownsProtectionTag = player.getPersistentData().getLong(PROTECTION_UNTIL_TAG) <= this.protectionEndsAt;
+                if (ownsProtectionTag) {
+                    player.getPersistentData().remove(PROTECTION_UNTIL_TAG);
+                    player.removeEffect(MobEffects.GLOWING);
+                    player.displayClientMessage(Component.literal("§d深谙军团对玩家的保护结束了"), true);
+                    serverLevel.playSound(null, player.blockPosition(), ModSounds.ARMY_IN_BLACK_PROTECT_END.get(),
+                            SoundSource.NEUTRAL, 1.2F, 1.0F);
+                }
             }
         }
         this.protectedPlayerId = null;
         this.protectionReturnPos = null;
         this.protectionEndsAt = 0L;
         this.protectionHealTimer = 0;
+        this.protectionAttackAnimationTicks = 0;
         this.noPhysics = false;
         this.getNavigation().stop();
+        if (!hasEscape() && "attack".equals(getAnimation())) {
+            setAnimation("idle");
+        }
         if (returnPos != null) {
             this.moveTo(returnPos.getX() + 0.5D, returnPos.getY(), returnPos.getZ() + 0.5D,
                     this.getYRot(), this.getXRot());
@@ -348,6 +382,10 @@ public class EntityArmyInBlack extends AbstractAbnormality {
 
     private void tickEscapedState(ServerLevel level) {
         setTarget(null);
+        if (selfDetonationTicks > 0) {
+            tickSelfDetonation(level);
+            return;
+        }
         if (attackCooldownTicks > 0) {
             attackCooldownTicks--;
         }
@@ -359,7 +397,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
             return;
         }
         if (targetReactorPos != null && blockPosition().distSqr(targetReactorPos) <= REACTOR_DETONATE_DISTANCE_SQR) {
-            detonateAtReactor(level);
+            beginSelfDetonation();
             return;
         }
         walkToReactor(level);
@@ -378,7 +416,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     private void tickEscapeAttackCharge(ServerLevel level) {
         getNavigation().stop();
         setDeltaMovement(0, getDeltaMovement().y, 0);
-        spawnGroundHeartParticles(level, 12);
+        spawnWitherEffectParticles(level, 12);
         attackChargeTicks--;
         if (attackChargeTicks <= 0) {
             performEscapeAttack(level);
@@ -387,7 +425,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
 
     private void performEscapeAttack(ServerLevel level) {
         level.playSound(null, blockPosition(), SoundEvents.EVOKER_CAST_SPELL, SoundSource.HOSTILE, 1.4F, 0.7F);
-        spawnGroundHeartParticles(level, 48);
+        spawnWitherEffectParticles(level, 48);
         AABB area = getBoundingBox().inflate(ESCAPE_ATTACK_RADIUS, 4.0D, ESCAPE_ATTACK_RADIUS);
         for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class, area, this::isValidEscapeAttackTarget)) {
             EntityUtil.clearHurtTime(living, () ->
@@ -412,54 +450,83 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         reactorRepathTicks = 20;
     }
 
-    private void detonateAtReactor(ServerLevel level) {
+    private void beginSelfDetonation() {
+        selfDetonationTicks = SELF_DETONATION_TICKS;
+        selfDetonationSoundPlayed = false;
         getNavigation().stop();
+        setDeltaMovement(0, getDeltaMovement().y, 0);
         setAnimation("attack");
-        level.playSound(null, blockPosition(), SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 2.0F, 0.8F);
-        level.sendParticles(ParticleTypes.EXPLOSION, getX(), getY() + 0.5D, getZ(),
-                1, 0.0D, 0.0D, 0.0D, 0.0D);
-        spawnGroundHeartParticles(level, 80);
+    }
+
+    private void tickSelfDetonation(ServerLevel level) {
+        getNavigation().stop();
+        setDeltaMovement(0, getDeltaMovement().y, 0);
+        setAnimation("attack");
+        spawnSmokeHeartParticles(level, 8);
+        selfDetonationTicks--;
+        if (!selfDetonationSoundPlayed && selfDetonationTicks <= SELF_DETONATION_SOUND_TICK) {
+            selfDetonationSoundPlayed = true;
+            level.playSound(null, blockPosition(), ModSounds.ARMY_IN_BLACK_EXPLODE.get(),
+                    SoundSource.HOSTILE, 2.0F, 1.0F);
+        }
+        if (selfDetonationTicks <= 0) {
+            completeSelfDetonation(level);
+        }
+    }
+
+    private void completeSelfDetonation(ServerLevel level) {
+        spawnSmokeHeartParticles(level, 180);
         DamageSource whiteDamage = DamageHelper.getDamage(this, "lobotocraft:white");
         float damage = 30.0F + random.nextInt(11);
-        for (ServerPlayer player : level.getServer().getPlayerList().getPlayers()) {
+        for (ServerPlayer player : level.players()) {
             if (player.isAlive() && !player.isCreative() && !player.isSpectator()) {
                 player.hurt(whiteDamage, damage);
             }
         }
-        List<AbstractAbnormality> escapedAbnormalities = new ArrayList<>();
-        for (ServerLevel serverLevel : level.getServer().getAllLevels()) {
-            for (Entity entity : serverLevel.getAllEntities()) {
-                if (entity instanceof AbstractAbnormality abnormality
-                        && abnormality != this
-                        && abnormality.hasEscape()
-                        && abnormality.isAlive()) {
-                    abnormality.hurt(whiteDamage, damage);
-                    if (abnormality.getQliphothCounter() > 0) {
-                        escapedAbnormalities.add(abnormality);
-                    }
-                }
+        List<AbstractAbnormality> abnormalities = new ArrayList<>();
+        for (Entity entity : level.getAllEntities()) {
+            if (entity instanceof AbstractAbnormality abnormality
+                    && abnormality != this
+                    && abnormality.canEscape()
+                    && abnormality.isAlive()
+                    && abnormality.getQliphothCounter() > 0) {
+                abnormalities.add(abnormality);
             }
         }
-        for (int i = 0; i < 2 && !escapedAbnormalities.isEmpty(); i++) {
-            AbstractAbnormality abnormality = escapedAbnormalities.remove(random.nextInt(escapedAbnormalities.size()));
+        for (int i = 0; i < 2 && !abnormalities.isEmpty(); i++) {
+            AbstractAbnormality abnormality = abnormalities.remove(random.nextInt(abnormalities.size()));
             abnormality.decreaseQliphothCounter(1);
         }
         stopEscape();
     }
 
-    private void spawnGroundHeartParticles(ServerLevel level, int count) {
+    private void spawnWitherEffectParticles(ServerLevel level, int count) {
         for (int i = 0; i < count; i++) {
             double radius = Math.sqrt(random.nextDouble()) * ESCAPE_ATTACK_RADIUS;
             double angle = random.nextDouble() * Math.PI * 2.0D;
             double x = getX() + Math.cos(angle) * radius;
             double z = getZ() + Math.sin(angle) * radius;
             double y = getY() + 0.12D;
-            level.sendParticles(ParticleTypes.HEART, x, y + 0.15D, z,
-                    1, 0.02D, 0.02D, 0.02D, 0.01D);
+            level.sendParticles(ParticleTypes.ENTITY_EFFECT, x, y + 0.15D, z,
+                    0, 0.08D, 0.0D, 0.12D, 1.0D);
             level.sendParticles(ParticleUtil.getDustParticle(0.0F, 0.0F, 0.0F, 1.4F), x, y, z,
                     2, 0.18D, 0.01D, 0.18D, 0.0D);
             level.sendParticles(ParticleTypes.SMOKE, x, y, z,
                     1, 0.08D, 0.01D, 0.08D, 0.01D);
+        }
+    }
+
+    private void spawnSmokeHeartParticles(ServerLevel level, int count) {
+        for (int i = 0; i < count; i++) {
+            double t = random.nextDouble() * Math.PI * 2.0D;
+            double scale = 0.18D + random.nextDouble() * 0.1D;
+            double xOffset = 16.0D * Math.pow(Math.sin(t), 3.0D) * scale;
+            double zOffset = (13.0D * Math.cos(t) - 5.0D * Math.cos(2.0D * t)
+                    - 2.0D * Math.cos(3.0D * t) - Math.cos(4.0D * t)) * scale;
+            double yOffset = 0.3D + random.nextDouble() * 1.2D;
+            level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE,
+                    getX() + xOffset, getY() + yOffset, getZ() + zOffset,
+                    1, 0.08D, 0.05D, 0.08D, 0.01D);
         }
     }
 
@@ -499,9 +566,22 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         attackChargeTicks = 0;
         attackCooldownTicks = 0;
         reactorRepathTicks = 0;
+        selfDetonationTicks = 0;
+        selfDetonationSoundPlayed = false;
         getNavigation().stop();
         if (!"idle".equals(getAnimation())) {
             setAnimation("idle");
+        }
+    }
+
+    public void addClerkOrVillagerDeathCount(int count) {
+        if (count <= 0) {
+            return;
+        }
+        clerkOrVillagerDeathCount += count;
+        while (clerkOrVillagerDeathCount >= 5) {
+            clerkOrVillagerDeathCount -= 5;
+            decreaseQliphothCounter(1);
         }
     }
 
@@ -552,6 +632,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         }
         tag.putLong("ProtectionEndsAt", this.protectionEndsAt);
         tag.putInt("ProtectionHealTimer", this.protectionHealTimer);
+        tag.putInt("ProtectionAttackAnimationTicks", this.protectionAttackAnimationTicks);
         if (this.targetReactorPos != null) {
             tag.putLong("TargetReactorPos", this.targetReactorPos.asLong());
         }
@@ -561,6 +642,9 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         tag.putInt("AttackChargeTicks", this.attackChargeTicks);
         tag.putInt("AttackCooldownTicks", this.attackCooldownTicks);
         tag.putInt("ReactorRepathTicks", this.reactorRepathTicks);
+        tag.putInt("ClerkOrVillagerDeathCount", this.clerkOrVillagerDeathCount);
+        tag.putInt("SelfDetonationTicks", this.selfDetonationTicks);
+        tag.putBoolean("SelfDetonationSoundPlayed", this.selfDetonationSoundPlayed);
     }
 
     @Override
@@ -574,6 +658,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         }
         this.protectionEndsAt = tag.getLong("ProtectionEndsAt");
         this.protectionHealTimer = tag.getInt("ProtectionHealTimer");
+        this.protectionAttackAnimationTicks = tag.getInt("ProtectionAttackAnimationTicks");
         if (tag.contains("TargetReactorPos")) {
             this.targetReactorPos = BlockPos.of(tag.getLong("TargetReactorPos"));
         }
@@ -583,6 +668,9 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         this.attackChargeTicks = tag.getInt("AttackChargeTicks");
         this.attackCooldownTicks = tag.getInt("AttackCooldownTicks");
         this.reactorRepathTicks = tag.getInt("ReactorRepathTicks");
+        this.clerkOrVillagerDeathCount = tag.getInt("ClerkOrVillagerDeathCount");
+        this.selfDetonationTicks = tag.getInt("SelfDetonationTicks");
+        this.selfDetonationSoundPlayed = tag.getBoolean("SelfDetonationSoundPlayed");
     }
 
     public static AttributeSupplier.Builder createAttributes() {

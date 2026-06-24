@@ -68,7 +68,7 @@ public class EntityCrumblingArmor extends AbstractAbnormality {
 
         float[] basePreferences = {0.50f, 0.40f, 0.0f, 0.60f};
         initializeWorkPreferences(basePreferences);
-        initializeQliphothCounter(2);
+        initializeQliphothCounter(0);
     }
 
     @Override
@@ -278,7 +278,11 @@ public class EntityCrumblingArmor extends AbstractAbnormality {
 
     @Override
     public void onQliphothMeltdown() {
-        triggerEscape();
+    }
+
+    @Override
+    public boolean canEscape() {
+        return false;
     }
 
     @Override

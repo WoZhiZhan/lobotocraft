@@ -283,6 +283,38 @@
       }
     ]
   },
+  "army_in_black_protect_start": {
+    "sounds": [
+      {
+        "name": "lobotocraft:army_in_black_protect_start",
+        "stream": false
+      }
+    ]
+  },
+  "army_in_black_protect_end": {
+    "sounds": [
+      {
+        "name": "lobotocraft:army_in_black_protect_end",
+        "stream": false
+      }
+    ]
+  },
+  "army_in_black_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:army_in_black_attack",
+        "stream": false
+      }
+    ]
+  },
+  "army_in_black_explode": {
+    "sounds": [
+      {
+        "name": "lobotocraft:army_in_black_explode",
+        "stream": false
+      }
+    ]
+  },
   "queen_bee_idle": {
     "sounds": [
       {

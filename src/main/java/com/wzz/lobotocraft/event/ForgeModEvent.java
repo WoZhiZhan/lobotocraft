@@ -397,9 +397,13 @@ public class ForgeModEvent {
 		if (event.getEntity().level.dimension == ModDimensions.LOBOTO_KEY
 				&& (event.getEntity() instanceof Player || event.getEntity() instanceof Villager
 				|| event.getEntity() instanceof EntityClerk)) {
+			boolean isClerkOrVillagerDeath = event.getEntity() instanceof Villager || event.getEntity() instanceof EntityClerk;
 			for (Entity entity : EntityUtil.findAllEntities(event.getEntity(), 300)) {
 				if (entity instanceof EntityLargeBird largeBird) {
 					largeBird.addDataPlayerOrVillagerDeathCount(1);
+				}
+				if (isClerkOrVillagerDeath && entity instanceof EntityArmyInBlack armyInBlack) {
+					armyInBlack.addClerkOrVillagerDeathCount(1);
 				}
 			}
 		}
@@ -481,7 +485,7 @@ public class ForgeModEvent {
 		if (event.getWorkType() == WorkType.ATTACHMENT && EntityCrumblingArmor.hasCourageCurio(event.getEntity())) {
 			EntityCrumblingArmor.clearCourage(event.getEntity());
 			EntityCrumblingArmor.executeWorker(event.getEntity(), "§4你背离了破裂盔甲赐予的勇气。");
-			event.setCancelReason("你背离了破裂盔甲赐予的勇气。");
+			event.setCancelReason("");
 			event.setCanceled(true);
 			return;
 		}

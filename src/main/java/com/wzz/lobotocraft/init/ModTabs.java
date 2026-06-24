@@ -78,8 +78,6 @@ public class ModTabs {
 						tabData.accept(ModItems.REPENTANCE_BOOTS.get());
 						tabData.accept(ModItems.REPENTANCE_WEAPON.get());
 						tabData.accept(ModItems.REPENTANCE_CURIO.get());
-						tabData.accept(ModItems.INNER_COURAGE_CURIO.get());
-						tabData.accept(ModItems.FOOLHARDY_COURAGE_CURIO.get());
 						tabData.accept(ModItems.BLUE_STAR_CHESTPLATE.get());
 						tabData.accept(ModItems.BLUE_STAR_LEGGINGS.get());
 						tabData.accept(ModItems.BLUE_STAR_BOOTS.get());

@@ -242,7 +242,9 @@ public class WorkManager {
         WorkStartEvent startEvent = new WorkStartEvent(player, abnormality, workType);
         if (MinecraftForge.EVENT_BUS.post(startEvent)) {
             // 事件被取消
-            player.sendSystemMessage(Component.literal("§c" + startEvent.getCancelReason()));
+            if (!startEvent.getCancelReason().isEmpty()) {
+                player.sendSystemMessage(Component.literal("§c" + startEvent.getCancelReason()));
+            }
             return false;
         }
         // 调用异想体的工作开始回调
