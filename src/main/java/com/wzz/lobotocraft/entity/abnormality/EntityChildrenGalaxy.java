@@ -49,7 +49,7 @@ public class EntityChildrenGalaxy extends AbstractAbnormality {
         this.maxPEOutput = 16;
 
         // 工作偏好
-        float[] basePreferences = {0.45f, 0.45f, 0.45f, 0.45f};
+        float[] basePreferences = {0.65f, 0.65f, 0.65f, 0.65f};
         // 本能，洞察，沟通，压迫
         initializeWorkPreferences(basePreferences);
         initializeQliphothCounter(5, 1);
@@ -143,8 +143,9 @@ public class EntityChildrenGalaxy extends AbstractAbnormality {
                                WorkType workType,
                                WorkResult result) {
         if (BuffUtil.hasFriendshipProof(player)) {
-            decreaseQliphothCounter(1);
-            player.sendSystemMessage(Component.literal("§c「友谊之证」让银河之子的计数器减少了。"));
+            increaseQliphothCounter(1);
+            increaseQliphothCounter(1);
+            player.sendSystemMessage(Component.literal("§a「友谊之证」让银河之子的计数器增加了。"));
             return;
         }
         increaseQliphothCounter(1);

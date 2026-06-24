@@ -485,30 +485,6 @@ public class ForgeModEvent {
 			event.setCanceled(true);
 			return;
 		}
-		if (!(event.getAbnormality() instanceof EntityChildrenGalaxy)
-				&& !event.getAbnormality().isToolType()
-				&& com.wzz.lobotocraft.util.BuffUtil.hasFriendshipProof(event.getEntity())) {
-			int count = com.wzz.lobotocraft.util.BuffUtil.getFriendshipProofCounter(event.getEntity());
-			if (count != -1) {
-				event.getEntity().setHealth(event.getEntity().getHealth() - (count * 4));
-				MentalValueUtil.setMentalValue(event.getEntity(), MentalValueUtil.getMentalValue(event.getEntity()) - (count * 4));
-				int birdsAffected = 0;
-				for (EntityChildrenGalaxy entityChildrenGalaxy : EntityUtil.findEntitiesAround(event.getEntity(), 16, 64, EntityChildrenGalaxy.class)) {
-					entityChildrenGalaxy.decreaseQliphothCounter(1);
-					birdsAffected++;
-				}
-				if (birdsAffected > 0 && event.getEntity().level.isClientSide) {
-					event.getEntity().displayClientMessage(Component.literal(
-							String.format("§c%d只银河之子的计数器减少了！", birdsAffected)
-					), false);
-					event.getEntity().playSound(
-							SoundEvents.ANVIL_DESTROY,
-							0.5f,
-							1.5f
-					);
-				}
-			}
-		}
 		if (!(event.getAbnormality() instanceof EntityPunishingBird)) {
 			if (event.getEntity().random.nextFloat() <= 0.2f) {
 				int birdsAffected = 0;
@@ -543,6 +519,30 @@ public class ForgeModEvent {
 
 	@SubscribeEvent
 	public static void onWorkComplete(WorkCompleteEvent event) {
+		if (!(event.getAbnormality() instanceof EntityChildrenGalaxy)
+				&& com.wzz.lobotocraft.util.BuffUtil.hasFriendshipProof(event.getEntity())) {
+			int count = com.wzz.lobotocraft.util.BuffUtil.getFriendshipProofCounter(event.getEntity());
+			if (count != -1) {
+				event.getEntity().setHealth(event.getEntity().getHealth() - (count * 4));
+				MentalValueUtil.setMentalValue(event.getEntity(), MentalValueUtil.getMentalValue(event.getEntity()) - (count * 4));
+				int childrenAffected = 0;
+				for (EntityChildrenGalaxy entityChildrenGalaxy : EntityUtil.findEntitiesAround(event.getEntity(), 16, 64, EntityChildrenGalaxy.class)) {
+					entityChildrenGalaxy.decreaseQliphothCounter(1);
+					childrenAffected++;
+				}
+				if (childrenAffected > 0) {
+					event.getEntity().sendSystemMessage(Component.literal(
+							String.format("§c%d只银河之子的计数器减少了！", childrenAffected)
+					));
+					event.getEntity().playNotifySound(
+							SoundEvents.ANVIL_DESTROY,
+							SoundSource.PLAYERS,
+							0.5f,
+							1.5f
+					);
+				}
+			}
+		}
 		if (!event.isForcedEnd() && event.getWorkType() == WorkType.REPRESSION) {
 			EntityCrumblingArmor.recordRepressionWork(event.getEntity());
 		}
