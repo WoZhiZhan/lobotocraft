@@ -9,6 +9,7 @@ import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.CuriosUtil;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.ItemUtil;
+import com.wzz.lobotocraft.util.TimerEntry;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.nbt.CompoundTag;
@@ -18,10 +19,13 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -46,6 +50,9 @@ import java.util.List;
 public class EntityCrumblingArmor extends AbstractAbnormality {
     private static final int EXECUTE_ANIMATION_TICKS = 110;
     private static final int EXECUTE_HIT_TICK = 64;
+    private static final int WORK_EXECUTION_SWIM_DELAY_MS = 500;
+    private static final int WORK_EXECUTION_DEATH_DELAY_MS = 1000;
+    private static final int WORK_EXECUTION_RATE = 20;
     private static final String INNER_COURAGE_TAG = "lobotocraft_inner_courage";
     private static final String FOOLHARDY_COURAGE_TAG = "lobotocraft_foolhardy_courage";
     private static final String REPRESSION_COUNT_TAG = "lobotocraft_crumbling_armor_repression";
@@ -263,6 +270,31 @@ public class EntityCrumblingArmor extends AbstractAbnormality {
 
     public static void executeWorker(ServerPlayer player, String message) {
         player.displayClientMessage(Component.literal(message), false);
+        player.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 60, 0, false, false, true));
+        TimerEntry timerEntry = new TimerEntry() {
+            @Override
+            public void onRunning(@org.jetbrains.annotations.NotNull LivingEntity living) {
+                if (getExecutions() <= WORK_EXECUTION_SWIM_DELAY_MS / (1000 / WORK_EXECUTION_RATE)) {
+                    return;
+                }
+                if (living instanceof ServerPlayer serverPlayer) {
+                    serverPlayer.setPose(Pose.SWIMMING);
+                    serverPlayer.setSwimming(true);
+                }
+            }
+
+            @Override
+            public void onEnd(@org.jetbrains.annotations.NotNull LivingEntity living) {
+                if (living instanceof ServerPlayer serverPlayer) {
+                    killExecutedWorker(serverPlayer);
+                }
+            }
+        };
+        int duration = WORK_EXECUTION_SWIM_DELAY_MS + WORK_EXECUTION_DEATH_DELAY_MS;
+        timerEntry.addSkillTimer(player, 0, duration, WORK_EXECUTION_RATE, true);
+    }
+
+    private static void killExecutedWorker(ServerPlayer player) {
         EntityUtil.clearHurtTime(player, () ->
                 player.hurt(DamageHelper.getDamage(player, "lobotocraft:black"),
                         Math.max(1000.0F, player.getMaxHealth() * 100.0F)));
