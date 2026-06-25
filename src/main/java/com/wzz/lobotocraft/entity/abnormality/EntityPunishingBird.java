@@ -253,7 +253,6 @@ public class EntityPunishingBird extends AbstractAbnormality {
             level().addFreshEntity(lightFollower);
         }
 
-        broadcastMessage("§c§l警告！惩戒鸟已经出逃！");
         setCurrentAction("idle");
     }
 

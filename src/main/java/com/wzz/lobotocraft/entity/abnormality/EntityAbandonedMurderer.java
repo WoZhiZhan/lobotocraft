@@ -218,8 +218,6 @@ public class EntityAbandonedMurderer extends AbstractAbnormality {
         if (nearestPlayer != null && !nearestPlayer.isCreative() && !nearestPlayer.isSpectator()) {
             this.setTarget(nearestPlayer);
         }
-        // 发送消息
-        broadcastMessage("§c§l警告！被遗弃的杀人魔已经出逃！");
     }
 
     @Override

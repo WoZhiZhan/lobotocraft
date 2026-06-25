@@ -152,7 +152,6 @@ public class EntityFourthMatchFlame extends AbstractAbnormality {
     @Override
     public void triggerEscape() {
         super.triggerEscape();
-        broadcastMessage("§c§l警告！焦化少女已经出逃！");
 
         // 随机选择一名玩家作为目标
         if (level() instanceof ServerLevel serverLevel) {

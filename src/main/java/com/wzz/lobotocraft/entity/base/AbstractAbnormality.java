@@ -391,8 +391,13 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         stopAmbientSoundForAllPlayers();
         playEscapeWarningSound();
         playEscapeSound();
+        broadcastEscapeMessage();
         MinecraftForge.EVENT_BUS.post(new AbnormalityEscapeEvent(this));
         EscapeTracker.getInstance().onEscapeStart(this);
+    }
+
+    protected void broadcastEscapeMessage() {
+        broadcastMessage("§c§l警告！" + getAbnormalityName() + "已经出逃！");
     }
 
     private BlockPos findAvailableEscapeBlock() {

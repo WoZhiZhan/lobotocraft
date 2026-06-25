@@ -252,7 +252,6 @@ public class EntityLargeBird extends AbstractAbnormality {
         lightFollowerEntity.setOwnerUUID(getUUID());
         if (!level.isClientSide)
             level.addFreshEntity(lightFollowerEntity);
-        broadcastMessage("§c§l警告！大鸟已经出逃！");
     }
 
     @SuppressWarnings("unchecked")

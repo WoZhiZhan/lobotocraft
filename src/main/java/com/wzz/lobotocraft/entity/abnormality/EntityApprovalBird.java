@@ -249,7 +249,6 @@ public class EntityApprovalBird extends AbstractAbnormality {
         super.triggerEscape();
         resetChargeState();
         cooldownTick = 0;
-        broadcastMessage("§c§l警告！审判鸟已经出逃！");
         setAnimation("idle");
     }
 
