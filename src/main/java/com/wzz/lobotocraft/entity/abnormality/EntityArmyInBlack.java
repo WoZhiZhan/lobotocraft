@@ -1,10 +1,14 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
+import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.base.EscapeTracker;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModAttributes;
+import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.event.abnormality.AbnormalityEscapeStopEvent;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.MentalValueUtil;
@@ -26,6 +30,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -38,6 +43,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.common.MinecraftForge;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
 import software.bernie.geckolib.core.animation.AnimationState;
@@ -45,7 +51,10 @@ import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 public class EntityArmyInBlack extends AbstractAbnormality {
@@ -63,6 +72,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     private static final double ESCAPE_ATTACK_RADIUS = 12.0D;
     private static final double REACTOR_DETONATE_DISTANCE_SQR = 9.0D;
     private static final double ESCAPE_REACTOR_SPEED = 0.9D;
+    private static final double ARMY_ESCAPE_BLOCK_SEARCH_RADIUS_SQR = 24.0D * 24.0D;
     private static final int SELF_DETONATION_TICKS = 60;
     private static final int SELF_DETONATION_SOUND_LEAD_TICKS = 4;
 
@@ -80,6 +90,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     private int clerkOrVillagerDeathCount = 0;
     private int selfDetonationTicks = 0;
     private boolean selfDetonationSoundPlayed = false;
+    private boolean escapeSpawnedCopy = false;
 
     public EntityArmyInBlack(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -371,20 +382,43 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         if (!wasEscaped) {
             stopProtection();
         }
+        List<ArmySpawnPoint> spawnPoints = List.of();
+        if (!wasEscaped && !escapeSpawnedCopy && canEscape() && this.level() instanceof ServerLevel serverLevel) {
+            spawnPoints = selectArmySpawnPoints(serverLevel);
+        }
         super.triggerEscape();
         if (!wasEscaped && hasEscape() && this.level() instanceof ServerLevel serverLevel) {
             resetEscapeState();
-            targetReactorPos = findNearestReactor(serverLevel, blockPosition());
+            if (!spawnPoints.isEmpty()) {
+                ArmySpawnPoint firstPoint = spawnPoints.get(0);
+                moveToArmySpawnPoint(firstPoint);
+                targetReactorPos = firstPoint.reactorPos;
+                spawnAdditionalEscapedArmies(serverLevel, spawnPoints);
+            } else {
+                targetReactorPos = findNearestReactor(serverLevel, blockPosition());
+            }
         }
     }
 
     @Override
     public void stopEscape() {
+        if (escapeSpawnedCopy) {
+            stopSpawnedEscape();
+            return;
+        }
         boolean wasEscaped = hasEscape();
         super.stopEscape();
         if (wasEscaped && !hasEscape()) {
             resetEscapeState();
         }
+    }
+
+    @Override
+    public void die(DamageSource damageSource) {
+        if (escapeSpawnedCopy) {
+            escapePosition = null;
+        }
+        super.die(damageSource);
     }
 
     @Override
@@ -523,6 +557,127 @@ public class EntityArmyInBlack extends AbstractAbnormality {
             abnormality.decreaseQliphothCounter(1);
         }
         stopEscape();
+    }
+
+    private List<ArmySpawnPoint> selectArmySpawnPoints(ServerLevel level) {
+        int playerCount = level.getServer().getPlayerList().getPlayerCount();
+        int desiredCount = Math.min(4, playerCount * 2);
+        if (desiredCount <= 0) {
+            return List.of();
+        }
+
+        List<BlockPos> escapeBlocks = new ArrayList<>(EscapeBlockEntity.getEscapeBlocks(level.dimension()));
+        if (escapeBlocks.isEmpty()) {
+            return List.of();
+        }
+
+        List<BlockPos> reactors = new ArrayList<>();
+        for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level)) {
+            if (blockEntity instanceof RegenerationReactorBlockEntity) {
+                reactors.add(blockEntity.getBlockPos());
+            }
+        }
+        if (reactors.isEmpty()) {
+            return List.of();
+        }
+
+        List<ArmySpawnPoint> candidates = new ArrayList<>();
+        for (BlockPos escapeBlock : escapeBlocks) {
+            BlockPos nearestReactor = findNearestReactorPos(reactors, escapeBlock, ARMY_ESCAPE_BLOCK_SEARCH_RADIUS_SQR);
+            if (nearestReactor != null) {
+                candidates.add(new ArmySpawnPoint(escapeBlock, nearestReactor));
+            }
+        }
+        if (candidates.isEmpty()) {
+            return List.of();
+        }
+
+        Collections.shuffle(candidates, new java.util.Random(level.getRandom().nextLong()));
+        List<ArmySpawnPoint> selected = new ArrayList<>();
+        Set<BlockPos> usedEscapeBlocks = new HashSet<>();
+        Set<BlockPos> usedReactors = new HashSet<>();
+
+        for (ArmySpawnPoint candidate : candidates) {
+            if (selected.size() >= desiredCount) {
+                break;
+            }
+            if (usedReactors.add(candidate.reactorPos) && usedEscapeBlocks.add(candidate.escapeBlockPos)) {
+                selected.add(candidate);
+            }
+        }
+
+        for (ArmySpawnPoint candidate : candidates) {
+            if (selected.size() >= desiredCount) {
+                break;
+            }
+            if (usedEscapeBlocks.add(candidate.escapeBlockPos)) {
+                selected.add(candidate);
+            }
+        }
+
+        return selected;
+    }
+
+    private BlockPos findNearestReactorPos(List<BlockPos> reactors, BlockPos origin, double maxDistanceSqr) {
+        BlockPos best = null;
+        double bestDistance = maxDistanceSqr;
+        for (BlockPos reactor : reactors) {
+            double distance = reactor.distSqr(origin);
+            if (distance <= bestDistance) {
+                bestDistance = distance;
+                best = reactor;
+            }
+        }
+        return best;
+    }
+
+    private void moveToArmySpawnPoint(ArmySpawnPoint spawnPoint) {
+        BlockPos pos = spawnPoint.escapeBlockPos;
+        moveTo(pos.getX() + 0.5D, pos.getY() + 1.0D, pos.getZ() + 0.5D,
+                level().getRandom().nextFloat() * 360.0F, 0.0F);
+        setDeltaMovement(Vec3.ZERO);
+        hurtMarked = true;
+    }
+
+    private void spawnAdditionalEscapedArmies(ServerLevel level, List<ArmySpawnPoint> spawnPoints) {
+        for (int i = 1; i < spawnPoints.size(); i++) {
+            ArmySpawnPoint spawnPoint = spawnPoints.get(i);
+            EntityArmyInBlack army = ModEntities.army_in_black.get().create(level);
+            if (army == null) {
+                continue;
+            }
+            BlockPos pos = spawnPoint.escapeBlockPos;
+            army.moveTo(pos.getX() + 0.5D, pos.getY() + 1.0D, pos.getZ() + 0.5D,
+                    level.getRandom().nextFloat() * 360.0F, 0.0F);
+            army.finalizeSpawn(level, level.getCurrentDifficultyAt(pos), MobSpawnType.EVENT, null, null);
+            army.setPersistenceRequired();
+            army.initializeSpawnedEscape(spawnPoint);
+            if (level.addFreshEntity(army)) {
+                EscapeTracker.getInstance().onEscapeStart(army);
+            }
+        }
+    }
+
+    private void initializeSpawnedEscape(ArmySpawnPoint spawnPoint) {
+        this.escapeSpawnedCopy = true;
+        this.escapePosition = spawnPoint.escapeBlockPos;
+        setEscape(true);
+        resetEscapeState();
+        this.targetReactorPos = spawnPoint.reactorPos;
+        setNoAi(false);
+        this.noPhysics = false;
+    }
+
+    private void stopSpawnedEscape() {
+        boolean wasEscaped = hasEscape();
+        setEscape(false);
+        escapePosition = null;
+        resetEscapeState();
+        if (wasEscaped) {
+            MinecraftForge.EVENT_BUS.post(new AbnormalityEscapeStopEvent(this, false));
+            EscapeTracker.getInstance().onEscapeStop(this);
+        }
+        discard();
     }
 
     private void spawnWitherEffectParticles(ServerLevel level, int count) {
@@ -702,6 +857,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         tag.putInt("ClerkOrVillagerDeathCount", this.clerkOrVillagerDeathCount);
         tag.putInt("SelfDetonationTicks", this.selfDetonationTicks);
         tag.putBoolean("SelfDetonationSoundPlayed", this.selfDetonationSoundPlayed);
+        tag.putBoolean("EscapeSpawnedCopy", this.escapeSpawnedCopy);
     }
 
     @Override
@@ -729,6 +885,17 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         this.clerkOrVillagerDeathCount = tag.getInt("ClerkOrVillagerDeathCount");
         this.selfDetonationTicks = tag.getInt("SelfDetonationTicks");
         this.selfDetonationSoundPlayed = tag.getBoolean("SelfDetonationSoundPlayed");
+        this.escapeSpawnedCopy = tag.getBoolean("EscapeSpawnedCopy");
+    }
+
+    private static class ArmySpawnPoint {
+        private final BlockPos escapeBlockPos;
+        private final BlockPos reactorPos;
+
+        private ArmySpawnPoint(BlockPos escapeBlockPos, BlockPos reactorPos) {
+            this.escapeBlockPos = escapeBlockPos;
+            this.reactorPos = reactorPos;
+        }
     }
 
     public static AttributeSupplier.Builder createAttributes() {
