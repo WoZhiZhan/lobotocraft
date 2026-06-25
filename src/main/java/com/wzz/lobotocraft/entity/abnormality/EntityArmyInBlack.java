@@ -57,11 +57,12 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     private static final double PROTECTION_HEAL_RADIUS = 10.0D;
     private static final float PROTECTION_HEAL_AMOUNT = 12.0F;
     private static final int PROTECTION_ATTACK_ANIMATION_TICKS = 30;
+    private static final int PROTECTION_HEAL_WINDUP_TICKS = 12;
     private static final int ESCAPE_ATTACK_CHARGE_TICKS = 30;
     private static final int ESCAPE_ATTACK_COOLDOWN_TICKS = 20 * 6;
     private static final double ESCAPE_ATTACK_RADIUS = 12.0D;
     private static final double REACTOR_DETONATE_DISTANCE_SQR = 9.0D;
-    private static final double ESCAPE_REACTOR_SPEED = 0.45D;
+    private static final double ESCAPE_REACTOR_SPEED = 0.9D;
     private static final int SELF_DETONATION_TICKS = 60;
     private static final int SELF_DETONATION_SOUND_TICK = SELF_DETONATION_TICKS / 2;
 
@@ -70,6 +71,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     private long protectionEndsAt = 0L;
     private int protectionHealTimer = 0;
     private int protectionAttackAnimationTicks = 0;
+    private boolean protectionHealPending = false;
     private BlockPos targetReactorPos = null;
     private UUID retaliateTargetId = null;
     private int attackChargeTicks = 0;
@@ -221,20 +223,36 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         this.noPhysics = false;
         setTarget(null);
 
-        followProtectedPlayer(player);
+        if (this.protectionAttackAnimationTicks > 0) {
+            tickProtectionHealAttack(player);
+        } else {
+            followProtectedPlayer(player);
+        }
+
+        this.protectionHealTimer++;
+        if (this.protectionHealTimer >= PROTECTION_HEAL_INTERVAL && this.protectionAttackAnimationTicks <= 0) {
+            startProtectionHealAttack(player);
+            this.protectionHealTimer = 0;
+        }
+        return true;
+    }
+
+    private void tickProtectionHealAttack(ServerPlayer protectedPlayer) {
+        this.getNavigation().stop();
+        setDeltaMovement(0, getDeltaMovement().y, 0);
+        getLookControl().setLookAt(protectedPlayer, 30.0F, 30.0F);
+        setAnimation("attack");
         if (this.protectionAttackAnimationTicks > 0) {
             this.protectionAttackAnimationTicks--;
+            if (this.protectionHealPending
+                    && this.protectionAttackAnimationTicks <= PROTECTION_ATTACK_ANIMATION_TICKS - PROTECTION_HEAL_WINDUP_TICKS) {
+                this.protectionHealPending = false;
+                applyProtectionHeal(protectedPlayer);
+            }
             if (this.protectionAttackAnimationTicks == 0 && "attack".equals(getAnimation())) {
                 setAnimation("idle");
             }
         }
-
-        this.protectionHealTimer++;
-        if (this.protectionHealTimer >= PROTECTION_HEAL_INTERVAL) {
-            healProtectedArea(player);
-            this.protectionHealTimer = 0;
-        }
-        return true;
     }
 
     private void followProtectedPlayer(ServerPlayer player) {
@@ -256,9 +274,16 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         setDeltaMovement(0, getDeltaMovement().y, 0);
     }
 
-    private void healProtectedArea(ServerPlayer protectedPlayer) {
+    private void startProtectionHealAttack(ServerPlayer protectedPlayer) {
         setAnimation("attack");
         this.protectionAttackAnimationTicks = PROTECTION_ATTACK_ANIMATION_TICKS;
+        this.protectionHealPending = true;
+        this.getNavigation().stop();
+        setDeltaMovement(0, getDeltaMovement().y, 0);
+        getLookControl().setLookAt(protectedPlayer, 30.0F, 30.0F);
+    }
+
+    private void applyProtectionHeal(ServerPlayer protectedPlayer) {
         if (protectedPlayer.level() instanceof ServerLevel serverLevel) {
             serverLevel.playSound(null, protectedPlayer.blockPosition(), ModSounds.ARMY_IN_BLACK_ATTACK.get(),
                     SoundSource.NEUTRAL, 1.0F, 1.0F);
@@ -300,6 +325,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         this.protectionEndsAt = 0L;
         this.protectionHealTimer = 0;
         this.protectionAttackAnimationTicks = 0;
+        this.protectionHealPending = false;
         this.noPhysics = false;
         this.getNavigation().stop();
         if (!hasEscape() && "attack".equals(getAnimation())) {
@@ -633,6 +659,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         tag.putLong("ProtectionEndsAt", this.protectionEndsAt);
         tag.putInt("ProtectionHealTimer", this.protectionHealTimer);
         tag.putInt("ProtectionAttackAnimationTicks", this.protectionAttackAnimationTicks);
+        tag.putBoolean("ProtectionHealPending", this.protectionHealPending);
         if (this.targetReactorPos != null) {
             tag.putLong("TargetReactorPos", this.targetReactorPos.asLong());
         }
@@ -659,6 +686,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         this.protectionEndsAt = tag.getLong("ProtectionEndsAt");
         this.protectionHealTimer = tag.getInt("ProtectionHealTimer");
         this.protectionAttackAnimationTicks = tag.getInt("ProtectionAttackAnimationTicks");
+        this.protectionHealPending = tag.getBoolean("ProtectionHealPending");
         if (tag.contains("TargetReactorPos")) {
             this.targetReactorPos = BlockPos.of(tag.getLong("TargetReactorPos"));
         }
