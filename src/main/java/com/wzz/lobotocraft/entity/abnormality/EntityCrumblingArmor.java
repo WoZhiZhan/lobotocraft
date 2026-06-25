@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModItems;
@@ -9,6 +10,7 @@ import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.CuriosUtil;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.ItemUtil;
+import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.util.TimerEntry;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
@@ -92,7 +94,7 @@ public class EntityCrumblingArmor extends AbstractAbnormality {
     public ObservationLevelBonus[] getObservationBonuses() {
         return new ObservationLevelBonus[]{
                 new ObservationLevelBonus(0.0f, 5),
-                new ObservationLevelBonus(0.05f, 0),
+                new ObservationLevelBonus(0.05f, 0, true, false, false),
                 new ObservationLevelBonus(0.0f, 5),
                 new ObservationLevelBonus(0.05f, 0, false, true, true)
         };
@@ -113,6 +115,24 @@ public class EntityCrumblingArmor extends AbstractAbnormality {
     @Override
     public String name() {
         return "crumbling_armor";
+    }
+
+    @Override
+    public EGOEquipmentData.GiftData getEGOGiftData() {
+        return new EGOEquipmentData.GiftData(
+                ResourceUtil.createInstance("textures/curio/inner_courage_curio.png"),
+                "内在的勇气 / 匹夫之勇",
+                "特殊",
+                "inner_courage_curio",
+                "压迫工作完成后获得「内在的勇气」。",
+                "持有「内在的勇气」完成三次压迫工作后转化为「匹夫之勇」。",
+                "携带者进行沟通工作时会被处决。"
+        );
+    }
+
+    @Override
+    public float getGiftProbability() {
+        return 0.0f;
     }
 
     @Override

@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.item.TargetMarkerItem;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.work.WorkResult;
@@ -151,6 +152,10 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
             decreaseQliphothCounter(1);
         }
         if (workType == WorkType.ATTACHMENT) {
+            if (!canAcceptCommission()) {
+                player.sendSystemMessage(Component.literal("§c[小红帽雇佣兵] §7我现在没空接你的委托。"));
+                return;
+            }
             // 给予"目标"道具并触发对话(负面能量填满由工作偏好沟通0%自然导致)
             ItemStack target = new ItemStack(ModItems.TARGET_MARKER.get());
             if (!player.getInventory().add(target)) {
@@ -178,6 +183,9 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
 
     /** 由"目标"道具调用:进入委托状态,前往并只攻击标记目标 */
     public void startCommission(LivingEntity target) {
+        if (!canAcceptCommission()) {
+            return;
+        }
         if (isNonEscapedAbnormality(target)) {
             return;
         }
@@ -187,6 +195,10 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
             // 委托出动不算出逃惩罚,但需要离开收容(复用出逃状态机)
             triggerEscape();
         }
+    }
+
+    public boolean canAcceptCommission() {
+        return isAlive() && !hasEscape() && !commissionMode;
     }
 
     private LivingEntity getCommissionTarget(ServerLevel level) {
@@ -274,6 +286,10 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
 
     /** 委托完成:回到出逃位置并重置计数器 */
     private void completeCommission(ServerLevel level) {
+        LivingEntity target = getCommissionTarget(level);
+        if (target != null) {
+            TargetMarkerItem.clearTargetMark(target);
+        }
         commissionMode = false;
         commissionTargetId = null;
         // 回到出逃位置重置(复用基类die的回归逻辑:直接死亡重置)

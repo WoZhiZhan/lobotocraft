@@ -35,6 +35,7 @@ public class BaseEgoCurioRenderer extends GeoItemRenderer<BaseEgoCurio> implemen
 
         if (!(parentModel.getModel() instanceof HumanoidModel<?> humanoid)) return;
         if (!(stack.getItem() instanceof BaseEgoCurio curio)) return;
+        if (!curio.rendersOnWearer()) return;
 
         LivingEntity wearer = slotContext.entity();
 

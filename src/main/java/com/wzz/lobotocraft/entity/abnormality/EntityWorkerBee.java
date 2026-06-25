@@ -124,6 +124,7 @@ public class EntityWorkerBee extends BaseGeoEntity {
                 .add(Attributes.MOVEMENT_SPEED, 0.25D)
                 .add(Attributes.ATTACK_DAMAGE, 1.0D)
                 .add(Attributes.FOLLOW_RANGE, 32.0D)
+                .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D)
                 .add(ModAttributes.RED_DAMAGE_RESISTANCE.get(), 1.2D)
                 .add(ModAttributes.WHITE_DAMAGE_RESISTANCE.get(), 1.5D)
                 .add(ModAttributes.BLACK_DAMAGE_RESISTANCE.get(), 0.8D)

@@ -9,6 +9,7 @@ import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.event.abnormality.AbnormalityEscapeStopEvent;
+import com.wzz.lobotocraft.item.TargetMarkerItem;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.MentalValueUtil;
@@ -390,10 +391,18 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         if (!wasEscaped && hasEscape() && this.level() instanceof ServerLevel serverLevel) {
             resetEscapeState();
             if (!spawnPoints.isEmpty()) {
-                ArmySpawnPoint firstPoint = spawnPoints.get(0);
-                moveToArmySpawnPoint(firstPoint);
-                targetReactorPos = firstPoint.reactorPos;
-                spawnAdditionalEscapedArmies(serverLevel, spawnPoints);
+                spawnPoints.sort((a, b) -> Boolean.compare(
+                        b.level.dimension().equals(serverLevel.dimension()),
+                        a.level.dimension().equals(serverLevel.dimension())));
+                if (spawnPoints.get(0).level.dimension().equals(serverLevel.dimension())) {
+                    ArmySpawnPoint firstPoint = spawnPoints.get(0);
+                    moveToArmySpawnPoint(firstPoint);
+                    targetReactorPos = firstPoint.reactorPos;
+                    spawnEscapedArmies(spawnPoints, 1);
+                } else {
+                    spawnEscapedArmies(spawnPoints, 0);
+                    stopEscape();
+                }
             } else {
                 targetReactorPos = findNearestReactor(serverLevel, blockPosition());
             }
@@ -402,6 +411,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
 
     @Override
     public void stopEscape() {
+        TargetMarkerItem.clearTargetMark(this);
         if (escapeSpawnedCopy) {
             stopSpawnedEscape();
             return;
@@ -415,6 +425,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
 
     @Override
     public void die(DamageSource damageSource) {
+        TargetMarkerItem.clearTargetMark(this);
         if (escapeSpawnedCopy) {
             escapePosition = null;
         }
@@ -486,6 +497,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     private void performEscapeAttack(ServerLevel level) {
         level.playSound(null, blockPosition(), SoundEvents.EVOKER_CAST_SPELL, SoundSource.HOSTILE, 1.4F, 0.7F);
         spawnWitherEffectParticles(level, 48);
+        spawnAngryGroundParticles(level);
         AABB area = getBoundingBox().inflate(ESCAPE_ATTACK_RADIUS, 4.0D, ESCAPE_ATTACK_RADIUS);
         for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class, area, this::isValidEscapeAttackTarget)) {
             EntityUtil.clearHurtTime(living, () ->
@@ -534,6 +546,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     }
 
     private void completeSelfDetonation(ServerLevel level) {
+        TargetMarkerItem.clearTargetMark(this);
         spawnSelfDetonationCloud(level);
         DamageSource whiteDamage = DamageHelper.getDamage(this, "lobotocraft:white");
         float damage = 30.0F + random.nextInt(11);
@@ -559,63 +572,61 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         stopEscape();
     }
 
-    private List<ArmySpawnPoint> selectArmySpawnPoints(ServerLevel level) {
-        int playerCount = level.getServer().getPlayerList().getPlayerCount();
+    private List<ArmySpawnPoint> selectArmySpawnPoints(ServerLevel originLevel) {
+        int playerCount = originLevel.getServer().getPlayerList().getPlayerCount();
         int desiredCount = Math.min(4, playerCount * 2);
         if (desiredCount <= 0) {
             return List.of();
         }
 
-        List<BlockPos> escapeBlocks = new ArrayList<>(EscapeBlockEntity.getEscapeBlocks(level.dimension()));
-        if (escapeBlocks.isEmpty()) {
-            return List.of();
-        }
-
-        List<BlockPos> reactors = new ArrayList<>();
-        for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level)) {
-            if (blockEntity instanceof RegenerationReactorBlockEntity) {
-                reactors.add(blockEntity.getBlockPos());
-            }
-        }
-        if (reactors.isEmpty()) {
-            return List.of();
-        }
-
         List<ArmySpawnPoint> candidates = new ArrayList<>();
-        for (BlockPos escapeBlock : escapeBlocks) {
-            BlockPos nearestReactor = findNearestReactorPos(reactors, escapeBlock, ARMY_ESCAPE_BLOCK_SEARCH_RADIUS_SQR);
-            if (nearestReactor != null) {
-                candidates.add(new ArmySpawnPoint(escapeBlock, nearestReactor));
+        for (ServerLevel level : originLevel.getServer().getAllLevels()) {
+            List<BlockPos> escapeBlocks = new ArrayList<>(EscapeBlockEntity.getEscapeBlocks(level.dimension()));
+            if (escapeBlocks.isEmpty()) {
+                continue;
+            }
+
+            List<BlockPos> reactors = new ArrayList<>();
+            for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level)) {
+                if (blockEntity instanceof RegenerationReactorBlockEntity) {
+                    reactors.add(blockEntity.getBlockPos());
+                }
+            }
+            if (reactors.isEmpty()) {
+                continue;
+            }
+
+            for (BlockPos escapeBlock : escapeBlocks) {
+                BlockPos nearestReactor = findNearestReactorPos(reactors, escapeBlock, ARMY_ESCAPE_BLOCK_SEARCH_RADIUS_SQR);
+                if (nearestReactor != null) {
+                    candidates.add(new ArmySpawnPoint(level, escapeBlock, nearestReactor));
+                }
             }
         }
         if (candidates.isEmpty()) {
             return List.of();
         }
 
-        Collections.shuffle(candidates, new java.util.Random(level.getRandom().nextLong()));
+        Collections.shuffle(candidates, new java.util.Random(originLevel.getRandom().nextLong()));
         List<ArmySpawnPoint> selected = new ArrayList<>();
-        Set<BlockPos> usedEscapeBlocks = new HashSet<>();
-        Set<BlockPos> usedReactors = new HashSet<>();
+        Set<String> usedEscapeBlocks = new HashSet<>();
+        Set<String> usedReactors = new HashSet<>();
 
         for (ArmySpawnPoint candidate : candidates) {
             if (selected.size() >= desiredCount) {
                 break;
             }
-            if (usedReactors.add(candidate.reactorPos) && usedEscapeBlocks.add(candidate.escapeBlockPos)) {
-                selected.add(candidate);
-            }
-        }
-
-        for (ArmySpawnPoint candidate : candidates) {
-            if (selected.size() >= desiredCount) {
-                break;
-            }
-            if (usedEscapeBlocks.add(candidate.escapeBlockPos)) {
+            if (usedReactors.add(dimensionPosKey(candidate.level, candidate.reactorPos))
+                    && usedEscapeBlocks.add(dimensionPosKey(candidate.level, candidate.escapeBlockPos))) {
                 selected.add(candidate);
             }
         }
 
         return selected;
+    }
+
+    private String dimensionPosKey(ServerLevel level, BlockPos pos) {
+        return level.dimension().location() + ":" + pos.asLong();
     }
 
     private BlockPos findNearestReactorPos(List<BlockPos> reactors, BlockPos origin, double maxDistanceSqr) {
@@ -639,9 +650,10 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         hurtMarked = true;
     }
 
-    private void spawnAdditionalEscapedArmies(ServerLevel level, List<ArmySpawnPoint> spawnPoints) {
-        for (int i = 1; i < spawnPoints.size(); i++) {
+    private void spawnEscapedArmies(List<ArmySpawnPoint> spawnPoints, int startIndex) {
+        for (int i = startIndex; i < spawnPoints.size(); i++) {
             ArmySpawnPoint spawnPoint = spawnPoints.get(i);
+            ServerLevel level = spawnPoint.level;
             EntityArmyInBlack army = ModEntities.army_in_black.get().create(level);
             if (army == null) {
                 continue;
@@ -696,13 +708,25 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         }
     }
 
+    private void spawnAngryGroundParticles(ServerLevel level) {
+        for (int i = 0; i < 42; i++) {
+            double radius = Math.sqrt(random.nextDouble()) * ESCAPE_ATTACK_RADIUS;
+            double angle = random.nextDouble() * Math.PI * 2.0D;
+            double x = getX() + Math.cos(angle) * radius;
+            double z = getZ() + Math.sin(angle) * radius;
+            double y = getY() + 0.35D + random.nextDouble() * 0.35D;
+            level.sendParticles(ParticleTypes.ANGRY_VILLAGER, x, y, z,
+                    1, 0.04D, 0.04D, 0.04D, 0.02D);
+        }
+    }
+
     private void spawnSelfDetonationCloud(ServerLevel level) {
         Vec3 center = position();
         level.sendParticles(ParticleTypes.EXPLOSION_EMITTER,
                 center.x, getY() + 1.0D, center.z,
                 1, 0.0D, 0.0D, 0.0D, 0.0D);
 
-        for (int i = 0; i < 180; i++) {
+        for (int i = 0; i < 320; i++) {
             double radius = 2.0D + random.nextDouble() * 12.0D;
             double angle = random.nextDouble() * Math.PI * 2.0D;
             double x = center.x + Math.cos(angle) * radius;
@@ -719,7 +743,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
             }
         }
 
-        for (int i = 0; i < 150; i++) {
+        for (int i = 0; i < 260; i++) {
             double height = random.nextDouble() * 10.0D;
             double columnRadius = 0.8D + height * 0.18D + random.nextDouble() * 1.4D;
             double angle = random.nextDouble() * Math.PI * 2.0D;
@@ -730,7 +754,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
                     1, Math.cos(angle) * 0.05D, 0.16D + random.nextDouble() * 0.12D, Math.sin(angle) * 0.05D, 0.04D);
         }
 
-        for (int i = 0; i < 120; i++) {
+        for (int i = 0; i < 220; i++) {
             double radius = 3.0D + random.nextDouble() * 7.0D;
             double angle = random.nextDouble() * Math.PI * 2.0D;
             double x = center.x + Math.cos(angle) * radius;
@@ -889,10 +913,12 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     }
 
     private static class ArmySpawnPoint {
+        private final ServerLevel level;
         private final BlockPos escapeBlockPos;
         private final BlockPos reactorPos;
 
-        private ArmySpawnPoint(BlockPos escapeBlockPos, BlockPos reactorPos) {
+        private ArmySpawnPoint(ServerLevel level, BlockPos escapeBlockPos, BlockPos reactorPos) {
+            this.level = level;
             this.escapeBlockPos = escapeBlockPos;
             this.reactorPos = reactorPos;
         }

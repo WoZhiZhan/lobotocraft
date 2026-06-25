@@ -33,6 +33,11 @@ public class InnerCourageCurio extends BaseEgoCurio {
     }
 
     @Override
+    public boolean rendersOnWearer() {
+        return false;
+    }
+
+    @Override
     public BodyPartType getBodyPartType() {
         return BodyPartType.BODY;
     }
@@ -66,10 +71,11 @@ public class InnerCourageCurio extends BaseEgoCurio {
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("  • 移动速度 +10").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 攻击速度 +10").withStyle(ChatFormatting.GREEN));
+        tooltip.add(Component.literal("  • 移动速度 +4%").withStyle(ChatFormatting.GREEN));
+        tooltip.add(Component.literal("  • 攻击速度 +2%").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal(""));
         tooltip.add(Component.literal("破裂盔甲赐予的勇气。").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.literal("继续进行三次压迫工作后会转化为「匹夫之勇」。").withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.literal("携带者进行沟通工作时会被处决。").withStyle(ChatFormatting.DARK_RED));
         super.appendHoverText(stack, level, tooltip, flag);
     }

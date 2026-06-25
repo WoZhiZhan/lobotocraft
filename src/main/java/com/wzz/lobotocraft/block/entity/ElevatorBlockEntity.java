@@ -19,7 +19,12 @@ import software.bernie.geckolib.core.animation.AnimationState;
 import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class ElevatorBlockEntity extends BaseGeoBlockEntity {
     private static final RawAnimation ACTIVE_ANIMATION = RawAnimation.begin().thenLoop("dt-3");
@@ -30,39 +35,80 @@ public class ElevatorBlockEntity extends BaseGeoBlockEntity {
 
     private boolean isActive = false;
     private long activatedTick = -1;
-    private static final long DELAY_TICKS = 30;
+    private static final long DELAY_TICKS = 20;
+    private final Map<UUID, Long> entitiesInRangeSince = new HashMap<>();
 
     public ElevatorBlockEntity(BlockPos pos, BlockState blockState) {
         super(ModBlockEntities.ELEVATOR.get(), pos, blockState);
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, ElevatorBlockEntity be) {
+        if (level.isClientSide()) return;
+        be.tickDwellDetection(level, pos);
         if (!be.isActive) return;
+
         long currentTick = level.getGameTime();
-        if (currentTick - be.activatedTick >= DELAY_TICKS) {
+        if (be.hasEntityStayedLongEnough(currentTick)) {
             be.executeTeleport(level, pos);
-            be.isActive = false;
-            be.activatedTick = -1;
-            // 传送完成，同步 isActive=false 到客户端
-            be.syncToClient();
+            be.resetActivation();
         }
     }
 
     public void onStep(LivingEntity entity) {
         Level level = entity.level();
         if (level.isClientSide()) return;
+        if (!getDetectionBox(getBlockPos()).intersects(entity.getBoundingBox())) return;
+
+        long currentTick = level.getGameTime();
+        this.entitiesInRangeSince.putIfAbsent(entity.getUUID(), currentTick);
+        beginActivation(currentTick);
+    }
+
+    private void tickDwellDetection(Level level, BlockPos pos) {
+        long currentTick = level.getGameTime();
+        List<LivingEntity> entities = level.getEntitiesOfClass(LivingEntity.class, getDetectionBox(pos), LivingEntity::isAlive);
+        if (entities.isEmpty()) {
+            resetActivation();
+            return;
+        }
+
+        Set<UUID> currentEntities = entities.stream()
+                .map(LivingEntity::getUUID)
+                .collect(Collectors.toSet());
+        entitiesInRangeSince.keySet().removeIf(uuid -> !currentEntities.contains(uuid));
+
+        for (LivingEntity entity : entities) {
+            entitiesInRangeSince.putIfAbsent(entity.getUUID(), currentTick);
+        }
+
+        beginActivation(currentTick);
+    }
+
+    private void beginActivation(long currentTick) {
         if (this.isActive) return;
 
         this.isActive = true;
-        this.activatedTick = level.getGameTime();
+        this.activatedTick = currentTick;
         syncToClient();
     }
 
+    private boolean hasEntityStayedLongEnough(long currentTick) {
+        return entitiesInRangeSince.values().stream()
+                .anyMatch(startTick -> currentTick - startTick >= DELAY_TICKS);
+    }
+
+    private void resetActivation() {
+        boolean wasActive = this.isActive;
+        this.isActive = false;
+        this.activatedTick = -1;
+        this.entitiesInRangeSince.clear();
+        if (wasActive) {
+            syncToClient();
+        }
+    }
+
     private void executeTeleport(Level level, BlockPos pos) {
-        AABB detectionBox = new AABB(
-                pos.getX(), pos.getY() + 1, pos.getZ(),
-                pos.getX() + 1, pos.getY() + 2, pos.getZ() + 1
-        ).inflate(0.3, 0, 0.3);
+        AABB detectionBox = getDetectionBox(pos);
         List<LivingEntity> entities = level.getEntitiesOfClass(LivingEntity.class, detectionBox);
         for (LivingEntity entity : entities) {
             double targetY = teleportUp
@@ -80,6 +126,13 @@ public class ElevatorBlockEntity extends BaseGeoBlockEntity {
                 entity.teleportTo(entity.getX(), targetY, entity.getZ());
             }
         }
+    }
+
+    private AABB getDetectionBox(BlockPos pos) {
+        return new AABB(
+                pos.getX() - 1.0D, pos.getY(), pos.getZ() - 1.0D,
+                pos.getX() + 2.0D, pos.getY() + 2.5D, pos.getZ() + 2.0D
+        );
     }
 
     @Override

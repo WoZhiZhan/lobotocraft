@@ -27,9 +27,21 @@ import java.util.List;
  * 镇压完成后小红帽自行回到出逃位置并重置计数器。
  */
 public class TargetMarkerItem extends Item {
+    public static final String REDHAT_MARKED_TAG = "redhat_marked";
 
     public TargetMarkerItem() {
         super(new Properties().stacksTo(16).rarity(net.minecraft.world.item.Rarity.RARE));
+    }
+
+    public static void markTarget(LivingEntity target) {
+        target.getPersistentData().putBoolean(REDHAT_MARKED_TAG, true);
+        target.addEffect(new MobEffectInstance(MobEffects.GLOWING, 20 * 600, 0, false, false));
+    }
+
+    public static void clearTargetMark(LivingEntity target) {
+        if (target == null) return;
+        target.getPersistentData().remove(REDHAT_MARKED_TAG);
+        target.removeEffect(MobEffects.GLOWING);
     }
 
     @Override
@@ -50,22 +62,33 @@ public class TargetMarkerItem extends Item {
             return InteractionResultHolder.fail(stack);
         }
 
-        // 标记目标:头顶悬浮"目标"标识(以持续发光效果呈现)
-        target.getPersistentData().putBoolean("redhat_marked", true);
-        target.addEffect(new MobEffectInstance(MobEffects.GLOWING, 20 * 600, 0, false, false));
-
-        // 通知所有小红帽进入委托状态
-        boolean found = false;
+        List<EntityRedHoodMercenary> availableRedHoods = new java.util.ArrayList<>();
+        boolean hasEscapedRedHood = false;
         for (EntityRedHoodMercenary redhat : serverLevel.getEntitiesOfClass(EntityRedHoodMercenary.class,
                 player.getBoundingBox().inflate(2048), LivingEntity::isAlive)) {
+            if (redhat.hasEscape()) {
+                hasEscapedRedHood = true;
+            }
+            if (redhat.canAcceptCommission()) {
+                availableRedHoods.add(redhat);
+            }
+        }
+
+        if (availableRedHoods.isEmpty()) {
+            player.sendSystemMessage(Component.literal(hasEscapedRedHood
+                    ? "§c小红帽雇佣兵正在出逃，无法接受委托。"
+                    : "§7附近没有可受雇的小红帽雇佣兵。"));
+            return InteractionResultHolder.fail(stack);
+        }
+
+        // 标记目标:头顶悬浮"目标"标识(以持续发光效果呈现)
+        markTarget(target);
+
+        // 通知可受雇的小红帽进入委托状态
+        for (EntityRedHoodMercenary redhat : availableRedHoods) {
             redhat.startCommission(target);
-            found = true;
         }
-        if (found) {
-            player.sendSystemMessage(Component.literal("§c[小红帽雇佣兵] §7成交。让我看看这次的猎物……"));
-        } else {
-            player.sendSystemMessage(Component.literal("§7目标已标记,但附近没有可受雇的小红帽雇佣兵。"));
-        }
+        player.sendSystemMessage(Component.literal("§c[小红帽雇佣兵] §7成交。让我看看这次的猎物……"));
 
         if (!player.isCreative()) {
             stack.shrink(1);

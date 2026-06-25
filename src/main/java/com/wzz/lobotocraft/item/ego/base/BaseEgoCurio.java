@@ -54,6 +54,10 @@ public abstract class BaseEgoCurio extends Item implements ICurioItem, GeoItem, 
 
     public abstract boolean hasAnimatable();
 
+    public boolean rendersOnWearer() {
+        return true;
+    }
+
     /**
      * 子类重写返回 true 表示支持移动动画
      */

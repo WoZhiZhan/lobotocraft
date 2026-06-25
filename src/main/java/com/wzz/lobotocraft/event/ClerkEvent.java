@@ -34,7 +34,7 @@ import java.util.Set;
 
 @Mod.EventBusSubscriber(modid = ModMain.MODID)
 public class ClerkEvent {
-    private static final int CLERKS_PER_REACTOR = 5;
+    private static final int CLERKS_PER_REACTOR = 8;
     private static final int REACTOR_SEARCH_RADIUS = 64;
 
     @SubscribeEvent

@@ -33,6 +33,11 @@ public class FoolhardyCourageCurio extends BaseEgoCurio {
     }
 
     @Override
+    public boolean rendersOnWearer() {
+        return false;
+    }
+
+    @Override
     public BodyPartType getBodyPartType() {
         return BodyPartType.BODY;
     }
@@ -69,8 +74,8 @@ public class FoolhardyCourageCurio extends BaseEgoCurio {
                                 List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
         tooltip.add(Component.literal("  • 最大生命值 -20").withStyle(ChatFormatting.RED));
-        tooltip.add(Component.literal("  • 移动速度 +20").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 攻击速度 +20").withStyle(ChatFormatting.GREEN));
+        tooltip.add(Component.literal("  • 移动速度 +8%").withStyle(ChatFormatting.GREEN));
+        tooltip.add(Component.literal("  • 攻击速度 +4%").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal(""));
         tooltip.add(Component.literal("由内在的勇气膨胀而成的匹夫之勇。").withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.literal("携带者进行沟通工作时会被处决。").withStyle(ChatFormatting.DARK_RED));
