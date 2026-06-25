@@ -1,8 +1,11 @@
 package com.wzz.lobotocraft.item.ego.crumbling_armor;
 
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
 import com.wzz.lobotocraft.item.AttributeEntry;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -27,6 +30,19 @@ public class FoolhardyCourageCurio extends BaseEgoCurio {
     @Override
     public boolean hasAnimatable() {
         return false;
+    }
+
+    @Override
+    public BodyPartType getBodyPartType() {
+        return BodyPartType.BODY;
+    }
+
+    @Override
+    public void applyTransform(PoseStack poseStack, HumanoidModel<?> model, BodyPartType part) {
+        model.body.translateAndRotate(poseStack);
+        poseStack.translate(0.0F, 0.15F, 0.42F);
+        poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
+        poseStack.scale(0.7F, 0.7F, 0.7F);
     }
 
     @Override
