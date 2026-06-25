@@ -510,18 +510,27 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
         ).normalize();
     }
 
-    /** 蝴蝶群扇形范围伤害:前方50格、总角度42° */
+    /** 蝴蝶群扇形范围伤害:前方50格、总角度42°,随粒子飞行距离逐步覆盖 */
     private void damageButterflyCone(ServerLevel level) {
         Vec3 start = this.position();
+        double coveredDistance = getCurrentSkillCoveredDistance();
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class,
                 this.getBoundingBox().inflate(SKILL_RANGE), this::isValidTarget)) {
             Vec3 rel = e.position().subtract(start);
             double horizontalDistance = Math.sqrt(rel.x * rel.x + rel.z * rel.z);
-            if (horizontalDistance <= 0.0D || horizontalDistance > SKILL_RANGE) continue;
+            if (horizontalDistance <= 0.0D || horizontalDistance > SKILL_RANGE || horizontalDistance > coveredDistance) continue;
             double dot = (rel.x * skillDirection.x + rel.z * skillDirection.z) / horizontalDistance;
             if (dot < SKILL_CONE_HALF_DOT) continue;
             dealWhiteDamage(e, 3 + this.random.nextInt(2));
         }
+    }
+
+    private double getCurrentSkillCoveredDistance() {
+        if (skillPhase != 2) {
+            return 0.0D;
+        }
+        int elapsedTicks = SKILL_DURATION_TICKS - skillTimer;
+        return Math.min(SKILL_RANGE, COFFIN_PARTICLE_FORWARD_OFFSET + elapsedTicks * SKILL_PARTICLE_SPEED);
     }
 
     // ==================== 工作日志 ====================
