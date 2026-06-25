@@ -64,7 +64,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     private static final double REACTOR_DETONATE_DISTANCE_SQR = 9.0D;
     private static final double ESCAPE_REACTOR_SPEED = 0.9D;
     private static final int SELF_DETONATION_TICKS = 60;
-    private static final int SELF_DETONATION_SOUND_TICK = SELF_DETONATION_TICKS / 2;
+    private static final int SELF_DETONATION_SOUND_LEAD_TICKS = 4;
 
     private UUID protectedPlayerId = null;
     private BlockPos protectionReturnPos = null;
@@ -488,9 +488,8 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         getNavigation().stop();
         setDeltaMovement(0, getDeltaMovement().y, 0);
         setAnimation("attack");
-        spawnSmokeHeartParticles(level, 8);
         selfDetonationTicks--;
-        if (!selfDetonationSoundPlayed && selfDetonationTicks <= SELF_DETONATION_SOUND_TICK) {
+        if (!selfDetonationSoundPlayed && selfDetonationTicks <= SELF_DETONATION_SOUND_LEAD_TICKS) {
             selfDetonationSoundPlayed = true;
             level.playSound(null, blockPosition(), ModSounds.ARMY_IN_BLACK_EXPLODE.get(),
                     SoundSource.HOSTILE, 2.0F, 1.0F);
@@ -501,7 +500,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     }
 
     private void completeSelfDetonation(ServerLevel level) {
-        spawnSmokeHeartParticles(level, 180);
+        spawnSelfDetonationCloud(level);
         DamageSource whiteDamage = DamageHelper.getDamage(this, "lobotocraft:white");
         float damage = 30.0F + random.nextInt(11);
         for (ServerPlayer player : level.players()) {
@@ -542,17 +541,48 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         }
     }
 
-    private void spawnSmokeHeartParticles(ServerLevel level, int count) {
-        for (int i = 0; i < count; i++) {
-            double t = random.nextDouble() * Math.PI * 2.0D;
-            double scale = 0.18D + random.nextDouble() * 0.1D;
-            double xOffset = 16.0D * Math.pow(Math.sin(t), 3.0D) * scale;
-            double zOffset = (13.0D * Math.cos(t) - 5.0D * Math.cos(2.0D * t)
-                    - 2.0D * Math.cos(3.0D * t) - Math.cos(4.0D * t)) * scale;
-            double yOffset = 0.3D + random.nextDouble() * 1.2D;
-            level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE,
-                    getX() + xOffset, getY() + yOffset, getZ() + zOffset,
-                    1, 0.08D, 0.05D, 0.08D, 0.01D);
+    private void spawnSelfDetonationCloud(ServerLevel level) {
+        Vec3 center = position();
+        level.sendParticles(ParticleTypes.EXPLOSION_EMITTER,
+                center.x, getY() + 1.0D, center.z,
+                1, 0.0D, 0.0D, 0.0D, 0.0D);
+
+        for (int i = 0; i < 180; i++) {
+            double radius = 2.0D + random.nextDouble() * 12.0D;
+            double angle = random.nextDouble() * Math.PI * 2.0D;
+            double x = center.x + Math.cos(angle) * radius;
+            double z = center.z + Math.sin(angle) * radius;
+            double y = getY() + 0.25D + random.nextDouble() * 1.8D;
+            double xSpeed = Math.cos(angle) * (0.12D + random.nextDouble() * 0.16D);
+            double zSpeed = Math.sin(angle) * (0.12D + random.nextDouble() * 0.16D);
+            double ySpeed = 0.04D + random.nextDouble() * 0.08D;
+            level.sendParticles(ParticleTypes.LARGE_SMOKE, x, y, z,
+                    1, xSpeed, ySpeed, zSpeed, 0.06D);
+            if (i % 3 == 0) {
+                level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, x, y + 0.25D, z,
+                        1, xSpeed * 0.7D, ySpeed + 0.03D, zSpeed * 0.7D, 0.04D);
+            }
+        }
+
+        for (int i = 0; i < 150; i++) {
+            double height = random.nextDouble() * 10.0D;
+            double columnRadius = 0.8D + height * 0.18D + random.nextDouble() * 1.4D;
+            double angle = random.nextDouble() * Math.PI * 2.0D;
+            double x = center.x + Math.cos(angle) * columnRadius;
+            double z = center.z + Math.sin(angle) * columnRadius;
+            double y = getY() + 0.6D + height;
+            level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, x, y, z,
+                    1, Math.cos(angle) * 0.05D, 0.16D + random.nextDouble() * 0.12D, Math.sin(angle) * 0.05D, 0.04D);
+        }
+
+        for (int i = 0; i < 120; i++) {
+            double radius = 3.0D + random.nextDouble() * 7.0D;
+            double angle = random.nextDouble() * Math.PI * 2.0D;
+            double x = center.x + Math.cos(angle) * radius;
+            double z = center.z + Math.sin(angle) * radius;
+            double y = getY() + 8.0D + random.nextDouble() * 4.0D;
+            level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, x, y, z,
+                    1, Math.cos(angle) * 0.12D, 0.08D + random.nextDouble() * 0.08D, Math.sin(angle) * 0.12D, 0.05D);
         }
     }
 
