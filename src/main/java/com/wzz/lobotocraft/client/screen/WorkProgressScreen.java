@@ -168,8 +168,18 @@ public class WorkProgressScreen extends Screen {
             ModLogger.error("初始化工作日志失败：异想体为null");
             return;
         }
-        this.workLogs = abnormality.getWorkLogs();
+        String employeeName = getEmployeeName();
+        this.workLogs = abnormality.getWorkLogs().stream()
+                .map(log -> log.replace("<员工名称>", employeeName))
+                .toList();
         startWorkLogs();
+    }
+
+    private String getEmployeeName() {
+        if (minecraft != null && minecraft.player != null) {
+            return minecraft.player.getGameProfile().getName();
+        }
+        return "员工";
     }
 
     private IAbnormality getAbnormality() {
