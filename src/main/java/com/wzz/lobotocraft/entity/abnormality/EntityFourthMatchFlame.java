@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
+import com.wzz.lobotocraft.block.entity.ElevatorBlockEntity;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
@@ -13,6 +14,7 @@ import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -32,6 +34,8 @@ import net.minecraft.world.entity.ai.goal.*;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.ForgeMod;
@@ -42,6 +46,7 @@ import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -430,15 +435,35 @@ public class EntityFourthMatchFlame extends AbstractAbnormality {
 
     private static class TargetPlayerGoal extends Goal {
         private final EntityFourthMatchFlame entity;
+        private final double speed = 1.2D;
+        private BlockPos targetElevatorPos = null;
+        private int stuckTimer = 0;
+        private int recalcTimer = 0;
+        private int elevatorWaitTimer = 0;
+        private int stateCheckTimer = 0;
+
+        private enum State {
+            FINDING_PATH,
+            MOVING_TO_ELEVATOR,
+            WAITING_ON_ELEVATOR,
+            AFTER_ELEVATOR,
+            DIRECT_MOVE
+        }
+
+        private State state = State.FINDING_PATH;
 
         public TargetPlayerGoal(EntityFourthMatchFlame entity) {
             this.entity = entity;
+            this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
         }
 
         @Override
         public boolean canUse() {
             // 只在出逃且未自爆时追踪
-            return entity.hasEscape() && !entity.isExploding() && entity.getTargetPlayer() != null;
+            ServerPlayer target = entity.getTargetPlayer();
+            return entity.hasEscape()
+                    && !entity.isExploding()
+                    && isValidTarget(target);
         }
 
         @Override
@@ -448,26 +473,257 @@ public class EntityFourthMatchFlame extends AbstractAbnormality {
 
         @Override
         public void start() {
+            stuckTimer = 0;
+            recalcTimer = 0;
+            targetElevatorPos = null;
+            elevatorWaitTimer = 0;
+            stateCheckTimer = 0;
+            state = State.FINDING_PATH;
             entity.setAnimation("walk");
+            evaluateState();
         }
 
         @Override
         public void tick() {
             ServerPlayer target = entity.getTargetPlayer();
-            if (target == null) {
+            if (!isValidTarget(target)) {
                 return;
             }
             if (!entity.getAnimation().equals("walk")) {
                 entity.setAnimation("walk");
             }
-            entity.getNavigation().moveTo(target, 1.2);
             entity.getLookControl().setLookAt(target, 30.0f, 30.0f);
+
+            if (entity.distanceToSqr(target) <= EXPLOSION_TRIGGER_DISTANCE * EXPLOSION_TRIGGER_DISTANCE) {
+                entity.getNavigation().stop();
+                return;
+            }
+
+            stateCheckTimer++;
+            if (stateCheckTimer >= 40) {
+                stateCheckTimer = 0;
+                evaluateState();
+            }
+
+            switch (state) {
+                case MOVING_TO_ELEVATOR -> tickMovingToElevator(target);
+                case WAITING_ON_ELEVATOR -> tickWaitingOnElevator(target);
+                case AFTER_ELEVATOR -> tickAfterElevator(target);
+                case DIRECT_MOVE -> tickDirectMove(target);
+                default -> evaluateState();
+            }
         }
 
         @Override
         public void stop() {
             entity.getNavigation().stop();
             entity.setAnimation("idle");
+            targetElevatorPos = null;
+            state = State.FINDING_PATH;
+        }
+
+        @Override
+        public boolean requiresUpdateEveryTick() {
+            return true;
+        }
+
+        private boolean isValidTarget(ServerPlayer target) {
+            return target != null
+                    && target.isAlive()
+                    && !target.isRemoved()
+                    && !target.isCreative()
+                    && !target.isSpectator();
+        }
+
+        private void evaluateState() {
+            ServerPlayer target = entity.getTargetPlayer();
+            if (!isValidTarget(target)) {
+                return;
+            }
+
+            double yDiff = target.getY() - entity.getY();
+            if (Math.abs(yDiff) <= 5.0D) {
+                state = State.DIRECT_MOVE;
+                navigateDirectlyToTarget(target);
+                return;
+            }
+
+            BlockPos nearestElevator = findBestElevator(target, yDiff);
+            if (nearestElevator != null) {
+                targetElevatorPos = nearestElevator;
+                state = State.MOVING_TO_ELEVATOR;
+                elevatorWaitTimer = 0;
+
+                Path path = entity.getNavigation().createPath(
+                        nearestElevator.getX() + 0.5D,
+                        nearestElevator.getY() + 1.0D,
+                        nearestElevator.getZ() + 0.5D,
+                        1
+                );
+                if (path != null && path.canReach()) {
+                    entity.getNavigation().moveTo(path, speed);
+                } else {
+                    entity.getNavigation().moveTo(
+                            nearestElevator.getX() + 0.5D,
+                            nearestElevator.getY() + 1.0D,
+                            nearestElevator.getZ() + 0.5D,
+                            speed
+                    );
+                }
+                return;
+            }
+
+            state = State.DIRECT_MOVE;
+            navigateDirectlyToTarget(target);
+        }
+
+        private BlockPos findBestElevator(ServerPlayer target, double yDiffToTarget) {
+            if (!(entity.level() instanceof ServerLevel)) {
+                return null;
+            }
+
+            BlockPos entityPos = entity.blockPosition();
+            boolean needGoUp = yDiffToTarget > 0.0D;
+            int targetY = target.blockPosition().getY();
+            int currentY = entityPos.getY();
+            List<BlockEntity> nearbyBlockEntities = EntityUtil.findBlockEntities(entity.level(), entityPos, 30);
+
+            BlockPos bestElevator = null;
+            double bestScore = Double.MAX_VALUE;
+            for (BlockEntity blockEntity : nearbyBlockEntities) {
+                if (blockEntity instanceof ElevatorBlockEntity elevator) {
+                    BlockPos elevatorPos = blockEntity.getBlockPos();
+                    int elevatorDistance = elevator.getTeleportDistance();
+                    int destY;
+                    if (needGoUp && elevator.isTeleportUp()) {
+                        destY = currentY + elevatorDistance;
+                    } else if (!needGoUp && !elevator.isTeleportUp()) {
+                        destY = currentY - elevatorDistance;
+                    } else {
+                        continue;
+                    }
+
+                    int diffAfterRide = Math.abs(targetY - destY);
+                    int currentDiff = Math.abs(targetY - currentY);
+                    if (diffAfterRide >= currentDiff) {
+                        continue;
+                    }
+
+                    double distToElevator = Math.sqrt(entityPos.distSqr(elevatorPos));
+                    double score = distToElevator + diffAfterRide * 2.0D;
+                    if (score < bestScore) {
+                        bestScore = score;
+                        bestElevator = elevatorPos;
+                    }
+                }
+            }
+            return bestElevator;
+        }
+
+        private void tickMovingToElevator(ServerPlayer target) {
+            if (targetElevatorPos == null) {
+                evaluateState();
+                return;
+            }
+
+            elevatorWaitTimer++;
+            double distToElevator = entity.distanceToSqr(
+                    targetElevatorPos.getX() + 0.5D,
+                    targetElevatorPos.getY() + 1.0D,
+                    targetElevatorPos.getZ() + 0.5D
+            );
+            if (distToElevator <= 2.5D) {
+                state = State.WAITING_ON_ELEVATOR;
+                elevatorWaitTimer = 0;
+                entity.getNavigation().stop();
+                return;
+            }
+
+            if (elevatorWaitTimer > 160) {
+                evaluateState();
+                return;
+            }
+
+            Path path = entity.getNavigation().getPath();
+            if (path == null || path.isDone()) {
+                stuckTimer++;
+                if (stuckTimer > 40) {
+                    stuckTimer = 0;
+                    Vec3 dir = new Vec3(
+                            targetElevatorPos.getX() + 0.5D - entity.getX(),
+                            targetElevatorPos.getY() + 1.0D - entity.getY(),
+                            targetElevatorPos.getZ() + 0.5D - entity.getZ()
+                    ).normalize();
+                    entity.setDeltaMovement(dir.scale(speed * 0.4D));
+                }
+            } else {
+                stuckTimer = 0;
+            }
+        }
+
+        private void tickWaitingOnElevator(ServerPlayer target) {
+            if (targetElevatorPos == null) {
+                evaluateState();
+                return;
+            }
+
+            elevatorWaitTimer++;
+            if (Math.abs(target.getY() - entity.getY()) <= 5.0D) {
+                state = State.AFTER_ELEVATOR;
+                elevatorWaitTimer = 0;
+                return;
+            }
+
+            if (elevatorWaitTimer > 100) {
+                if (entity.level().getBlockEntity(targetElevatorPos) instanceof ElevatorBlockEntity elevator) {
+                    elevator.onStep(entity);
+                }
+                elevatorWaitTimer = 60;
+            }
+        }
+
+        private void tickAfterElevator(ServerPlayer target) {
+            if (Math.abs(target.getY() - entity.getY()) > 5.0D) {
+                state = State.FINDING_PATH;
+                evaluateState();
+                return;
+            }
+            state = State.DIRECT_MOVE;
+            navigateDirectlyToTarget(target);
+        }
+
+        private void tickDirectMove(ServerPlayer target) {
+            recalcTimer++;
+            if (recalcTimer >= 20) {
+                recalcTimer = 0;
+                if (Math.abs(target.getY() - entity.getY()) > 5.0D) {
+                    evaluateState();
+                    return;
+                }
+                navigateDirectlyToTarget(target);
+            }
+
+            Path path = entity.getNavigation().getPath();
+            if (path == null || path.isDone()) {
+                stuckTimer++;
+                if (stuckTimer > 40) {
+                    stuckTimer = 0;
+                    Vec3 dir = target.position().subtract(entity.position()).normalize();
+                    entity.setDeltaMovement(dir.scale(speed * 0.3D));
+                    entity.getNavigation().moveTo(target, speed);
+                }
+            } else {
+                stuckTimer = 0;
+            }
+        }
+
+        private void navigateDirectlyToTarget(ServerPlayer target) {
+            Path path = entity.getNavigation().createPath(target.blockPosition(), 1);
+            if (path != null && path.canReach()) {
+                entity.getNavigation().moveTo(path, speed);
+            } else {
+                entity.getNavigation().moveTo(target, speed);
+            }
         }
     }
 
