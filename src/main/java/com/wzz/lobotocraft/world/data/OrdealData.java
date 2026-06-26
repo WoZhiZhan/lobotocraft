@@ -9,14 +9,16 @@ import net.minecraft.world.level.saveddata.SavedData;
  */
 public class OrdealData extends SavedData {
     private static final String NAME = "lobotocraft_ordeal_data";
+    private static final int NO_DAWN_TYPE = 0;
+    private static final int BLOOD_DAWN_TYPE = 1;
+    private static final int GREEN_DAWN_TYPE = 2;
 
     private int trackedDay = 0;
     private int dawnChance = 0;
     private int dawnTriggersToday = 0;
+    private int nextDawnType = NO_DAWN_TYPE;
     private boolean bloodDawnActive = false;
     private int bloodDawnRemaining = 0;
-    private int greenDawnChance = 0;
-    private int greenDawnTriggersToday = 0;
     private boolean greenDawnActive = false;
     private int greenDawnRemaining = 0;
 
@@ -39,10 +41,9 @@ public class OrdealData extends SavedData {
             trackedDay = day;
             dawnChance = 0;
             dawnTriggersToday = 0;
+            nextDawnType = NO_DAWN_TYPE;
             bloodDawnActive = false;
             bloodDawnRemaining = 0;
-            greenDawnChance = 0;
-            greenDawnTriggersToday = 0;
             greenDawnActive = false;
             greenDawnRemaining = 0;
             setDirty();
@@ -67,6 +68,19 @@ public class OrdealData extends SavedData {
         setDirty();
     }
 
+    public boolean hasNextDawnType() {
+        return nextDawnType != NO_DAWN_TYPE;
+    }
+
+    public boolean isNextGreenDawn() {
+        return nextDawnType == GREEN_DAWN_TYPE;
+    }
+
+    public void setNextDawnType(boolean greenDawn) {
+        nextDawnType = greenDawn ? GREEN_DAWN_TYPE : BLOOD_DAWN_TYPE;
+        setDirty();
+    }
+
     public boolean isBloodDawnActive() {
         return bloodDawnActive;
     }
@@ -88,24 +102,6 @@ public class OrdealData extends SavedData {
     public void finishBloodDawn() {
         bloodDawnActive = false;
         bloodDawnRemaining = 0;
-        setDirty();
-    }
-
-    public int getGreenDawnChance() {
-        return greenDawnChance;
-    }
-
-    public void setGreenDawnChance(int chance) {
-        greenDawnChance = Math.max(0, Math.min(100, chance));
-        setDirty();
-    }
-
-    public int getGreenDawnTriggersToday() {
-        return greenDawnTriggersToday;
-    }
-
-    public void incrementGreenDawnTriggersToday() {
-        greenDawnTriggersToday++;
         setDirty();
     }
 
@@ -142,10 +138,9 @@ public class OrdealData extends SavedData {
         tag.putInt("TrackedDay", trackedDay);
         tag.putInt("DawnChance", dawnChance);
         tag.putInt("DawnTriggersToday", dawnTriggersToday);
+        tag.putInt("NextDawnType", nextDawnType);
         tag.putBoolean("BloodDawnActive", bloodDawnActive);
         tag.putInt("BloodDawnRemaining", bloodDawnRemaining);
-        tag.putInt("GreenDawnChance", greenDawnChance);
-        tag.putInt("GreenDawnTriggersToday", greenDawnTriggersToday);
         tag.putBoolean("GreenDawnActive", greenDawnActive);
         tag.putInt("GreenDawnRemaining", greenDawnRemaining);
         return tag;
@@ -156,10 +151,9 @@ public class OrdealData extends SavedData {
         data.trackedDay = tag.getInt("TrackedDay");
         data.dawnChance = tag.getInt("DawnChance");
         data.dawnTriggersToday = tag.getInt("DawnTriggersToday");
+        data.nextDawnType = tag.getInt("NextDawnType");
         data.bloodDawnActive = tag.getBoolean("BloodDawnActive");
         data.bloodDawnRemaining = tag.getInt("BloodDawnRemaining");
-        data.greenDawnChance = tag.getInt("GreenDawnChance");
-        data.greenDawnTriggersToday = tag.getInt("GreenDawnTriggersToday");
         data.greenDawnActive = tag.getBoolean("GreenDawnActive");
         data.greenDawnRemaining = tag.getInt("GreenDawnRemaining");
         return data;

@@ -36,8 +36,9 @@ public class GreenDawnEvent {
         OrdealData data = OrdealData.get(level);
         if (data.hasActiveDawn()) return;
 
-        data.setGreenDawnChance(0);
-        data.incrementGreenDawnTriggersToday();
+        data.setDawnChance(0);
+        data.incrementDawnTriggersToday();
+        data.setNextDawnType(level.getRandom().nextBoolean());
 
         MinecraftServer server = level.getServer();
         List<ServerPlayer> players = getEligiblePlayers(level);
