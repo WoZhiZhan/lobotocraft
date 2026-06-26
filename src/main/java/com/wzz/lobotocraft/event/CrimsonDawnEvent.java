@@ -163,10 +163,12 @@ public class CrimsonDawnEvent {
 
     private static void broadcastChance(MinecraftServer server, int chance, boolean capped) {
         if (server == null) return;
-        String suffix = capped ? " §7(今日黎明已达上限)" : "";
-        Component message = Component.literal("黎明考验：")
-                .withStyle(ChatFormatting.GOLD)
-                .append(Component.literal(chance + "%" + suffix).withStyle(ChatFormatting.RED));
+        Component message = Component.literal("绿色的黎明 / 血色的黎明：")
+                .withStyle(ChatFormatting.GREEN)
+                .append(Component.literal(chance + "%").withStyle(ChatFormatting.GREEN));
+        if (capped) {
+            message = message.copy().append(Component.literal(" (今日黎明已达上限)").withStyle(ChatFormatting.GRAY));
+        }
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             player.connection.send(new ClientboundSetActionBarTextPacket(message));
         }

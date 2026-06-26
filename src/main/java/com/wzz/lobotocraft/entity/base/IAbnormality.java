@@ -577,7 +577,7 @@ public interface IAbnormality {
     }
 
     default List<String> getWorkLogs() {
-        return null;
+        return List.of();
     }
 
     default SoundEvent getAttackSound() {

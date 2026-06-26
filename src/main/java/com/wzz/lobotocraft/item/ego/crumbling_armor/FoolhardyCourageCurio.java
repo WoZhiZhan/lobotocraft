@@ -61,10 +61,10 @@ public class FoolhardyCourageCurio extends BaseEgoCurio {
                 new AttributeEntry(UUID.fromString("c0610003-0561-4000-8000-000000000003"),
                         this.getCurrentClassName() + " Max Health Penalty", Attributes.MAX_HEALTH, -20.0D),
                 new AttributeEntry(UUID.fromString("c0610004-0561-4000-8000-000000000004"),
-                        this.getCurrentClassName() + " Move Speed Bonus", Attributes.MOVEMENT_SPEED, 0.08D,
+                        this.getCurrentClassName() + " Move Speed Bonus", Attributes.MOVEMENT_SPEED, 0.20D,
                         AttributeModifier.Operation.MULTIPLY_BASE),
                 new AttributeEntry(UUID.fromString("c0610005-0561-4000-8000-000000000005"),
-                        this.getCurrentClassName() + " Attack Speed Bonus", Attributes.ATTACK_SPEED, 0.04D,
+                        this.getCurrentClassName() + " Attack Speed Bonus", Attributes.ATTACK_SPEED, 0.20D,
                         AttributeModifier.Operation.MULTIPLY_BASE)
         );
     }
@@ -73,9 +73,8 @@ public class FoolhardyCourageCurio extends BaseEgoCurio {
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
+        tooltip.add(Component.literal("匹夫之勇：+20移动速度+20攻击速度").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal("  • 最大生命值 -20").withStyle(ChatFormatting.RED));
-        tooltip.add(Component.literal("  • 移动速度 +8%").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 攻击速度 +4%").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal(""));
         tooltip.add(Component.literal("由内在的勇气膨胀而成的匹夫之勇。").withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.literal("匹夫之勇，终将葬送一切。").withStyle(ChatFormatting.DARK_RED));

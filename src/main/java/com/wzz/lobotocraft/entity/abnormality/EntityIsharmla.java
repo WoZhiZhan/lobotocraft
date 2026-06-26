@@ -93,6 +93,7 @@ public class EntityIsharmla extends AbstractAbnormality {
     private static final double MONSTER_ATTACK_DISTANCE = 8.0D;
     private static final int SEARCH_LIMIT = 30_000_000;
     private int monsterForcedEscapeTimer = MONSTER_FORCED_ESCAPE_INTERVAL;
+    private java.util.UUID protectedForcedEscapeId = null;
 
     public EntityIsharmla(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -607,7 +608,10 @@ public class EntityIsharmla extends AbstractAbnormality {
                             && abnormality.getQliphothCounter() > 0
             );
             for (AbstractAbnormality abnormality : candidates) {
-                double distance = candidateLevel.dimension() == level.dimension()
+                if (protectedForcedEscapeId != null && protectedForcedEscapeId.equals(abnormality.getUUID())) {
+                    continue;
+                }
+                double distance = candidateLevel.dimension().equals(level.dimension())
                         ? abnormality.distanceToSqr(this)
                         : Double.MAX_VALUE - candidateLevel.random.nextInt(SEARCH_LIMIT);
                 if (distance < chosenDistance) {
@@ -619,6 +623,7 @@ public class EntityIsharmla extends AbstractAbnormality {
         if (chosen == null) {
             return;
         }
+        protectedForcedEscapeId = chosen.getUUID();
         chosen.decreaseQliphothCounter(chosen.getQliphothCounter());
         this.broadcastMessage("§5伊莎玛拉的巨兽咆哮撕裂了收容，" + chosen.getAbnormalityName() + " 的计数器归零。");
     }
@@ -805,29 +810,10 @@ public class EntityIsharmla extends AbstractAbnormality {
     @Override
     public boolean hurt(DamageSource source, float amount) {
         if (this.level().isClientSide) return false;
-        // 始终允许受击表现:重置无敌帧计时,避免连续攻击被吞
         if (getForm() == Form.MONSTER) {
-            // 巨兽抗性0.4(只受到40%伤害),走独立血量
-            float actual = amount * 0.4f;
-            monsterHealth -= actual;
-            // 受击表现(红光/声音/仇恨),但不通过原版血量
-            this.hurtTime = 10;
-            this.hurtDuration = 10;
-            this.playHurtSound(source);
-            this.markHurt();
-            if (source.getEntity() instanceof LivingEntity attacker && this.getTarget() == null) {
-                this.setTarget(attacker);
-            }
-            if (monsterHealth <= 0) {
-                // 巨兽血量耗尽:强制变回人形(死亡由人形血量决定)
-                monsterHealth = 0;
-                enterHumanForm(false);
-            }
-            return true;
-        } else {
-            // 人形抗性1.0(不变)
-            return super.hurt(source, amount);
+            return false;
         }
+        return super.hurt(source, amount);
     }
 
     @Override
@@ -942,6 +928,9 @@ public class EntityIsharmla extends AbstractAbnormality {
         tag.putInt("MonsterNoTargetTicks", monsterNoTargetTicks);
         tag.putInt("MonsterIdleBeamCooldown", monsterIdleBeamCooldown);
         tag.putInt("MonsterForcedEscapeTimer", monsterForcedEscapeTimer);
+        if (protectedForcedEscapeId != null) {
+            tag.putUUID("ProtectedForcedEscapeId", protectedForcedEscapeId);
+        }
     }
 
     @Override
@@ -960,5 +949,8 @@ public class EntityIsharmla extends AbstractAbnormality {
         monsterForcedEscapeTimer = tag.contains("MonsterForcedEscapeTimer")
                 ? tag.getInt("MonsterForcedEscapeTimer")
                 : MONSTER_FORCED_ESCAPE_INTERVAL;
+        protectedForcedEscapeId = tag.hasUUID("ProtectedForcedEscapeId")
+                ? tag.getUUID("ProtectedForcedEscapeId")
+                : null;
     }
 }

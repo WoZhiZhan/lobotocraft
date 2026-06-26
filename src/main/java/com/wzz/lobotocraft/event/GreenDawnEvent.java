@@ -40,7 +40,8 @@ public class GreenDawnEvent {
         data.incrementDawnTriggersToday();
 
         MinecraftServer server = level.getServer();
-        int count = Math.max(1, server.getPlayerList().getPlayers().size()) * 3;
+        List<ServerPlayer> players = getEligiblePlayers(level);
+        int count = Math.max(1, players.size()) * 3;
         data.startGreenDawn(count);
 
         showGreenDawnTitle(server,
@@ -49,9 +50,18 @@ public class GreenDawnEvent {
                 "有一天，我们想到一个问题：我们从何而来？我们被给予了生命，却又被不负责任地抛弃。");
         playGlobalSound(server, ModSounds.GREEN_DAWN_START.get());
 
-        List<SpawnPoint> spawnPoints = collectSpawnPoints(level);
-        for (int i = 0; i < count; i++) {
-            spawnGreenDawn(level, spawnPoints, i);
+        List<SpawnPoint> fallbackSpawnPoints = collectSpawnPoints(level);
+        if (players.isEmpty()) {
+            for (int i = 0; i < count; i++) {
+                spawnGreenDawn(level, fallbackSpawnPoints, i);
+            }
+            return;
+        }
+
+        for (ServerPlayer player : players) {
+            for (int i = 0; i < 3; i++) {
+                spawnGreenDawnNearPlayer(level, player, fallbackSpawnPoints);
+            }
         }
     }
 
@@ -84,32 +94,95 @@ public class GreenDawnEvent {
         return spawnPoints;
     }
 
+    private static List<ServerPlayer> getEligiblePlayers(ServerLevel level) {
+        List<ServerPlayer> players = new ArrayList<>(level.players());
+        players.removeIf(player -> !player.isAlive() || player.isSpectator());
+        return players;
+    }
+
+    private static List<SpawnPoint> collectPlayerSpawnPoints(ServerLevel level, BlockPos playerPos) {
+        List<SpawnPoint> spawnPoints = new ArrayList<>();
+        BlockPos nearestReactor = findNearestPos(EntityUtil.findBlockEntities(level).stream()
+                .filter(RegenerationReactorBlockEntity.class::isInstance)
+                .map(blockEntity -> blockEntity.getBlockPos())
+                .toList(), playerPos);
+        if (nearestReactor != null) {
+            spawnPoints.add(new SpawnPoint(nearestReactor, true));
+        }
+
+        BlockPos nearestEscapeBlock = findNearestPos(new ArrayList<>(EscapeBlockEntity.getEscapeBlocks(level.dimension())),
+                playerPos);
+        if (nearestEscapeBlock != null) {
+            spawnPoints.add(new SpawnPoint(nearestEscapeBlock, false));
+        }
+
+        Collections.shuffle(spawnPoints, new java.util.Random(level.getRandom().nextLong()));
+        return spawnPoints;
+    }
+
     private static void spawnGreenDawn(ServerLevel level, List<SpawnPoint> spawnPoints, int index) {
+        spawnGreenDawnAt(level, chooseSpawnPosition(level, spawnPoints, index));
+    }
+
+    private static void spawnGreenDawnNearPlayer(ServerLevel level, ServerPlayer player,
+                                                List<SpawnPoint> fallbackSpawnPoints) {
+        List<SpawnPoint> playerSpawnPoints = collectPlayerSpawnPoints(level, player.blockPosition());
+        List<SpawnPoint> spawnPoints = playerSpawnPoints.isEmpty() ? fallbackSpawnPoints : playerSpawnPoints;
+        spawnGreenDawnAt(level, chooseRandomSpawnPosition(level, spawnPoints, player.blockPosition()));
+    }
+
+    private static void spawnGreenDawnAt(ServerLevel level, BlockPos spawnPos) {
         EntityGreenDawn greenDawn = ModEntities.green_dawn.get().create(level);
         if (greenDawn == null) {
             OrdealData.get(level).decrementGreenDawnRemaining();
             return;
         }
 
-        BlockPos spawnPos = chooseSpawnPosition(level, spawnPoints, index);
         greenDawn.moveTo(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D,
                 level.getRandom().nextFloat() * 360.0F, 0.0F);
         greenDawn.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), MobSpawnType.EVENT, null, null);
         greenDawn.setPersistenceRequired();
-        level.addFreshEntity(greenDawn);
+        if (!level.addFreshEntity(greenDawn)) {
+            OrdealData.get(level).decrementGreenDawnRemaining();
+        }
     }
 
     private static BlockPos chooseSpawnPosition(ServerLevel level, List<SpawnPoint> spawnPoints, int index) {
         if (!spawnPoints.isEmpty()) {
             SpawnPoint point = spawnPoints.get(index % spawnPoints.size());
-            return point.reactor
-                    ? EntityUtil.findReactorSpawnPositionInCompany(level, point.pos, 4)
-                    : EntityUtil.findSafeGroundPositionInCompany(level, point.pos, 4);
+            return resolveSpawnPosition(level, point);
         }
 
         ServerPlayer fallbackPlayer = level.players().isEmpty() ? null : level.players().get(0);
         BlockPos fallback = fallbackPlayer == null ? level.getSharedSpawnPos() : fallbackPlayer.blockPosition();
         return EntityUtil.findSafeGroundPositionInCompany(level, fallback, 4);
+    }
+
+    private static BlockPos chooseRandomSpawnPosition(ServerLevel level, List<SpawnPoint> spawnPoints, BlockPos fallback) {
+        if (!spawnPoints.isEmpty()) {
+            SpawnPoint point = spawnPoints.get(level.getRandom().nextInt(spawnPoints.size()));
+            return resolveSpawnPosition(level, point);
+        }
+        return EntityUtil.findSafeGroundPositionInCompany(level, fallback, 4);
+    }
+
+    private static BlockPos resolveSpawnPosition(ServerLevel level, SpawnPoint point) {
+        return point.reactor
+                ? EntityUtil.findReactorSpawnPositionInCompany(level, point.pos, 4)
+                : EntityUtil.findSafeGroundPositionInCompany(level, point.pos, 4);
+    }
+
+    private static BlockPos findNearestPos(List<BlockPos> positions, BlockPos origin) {
+        BlockPos nearest = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (BlockPos pos : positions) {
+            double distance = pos.distSqr(origin);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                nearest = pos;
+            }
+        }
+        return nearest;
     }
 
     private static void showGreenDawnTitle(MinecraftServer server, String top, String middle, String bottom) {

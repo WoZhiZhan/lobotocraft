@@ -59,10 +59,10 @@ public class InnerCourageCurio extends BaseEgoCurio {
     public List<AttributeEntry> getAttributeEntries() {
         return List.of(
                 new AttributeEntry(UUID.fromString("c0610001-0561-4000-8000-000000000001"),
-                        this.getCurrentClassName() + " Move Speed Bonus", Attributes.MOVEMENT_SPEED, 0.04D,
+                        this.getCurrentClassName() + " Move Speed Bonus", Attributes.MOVEMENT_SPEED, 0.10D,
                         AttributeModifier.Operation.MULTIPLY_BASE),
                 new AttributeEntry(UUID.fromString("c0610002-0561-4000-8000-000000000002"),
-                        this.getCurrentClassName() + " Attack Speed Bonus", Attributes.ATTACK_SPEED, 0.02D,
+                        this.getCurrentClassName() + " Attack Speed Bonus", Attributes.ATTACK_SPEED, 0.10D,
                         AttributeModifier.Operation.MULTIPLY_BASE)
         );
     }
@@ -71,8 +71,7 @@ public class InnerCourageCurio extends BaseEgoCurio {
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("  • 移动速度 +4%").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 攻击速度 +2%").withStyle(ChatFormatting.GREEN));
+        tooltip.add(Component.literal("内在的勇气：+10移动速度+10攻击速度").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal(""));
         tooltip.add(Component.literal("破裂盔甲赐予的勇气。").withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.literal("充满勇气的战士时刻准备着冲锋陷阵！勇气愈发强大，一切都成为可能！过度的勇气可能会铸成大错。").withStyle(ChatFormatting.GRAY));

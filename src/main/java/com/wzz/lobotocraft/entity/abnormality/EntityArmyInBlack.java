@@ -614,8 +614,75 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     }
 
     private List<ArmySpawnPoint> selectArmySpawnPoints(ServerLevel originLevel) {
-        int desiredCount = 4;
+        List<ServerPlayer> players = new ArrayList<>(originLevel.getServer().getPlayerList().getPlayers());
+        players.removeIf(player -> !player.isAlive() || player.isSpectator());
+        Collections.shuffle(players, new java.util.Random(originLevel.getRandom().nextLong()));
 
+        int desiredCount = Math.min(4, Math.max(1, players.size()));
+        List<ArmySpawnPoint> selected = new ArrayList<>();
+        Set<String> usedEscapeBlocks = new HashSet<>();
+
+        for (ServerPlayer player : players) {
+            if (selected.size() >= desiredCount) {
+                break;
+            }
+            ArmySpawnPoint playerPoint = findPlayerArmySpawnPoint(player);
+            if (playerPoint != null && usedEscapeBlocks.add(dimensionPosKey(playerPoint.level, playerPoint.escapeBlockPos))) {
+                selected.add(playerPoint);
+            }
+        }
+
+        if (selected.size() >= desiredCount) {
+            return selected;
+        }
+
+        List<ArmySpawnPoint> candidates = collectArmySpawnCandidates(originLevel);
+        Collections.shuffle(candidates, new java.util.Random(originLevel.getRandom().nextLong()));
+        for (ArmySpawnPoint candidate : candidates) {
+            if (selected.size() >= desiredCount) {
+                break;
+            }
+            if (usedEscapeBlocks.add(dimensionPosKey(candidate.level, candidate.escapeBlockPos))) {
+                selected.add(candidate);
+            }
+        }
+
+        return selected;
+    }
+
+    private ArmySpawnPoint findPlayerArmySpawnPoint(ServerPlayer player) {
+        ServerLevel level = player.serverLevel();
+        List<BlockPos> escapeBlocks = new ArrayList<>(EscapeBlockEntity.getEscapeBlocks(level.dimension()));
+        if (escapeBlocks.isEmpty()) {
+            return null;
+        }
+
+        List<BlockPos> reactors = collectReactorPositions(level);
+        if (reactors.isEmpty()) {
+            return null;
+        }
+
+        BlockPos playerPos = player.blockPosition();
+        BlockPos bestEscapeBlock = null;
+        BlockPos bestReactor = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (BlockPos escapeBlock : escapeBlocks) {
+            BlockPos nearestReactor = findNearestReactorPos(reactors, escapeBlock, ARMY_ESCAPE_BLOCK_SEARCH_RADIUS_SQR);
+            if (nearestReactor == null) {
+                continue;
+            }
+            double distance = escapeBlock.distSqr(playerPos);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                bestEscapeBlock = escapeBlock;
+                bestReactor = nearestReactor;
+            }
+        }
+
+        return bestEscapeBlock == null ? null : new ArmySpawnPoint(level, bestEscapeBlock, bestReactor);
+    }
+
+    private List<ArmySpawnPoint> collectArmySpawnCandidates(ServerLevel originLevel) {
         List<ArmySpawnPoint> candidates = new ArrayList<>();
         for (ServerLevel level : originLevel.getServer().getAllLevels()) {
             List<BlockPos> escapeBlocks = new ArrayList<>(EscapeBlockEntity.getEscapeBlocks(level.dimension()));
@@ -623,12 +690,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
                 continue;
             }
 
-            List<BlockPos> reactors = new ArrayList<>();
-            for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level)) {
-                if (blockEntity instanceof RegenerationReactorBlockEntity) {
-                    reactors.add(blockEntity.getBlockPos());
-                }
-            }
+            List<BlockPos> reactors = collectReactorPositions(level);
             if (reactors.isEmpty()) {
                 continue;
             }
@@ -640,26 +702,17 @@ public class EntityArmyInBlack extends AbstractAbnormality {
                 }
             }
         }
-        if (candidates.isEmpty()) {
-            return List.of();
-        }
+        return candidates;
+    }
 
-        Collections.shuffle(candidates, new java.util.Random(originLevel.getRandom().nextLong()));
-        List<ArmySpawnPoint> selected = new ArrayList<>();
-        Set<String> usedEscapeBlocks = new HashSet<>();
-        Set<String> usedReactors = new HashSet<>();
-
-        for (ArmySpawnPoint candidate : candidates) {
-            if (selected.size() >= desiredCount) {
-                break;
-            }
-            if (usedReactors.add(dimensionPosKey(candidate.level, candidate.reactorPos))
-                    && usedEscapeBlocks.add(dimensionPosKey(candidate.level, candidate.escapeBlockPos))) {
-                selected.add(candidate);
+    private List<BlockPos> collectReactorPositions(ServerLevel level) {
+        List<BlockPos> reactors = new ArrayList<>();
+        for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level)) {
+            if (blockEntity instanceof RegenerationReactorBlockEntity) {
+                reactors.add(blockEntity.getBlockPos());
             }
         }
-
-        return selected;
+        return reactors;
     }
 
     private String dimensionPosKey(ServerLevel level, BlockPos pos) {

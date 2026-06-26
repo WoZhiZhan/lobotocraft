@@ -169,7 +169,12 @@ public class WorkProgressScreen extends Screen {
             return;
         }
         String employeeName = getEmployeeName();
-        this.workLogs = abnormality.getWorkLogs().stream()
+        List<String> logs = abnormality.getWorkLogs();
+        if (logs == null || logs.isEmpty()) {
+            this.workLogs = List.of();
+            return;
+        }
+        this.workLogs = logs.stream()
                 .map(log -> log.replace("<员工名称>", employeeName))
                 .toList();
         startWorkLogs();

@@ -50,11 +50,13 @@ public class EntityGreenDawn extends BaseGeoEntity {
     private static final EntityDataAccessor<Integer> ANIM_VERSION =
             SynchedEntityData.defineId(EntityGreenDawn.class, EntityDataSerializers.INT);
 
-    private static final int NORMAL_ATTACK_ANIM_TICKS = 18;
-    private static final int NORMAL_ATTACK_HIT_TICK = 8;
-    private static final int SPECIAL_ATTACK_ANIM_TICKS = 44;
+    private static final int NORMAL_ATTACK_ANIM_TICKS = 40;
+    private static final int NORMAL_ATTACK_HIT_TICK = 16;
+    private static final int SPECIAL_ATTACK_ANIM_TICKS = 45;
     private static final int SPECIAL_ATTACK_COOLDOWN_TICKS = 140;
-    private static final int[] SPECIAL_HIT_TICKS = {6, 12, 18, 24, 34};
+    private static final int[] SPECIAL_HIT_TICKS = {12, 24, 36};
+    private static final int IDLE_SOUND_INTERVAL_TICKS = 60;
+    private static final int DEATH_ANIM_TICKS = 30;
     private static final double ATTACK_RANGE_SQR = 6.0D;
 
     private String lastClientAnim = "";
@@ -63,7 +65,12 @@ public class EntityGreenDawn extends BaseGeoEntity {
     private int normalAttackTick = 0;
     private int specialAttackTick = 0;
     private int specialAttackCooldown = 80;
+    private int idleSoundTimer = IDLE_SOUND_INTERVAL_TICKS;
     private boolean countedDeath = false;
+    private boolean deathAnimationStarted = false;
+    private int deathAnimationTick = 0;
+    private boolean deathFinalized = false;
+    private DamageSource delayedDeathSource = null;
 
     public EntityGreenDawn(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -95,8 +102,8 @@ public class EntityGreenDawn extends BaseGeoEntity {
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
-        this.goalSelector.addGoal(2, new MeleeAttackGoal(this, 1.0D, false));
-        this.goalSelector.addGoal(7, new WaterAvoidingRandomStrollGoal(this, 0.9D));
+        this.goalSelector.addGoal(2, new MeleeAttackGoal(this, 0.5D, false));
+        this.goalSelector.addGoal(7, new WaterAvoidingRandomStrollGoal(this, 0.45D));
         this.goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0F));
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
         this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false,
@@ -115,6 +122,7 @@ public class EntityGreenDawn extends BaseGeoEntity {
 
     @Override
     public boolean doHurtTarget(Entity target) {
+        if (deathAnimationStarted) return false;
         if (!(target instanceof LivingEntity living) || isBusyAttacking()) return true;
         if (specialAttackCooldown <= 0 && this.random.nextFloat() < 0.35f) {
             beginSpecialAttack();
@@ -129,9 +137,16 @@ public class EntityGreenDawn extends BaseGeoEntity {
         super.tick();
         if (this.level().isClientSide) return;
 
+        if (deathAnimationStarted) {
+            tickDeathAnimation();
+            return;
+        }
+
         if (!this.hasEffect(MobEffects.GLOWING)) {
             this.addEffect(new MobEffectInstance(MobEffects.GLOWING, Integer.MAX_VALUE, 0, false, false));
         }
+
+        tickIdleSound();
 
         if (specialAttackCooldown > 0) specialAttackCooldown--;
 
@@ -141,7 +156,9 @@ public class EntityGreenDawn extends BaseGeoEntity {
         }
         if (normalAttackTarget != null) {
             tickNormalAttack();
+            return;
         }
+        setAnimIfChanged(getMoveAnim());
     }
 
     private boolean isValidPlayerTarget(LivingEntity living) {
@@ -158,19 +175,22 @@ public class EntityGreenDawn extends BaseGeoEntity {
     private void beginNormalAttack(LivingEntity target) {
         normalAttackTarget = target;
         normalAttackTick = 0;
+        stopAttackMovement();
         setAnim(this.random.nextBoolean() ? "attack" : "attack2");
     }
 
     private void tickNormalAttack() {
+        stopAttackMovement();
         normalAttackTick++;
         if (normalAttackTick == NORMAL_ATTACK_HIT_TICK && canHitTarget(normalAttackTarget)) {
-            normalAttackTarget.hurt(DamageHelper.getDamage(this, "red"), 3.0F + this.random.nextInt(3));
-            playAttackSound();
+            if (normalAttackTarget.hurt(DamageHelper.getDamage(this, "red"), 3.0F + this.random.nextInt(3))) {
+                playDamageSound();
+            }
         }
         if (normalAttackTick >= NORMAL_ATTACK_ANIM_TICKS) {
             normalAttackTarget = null;
             normalAttackTick = 0;
-            setAnim(getMoveAnim());
+            setAnimIfChanged(getMoveAnim());
         }
     }
 
@@ -179,15 +199,17 @@ public class EntityGreenDawn extends BaseGeoEntity {
         normalAttackTick = 0;
         specialAttackTick = 1;
         specialAttackCooldown = SPECIAL_ATTACK_COOLDOWN_TICKS;
+        stopAttackMovement();
         setAnim("attack3");
-        playAttackSound();
     }
 
     private void tickSpecialAttack() {
+        stopAttackMovement();
         for (int hitTick : SPECIAL_HIT_TICKS) {
             if (specialAttackTick == hitTick) {
-                hurtPlayersInSpecialRange();
-                playAttackSound();
+                if (hurtSpecialTargets()) {
+                    playDamageSound();
+                }
                 break;
             }
         }
@@ -195,31 +217,65 @@ public class EntityGreenDawn extends BaseGeoEntity {
         specialAttackTick++;
         if (specialAttackTick >= SPECIAL_ATTACK_ANIM_TICKS) {
             specialAttackTick = 0;
-            setAnim(getMoveAnim());
+            setAnimIfChanged(getMoveAnim());
         }
     }
 
-    private void hurtPlayersInSpecialRange() {
-        if (!(this.level() instanceof ServerLevel level)) return;
-        for (Player player : level.getEntitiesOfClass(Player.class, this.getBoundingBox().inflate(10.0D, 5.0D, 10.0D),
-                player -> player.isAlive() && !player.isCreative() && !player.isSpectator())) {
-            player.hurt(DamageHelper.getDamage(this, "white"), 3.0F);
+    private boolean hurtSpecialTargets() {
+        if (!(this.level() instanceof ServerLevel level)) return false;
+        boolean hit = false;
+        for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class,
+                this.getBoundingBox().inflate(10.0D, 5.0D, 10.0D), this::isValidSpecialTarget)) {
+            hit |= target.hurt(DamageHelper.getDamage(this, "white"), 3.0F);
         }
+        return hit;
+    }
+
+    private boolean isValidSpecialTarget(LivingEntity target) {
+        if (target == this || !target.isAlive()) {
+            return false;
+        }
+        if (target instanceof Player player) {
+            return !player.isCreative() && !player.isSpectator();
+        }
+        return target instanceof EntityClerk;
     }
 
     private boolean canHitTarget(LivingEntity target) {
         return target != null && target.isAlive() && this.distanceToSqr(target) <= ATTACK_RANGE_SQR;
     }
 
-    private void playAttackSound() {
-        this.level().playSound(null, this.blockPosition(), ModSounds.GREEN_DAWN_ATTACK.get(),
+    private void playDamageSound() {
+        this.level().playSound(null, this.blockPosition(), ModSounds.FRAGMENT_ATTACK.get(),
                 SoundSource.HOSTILE, 1.0F, 1.0F);
+    }
+
+    private void tickIdleSound() {
+        idleSoundTimer--;
+        if (idleSoundTimer > 0) {
+            return;
+        }
+        idleSoundTimer = IDLE_SOUND_INTERVAL_TICKS;
+        this.level().playSound(null, this.blockPosition(), ModSounds.GREEN_DAWN_ATTACK.get(),
+                SoundSource.HOSTILE, 0.8F, 1.0F);
+    }
+
+    private void stopAttackMovement() {
+        this.getNavigation().stop();
+        this.setDeltaMovement(0.0D, this.getDeltaMovement().y, 0.0D);
+        this.hurtMarked = true;
     }
 
     private void setAnim(String animation) {
         if (this.level().isClientSide) return;
         this.entityData.set(ANIM, animation);
         this.entityData.set(ANIM_VERSION, this.entityData.get(ANIM_VERSION) + 1);
+    }
+
+    private void setAnimIfChanged(String animation) {
+        if (!animation.equals(getAnim())) {
+            setAnim(animation);
+        }
     }
 
     private String getAnim() {
@@ -236,12 +292,37 @@ public class EntityGreenDawn extends BaseGeoEntity {
 
     @Override
     public void die(DamageSource source) {
+        if (this.level().isClientSide || deathAnimationStarted) {
+            return;
+        }
+        deathAnimationStarted = true;
+        deathAnimationTick = 0;
+        deathFinalized = false;
+        delayedDeathSource = source;
+        normalAttackTarget = null;
+        normalAttackTick = 0;
+        specialAttackTick = 0;
+        setNoAi(true);
+        stopAttackMovement();
         if (!this.level().isClientSide && !countedDeath && this.level() instanceof ServerLevel level) {
             countedDeath = true;
             setAnim("death");
             GreenDawnEvent.onGreenDawnKilled(level);
         }
-        super.die(source);
+    }
+
+    private void tickDeathAnimation() {
+        stopAttackMovement();
+        deathAnimationTick++;
+        if (deathFinalized || deathAnimationTick < DEATH_ANIM_TICKS) {
+            return;
+        }
+        deathFinalized = true;
+        super.die(delayedDeathSource == null ? damageSources().generic() : delayedDeathSource);
+    }
+
+    @Override
+    public void knockback(double strength, double x, double z) {
     }
 
     @Override
@@ -270,10 +351,10 @@ public class EntityGreenDawn extends BaseGeoEntity {
     public static AttributeSupplier.Builder createAttributes() {
         return Mob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, 150.0D)
-                .add(Attributes.MOVEMENT_SPEED, 0.31D)
+                .add(Attributes.MOVEMENT_SPEED, 0.155D)
                 .add(Attributes.ATTACK_DAMAGE, 4.0D)
                 .add(Attributes.FOLLOW_RANGE, 32.0D)
-                .add(Attributes.KNOCKBACK_RESISTANCE, 0.4D)
+                .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D)
                 .add(ModAttributes.RED_DAMAGE_RESISTANCE.get(), 0.8D)
                 .add(ModAttributes.WHITE_DAMAGE_RESISTANCE.get(), 1.3D)
                 .add(ModAttributes.BLACK_DAMAGE_RESISTANCE.get(), 2.0D)
@@ -286,7 +367,10 @@ public class EntityGreenDawn extends BaseGeoEntity {
         tag.putInt("NormalAttackTick", normalAttackTick);
         tag.putInt("SpecialAttackTick", specialAttackTick);
         tag.putInt("SpecialAttackCooldown", specialAttackCooldown);
+        tag.putInt("IdleSoundTimer", idleSoundTimer);
         tag.putBoolean("CountedDeath", countedDeath);
+        tag.putBoolean("DeathAnimationStarted", deathAnimationStarted);
+        tag.putInt("DeathAnimationTick", deathAnimationTick);
         tag.putString("Anim", getAnim());
         tag.putInt("AnimVersion", getAnimVersion());
     }
@@ -297,7 +381,13 @@ public class EntityGreenDawn extends BaseGeoEntity {
         normalAttackTick = tag.getInt("NormalAttackTick");
         specialAttackTick = tag.getInt("SpecialAttackTick");
         specialAttackCooldown = tag.getInt("SpecialAttackCooldown");
+        idleSoundTimer = tag.contains("IdleSoundTimer") ? tag.getInt("IdleSoundTimer") : IDLE_SOUND_INTERVAL_TICKS;
         countedDeath = tag.getBoolean("CountedDeath");
+        deathAnimationStarted = tag.getBoolean("DeathAnimationStarted");
+        deathAnimationTick = tag.getInt("DeathAnimationTick");
+        if (deathAnimationStarted) {
+            setNoAi(true);
+        }
         if (tag.contains("Anim")) this.entityData.set(ANIM, tag.getString("Anim"));
         this.entityData.set(ANIM_VERSION, tag.getInt("AnimVersion"));
     }

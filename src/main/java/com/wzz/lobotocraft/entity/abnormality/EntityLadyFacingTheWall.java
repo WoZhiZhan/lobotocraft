@@ -38,6 +38,7 @@ import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -108,6 +109,15 @@ public class EntityLadyFacingTheWall extends AbstractAbnormality {
     @Override
     public String name() {
         return "the_lady_facing_the_wall";
+    }
+
+    @Override
+    public List<String> getWorkLogs() {
+        return List.of(
+                "<员工名称>陪伴老妇人坐在沉默之中。",
+                "老妇人依旧面对着墙，没有回头。",
+                "收容单元里只剩下压抑的寂静。"
+        );
     }
 
     @Override
