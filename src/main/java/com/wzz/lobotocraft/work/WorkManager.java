@@ -469,7 +469,7 @@ public class WorkManager {
 
     private static boolean isOrdealActive(ServerPlayer player) {
         if (!(player.level() instanceof ServerLevel level)) return false;
-        return OrdealData.get(level).isBloodDawnActive() || BlueMiddayEvent.isTrialActive();
+        return OrdealData.get(level).hasActiveDawn() || BlueMiddayEvent.isTrialActive();
     }
 
     private static boolean isInventoryFull(ServerPlayer player) {

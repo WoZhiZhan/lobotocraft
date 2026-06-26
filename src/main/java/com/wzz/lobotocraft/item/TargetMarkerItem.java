@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.item;
 
+import com.wzz.lobotocraft.entity.abnormality.EntityIsharmla;
 import com.wzz.lobotocraft.entity.abnormality.EntityRedHoodMercenary;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import net.minecraft.ChatFormatting;
@@ -59,6 +60,10 @@ public class TargetMarkerItem extends Item {
         }
         if (target instanceof EntityRedHoodMercenary) {
             player.displayClientMessage(Component.literal("§c她可不接以自己为目标的委托。"), true);
+            return InteractionResultHolder.fail(stack);
+        }
+        if (target instanceof EntityIsharmla) {
+            player.displayClientMessage(Component.literal("§c伊莎玛拉不是她会接下的委托目标。"), true);
             return InteractionResultHolder.fail(stack);
         }
 

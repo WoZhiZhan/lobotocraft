@@ -15,6 +15,10 @@ public class OrdealData extends SavedData {
     private int dawnTriggersToday = 0;
     private boolean bloodDawnActive = false;
     private int bloodDawnRemaining = 0;
+    private int greenDawnChance = 0;
+    private int greenDawnTriggersToday = 0;
+    private boolean greenDawnActive = false;
+    private int greenDawnRemaining = 0;
 
     public static OrdealData get(ServerLevel level) {
         return level.getServer().overworld().getDataStorage().computeIfAbsent(
@@ -37,6 +41,10 @@ public class OrdealData extends SavedData {
             dawnTriggersToday = 0;
             bloodDawnActive = false;
             bloodDawnRemaining = 0;
+            greenDawnChance = 0;
+            greenDawnTriggersToday = 0;
+            greenDawnActive = false;
+            greenDawnRemaining = 0;
             setDirty();
         }
     }
@@ -83,6 +91,52 @@ public class OrdealData extends SavedData {
         setDirty();
     }
 
+    public int getGreenDawnChance() {
+        return greenDawnChance;
+    }
+
+    public void setGreenDawnChance(int chance) {
+        greenDawnChance = Math.max(0, Math.min(100, chance));
+        setDirty();
+    }
+
+    public int getGreenDawnTriggersToday() {
+        return greenDawnTriggersToday;
+    }
+
+    public void incrementGreenDawnTriggersToday() {
+        greenDawnTriggersToday++;
+        setDirty();
+    }
+
+    public boolean isGreenDawnActive() {
+        return greenDawnActive;
+    }
+
+    public void startGreenDawn(int entityCount) {
+        greenDawnActive = true;
+        greenDawnRemaining = Math.max(0, entityCount);
+        setDirty();
+    }
+
+    public int decrementGreenDawnRemaining() {
+        if (greenDawnRemaining > 0) {
+            greenDawnRemaining--;
+            setDirty();
+        }
+        return greenDawnRemaining;
+    }
+
+    public void finishGreenDawn() {
+        greenDawnActive = false;
+        greenDawnRemaining = 0;
+        setDirty();
+    }
+
+    public boolean hasActiveDawn() {
+        return bloodDawnActive || greenDawnActive;
+    }
+
     @Override
     public CompoundTag save(CompoundTag tag) {
         tag.putInt("TrackedDay", trackedDay);
@@ -90,6 +144,10 @@ public class OrdealData extends SavedData {
         tag.putInt("DawnTriggersToday", dawnTriggersToday);
         tag.putBoolean("BloodDawnActive", bloodDawnActive);
         tag.putInt("BloodDawnRemaining", bloodDawnRemaining);
+        tag.putInt("GreenDawnChance", greenDawnChance);
+        tag.putInt("GreenDawnTriggersToday", greenDawnTriggersToday);
+        tag.putBoolean("GreenDawnActive", greenDawnActive);
+        tag.putInt("GreenDawnRemaining", greenDawnRemaining);
         return tag;
     }
 
@@ -100,6 +158,10 @@ public class OrdealData extends SavedData {
         data.dawnTriggersToday = tag.getInt("DawnTriggersToday");
         data.bloodDawnActive = tag.getBoolean("BloodDawnActive");
         data.bloodDawnRemaining = tag.getInt("BloodDawnRemaining");
+        data.greenDawnChance = tag.getInt("GreenDawnChance");
+        data.greenDawnTriggersToday = tag.getInt("GreenDawnTriggersToday");
+        data.greenDawnActive = tag.getBoolean("GreenDawnActive");
+        data.greenDawnRemaining = tag.getInt("GreenDawnRemaining");
         return data;
     }
 }

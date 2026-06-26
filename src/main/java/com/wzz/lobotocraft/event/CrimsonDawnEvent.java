@@ -54,7 +54,7 @@ public class CrimsonDawnEvent {
 
         OrdealData data = OrdealData.get(level);
         data.syncDay(currentDay[0]);
-        if (data.isBloodDawnActive()) return;
+        if (data.hasActiveDawn()) return;
         if (data.getDawnTriggersToday() >= MAX_STAGE_TRIGGERS_PER_DAY) {
             broadcastChance(player.getServer(), data.getDawnChance(), true);
             return;
@@ -65,7 +65,11 @@ public class CrimsonDawnEvent {
         broadcastChance(player.getServer(), chance, false);
 
         if (level.getRandom().nextInt(100) < chance) {
-            triggerBloodDawn(level);
+            if (level.getRandom().nextBoolean()) {
+                GreenDawnEvent.triggerGreenDawn(level);
+            } else {
+                triggerBloodDawn(level);
+            }
         }
     }
 
@@ -160,8 +164,8 @@ public class CrimsonDawnEvent {
     private static void broadcastChance(MinecraftServer server, int chance, boolean capped) {
         if (server == null) return;
         String suffix = capped ? " §7(今日黎明已达上限)" : "";
-        Component message = Component.literal("血色的黎明：")
-                .withStyle(ChatFormatting.DARK_RED)
+        Component message = Component.literal("黎明考验：")
+                .withStyle(ChatFormatting.GOLD)
                 .append(Component.literal(chance + "%" + suffix).withStyle(ChatFormatting.RED));
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             player.connection.send(new ClientboundSetActionBarTextPacket(message));

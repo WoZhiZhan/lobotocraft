@@ -10,6 +10,7 @@ import com.wzz.lobotocraft.entity.EntityImmortalItem;
 import com.wzz.lobotocraft.entity.EntityLightFollower;
 import com.wzz.lobotocraft.entity.abnormality.*;
 import com.wzz.lobotocraft.entity.ordeal.EntityBloodySmall;
+import com.wzz.lobotocraft.entity.ordeal.EntityGreenDawn;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.registries.DeferredRegister;
@@ -132,6 +133,14 @@ public class ModEntities {
                             .updateInterval(3)
                             .build("crumbling_armor"));
 
+    public static final RegistryObject<EntityType<EntityLadyFacingTheWall>> the_lady_facing_the_wall =
+            ENTITIES.register("the_lady_facing_the_wall",
+                    () -> EntityType.Builder.of(EntityLadyFacingTheWall::new, MobCategory.CREATURE)
+                            .sized(1.0F, 2.0F)
+                            .clientTrackingRange(8)
+                            .updateInterval(3)
+                            .build("the_lady_facing_the_wall"));
+
     public static final RegistryObject<EntityType<EntityBloodySmall>> bloody_small =
             ENTITIES.register("bloody_small",
                     () -> EntityType.Builder.of(EntityBloodySmall::new, MobCategory.MONSTER)
@@ -139,6 +148,14 @@ public class ModEntities {
                             .clientTrackingRange(8)
                             .updateInterval(3)
                             .build("bloody_small"));
+
+    public static final RegistryObject<EntityType<EntityGreenDawn>> green_dawn =
+            ENTITIES.register("green_dawn",
+                    () -> EntityType.Builder.of(EntityGreenDawn::new, MobCategory.MONSTER)
+                            .sized(0.9F, 2.2F)
+                            .clientTrackingRange(8)
+                            .updateInterval(3)
+                            .build("green_dawn"));
 
     // ============ 海嗣(深蓝色正午——大群的意志) ============
     public static final RegistryObject<EntityType<com.wzz.lobotocraft.entity.seaborn.EntityShellSeaRunner>> shell_sea_runner =

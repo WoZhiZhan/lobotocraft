@@ -82,6 +82,7 @@ public class EntityIsharmla extends AbstractAbnormality {
     private static final int BEAM_SKILL_INTERVAL_TICKS = 30 * 20;
     private static final int NO_TARGET_BEAM_DELAY_TICKS = 15 * 20;
     private static final int NO_TARGET_BEAM_INTERVAL_TICKS = 7 * 20;
+    private static final int MONSTER_FORCED_ESCAPE_INTERVAL = 30 * 20;
     private static final int BEAM_MOUTH_EFFECT_TICK = 12;
     private static final int SPECIAL_SHAKE_TICKS = 10;
     private static final float SPECIAL_SHAKE_INTENSITY = 20.0F;
@@ -90,6 +91,8 @@ public class EntityIsharmla extends AbstractAbnormality {
     private static final double BEAM_TARGET_RADIUS = 1.5D;
     private static final double BEAM_FALL_HEIGHT = 10.0D;
     private static final double MONSTER_ATTACK_DISTANCE = 8.0D;
+    private static final int SEARCH_LIMIT = 30_000_000;
+    private int monsterForcedEscapeTimer = MONSTER_FORCED_ESCAPE_INTERVAL;
 
     public EntityIsharmla(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -253,6 +256,7 @@ public class EntityIsharmla extends AbstractAbnormality {
         setForm(Form.MONSTER);
         monsterHealth = MONSTER_MAX_HEALTH; // 进入巨兽回满巨兽血量
         beamSkillCooldown = BEAM_SKILL_INTERVAL_TICKS;
+        monsterForcedEscapeTimer = MONSTER_FORCED_ESCAPE_INTERVAL;
         transitioning = true;
         transitionTimer = 20;
         setAnim("to_monster");
@@ -533,6 +537,7 @@ public class EntityIsharmla extends AbstractAbnormality {
     }
 
     private void tickMonsterForm(ServerLevel level) {
+        tickMonsterForcedEscape(level);
         if (monsterPhaseTimer > 0) {
             monsterPhaseTimer--;
             if (monsterPhaseTimer == 0) {
@@ -576,6 +581,46 @@ public class EntityIsharmla extends AbstractAbnormality {
         this.getNavigation().stop();
         performMonsterAttack(level, target);
         attackCooldown = 40;
+    }
+
+    private void tickMonsterForcedEscape(ServerLevel level) {
+        if (--monsterForcedEscapeTimer > 0) {
+            return;
+        }
+        monsterForcedEscapeTimer = MONSTER_FORCED_ESCAPE_INTERVAL;
+        forceOneAbnormalityEscape(level);
+    }
+
+    private void forceOneAbnormalityEscape(ServerLevel level) {
+        AABB wholeLevel = new AABB(-SEARCH_LIMIT, level.getMinBuildHeight(), -SEARCH_LIMIT,
+                SEARCH_LIMIT, level.getMaxBuildHeight(), SEARCH_LIMIT);
+        AbstractAbnormality chosen = null;
+        double chosenDistance = Double.MAX_VALUE;
+        for (ServerLevel candidateLevel : level.getServer().getAllLevels()) {
+            List<AbstractAbnormality> candidates = candidateLevel.getEntitiesOfClass(
+                    AbstractAbnormality.class,
+                    wholeLevel,
+                    abnormality -> abnormality != this
+                            && abnormality.isAlive()
+                            && abnormality.canEscape()
+                            && !abnormality.hasEscape()
+                            && abnormality.getQliphothCounter() > 0
+            );
+            for (AbstractAbnormality abnormality : candidates) {
+                double distance = candidateLevel.dimension() == level.dimension()
+                        ? abnormality.distanceToSqr(this)
+                        : Double.MAX_VALUE - candidateLevel.random.nextInt(SEARCH_LIMIT);
+                if (distance < chosenDistance) {
+                    chosenDistance = distance;
+                    chosen = abnormality;
+                }
+            }
+        }
+        if (chosen == null) {
+            return;
+        }
+        chosen.decreaseQliphothCounter(chosen.getQliphothCounter());
+        this.broadcastMessage("§5伊莎玛拉的巨兽咆哮撕裂了收容，" + chosen.getAbnormalityName() + " 的计数器归零。");
     }
 
     // 旧的逐帧命中倒计时(保留字段以兼容,但命中改由 tickAttackHitDetection 处理)
@@ -896,6 +941,7 @@ public class EntityIsharmla extends AbstractAbnormality {
         tag.putInt("BeamSkillCooldown", beamSkillCooldown);
         tag.putInt("MonsterNoTargetTicks", monsterNoTargetTicks);
         tag.putInt("MonsterIdleBeamCooldown", monsterIdleBeamCooldown);
+        tag.putInt("MonsterForcedEscapeTimer", monsterForcedEscapeTimer);
     }
 
     @Override
@@ -911,5 +957,8 @@ public class EntityIsharmla extends AbstractAbnormality {
                 : BEAM_SKILL_INTERVAL_TICKS;
         monsterNoTargetTicks = tag.getInt("MonsterNoTargetTicks");
         monsterIdleBeamCooldown = tag.getInt("MonsterIdleBeamCooldown");
+        monsterForcedEscapeTimer = tag.contains("MonsterForcedEscapeTimer")
+                ? tag.getInt("MonsterForcedEscapeTimer")
+                : MONSTER_FORCED_ESCAPE_INTERVAL;
     }
 }

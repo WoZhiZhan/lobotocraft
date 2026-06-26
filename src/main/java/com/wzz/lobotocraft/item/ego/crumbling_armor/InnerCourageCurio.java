@@ -75,6 +75,7 @@ public class InnerCourageCurio extends BaseEgoCurio {
         tooltip.add(Component.literal("  • 攻击速度 +2%").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal(""));
         tooltip.add(Component.literal("破裂盔甲赐予的勇气。").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.literal("充满勇气的战士时刻准备着冲锋陷阵！勇气愈发强大，一切都成为可能！过度的勇气可能会铸成大错。").withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.literal("继续进行三次压迫工作后会转化为「匹夫之勇」。").withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.literal("携带者进行沟通工作时会被处决。").withStyle(ChatFormatting.DARK_RED));
         super.appendHoverText(stack, level, tooltip, flag);

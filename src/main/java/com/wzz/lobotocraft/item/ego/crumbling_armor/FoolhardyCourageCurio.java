@@ -78,6 +78,7 @@ public class FoolhardyCourageCurio extends BaseEgoCurio {
         tooltip.add(Component.literal("  • 攻击速度 +4%").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal(""));
         tooltip.add(Component.literal("由内在的勇气膨胀而成的匹夫之勇。").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.literal("匹夫之勇，终将葬送一切。").withStyle(ChatFormatting.DARK_RED));
         tooltip.add(Component.literal("携带者进行沟通工作时会被处决。").withStyle(ChatFormatting.DARK_RED));
         super.appendHoverText(stack, level, tooltip, flag);
     }
