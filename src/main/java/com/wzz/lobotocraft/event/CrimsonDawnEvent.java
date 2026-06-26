@@ -55,21 +55,37 @@ public class CrimsonDawnEvent {
         OrdealData data = OrdealData.get(level);
         data.syncDay(currentDay[0]);
         if (data.hasActiveDawn()) return;
-        if (data.getDawnTriggersToday() >= MAX_STAGE_TRIGGERS_PER_DAY) {
-            broadcastChance(player.getServer(), data.getDawnChance(), true);
+        boolean greenCapped = data.getGreenDawnTriggersToday() >= MAX_STAGE_TRIGGERS_PER_DAY;
+        boolean bloodCapped = data.getDawnTriggersToday() >= MAX_STAGE_TRIGGERS_PER_DAY;
+        if (greenCapped && bloodCapped) {
+            broadcastChance(player.getServer(), data.getGreenDawnChance(), data.getDawnChance(), true, true);
             return;
         }
 
-        int chance = Math.min(100, data.getDawnChance() + CHANCE_STEP);
-        data.setDawnChance(chance);
-        broadcastChance(player.getServer(), chance, false);
+        int greenChance = data.getGreenDawnChance();
+        int bloodChance = data.getDawnChance();
+        if (!greenCapped) {
+            greenChance = Math.min(100, greenChance + CHANCE_STEP);
+            data.setGreenDawnChance(greenChance);
+        }
+        if (!bloodCapped) {
+            bloodChance = Math.min(100, bloodChance + CHANCE_STEP);
+            data.setDawnChance(bloodChance);
+        }
+        broadcastChance(player.getServer(), greenChance, bloodChance, greenCapped, bloodCapped);
 
-        if (level.getRandom().nextInt(100) < chance) {
+        boolean triggerGreen = !greenCapped && level.getRandom().nextInt(100) < greenChance;
+        boolean triggerBlood = !bloodCapped && level.getRandom().nextInt(100) < bloodChance;
+        if (triggerGreen && triggerBlood) {
             if (level.getRandom().nextBoolean()) {
                 GreenDawnEvent.triggerGreenDawn(level);
             } else {
                 triggerBloodDawn(level);
             }
+        } else if (triggerGreen) {
+            GreenDawnEvent.triggerGreenDawn(level);
+        } else if (triggerBlood) {
+            triggerBloodDawn(level);
         }
     }
 
@@ -161,13 +177,20 @@ public class CrimsonDawnEvent {
         return candidates.get(0);
     }
 
-    private static void broadcastChance(MinecraftServer server, int chance, boolean capped) {
+    private static void broadcastChance(MinecraftServer server, int greenChance, int bloodChance,
+                                        boolean greenCapped, boolean bloodCapped) {
         if (server == null) return;
-        Component message = Component.literal("绿色的黎明 / 血色的黎明：")
+        Component message = Component.literal("绿色的黎明：")
                 .withStyle(ChatFormatting.GREEN)
-                .append(Component.literal(chance + "%").withStyle(ChatFormatting.GREEN));
-        if (capped) {
-            message = message.copy().append(Component.literal(" (今日黎明已达上限)").withStyle(ChatFormatting.GRAY));
+                .append(Component.literal(greenChance + "%").withStyle(ChatFormatting.GREEN));
+        if (greenCapped) {
+            message = message.copy().append(Component.literal(" (今日绿色已达上限)").withStyle(ChatFormatting.GRAY));
+        }
+        message = message.copy()
+                .append(Component.literal("  血色的黎明：").withStyle(ChatFormatting.DARK_RED))
+                .append(Component.literal(bloodChance + "%").withStyle(ChatFormatting.RED));
+        if (bloodCapped) {
+            message = message.copy().append(Component.literal(" (今日血色已达上限)").withStyle(ChatFormatting.GRAY));
         }
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             player.connection.send(new ClientboundSetActionBarTextPacket(message));
