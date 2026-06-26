@@ -4,7 +4,6 @@ import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.BaseGeoEntity;
 import com.wzz.lobotocraft.event.CrimsonDawnEvent;
 import com.wzz.lobotocraft.init.ModAttributes;
-import com.wzz.lobotocraft.util.EntityUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.core.particles.ParticleTypes;
@@ -133,7 +132,7 @@ public class EntityBloodySmall extends BaseGeoEntity {
 
         AbstractAbnormality next = chooseNextAbnormality(level, current);
         if (next != null) {
-            BlockPos pos = EntityUtil.findSafeGroundPositionInCompany(level, next.blockPosition(), 3);
+            BlockPos pos = CrimsonDawnEvent.findBloodySmallSpawnPosition(level, this, next.blockPosition(), 4);
             this.teleportTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D);
             setTrackedAbnormality(next);
         }

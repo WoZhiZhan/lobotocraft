@@ -481,12 +481,12 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
             infoY += 12;
 
             // 根据异想体配置显示产量范围
-            int goodMin = (int)(maxPEOutput * 0.8);
+            int goodMin = getDisplayedGoodWorkResultMin();
             int goodMax = maxPEOutput;
-            int normalMin = (int)(maxPEOutput * 0.4);
-            int normalMax = (int)(maxPEOutput * 0.7);
+            int normalMin = getDisplayedNormalWorkResultMin();
+            int normalMax = goodMin - 1;
             int badMin = 0;
-            int badMax = (int)(maxPEOutput * 0.3);
+            int badMax = normalMin - 1;
 
             graphics.drawString(this.font,
                     EncyclopediaGUIConfig.Text.PE_RANGE_GOOD + ": " + goodMin + "-" + goodMax,
@@ -501,6 +501,26 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                     x + 150, infoY,
                     EncyclopediaGUIConfig.Colors.STATUS_RED);
         }
+    }
+
+    private int getDisplayedGoodWorkResultMin() {
+        if (this.abnormality != null) {
+            return this.abnormality.getGoodWorkResultMin();
+        }
+        if ("O-01-12".equals(this.abnormalityCode)) {
+            return 11;
+        }
+        return (int) Math.ceil(maxPEOutput * 0.8D);
+    }
+
+    private int getDisplayedNormalWorkResultMin() {
+        if (this.abnormality != null) {
+            return this.abnormality.getNormalWorkResultMin();
+        }
+        if ("O-01-12".equals(this.abnormalityCode)) {
+            return 6;
+        }
+        return (int) Math.ceil(maxPEOutput * 0.4D);
     }
 
     private void renderBasicInfoLocked(GuiGraphics graphics, int x, int infoY) {

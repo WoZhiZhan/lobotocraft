@@ -539,6 +539,33 @@ public interface IAbnormality {
     }
 
     /**
+     * 获取工作结果为"优"所需的最小PE-BOX产量
+     */
+    default int getGoodWorkResultMin() {
+        return (int) Math.ceil(getMaxPEOutput() * 0.8D);
+    }
+
+    /**
+     * 获取工作结果为"良"所需的最小PE-BOX产量
+     */
+    default int getNormalWorkResultMin() {
+        return (int) Math.ceil(getMaxPEOutput() * 0.4D);
+    }
+
+    /**
+     * 根据PE-BOX产量判定工作结果
+     */
+    default WorkResult getWorkResultForPEOutput(int peOutput) {
+        if (peOutput >= getGoodWorkResultMin()) {
+            return WorkResult.GOOD;
+        }
+        if (peOutput >= getNormalWorkResultMin()) {
+            return WorkResult.NORMAL;
+        }
+        return WorkResult.BAD;
+    }
+
+    /**
      * 每次工作抽取尝试时的回调
      * 在判定成功/失败之前调用，异想体可以记录状态或触发特殊效果
      *

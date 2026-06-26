@@ -148,19 +148,64 @@ public class CrimsonDawnEvent {
         AbstractAbnormality target = chooseAbnormality(level);
         BlockPos spawnPos;
         if (target != null) {
-            spawnPos = EntityUtil.findSafeGroundPositionInCompany(level, target.blockPosition(), 3);
+            spawnPos = findBloodySmallSpawnPosition(level, clown, target.blockPosition(), 4);
             clown.setTrackedAbnormality(target);
         } else {
             ServerPlayer fallbackPlayer = level.players().isEmpty() ? null : level.players().get(0);
             BlockPos fallback = fallbackPlayer == null ? level.getSharedSpawnPos() : fallbackPlayer.blockPosition();
-            spawnPos = EntityUtil.findSafeGroundPositionInCompany(level, fallback, 3);
+            spawnPos = findBloodySmallSpawnPosition(level, clown, fallback, 4);
         }
 
         clown.moveTo(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D,
                 level.getRandom().nextFloat() * 360.0F, 0.0F);
         clown.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), MobSpawnType.EVENT, null, null);
         clown.setPersistenceRequired();
-        level.addFreshEntity(clown);
+        if (!level.addFreshEntity(clown)) {
+            OrdealData.get(level).decrementBloodDawnRemaining();
+        }
+    }
+
+    public static BlockPos findBloodySmallSpawnPosition(ServerLevel level, EntityBloodySmall clown,
+                                                        BlockPos center, int horizontalRange) {
+        BlockPos direct = EntityUtil.findSafeGroundPositionInCompany(level, center, horizontalRange);
+        if (canPlaceBloodySmall(level, clown, direct)) {
+            return direct;
+        }
+
+        int radius = Math.max(4, horizontalRange);
+        for (int attempt = 0; attempt < 48; attempt++) {
+            int offsetX = level.random.nextInt(radius * 2 + 1) - radius;
+            int offsetZ = level.random.nextInt(radius * 2 + 1) - radius;
+            BlockPos candidate = EntityUtil.findSafeGroundPositionInCompany(
+                    level, center.offset(offsetX, 0, offsetZ), 0);
+            if (canPlaceBloodySmall(level, clown, candidate)) {
+                return candidate;
+            }
+        }
+
+        for (int r = 1; r <= radius; r++) {
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    if (Math.abs(dx) != r && Math.abs(dz) != r) continue;
+                    BlockPos candidate = EntityUtil.findSafeGroundPositionInCompany(
+                            level, center.offset(dx, 0, dz), 0);
+                    if (canPlaceBloodySmall(level, clown, candidate)) {
+                        return candidate;
+                    }
+                }
+            }
+        }
+
+        return direct;
+    }
+
+    private static boolean canPlaceBloodySmall(ServerLevel level, EntityBloodySmall clown, BlockPos pos) {
+        if (pos == null || !EntityUtil.isInCompany(level, pos)) {
+            return false;
+        }
+        clown.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D,
+                clown.getYRot(), clown.getXRot());
+        return level.noCollision(clown);
     }
 
     private static AbstractAbnormality chooseAbnormality(ServerLevel level) {

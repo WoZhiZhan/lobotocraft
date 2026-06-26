@@ -51,10 +51,10 @@ public class EntityGreenDawn extends BaseGeoEntity {
             SynchedEntityData.defineId(EntityGreenDawn.class, EntityDataSerializers.INT);
 
     private static final int NORMAL_ATTACK_ANIM_TICKS = 40;
-    private static final int NORMAL_ATTACK_HIT_TICK = 16;
+    private static final int NORMAL_ATTACK_HIT_TICK = 22;
     private static final int SPECIAL_ATTACK_ANIM_TICKS = 45;
     private static final int SPECIAL_ATTACK_COOLDOWN_TICKS = 140;
-    private static final int[] SPECIAL_HIT_TICKS = {12, 24, 36};
+    private static final int[] SPECIAL_HIT_TICKS = {13, 18, 23, 37};
     private static final int IDLE_SOUND_INTERVAL_TICKS = 60;
     private static final int DEATH_ANIM_TICKS = 30;
     private static final double ATTACK_RANGE_SQR = 6.0D;
@@ -102,8 +102,8 @@ public class EntityGreenDawn extends BaseGeoEntity {
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
-        this.goalSelector.addGoal(2, new MeleeAttackGoal(this, 0.5D, false));
-        this.goalSelector.addGoal(7, new WaterAvoidingRandomStrollGoal(this, 0.45D));
+        this.goalSelector.addGoal(2, new MeleeAttackGoal(this, 1.0D, false));
+        this.goalSelector.addGoal(7, new WaterAvoidingRandomStrollGoal(this, 1.0D));
         this.goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0F));
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
         this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false,
@@ -287,7 +287,13 @@ public class EntityGreenDawn extends BaseGeoEntity {
     }
 
     private String getMoveAnim() {
-        return this.getDeltaMovement().horizontalDistanceSqr() > 0.001D ? "walk" : "idle";
+        if (this.getNavigation().isInProgress() || this.getDeltaMovement().horizontalDistanceSqr() > 1.0E-4D) {
+            return "walk";
+        }
+        LivingEntity target = this.getTarget();
+        return target != null && target.isAlive() && this.distanceToSqr(target) > ATTACK_RANGE_SQR
+                ? "walk"
+                : "idle";
     }
 
     @Override
@@ -351,7 +357,7 @@ public class EntityGreenDawn extends BaseGeoEntity {
     public static AttributeSupplier.Builder createAttributes() {
         return Mob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, 150.0D)
-                .add(Attributes.MOVEMENT_SPEED, 0.155D)
+                .add(Attributes.MOVEMENT_SPEED, 0.1D)
                 .add(Attributes.ATTACK_DAMAGE, 4.0D)
                 .add(Attributes.FOLLOW_RANGE, 32.0D)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D)

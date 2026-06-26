@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.block.EscapeBlock;
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
 import com.wzz.lobotocraft.entity.ai.goal.MoveToBlackForestDoorGoal;
+import com.wzz.lobotocraft.entity.abnormality.EntityIsharmla;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.event.abnormality.AbnormalityEscapeEvent;
 import com.wzz.lobotocraft.event.abnormality.AbnormalityEscapeStopEvent;
@@ -105,6 +106,16 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
 
     public String getAbnormalityJadeName() {
         return this.entityData.get(DATA_JADE_NAME);
+    }
+
+    @Override
+    public void setTarget(@Nullable LivingEntity target) {
+        if (target instanceof EntityIsharmla
+                || (this instanceof EntityIsharmla && target instanceof AbstractAbnormality)) {
+            super.setTarget(null);
+            return;
+        }
+        super.setTarget(target);
     }
 
     /**

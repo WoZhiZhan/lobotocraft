@@ -82,7 +82,7 @@ public class EntityIsharmla extends AbstractAbnormality {
     private static final int BEAM_SKILL_INTERVAL_TICKS = 30 * 20;
     private static final int NO_TARGET_BEAM_DELAY_TICKS = 15 * 20;
     private static final int NO_TARGET_BEAM_INTERVAL_TICKS = 7 * 20;
-    private static final int MONSTER_FORCED_ESCAPE_INTERVAL = 30 * 20;
+    private static final int MONSTER_FORCED_ESCAPE_INTERVAL = 25 * 20;
     private static final int BEAM_MOUTH_EFFECT_TICK = 12;
     private static final int SPECIAL_SHAKE_TICKS = 10;
     private static final float SPECIAL_SHAKE_INTENSITY = 20.0F;
@@ -778,9 +778,7 @@ public class EntityIsharmla extends AbstractAbnormality {
                     && !p.getPersistentData().getBoolean("isharmla_panic");
         }
         if (e instanceof EntityClerk) return true;
-        if (e instanceof AbstractAbnormality abnormality) {
-            return abnormality.hasEscape();
-        }
+        if (e instanceof AbstractAbnormality) return false;
         return true;
     }
 

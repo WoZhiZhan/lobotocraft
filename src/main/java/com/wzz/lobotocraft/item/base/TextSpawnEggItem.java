@@ -1,8 +1,10 @@
 package com.wzz.lobotocraft.item.base;
 
+import com.wzz.lobotocraft.entity.abnormality.EntityLadyFacingTheWall;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.util.AbnormalitySpawnHelper;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionResult;
@@ -65,10 +67,26 @@ public class TextSpawnEggItem extends ForgeSpawnEggItem {
         if (spawned == null) {
             return InteractionResult.FAIL;
         }
+        if (spawned instanceof EntityLadyFacingTheWall) {
+            alignLadyFacingWall(spawned, context.getClickedFace());
+        }
         if (context.getPlayer() == null || !context.getPlayer().getAbilities().instabuild) {
             stack.shrink(1);
         }
         return InteractionResult.CONSUME;
+    }
+
+    private static void alignLadyFacingWall(AbstractAbnormality spawned, Direction clickedFace) {
+        if (!clickedFace.getAxis().isHorizontal()) {
+            return;
+        }
+        float yaw = clickedFace.getOpposite().toYRot();
+        spawned.setYRot(yaw);
+        spawned.setYBodyRot(yaw);
+        spawned.setYHeadRot(yaw);
+        spawned.yRotO = yaw;
+        spawned.yBodyRotO = yaw;
+        spawned.yHeadRotO = yaw;
     }
 
     @Override

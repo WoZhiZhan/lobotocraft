@@ -68,6 +68,11 @@ public class OrdealData extends SavedData {
         setDirty();
     }
 
+    public void resetDawnTriggersToday() {
+        dawnTriggersToday = 0;
+        setDirty();
+    }
+
     public boolean hasNextDawnType() {
         return nextDawnType != NO_DAWN_TYPE;
     }

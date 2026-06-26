@@ -26,6 +26,7 @@ import com.wzz.lobotocraft.network.packet.OpenChatScreenPacket;
 import com.wzz.lobotocraft.util.*;
 import com.wzz.lobotocraft.work.WorkManager;
 import com.wzz.lobotocraft.work.WorkType;
+import com.wzz.lobotocraft.world.data.OrdealData;
 import com.wzz.lobotocraft.world.structure.StructureLoader;
 import com.wzz.lobotocraft.world.structure.Structures;
 import net.minecraft.core.BlockPos;
@@ -374,6 +375,9 @@ public class ForgeModEvent {
 				}
 			}
 			player.getCapability(CompanyDailyDataProvider.COMPANY_DAILY_DATA).ifPresent(data -> data.setTodayWorkCount(0));
+			if (player.level() instanceof ServerLevel level) {
+				OrdealData.get(level).resetDawnTriggersToday();
+			}
 			if (com.wzz.lobotocraft.util.BuffUtil.hasFriendshipProof(player)) {
 				boolean has = false;
 				for (Entity entity : EntityUtil.findAllEntities(event.getEntity(), 8)) {

@@ -70,6 +70,9 @@ public class WorkManager {
         public int failureCount = 0;
         public boolean forcedEnd = false;  // 是否被强制结束（恐慌）
         public boolean stopContinuousAfterCurrent = false;
+        public boolean completeImmediately = false;
+        public WorkResult forcedResult = null;
+        public String forcedEndReason = "恐慌";
 
         private float currentSpeedMultiplier = 1.0f;
         private int currentExtractionInterval;
@@ -368,6 +371,7 @@ public class WorkManager {
             boolean isPanic = checkPlayerPanic(session.player);
             if (isPanic && !session.forcedEnd) {
                 session.forcedEnd = true;
+                session.forcedEndReason = "恐慌";
                 session.player.sendSystemMessage(Component.literal("§c你因为恐慌而无法继续工作！"));
             }
 
@@ -385,6 +389,14 @@ public class WorkManager {
             session.workDuration++;
 
             session.abnormality.onWorkTick(session.player, session, session.workType);
+            if (session.completeImmediately) {
+                boolean restartContinuous = completeWork(session);
+                iterator.remove();
+                if (restartContinuous) {
+                    startWork(session.player, session.abnormality, session.workType, true, true);
+                }
+                continue;
+            }
             MinecraftForge.EVENT_BUS.post(new WorkTickEvent(
                     session.player,
                     session.abnormality,
@@ -552,23 +564,16 @@ public class WorkManager {
         IAbnormality abnormality = session.abnormality;
         WorkType workType = session.workType;
 
-        int maxExtractions = abnormality.getMaxPEOutput();
-        float successRate = (float) session.successCount / maxExtractions;
-
         WorkResult result;
 
-        if (abnormality.shouldForceWorkResult(player, workType)) {
+        if (session.forcedResult != null) {
+            result = session.forcedResult;
+        } else if (abnormality.shouldForceWorkResult(player, workType)) {
             // 异想体强制指定结果（如快乐泰迪的第二次沟通）
             result = abnormality.getForcedWorkResult(player, workType);
         } else {
-            // 正常流程：根据成功率判定结果
-            if (successRate >= 0.8f) {
-                result = WorkResult.GOOD;
-            } else if (successRate >= 0.4f) {
-                result = WorkResult.NORMAL;
-            } else {
-                result = WorkResult.BAD;
-            }
+            // 正常流程：根据PE-BOX产量判定结果
+            result = abnormality.getWorkResultForPEOutput(session.successCount);
         }
 
         int peOutput = session.successCount;
@@ -641,7 +646,7 @@ public class WorkManager {
         };
         if (session.forcedEnd) {
             player.sendSystemMessage(Component.literal(
-                    String.format("§c工作因恐慌中断！时长：%s，结果：%s，获得 %d PE-BOX", session.getFormattedDuration(), resultText, peOutput)
+                    String.format("§c工作因%s中断！时长：%s，结果：%s，获得 %d PE-BOX", session.forcedEndReason, session.getFormattedDuration(), resultText, peOutput)
             ));
         } else {
             player.sendSystemMessage(Component.literal(
@@ -776,6 +781,19 @@ public class WorkManager {
      */
     public static WorkSession getWorkSession(ServerPlayer player) {
         return activeWorks.get(player.getUUID());
+    }
+
+    public static void forceCompleteWork(ServerPlayer player, WorkResult result, String reason) {
+        WorkSession session = activeWorks.get(player.getUUID());
+        if (session == null) {
+            return;
+        }
+        session.forcedEnd = true;
+        session.forcedEndReason = reason;
+        session.forcedResult = result;
+        session.completeImmediately = true;
+        session.stopContinuousAfterCurrent = true;
+        WorkDeviceItem.disableAll(player);
     }
 
     /**

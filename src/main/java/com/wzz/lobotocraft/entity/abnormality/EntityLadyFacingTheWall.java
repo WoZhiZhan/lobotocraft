@@ -5,13 +5,13 @@ import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.event.work.WorkCompleteEvent;
 import com.wzz.lobotocraft.init.ModAttributes;
-import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.LockInputPacket;
 import com.wzz.lobotocraft.util.DamageHelper;
+import com.wzz.lobotocraft.work.WorkManager;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
-import net.minecraft.core.particles.SimpleParticleType;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -62,17 +62,17 @@ public class EntityLadyFacingTheWall extends AbstractAbnormality {
         this.damageType = "WHITE";
         this.maxPEOutput = 14;
 
-        initializeWorkPreferences(new float[]{0.40f, 0.55f, 0.45f, 0.30f});
-        initializeQliphothCounter(2);
+        initializeWorkPreferences(new float[]{0.40f, 0.50f, 0.60f, 0.30f});
+        initializeQliphothCounter(4);
     }
 
     @Override
     public float[][] getFullWorkPreferences() {
         float[][] prefs = new float[4][5];
-        prefs[WorkType.INSTINCT.ordinal()] = new float[]{0.35f, 0.40f, 0.40f, 0.45f, 0.45f};
-        prefs[WorkType.INSIGHT.ordinal()] = new float[]{0.50f, 0.55f, 0.55f, 0.60f, 0.60f};
-        prefs[WorkType.ATTACHMENT.ordinal()] = new float[]{0.40f, 0.45f, 0.45f, 0.50f, 0.50f};
-        prefs[WorkType.REPRESSION.ordinal()] = new float[]{0.25f, 0.30f, 0.30f, 0.35f, 0.35f};
+        prefs[WorkType.INSTINCT.ordinal()] = new float[]{0.45f, 0.45f, 0.40f, 0.40f, 0.40f};
+        prefs[WorkType.INSIGHT.ordinal()] = new float[]{0.45f, 0.45f, 0.50f, 0.50f, 0.50f};
+        prefs[WorkType.ATTACHMENT.ordinal()] = new float[]{0.65f, 0.65f, 0.60f, 0.60f, 0.60f};
+        prefs[WorkType.REPRESSION.ordinal()] = new float[]{0.30f, 0.30f, 0.30f, 0.30f, 0.30f};
         return prefs;
     }
 
@@ -107,6 +107,16 @@ public class EntityLadyFacingTheWall extends AbstractAbnormality {
     }
 
     @Override
+    public int getGoodWorkResultMin() {
+        return 11;
+    }
+
+    @Override
+    public int getNormalWorkResultMin() {
+        return 6;
+    }
+
+    @Override
     public String name() {
         return "the_lady_facing_the_wall";
     }
@@ -138,6 +148,14 @@ public class EntityLadyFacingTheWall extends AbstractAbnormality {
 
     @Override
     public void onBadWork(ServerPlayer player) {
+    }
+
+    @Override
+    public void onWorkTick(ServerPlayer player, WorkManager.WorkSession session, WorkType workType) {
+        if (PUNISHED_PLAYERS.containsKey(player.getUUID())) {
+            WorkManager.forceCompleteWork(player, WorkResult.BAD, "孤独");
+            player.closeContainer();
+        }
     }
 
     @Override
@@ -285,8 +303,12 @@ public class EntityLadyFacingTheWall extends AbstractAbnormality {
 
     private static void spawnBlackSmoke(ServerLevel level, double x, double y, double z,
                                         int count, double xOffset, double yOffset, double zOffset) {
-        if (ModParticleTypes.BLACK.get() instanceof SimpleParticleType type) {
-            level.sendParticles(type, x, y, z, count, xOffset, yOffset, zOffset, 0.02D);
+        for (int i = 0; i < count; i++) {
+            double px = x + (level.random.nextDouble() - 0.5D) * xOffset * 2.0D;
+            double py = y + (level.random.nextDouble() - 0.5D) * yOffset * 2.0D;
+            double pz = z + (level.random.nextDouble() - 0.5D) * zOffset * 2.0D;
+            level.sendParticles(ParticleTypes.ENTITY_EFFECT, px, py, pz, 0,
+                    0.01D, 0.01D, 0.01D, 1.0D);
         }
     }
 
