@@ -17,7 +17,7 @@ import java.util.Map;
 
 /**
  * 新星之声 护甲基类(ALEPH)。
- * 三件(胸甲/护腿/靴子)共用一体模型(blue_star_armor.geo.json)+各部位独立贴图。
+ * 三件(胸甲/护腿/靴子)使用独立模型，共用一张贴图。
  * 抗性:红/白/黑 0.4(极高减伤)、蓝 1.0(一般)。
  * 装备要求:谨慎V 自律V 等级V。
  * 特殊效果:每5秒为同一房间内所有员工(含自己)恢复5点精神值(对恐慌玩家无效)——由 BlueStarSetEvent 处理。
@@ -41,7 +41,7 @@ public abstract class BlueStarBaseArmor extends BaseEgoArmor {
 
     @Override
     public boolean useSeparateModel() {
-        return false;
+        return true;
     }
 
     @Override
