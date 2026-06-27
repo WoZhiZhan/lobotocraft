@@ -67,7 +67,7 @@ public class EntityBlueStar extends AbstractAbnormality {
         this.damageType = "WHITE";
         this.maxPEOutput = 33;
 
-        float[] basePreferences = {0.4f, 0.6f, 0.55f, 0.3f};
+        float[] basePreferences = {0.3f, 0.5f, 0.0f, 0.4f};
         initializeWorkPreferences(basePreferences);
         initializeQliphothCounter(2);
     }
@@ -100,7 +100,7 @@ public class EntityBlueStar extends AbstractAbnormality {
 
     @Override
     protected float[] getWorkPreferencesModifier() {
-        return new float[] {0.3f, 0.5f, 0.0f, 0.4f};
+        return new float[] {0.0f, 0.0f, 0.0f, 0.0f};
     }
 
     @Override
@@ -390,6 +390,14 @@ public class EntityBlueStar extends AbstractAbnormality {
     }
 
     @Override
+    public Float modifyWorkSuccessRate(ServerPlayer player, WorkType workType, float baseRate) {
+        if (workType == WorkType.INSIGHT) {
+            return Math.min(0.95f, baseRate + 0.20f);
+        }
+        return null;
+    }
+
+    @Override
     public void attackPlayerOnFailure(Player player, WorkType workType) {
         float damage = 6.0f + random.nextInt(2) + 3;
         player.hurt(DamageHelper.getDamage(this, "lobotocraft:white"), damage);
@@ -444,7 +452,7 @@ public class EntityBlueStar extends AbstractAbnormality {
                 "新星之声",
                 getRiskLevel(),
                 "WHITE",
-                "8-12 / 15-18 / 20-22",
+                "8-12 / 15-18",
                 "1.5s",
                 "25格",
                 getWeaponDevelopmentMaxCount(),
@@ -455,7 +463,7 @@ public class EntityBlueStar extends AbstractAbnormality {
     @Override
     public EGOEquipmentData.ArmorData getEGOArmorData() {
         return new EGOEquipmentData.ArmorData(
-                ResourceUtil.createInstance("textures/item/blue_star_armor_icon.png"),
+                ResourceUtil.createInstance("textures/gui/ego/blue_star_armor.png"),
                 "新星之声",
                 getRiskLevel(),
                 0.4f,
