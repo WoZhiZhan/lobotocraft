@@ -145,8 +145,10 @@ public class EntityBloodySmall extends BaseGeoEntity {
         AbstractAbnormality next = chooseNextAbnormality(level, current);
         if (next != null) {
             BlockPos pos = CrimsonDawnEvent.findBloodySmallSpawnPosition(level, this, next.blockPosition(), 4);
-            this.teleportTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D);
-            setTrackedAbnormality(next);
+            if (pos != null) {
+                this.teleportTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D);
+                setTrackedAbnormality(next);
+            }
         }
         setAnimation("idle");
     }

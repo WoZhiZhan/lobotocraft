@@ -351,16 +351,17 @@ public class EntityHappyTeddy extends AbstractAbnormality {
             return;
         }
 
-        boolean hasNearbyPlayer = !level.getPlayers(player -> player.isAlive()
+        List<ServerPlayer> nearbyPlayers = level.getPlayers(player -> player.isAlive()
                 && !player.isCreative()
                 && !player.isSpectator()
-                && player.distanceToSqr(this) <= IDLE_SOUND_RANGE * IDLE_SOUND_RANGE).isEmpty();
-        if (!hasNearbyPlayer) {
+                && player.distanceToSqr(this) <= IDLE_SOUND_RANGE * IDLE_SOUND_RANGE);
+        if (nearbyPlayers.isEmpty()) {
             return;
         }
 
-        level.playSound(null, this.blockPosition(), ModSounds.HAPPY_TEDDY_IDLE.get(),
-                SoundSource.AMBIENT, 1.0F, 1.0F);
+        for (ServerPlayer player : nearbyPlayers) {
+            player.playNotifySound(ModSounds.HAPPY_TEDDY_IDLE.get(), SoundSource.AMBIENT, 1.0F, 1.0F);
+        }
         idleSoundCooldown = IDLE_SOUND_COOLDOWN_TICKS;
     }
 

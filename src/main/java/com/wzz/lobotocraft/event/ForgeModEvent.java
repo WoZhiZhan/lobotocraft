@@ -24,6 +24,7 @@ import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
 import com.wzz.lobotocraft.network.packet.LargeBirdBorderPacket;
 import com.wzz.lobotocraft.network.packet.MentalValueSyncPacket;
 import com.wzz.lobotocraft.network.packet.OpenChatScreenPacket;
+import com.wzz.lobotocraft.network.packet.StopAmbientSoundPacket;
 import com.wzz.lobotocraft.util.*;
 import com.wzz.lobotocraft.work.WorkManager;
 import com.wzz.lobotocraft.work.WorkType;
@@ -38,6 +39,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionResult;
@@ -434,8 +436,18 @@ public class ForgeModEvent {
 
 	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public static void onLivingDeathLow(LivingDeathEvent event) {
-		if (event.getEntity() instanceof Player player) {
+		if (event.getEntity() instanceof ServerPlayer player) {
+			stopLowHealthSound(player);
+			player.playNotifySound(ModSounds.PLAYER_DEATH.get(), SoundSource.PLAYERS, 1, 1);
 			player.playNotifySound(ModSounds.PLAYER_DEATH_AFTER.get(), SoundSource.PLAYERS, 1, 1);
+		}
+	}
+
+	@SubscribeEvent
+	public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+		if (event.getEntity() instanceof ServerPlayer player) {
+			stopLowHealthSound(player);
+			stopDeathSounds(player);
 		}
 	}
 
@@ -616,7 +628,7 @@ public class ForgeModEvent {
 		}
 
 		if (!player.isAlive() || player.getMaxHealth() <= 0.0F) {
-			tag.putBoolean(LOW_HEALTH_SOUND_ACTIVE_TAG, false);
+			stopLowHealthSound(player);
 			return;
 		}
 
@@ -628,8 +640,26 @@ public class ForgeModEvent {
 			}
 			tag.putBoolean(LOW_HEALTH_SOUND_ACTIVE_TAG, true);
 		} else if (healthRatio >= 0.35F) {
-			tag.putBoolean(LOW_HEALTH_SOUND_ACTIVE_TAG, false);
+			stopLowHealthSound(player);
 		}
+	}
+
+	private static void stopLowHealthSound(ServerPlayer player) {
+		CompoundTag tag = player.getPersistentData();
+		if (tag.getBoolean(LOW_HEALTH_SOUND_ACTIVE_TAG)) {
+			stopPlayerSound(player, ModSounds.PLAYER_LOW_HEALTH.get(), SoundSource.PLAYERS);
+		}
+		tag.putBoolean(LOW_HEALTH_SOUND_ACTIVE_TAG, false);
+	}
+
+	private static void stopDeathSounds(ServerPlayer player) {
+		stopPlayerSound(player, ModSounds.PLAYER_DEATH.get(), SoundSource.PLAYERS);
+		stopPlayerSound(player, ModSounds.PLAYER_DEATH_AFTER.get(), SoundSource.PLAYERS);
+	}
+
+	private static void stopPlayerSound(ServerPlayer player, SoundEvent sound, SoundSource soundSource) {
+		MessageLoader.getLoader().sendToPlayer(player,
+				new StopAmbientSoundPacket(sound.getLocation(), soundSource));
 	}
 
 	private static void clearThinDuskLargeBirdPanic(ServerPlayer player) {

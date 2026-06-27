@@ -154,6 +154,10 @@ public class CrimsonDawnEvent {
             BlockPos fallback = fallbackPlayer == null ? level.getSharedSpawnPos() : fallbackPlayer.blockPosition();
             spawnPos = findBloodySmallSpawnPosition(level, clown, fallback, 4);
         }
+        if (spawnPos == null) {
+            OrdealData.get(level).decrementBloodDawnRemaining();
+            return;
+        }
 
         clown.moveTo(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D,
                 level.getRandom().nextFloat() * 360.0F, 0.0F);
@@ -182,7 +186,8 @@ public class CrimsonDawnEvent {
             }
         }
 
-        for (int r = 1; r <= radius; r++) {
+        int fallbackRadius = Math.max(12, radius + 4);
+        for (int r = 1; r <= fallbackRadius; r++) {
             for (int dx = -r; dx <= r; dx++) {
                 for (int dz = -r; dz <= r; dz++) {
                     if (Math.abs(dx) != r && Math.abs(dz) != r) continue;
@@ -195,16 +200,34 @@ public class CrimsonDawnEvent {
             }
         }
 
-        return direct;
+        BlockPos current = clown.blockPosition();
+        return canPlaceBloodySmall(level, clown, current) ? current : null;
     }
 
     private static boolean canPlaceBloodySmall(ServerLevel level, EntityBloodySmall clown, BlockPos pos) {
         if (pos == null || !EntityUtil.isInCompany(level, pos)) {
             return false;
         }
+        if (pos.getY() <= level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight() - 1) {
+            return false;
+        }
+        BlockPos below = pos.below();
+        if (level.isEmptyBlock(below) || !level.getBlockState(below).isSolid()) {
+            return false;
+        }
+        if (!level.isEmptyBlock(pos) || !level.isEmptyBlock(pos.above())) {
+            return false;
+        }
+        double originalX = clown.getX();
+        double originalY = clown.getY();
+        double originalZ = clown.getZ();
+        float originalYRot = clown.getYRot();
+        float originalXRot = clown.getXRot();
         clown.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D,
                 clown.getYRot(), clown.getXRot());
-        return level.noCollision(clown);
+        boolean canPlace = level.noCollision(clown);
+        clown.moveTo(originalX, originalY, originalZ, originalYRot, originalXRot);
+        return canPlace;
     }
 
     private static AbstractAbnormality chooseAbnormality(ServerLevel level) {
