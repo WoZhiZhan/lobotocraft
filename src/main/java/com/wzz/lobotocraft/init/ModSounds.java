@@ -53,6 +53,7 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> WINGBEAT_WEAPON = register("wingbeat_weapon");
 	public static final RegistryObject<SoundEvent> WINGBEAT_HEAL_HEALTH = register("wingbeat_heal_health");
 	public static final RegistryObject<SoundEvent> WINGBEAT_KILL_PLAYER = register("wingbeat_kill_player");
+	public static final RegistryObject<SoundEvent> WINGBEAT_FEAST = register("wingbeat_feast");
 	public static final RegistryObject<SoundEvent> ARMY_IN_BLACK_PROTECT_START = register("army_in_black_protect_start");
 	public static final RegistryObject<SoundEvent> ARMY_IN_BLACK_PROTECT_END = register("army_in_black_protect_end");
 	public static final RegistryObject<SoundEvent> ARMY_IN_BLACK_ATTACK = register("army_in_black_attack");
@@ -77,6 +78,7 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> SNOW_QUEEN_SIGN_KISS = register("snow_queen_sign_kiss");
 	public static final RegistryObject<SoundEvent> SNOW_QUEEN_KISS = register("snow_queen_kiss");
 	public static final RegistryObject<SoundEvent> CHILDREN_GALAXY_ATTACK = register("children_galaxy_attack");
+	public static final RegistryObject<SoundEvent> HAPPY_TEDDY_IDLE = register("happy_teddy_idle");
 	public static final RegistryObject<SoundEvent> BLUE_STAR_ESCAPE = register("blue_star_escape");
 	public static final RegistryObject<SoundEvent> BLUE_STAR_DIE = register("blue_star_die");
 	public static final RegistryObject<SoundEvent> BLUE_STAR_ATTACK = register("blue_star_attack");
@@ -87,6 +89,8 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> THORN_BUS_USE_PUT_TO_DEATH = register("thorn_bus_use_put_to_death");
 	public static final RegistryObject<SoundEvent> THORN_BUS_PUT_TO_DEATH_ATTACK = register("thorn_bus_put_to_death_attack");
 	public static final RegistryObject<SoundEvent> PLAYER_DEATH = register("player_death");
+	public static final RegistryObject<SoundEvent> PLAYER_DEATH_AFTER = register("player_death_after");
+	public static final RegistryObject<SoundEvent> PLAYER_LOW_HEALTH = register("player_low_health");
 	public static final RegistryObject<SoundEvent> THORN_BUS_WEAPON = register("thorn_bus_weapon");
 	public static final RegistryObject<SoundEvent> END_BIRD_EGG_HIGH = register("end_bird_egg_high");
 	public static final RegistryObject<SoundEvent> END_BIRD_EGG_SMALL = register("end_bird_egg_small");

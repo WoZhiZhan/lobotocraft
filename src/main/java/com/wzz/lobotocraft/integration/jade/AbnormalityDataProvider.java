@@ -1,5 +1,10 @@
 package com.wzz.lobotocraft.integration.jade;
 
+import com.wzz.lobotocraft.entity.abnormality.EntityCrumblingArmor;
+import com.wzz.lobotocraft.entity.abnormality.EntityHappyTeddy;
+import com.wzz.lobotocraft.entity.abnormality.EntityOneBad;
+import com.wzz.lobotocraft.entity.abnormality.EntitySnowQueen;
+import com.wzz.lobotocraft.entity.abnormality.EntityWingBeat;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
@@ -13,12 +18,19 @@ import snownee.jade.api.IServerDataProvider;
 public enum AbnormalityDataProvider implements IServerDataProvider<EntityAccessor> {
     INSTANCE;
 
+    private static final int NO_COUNTER_DISPLAY_VALUE = 114514;
+
     @Override
     public void appendServerData(CompoundTag data, EntityAccessor accessor) {
         if (accessor.getEntity() instanceof AbstractAbnormality abnormality) {
             // 同步逆卡巴拉计数器
-            data.putInt("QliphothCounter", abnormality.getQliphothCounter());
-            data.putInt("MaxQliphothCounter", abnormality.getMaxQliphothCounter());
+            if (shouldDisplayNoCounter(abnormality)) {
+                data.putInt("QliphothCounter", NO_COUNTER_DISPLAY_VALUE);
+                data.putInt("MaxQliphothCounter", NO_COUNTER_DISPLAY_VALUE);
+            } else {
+                data.putInt("QliphothCounter", abnormality.getQliphothCounter());
+                data.putInt("MaxQliphothCounter", abnormality.getMaxQliphothCounter());
+            }
             
             // 同步异想体基本信息
             data.putString("AbnormalityCode", abnormality.getAbnormalityCode());
@@ -34,6 +46,14 @@ public enum AbnormalityDataProvider implements IServerDataProvider<EntityAccesso
                 data.putBoolean("HasEscaped", abnormality.hasEscape());
             }
         }
+    }
+
+    private boolean shouldDisplayNoCounter(AbstractAbnormality abnormality) {
+        return abnormality instanceof EntityOneBad
+                || abnormality instanceof EntityHappyTeddy
+                || abnormality instanceof EntityWingBeat
+                || abnormality instanceof EntitySnowQueen
+                || abnormality instanceof EntityCrumblingArmor;
     }
 
     @Override

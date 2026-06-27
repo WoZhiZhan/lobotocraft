@@ -1,13 +1,20 @@
 package com.wzz.lobotocraft.entity.ordeal;
 
+import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
+import com.wzz.lobotocraft.entity.abnormality.EntityDarkSkadi;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.BaseGeoEntity;
 import com.wzz.lobotocraft.event.CrimsonDawnEvent;
 import com.wzz.lobotocraft.init.ModAttributes;
+import com.wzz.lobotocraft.network.MessageLoader;
+import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -126,9 +133,14 @@ public class EntityBloodySmall extends BaseGeoEntity {
                 40, 1.0D, 0.8D, 1.0D, 0.02D);
 
         AbstractAbnormality current = getTrackedAbnormality(level);
-        if (current != null && !current.hasEscape() && current.getQliphothCounter() > 0) {
-            current.decreaseQliphothCounter(1);
+        if (current != null && !current.hasEscape()) {
+            if (current instanceof EntityDarkSkadi) {
+                notifySkadiCounterProtected(level);
+            } else if (current.getQliphothCounter() > 0) {
+                current.decreaseQliphothCounter(1);
+            }
         }
+        decreaseTodayWorkCount(level);
 
         AbstractAbnormality next = chooseNextAbnormality(level, current);
         if (next != null) {
@@ -137,6 +149,32 @@ public class EntityBloodySmall extends BaseGeoEntity {
             setTrackedAbnormality(next);
         }
         setAnimation("idle");
+    }
+
+    private void notifySkadiCounterProtected(ServerLevel level) {
+        Component message = Component.literal("被祝福的玩家没有死亡，斯卡蒂感到安心，计数器并未降低")
+                .withStyle(ChatFormatting.BLUE);
+        for (ServerPlayer player : level.players()) {
+            player.sendSystemMessage(message);
+        }
+    }
+
+    private void decreaseTodayWorkCount(ServerLevel level) {
+        for (ServerPlayer player : level.players()) {
+            if (!player.isAlive() || player.isSpectator()) {
+                continue;
+            }
+            player.getCapability(CompanyDailyDataProvider.COMPANY_DAILY_DATA).ifPresent(data -> {
+                data.setTodayWorkCount(Math.max(0, data.getTodayWorkCount() - 1));
+                MessageLoader.getLoader().sendToPlayer(player,
+                        new CompanyDailySyncPacket(
+                                data.getCurrentDay(),
+                                data.getTodayWorkCount(),
+                                data.isArmorLocked(),
+                                data.isHasSleep()
+                        ));
+            });
+        }
     }
 
     @Nullable

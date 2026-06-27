@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
 import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
+import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.EscapeTracker;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
@@ -582,6 +583,11 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         for (ServerPlayer player : level.players()) {
             if (player.isAlive() && !player.isCreative() && !player.isSpectator()) {
                 player.hurt(whiteDamage, damage);
+            }
+        }
+        for (Entity entity : level.getAllEntities()) {
+            if (entity instanceof EntityClerk clerk && clerk.isAlive()) {
+                clerk.hurt(whiteDamage, damage);
             }
         }
         List<AbstractAbnormality> abnormalities = new ArrayList<>();

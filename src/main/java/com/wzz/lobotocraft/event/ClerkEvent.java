@@ -43,6 +43,10 @@ public class ClerkEvent {
         ServerLevel level = event.getPlayer().getServer().getLevel(ModDimensions.LOBOTO_KEY);
         if (level == null) return;
 
+        resetDayClerks(level);
+    }
+
+    public static void resetDayClerks(ServerLevel level) {
         clearTombstones(level);
         replenishClerks(level);
     }

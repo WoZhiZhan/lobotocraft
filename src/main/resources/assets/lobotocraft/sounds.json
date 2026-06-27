@@ -315,6 +315,14 @@
       }
     ]
   },
+  "wingbeat_feast": {
+    "sounds": [
+      {
+        "name": "lobotocraft:wingbeat_feast",
+        "stream": true
+      }
+    ]
+  },
   "army_in_black_protect_start": {
     "sounds": [
       {
@@ -507,6 +515,14 @@
       }
     ]
   },
+  "happy_teddy_idle": {
+    "sounds": [
+      {
+        "name": "lobotocraft:happy_teddy_idle",
+        "stream": true
+      }
+    ]
+  },
   "blue_star_escape": {
     "sounds": [
       {
@@ -584,6 +600,22 @@
       {
         "name": "lobotocraft:player_death",
         "stream": false
+      }
+    ]
+  },
+  "player_death_after": {
+    "sounds": [
+      {
+        "name": "lobotocraft:player_death_after",
+        "stream": true
+      }
+    ]
+  },
+  "player_low_health": {
+    "sounds": [
+      {
+        "name": "lobotocraft:player_low_health",
+        "stream": true
       }
     ]
   },

@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
+import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -12,6 +13,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageSources;
 import net.minecraft.world.entity.EntityType;
@@ -54,6 +56,9 @@ public class EntityHappyTeddy extends AbstractAbnormality {
     private UUID huggedPlayerUUID = null;
     private int hugAnimationPhase = 0; // 0=拥抱开始, 1=拥抱中, 2=处决
     private int hugAnimationTimer = 0;
+    private static final double IDLE_SOUND_RANGE = 8.0D;
+    private static final int IDLE_SOUND_COOLDOWN_TICKS = 20 * 20;
+    private int idleSoundCooldown = 0;
 
     public EntityHappyTeddy(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -278,6 +283,10 @@ public class EntityHappyTeddy extends AbstractAbnormality {
     public void tick() {
         super.tick();
 
+        if (!this.level().isClientSide) {
+            tickIdleProximitySound((ServerLevel) this.level());
+        }
+
         // 处理拥抱死亡动画
         if (huggedPlayerUUID != null && !this.level().isClientSide) {
             ServerPlayer player = ((ServerLevel)this.level()).getServer()
@@ -332,6 +341,27 @@ public class EntityHappyTeddy extends AbstractAbnormality {
                 setCurrentAnimation("empty");
             }
         }
+    }
+
+    private void tickIdleProximitySound(ServerLevel level) {
+        if (idleSoundCooldown > 0) {
+            idleSoundCooldown--;
+        }
+        if (huggedPlayerUUID != null || idleSoundCooldown > 0) {
+            return;
+        }
+
+        boolean hasNearbyPlayer = !level.getPlayers(player -> player.isAlive()
+                && !player.isCreative()
+                && !player.isSpectator()
+                && player.distanceToSqr(this) <= IDLE_SOUND_RANGE * IDLE_SOUND_RANGE).isEmpty();
+        if (!hasNearbyPlayer) {
+            return;
+        }
+
+        level.playSound(null, this.blockPosition(), ModSounds.HAPPY_TEDDY_IDLE.get(),
+                SoundSource.AMBIENT, 1.0F, 1.0F);
+        idleSoundCooldown = IDLE_SOUND_COOLDOWN_TICKS;
     }
 
     // ==================== 工作结果奖励 ====================

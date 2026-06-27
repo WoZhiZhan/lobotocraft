@@ -3,6 +3,7 @@ package com.wzz.lobotocraft;
 import com.wzz.lobotocraft.init.*;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.work.WorkSpeedModifierManager;
+import com.wzz.lobotocraft.work.modifier.ContinuousWorkSpeedModifier;
 import com.wzz.lobotocraft.work.modifier.TT2ProtocolSpeedModifier;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -41,6 +42,7 @@ public class ModMain {
     }
 
     private void completeSetup(final FMLLoadCompleteEvent event) {
+        WorkSpeedModifierManager.registerGlobalModifier(ContinuousWorkSpeedModifier.getInstance());
         WorkSpeedModifierManager.registerGlobalModifier(TT2ProtocolSpeedModifier.getInstance());
     }
 }

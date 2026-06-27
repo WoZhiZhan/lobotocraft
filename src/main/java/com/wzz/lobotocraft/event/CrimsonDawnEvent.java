@@ -137,8 +137,7 @@ public class CrimsonDawnEvent {
                 SEARCH_LIMIT, level.getMaxBuildHeight(), SEARCH_LIMIT);
         return level.getEntitiesOfClass(AbstractAbnormality.class, whole,
                 abnormality -> abnormality.isAlive()
-                        && !abnormality.hasEscape()
-                        && abnormality.getQliphothCounter() > 0);
+                        && !abnormality.hasEscape());
     }
 
     private static void spawnBloodySmall(ServerLevel level) {

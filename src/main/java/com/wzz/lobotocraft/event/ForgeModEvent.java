@@ -20,6 +20,7 @@ import com.wzz.lobotocraft.item.CaptureUnitItem;
 import com.wzz.lobotocraft.item.PEBoxItem;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.network.MessageLoader;
+import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
 import com.wzz.lobotocraft.network.packet.LargeBirdBorderPacket;
 import com.wzz.lobotocraft.network.packet.MentalValueSyncPacket;
 import com.wzz.lobotocraft.network.packet.OpenChatScreenPacket;
@@ -72,6 +73,9 @@ import static com.wzz.lobotocraft.util.DamageHelper.*;
 public class ForgeModEvent {
 	private static final net.minecraft.resources.ResourceLocation ORDEAL_ADVANCEMENT =
 			ResourceUtil.createInstance("ordeal");
+	private static final String LOW_HEALTH_SOUND_ACTIVE_TAG = "lobotocraft_low_health_sound_active";
+	private static final String LOW_HEALTH_SOUND_COOLDOWN_TAG = "lobotocraft_low_health_sound_cooldown";
+	private static final int LOW_HEALTH_SOUND_COOLDOWN_TICKS = 30 * 20;
 
 	@SubscribeEvent
 	public static void onLivingAttack(LivingAttackEvent event) {
@@ -374,9 +378,24 @@ public class ForgeModEvent {
 					itemStack.setCount((int) (itemStack.getCount() * 0.3));
 				}
 			}
-			player.getCapability(CompanyDailyDataProvider.COMPANY_DAILY_DATA).ifPresent(data -> data.setTodayWorkCount(0));
+			player.getCapability(CompanyDailyDataProvider.COMPANY_DAILY_DATA).ifPresent(data -> {
+				data.setTodayWorkCount(0);
+				if (player instanceof ServerPlayer serverPlayer) {
+					MessageLoader.getLoader().sendToPlayer(serverPlayer,
+							new CompanyDailySyncPacket(
+									data.getCurrentDay(),
+									data.getTodayWorkCount(),
+									data.isArmorLocked(),
+									data.isHasSleep()
+							));
+				}
+			});
 			if (player.level() instanceof ServerLevel level) {
 				OrdealData.get(level).resetDawnTriggersToday();
+				ServerLevel lobotoLevel = level.getServer().getLevel(ModDimensions.LOBOTO_KEY);
+				if (lobotoLevel != null) {
+					ClerkEvent.resetDayClerks(lobotoLevel);
+				}
 			}
 			if (com.wzz.lobotocraft.util.BuffUtil.hasFriendshipProof(player)) {
 				boolean has = false;
@@ -416,7 +435,7 @@ public class ForgeModEvent {
 	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public static void onLivingDeathLow(LivingDeathEvent event) {
 		if (event.getEntity() instanceof Player player) {
-			player.playNotifySound(ModSounds.PLAYER_DEATH.get(), SoundSource.PLAYERS, 1, 1);
+			player.playNotifySound(ModSounds.PLAYER_DEATH_AFTER.get(), SoundSource.PLAYERS, 1, 1);
 		}
 	}
 
@@ -581,10 +600,35 @@ public class ForgeModEvent {
 	public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
 		if (!event.player.level().isClientSide && event.player instanceof ServerPlayer serverPlayer) {
 			clearThinDuskLargeBirdPanic(serverPlayer);
+			tickLowHealthSound(serverPlayer);
 		}
 		if (event.player.getMaxHealth() > MentalValueUtil.getEffectiveMaxMentalValue(event.player) &&
 		MentalValueUtil.getMentalValue(event.player) <= 0f) {
 			AttackAI.doAttack(event.player);
+		}
+	}
+
+	private static void tickLowHealthSound(ServerPlayer player) {
+		CompoundTag tag = player.getPersistentData();
+		int cooldown = tag.getInt(LOW_HEALTH_SOUND_COOLDOWN_TAG);
+		if (cooldown > 0) {
+			tag.putInt(LOW_HEALTH_SOUND_COOLDOWN_TAG, cooldown - 1);
+		}
+
+		if (!player.isAlive() || player.getMaxHealth() <= 0.0F) {
+			tag.putBoolean(LOW_HEALTH_SOUND_ACTIVE_TAG, false);
+			return;
+		}
+
+		float healthRatio = player.getHealth() / player.getMaxHealth();
+		if (healthRatio <= 0.2F) {
+			if (!tag.getBoolean(LOW_HEALTH_SOUND_ACTIVE_TAG) || cooldown <= 0) {
+				player.playNotifySound(ModSounds.PLAYER_LOW_HEALTH.get(), SoundSource.PLAYERS, 1.0F, 1.0F);
+				tag.putInt(LOW_HEALTH_SOUND_COOLDOWN_TAG, LOW_HEALTH_SOUND_COOLDOWN_TICKS);
+			}
+			tag.putBoolean(LOW_HEALTH_SOUND_ACTIVE_TAG, true);
+		} else if (healthRatio >= 0.35F) {
+			tag.putBoolean(LOW_HEALTH_SOUND_ACTIVE_TAG, false);
 		}
 	}
 

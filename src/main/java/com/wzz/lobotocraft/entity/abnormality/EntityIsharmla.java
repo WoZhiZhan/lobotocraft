@@ -11,7 +11,9 @@ import com.wzz.lobotocraft.network.packet.TriggerShakePacket;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.work.WorkType;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -92,8 +94,11 @@ public class EntityIsharmla extends AbstractAbnormality {
     private static final double BEAM_FALL_HEIGHT = 10.0D;
     private static final double MONSTER_ATTACK_DISTANCE = 8.0D;
     private static final int SEARCH_LIMIT = 30_000_000;
+    private static final double REACTOR_ACTIVITY_RADIUS = 24.0D;
+    private static final double REACTOR_ACTIVITY_RADIUS_SQR = REACTOR_ACTIVITY_RADIUS * REACTOR_ACTIVITY_RADIUS;
     private int monsterForcedEscapeTimer = MONSTER_FORCED_ESCAPE_INTERVAL;
     private java.util.UUID protectedForcedEscapeId = null;
+    private BlockPos anchorReactorPos;
 
     public EntityIsharmla(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -140,10 +145,10 @@ public class EntityIsharmla extends AbstractAbnormality {
         private final double y;
         private final double z;
 
-        private BeamTargetSpot(ServerPlayer player) {
-            this.x = player.getX();
-            this.y = player.getY();
-            this.z = player.getZ();
+        private BeamTargetSpot(LivingEntity target) {
+            this.x = target.getX();
+            this.y = target.getY();
+            this.z = target.getZ();
         }
 
         private BeamTargetSpot(Vec3 pos) {
@@ -202,10 +207,10 @@ public class EntityIsharmla extends AbstractAbnormality {
 
     /** 由斯卡蒂生成时调用:瞬移到最近的再生反应堆,并初始化为人形态 */
     public void onSpawnFromSkadi(ServerLevel level) {
-        net.minecraft.core.BlockPos reactor =
-                SpawnIsharmlaHook.findNearestReactorPublic(level, this.blockPosition());
+        BlockPos reactor = SpawnIsharmlaHook.findNearestReactorPublic(level, this.blockPosition());
         if (reactor != null) {
-            net.minecraft.core.BlockPos spawnPos = EntityUtil.findReactorSpawnPositionInCompany(level, reactor, 0);
+            anchorReactorPos = reactor.immutable();
+            BlockPos spawnPos = EntityUtil.findReactorSpawnPositionInCompany(level, anchorReactorPos, 4);
             this.teleportTo(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
         }
         // 机制2:若正处于"深蓝色正午"考验,立刻结束考验,场上海嗣集体瞬移到身边并死亡,每只供给+50点生命值
@@ -235,6 +240,41 @@ public class EntityIsharmla extends AbstractAbnormality {
         enterHumanForm(true);
     }
 
+    private void ensureAnchorReactor(ServerLevel level) {
+        if (anchorReactorPos != null) {
+            return;
+        }
+        BlockPos reactor = SpawnIsharmlaHook.findNearestReactorPublic(level, this.blockPosition());
+        if (reactor != null) {
+            anchorReactorPos = reactor.immutable();
+        }
+    }
+
+    private boolean isWithinReactorActivityArea(Vec3 pos) {
+        if (anchorReactorPos == null) {
+            return true;
+        }
+        return Vec3.atCenterOf(anchorReactorPos).distanceToSqr(pos) <= REACTOR_ACTIVITY_RADIUS_SQR;
+    }
+
+    private boolean isWithinReactorActivityArea(LivingEntity entity) {
+        return isWithinReactorActivityArea(entity.position());
+    }
+
+    private void keepNearReactor(ServerLevel level) {
+        ensureAnchorReactor(level);
+        if (anchorReactorPos == null) {
+            return;
+        }
+        if (isWithinReactorActivityArea(this.position()) && level.noCollision(this)) {
+            return;
+        }
+        BlockPos spawnPos = EntityUtil.findReactorSpawnPositionInCompany(level, anchorReactorPos, 4);
+        this.teleportTo(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D);
+        this.getNavigation().stop();
+        this.setDeltaMovement(Vec3.ZERO);
+    }
+
     // ==================== 形态切换 ====================
 
     private void enterHumanForm(boolean firstTime) {
@@ -255,6 +295,9 @@ public class EntityIsharmla extends AbstractAbnormality {
         clearActiveAttack();
         resetMonsterNoTargetBeam();
         setForm(Form.MONSTER);
+        if (this.level() instanceof ServerLevel level) {
+            keepNearReactor(level);
+        }
         monsterHealth = MONSTER_MAX_HEALTH; // 进入巨兽回满巨兽血量
         beamSkillCooldown = BEAM_SKILL_INTERVAL_TICKS;
         monsterForcedEscapeTimer = MONSTER_FORCED_ESCAPE_INTERVAL;
@@ -288,6 +331,7 @@ public class EntityIsharmla extends AbstractAbnormality {
         super.tick();
         if (this.level().isClientSide) return;
         ServerLevel level = (ServerLevel) this.level();
+        keepNearReactor(level);
 
         // 瞬时动画到期切回待机(项4①:防止停在无效默认动画/最后一帧)
         if (animResetTimer > 0) {
@@ -422,7 +466,7 @@ public class EntityIsharmla extends AbstractAbnormality {
             if (t == impactTick && completedBeamImpacts.add(impactTick)) {
                 java.util.Set<java.util.UUID> hitThisImpact = new java.util.HashSet<>();
                 for (BeamTargetSpot spot : beamTargetSpots) {
-                    hitPlayersInBeamSpot(level, spot, hitThisImpact);
+                    hitEntitiesInBeamSpot(level, spot, hitThisImpact);
                 }
                 level.playSound(null, this.blockPosition(),
                         net.minecraft.sounds.SoundEvents.WARDEN_SONIC_BOOM,
@@ -475,23 +519,25 @@ public class EntityIsharmla extends AbstractAbnormality {
         }
     }
 
-    private void hitPlayersInBeamSpot(ServerLevel level, BeamTargetSpot spot,
-                                      java.util.Set<java.util.UUID> hitThisImpact) {
-        for (ServerPlayer player : level.getPlayers(this::isBeamPlayerTarget)) {
-            if (hitThisImpact.contains(player.getUUID()) || !isInBeamSpot(player, spot)) {
+    private void hitEntitiesInBeamSpot(ServerLevel level, BeamTargetSpot spot,
+                                       java.util.Set<java.util.UUID> hitThisImpact) {
+        for (LivingEntity target : getBeamTargets(level)) {
+            if (hitThisImpact.contains(target.getUUID()) || !isInBeamSpot(target, spot)) {
                 continue;
             }
-            hitThisImpact.add(player.getUUID());
-            EntityUtil.clearHurtTime(player);
-            player.hurt(com.wzz.lobotocraft.util.DamageHelper.getDamage(this, "blue"), 15f);
-            MentalValueUtil.reduceMentalValue(player, 15f);
+            hitThisImpact.add(target.getUUID());
+            EntityUtil.clearHurtTime(target);
+            target.hurt(com.wzz.lobotocraft.util.DamageHelper.getDamage(this, "blue"), 15f);
+            if (target instanceof ServerPlayer player) {
+                MentalValueUtil.reduceMentalValue(player, 15f);
+            }
         }
     }
 
-    private boolean isInBeamSpot(ServerPlayer player, BeamTargetSpot spot) {
-        double radius = BEAM_TARGET_RADIUS + Math.max(0.3D, player.getBbWidth() * 0.5D);
-        double dx = player.getX() - spot.x;
-        double dz = player.getZ() - spot.z;
+    private boolean isInBeamSpot(LivingEntity target, BeamTargetSpot spot) {
+        double radius = BEAM_TARGET_RADIUS + Math.max(0.3D, target.getBbWidth() * 0.5D);
+        double dx = target.getX() - spot.x;
+        double dz = target.getZ() - spot.z;
         return dx * dx + dz * dz <= radius * radius;
     }
 
@@ -506,7 +552,7 @@ public class EntityIsharmla extends AbstractAbnormality {
         // 人形态:闲逛(不仇恨、不追击玩家),只随机游走
         if (this.getNavigation().isDone() && this.random.nextInt(80) == 0) {
             net.minecraft.world.phys.Vec3 pos = net.minecraft.world.entity.ai.util.DefaultRandomPos.getPos(this, 10, 7);
-            if (pos != null) {
+            if (pos != null && isWithinReactorActivityArea(pos)) {
                 this.getNavigation().moveTo(pos.x, pos.y, pos.z, 0.8);
             }
         }
@@ -682,24 +728,24 @@ public class EntityIsharmla extends AbstractAbnormality {
     }
 
     private boolean startPeriodicBeamSkill(ServerLevel level) {
-        List<ServerPlayer> players = level.getPlayers(this::isBeamPlayerTarget);
+        List<LivingEntity> targets = getBeamTargets(level);
 
         currentAttackHitTargets.clear();
         currentAttackTargetUuid = null;
         beamTargetSpots.clear();
         completedBeamImpacts.clear();
-        if (!players.isEmpty()) {
-            ServerPlayer nearestPlayer = players.stream()
-                    .min(java.util.Comparator.comparingDouble(player -> player.distanceToSqr(this)))
+        if (!targets.isEmpty()) {
+            LivingEntity nearestTarget = targets.stream()
+                    .min(java.util.Comparator.comparingDouble(target -> target.distanceToSqr(this)))
                     .orElse(null);
-            if (nearestPlayer != null) {
-                faceAttackTarget(nearestPlayer);
+            if (nearestTarget != null) {
+                faceAttackTarget(nearestTarget);
             }
         } else {
             attackForward = getHorizontalFacingVector();
         }
-        for (ServerPlayer player : players) {
-            beamTargetSpots.add(new BeamTargetSpot(player));
+        for (LivingEntity target : targets) {
+            beamTargetSpots.add(new BeamTargetSpot(target));
         }
         if (beamTargetSpots.isEmpty()) {
             beamTargetSpots.add(new BeamTargetSpot(getFallbackBeamTargetPosition()));
@@ -722,8 +768,23 @@ public class EntityIsharmla extends AbstractAbnormality {
         return this.position().add(forward.normalize().scale(8.0D));
     }
 
+    private List<LivingEntity> getBeamTargets(ServerLevel level) {
+        List<LivingEntity> targets = new ArrayList<>();
+        targets.addAll(level.getPlayers(this::isBeamPlayerTarget));
+        targets.addAll(level.getEntitiesOfClass(EntityClerk.class,
+                this.getBoundingBox().inflate(32.0D), this::isBeamClerkTarget));
+        return targets;
+    }
+
     private boolean isBeamPlayerTarget(ServerPlayer player) {
-        return player.isAlive() && !player.isCreative() && !player.isSpectator();
+        return player.isAlive()
+                && !player.isCreative()
+                && !player.isSpectator()
+                && isWithinReactorActivityArea(player);
+    }
+
+    private boolean isBeamClerkTarget(EntityClerk clerk) {
+        return clerk.isAlive() && isWithinReactorActivityArea(clerk);
     }
 
     private void clearActiveAttack() {
@@ -771,6 +832,7 @@ public class EntityIsharmla extends AbstractAbnormality {
 
     private boolean isHostileTarget(LivingEntity e) {
         if (e == this || !e.isAlive()) return false;
+        if (!isWithinReactorActivityArea(e)) return false;
         if (e instanceof EntityIsharmlaTear) return false;
         if (e instanceof Player p) {
             return !p.isCreative()
@@ -929,6 +991,9 @@ public class EntityIsharmla extends AbstractAbnormality {
         if (protectedForcedEscapeId != null) {
             tag.putUUID("ProtectedForcedEscapeId", protectedForcedEscapeId);
         }
+        if (anchorReactorPos != null) {
+            tag.put("AnchorReactorPos", NbtUtils.writeBlockPos(anchorReactorPos));
+        }
     }
 
     @Override
@@ -949,6 +1014,9 @@ public class EntityIsharmla extends AbstractAbnormality {
                 : MONSTER_FORCED_ESCAPE_INTERVAL;
         protectedForcedEscapeId = tag.hasUUID("ProtectedForcedEscapeId")
                 ? tag.getUUID("ProtectedForcedEscapeId")
+                : null;
+        anchorReactorPos = tag.contains("AnchorReactorPos")
+                ? NbtUtils.readBlockPos(tag.getCompound("AnchorReactorPos"))
                 : null;
     }
 }

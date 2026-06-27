@@ -408,11 +408,12 @@ public class EntityBlueStar extends AbstractAbnormality {
     @Override
     public EGOEquipmentData.GiftData getEGOGiftData() {
         return new EGOEquipmentData.GiftData(
-                ResourceUtil.createInstance("textures/item/punishing_bird_curio.png"),
-                "小喙",
-                "颈部",
-                "punishing_bird_curio",
-                "移动速度+0.02,攻击速度+0.2"
+                ResourceUtil.createInstance("textures/item/blue_star_curio.png"),
+                "新星之声",
+                "眼部",
+                "blue_star_curio",
+                "精神值+15",
+                "移动速度+10"
         );
     }
 
@@ -439,30 +440,30 @@ public class EntityBlueStar extends AbstractAbnormality {
     @Override
     public EGOEquipmentData.WeaponData getEGOWeaponData() {
         return new EGOEquipmentData.WeaponData(
-                ResourceUtil.createInstance("textures/gui/ego/punishing_bird_weapon.png"),
-                "小喙",
+                ResourceUtil.createInstance("textures/item/blue_star_weapon.png"),
+                "新星之声",
                 getRiskLevel(),
-                "RED",
-                "2-3",
-                "0.7",
-                "远程武器",
+                "WHITE",
+                "8-12 / 15-18 / 20-22",
+                "1.5s",
+                "25格",
                 getWeaponDevelopmentMaxCount(),
-                "punishing_bird_weapon"
+                "blue_star_weapon"
         );
     }
 
     @Override
     public EGOEquipmentData.ArmorData getEGOArmorData() {
         return new EGOEquipmentData.ArmorData(
-                ResourceUtil.createInstance("textures/gui/ego/punishing_bird_armor.png"),
-                "小喙",
+                ResourceUtil.createInstance("textures/item/blue_star_armor_icon.png"),
+                "新星之声",
                 getRiskLevel(),
-                0.7f,
-                0.8f,
-                1.2f,
-                2.0f,
+                0.4f,
+                0.4f,
+                0.4f,
+                1.0f,
                 getArmorDevelopmentMaxCount(),
-                "punishing_bird"
+                "blue_star"
         );
     }
 
