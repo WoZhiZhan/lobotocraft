@@ -2,9 +2,7 @@ package com.wzz.lobotocraft.client.screen;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.wzz.lobotocraft.client.screen.config.EncyclopediaGUIConfig;
-import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
-import com.wzz.lobotocraft.item.WorkDeviceItem;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.StartWorkPacket;
 import com.wzz.lobotocraft.util.ResourceUtil;
@@ -14,7 +12,6 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.Entity;
 import org.lwjgl.glfw.GLFW;
 
 /**
@@ -205,37 +202,11 @@ public class AbnormalityWorkScreen extends Screen {
     private void startWork() {
         WorkType workType = WorkType.values()[selectedWork];
 
-        // 计算当前观察等级的成功率
-        float successRate = 0.5f; // 默认成功率
-
-        if (fullWorkPreferences != null && selectedWork < fullWorkPreferences.length) {
-            // employeeLevel 1-5 转换为数组索引 0-4
-            int levelIndex = Math.min(Math.max(employeeLevel - 1, 0), 4);
-
-            if (levelIndex < fullWorkPreferences[selectedWork].length) {
-                successRate = fullWorkPreferences[selectedWork][levelIndex];
-            }
-        }
-
-        Entity entity = this.minecraft.level.getEntity(abnormalityId);
-
-        // 发送开始工作的包，包含观察等级
+        // 进度界面由服务端确认开工后打开，避免开工被拒绝时客户端进入假工作界面。
         MessageLoader.getLoader().sendToServer(
                 new StartWorkPacket(abnormalityId, workType)
         );
-
-        if (entity instanceof IAbnormality abnormality) {
-            // 打开工作进度屏幕，传递正确的成功率
-            this.minecraft.setScreen(new WorkProgressScreen(
-                    abnormalityId,
-                    workType,
-                    successRate, // 使用根据观察等级计算出的成功率
-                    abnormality.getMaxPEOutput(),
-                    abnormality.getEntityId(),
-                    observationLevel,
-                    WorkDeviceItem.hasEnabledDevice(this.minecraft.player)
-            ));
-        }
+        this.minecraft.setScreen(null);
     }
 
     @Override

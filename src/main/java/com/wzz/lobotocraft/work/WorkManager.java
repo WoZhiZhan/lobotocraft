@@ -200,7 +200,7 @@ public class WorkManager {
     }
 
     public static boolean startWork(ServerPlayer player, IAbnormality abnormality, WorkType workType) {
-        return startWork(player, abnormality, workType, WorkDeviceItem.hasEnabledDevice(player), false);
+        return startWork(player, abnormality, workType, WorkDeviceItem.hasEnabledDevice(player), true);
     }
 
     private static boolean startWork(ServerPlayer player, IAbnormality abnormality, WorkType workType,

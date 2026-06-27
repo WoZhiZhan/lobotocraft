@@ -27,7 +27,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.AABB;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -44,7 +43,6 @@ import java.util.UUID;
 
 @Mod.EventBusSubscriber(modid = ModMain.MODID)
 public class EntityLadyFacingTheWall extends AbstractAbnormality {
-    private static final int SEARCH_LIMIT = 30_000_000;
     private static final int PUNISHMENT_TICKS = 30 * 20;
     private static final int PUNISHMENT_DAMAGE_INTERVAL = 6 * 20;
     private static final Map<UUID, PunishmentData> PUNISHED_PLAYERS = new HashMap<>();
@@ -160,9 +158,8 @@ public class EntityLadyFacingTheWall extends AbstractAbnormality {
 
     @Override
     public void onWorkComplete(ServerPlayer player, WorkType workType, WorkResult result) {
-        increaseQliphothCounter(1);
-        if (this.qliphothCounter > this.maxQliphothCounter) {
-            this.qliphothCounter = this.maxQliphothCounter;
+        if (result == WorkResult.GOOD || result == WorkResult.NORMAL) {
+            increaseQliphothCounter(1);
         }
     }
 
@@ -235,10 +232,11 @@ public class EntityLadyFacingTheWall extends AbstractAbnormality {
     }
 
     private static void decreaseUnattendedLadies(ServerLevel level) {
-        AABB wholeLevel = new AABB(-SEARCH_LIMIT, level.getMinBuildHeight(), -SEARCH_LIMIT,
-                SEARCH_LIMIT, level.getMaxBuildHeight(), SEARCH_LIMIT);
-        for (EntityLadyFacingTheWall lady : level.getEntitiesOfClass(EntityLadyFacingTheWall.class, wholeLevel,
-                lady -> lady.isAlive() && !lady.isRemoved())) {
+        for (Entity entity : level.getAllEntities()) {
+            if (!(entity instanceof EntityLadyFacingTheWall lady)
+                    || !lady.isAlive() || lady.isRemoved()) {
+                continue;
+            }
             if (lady.hasEmployeeInContainment() || lady.getQliphothCounter() <= 0) {
                 continue;
             }
