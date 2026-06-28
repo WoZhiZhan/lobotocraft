@@ -427,22 +427,22 @@ public class EntityBlueStar extends AbstractAbnormality {
 
     @Override
     public int getWeaponDevelopmentCost() {
-        return 30;
+        return 222;
     }
 
     @Override
     public int getWeaponDevelopmentMaxCount() {
-        return 2;
+        return 1;
     }
 
     @Override
     public int getArmorDevelopmentCost() {
-        return 25;
+        return 150;
     }
 
     @Override
     public int getArmorDevelopmentMaxCount() {
-        return 2;
+        return 1;
     }
 
     @Override
