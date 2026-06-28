@@ -7,9 +7,12 @@ import com.wzz.lobotocraft.init.ModEffects;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.DamageHelper;
+import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.ParticleUtil;
+import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
@@ -34,7 +37,6 @@ import java.util.List;
 public class EntityLeticia extends AbstractAbnormality {
     private static final int GIFT_DURATION = 20 * 60 * 20;
     private static final int GIFT_ANIMATION_TICKS = 45;
-    private static final int BELL_ANIMATION_TICKS = 50;
 
     private int actionAnimationTimer = 0;
 
@@ -46,18 +48,18 @@ public class EntityLeticia extends AbstractAbnormality {
     @Override
     protected void initializeAbnormality() {
         this.abnormalityCode = "O-01-67";
-        this.abnormalityName = "蕾蒂希雅";
+        this.abnormalityName = "蕾蒂希娅";
         this.riskLevel = RiskLevel.HE;
         this.damageType = "BLACK";
         this.maxPEOutput = 16;
 
-        this.workPreferences = new float[]{0.35f, 0.50f, 0.65f, 0.20f};
+        this.workPreferences = new float[]{0.50f, 0.40f, 0.65f, 0.0f};
         this.fullWorkPreferences = new float[4][5];
-        this.fullWorkPreferences[WorkType.INSTINCT.ordinal()] = new float[]{0.35f, 0.35f, 0.30f, 0.25f, 0.25f};
-        this.fullWorkPreferences[WorkType.INSIGHT.ordinal()] = new float[]{0.45f, 0.45f, 0.50f, 0.55f, 0.55f};
-        this.fullWorkPreferences[WorkType.ATTACHMENT.ordinal()] = new float[]{0.60f, 0.60f, 0.65f, 0.70f, 0.70f};
-        this.fullWorkPreferences[WorkType.REPRESSION.ordinal()] = new float[]{0.25f, 0.25f, 0.20f, 0.20f, 0.15f};
-        initializeQliphothCounter(2);
+        this.fullWorkPreferences[WorkType.INSTINCT.ordinal()] = new float[]{0.40f, 0.45f, 0.50f, 0.50f, 0.50f};
+        this.fullWorkPreferences[WorkType.INSIGHT.ordinal()] = new float[]{0.40f, 0.40f, 0.40f, 0.40f, 0.40f};
+        this.fullWorkPreferences[WorkType.ATTACHMENT.ordinal()] = new float[]{0.60f, 0.60f, 0.60f, 0.65f, 0.65f};
+        this.fullWorkPreferences[WorkType.REPRESSION.ordinal()] = new float[]{0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+        initializeQliphothCounter(0, 0);
     }
 
     @Override
@@ -78,7 +80,6 @@ public class EntityLeticia extends AbstractAbnormality {
 
     @Override
     public void onGoodWork(ServerPlayer player) {
-        giveGift(player);
     }
 
     @Override
@@ -88,15 +89,10 @@ public class EntityLeticia extends AbstractAbnormality {
 
     @Override
     public void onBadWork(ServerPlayer player) {
-        decreaseQliphothCounter(1);
-        player.removeEffect(ModEffects.LETICIA_GIFT.get());
-        player.addEffect(new MobEffectInstance(ModEffects.LETICIA_BROKEN_GIFT.get(),
-                GIFT_DURATION, 0, false, true, true));
-        spawnFriendFor(player);
-        setActionAnimation("bell", BELL_ANIMATION_TICKS);
     }
 
-    private void giveGift(ServerPlayer player) {
+    public void giveGift(ServerPlayer player) {
+        clearOtherGiftHolders(player);
         player.removeEffect(ModEffects.LETICIA_BROKEN_GIFT.get());
         player.addEffect(new MobEffectInstance(ModEffects.LETICIA_GIFT.get(),
                 GIFT_DURATION, 0, false, true, true));
@@ -109,8 +105,8 @@ public class EntityLeticia extends AbstractAbnormality {
         actionAnimationTimer = ticks;
     }
 
-    private void spawnFriendFor(ServerPlayer player) {
-        if (!(this.level() instanceof ServerLevel serverLevel)) {
+    public static void spawnFriendFor(ServerPlayer player) {
+        if (!(player.level() instanceof ServerLevel serverLevel)) {
             return;
         }
 
@@ -119,13 +115,14 @@ public class EntityLeticia extends AbstractAbnormality {
             return;
         }
 
-        double angle = this.random.nextDouble() * Math.PI * 2.0D;
-        double distance = 2.0D + this.random.nextDouble() * 2.0D;
+        BlockPos spawnPos = EntityUtil.findSafeGroundPositionInCompany(serverLevel, player.blockPosition(), 4);
+        double angle = serverLevel.getRandom().nextDouble() * Math.PI * 2.0D;
+        double distance = 1.0D + serverLevel.getRandom().nextDouble() * 2.0D;
         friend.moveTo(
-                player.getX() + Math.cos(angle) * distance,
-                player.getY(),
-                player.getZ() + Math.sin(angle) * distance,
-                this.random.nextFloat() * 360.0F,
+                spawnPos.getX() + 0.5D + Math.cos(angle) * distance,
+                spawnPos.getY(),
+                spawnPos.getZ() + 0.5D + Math.sin(angle) * distance,
+                serverLevel.getRandom().nextFloat() * 360.0F,
                 0.0F
         );
         friend.finalizeSpawn(
@@ -135,11 +132,23 @@ public class EntityLeticia extends AbstractAbnormality {
                 null,
                 null
         );
-        friend.setTarget(player);
         serverLevel.addFreshEntity(friend);
         serverLevel.playSound(null, friend.blockPosition(), ModSounds.LETICIA_FRIEND_SPAWN.get(),
                 SoundSource.HOSTILE, 1.0F, 1.0F);
         ParticleUtil.spawnParticles(friend, ParticleUtil.getDustParticle(0.82f, 0.35f, 0.88f, 1.4f), 24, 0.03D);
+    }
+
+    private void clearOtherGiftHolders(ServerPlayer giftHolder) {
+        if (!(giftHolder.level() instanceof ServerLevel level)) {
+            return;
+        }
+        for (ServerPlayer player : level.players()) {
+            if (player == giftHolder) {
+                continue;
+            }
+            player.removeEffect(ModEffects.LETICIA_GIFT.get());
+            player.removeEffect(ModEffects.LETICIA_BROKEN_GIFT.get());
+        }
     }
 
     @Override
@@ -149,12 +158,12 @@ public class EntityLeticia extends AbstractAbnormality {
 
     @Override
     public int getBasicInfoCost() {
-        return 12;
+        return 16;
     }
 
     @Override
     public int getSensitiveInfoCost() {
-        return 12;
+        return 16;
     }
 
     @Override
@@ -164,12 +173,37 @@ public class EntityLeticia extends AbstractAbnormality {
 
     @Override
     public int getManualCost(int manualIndex) {
-        return 4;
+        return 6;
     }
 
     @Override
     public void attackPlayerOnFailure(Player player, WorkType workType) {
-        player.hurt(DamageHelper.getDamage(this, "lobotocraft:black"), 3.0F + this.random.nextInt(3));
+        player.hurt(DamageHelper.getDamage(this, "lobotocraft:black"), 2.0F + this.random.nextInt(3));
+    }
+
+    @Override
+    public Float modifyWorkSuccessRate(ServerPlayer player, WorkType workType, float baseRate) {
+        if (workType == WorkType.ATTACHMENT && player.hasEffect(ModEffects.LETICIA_GIFT.get())) {
+            return Math.min(0.95f, baseRate + 0.20f);
+        }
+        return null;
+    }
+
+    @Override
+    public int getGoodWorkResultMin() {
+        return 11;
+    }
+
+    @Override
+    public int getNormalWorkResultMin() {
+        return 7;
+    }
+
+    @Override
+    public void onWorkComplete(ServerPlayer player, WorkType workType, WorkResult result) {
+        if (result != WorkResult.BAD && player.hasEffect(ModEffects.LETICIA_BROKEN_GIFT.get())) {
+            giveGift(player);
+        }
     }
 
     @Override
@@ -184,12 +218,12 @@ public class EntityLeticia extends AbstractAbnormality {
 
     @Override
     public int getAbnormalityAmbientSoundInterval() {
-        return 160;
+        return 700;
     }
 
     @Override
     public double getAbnormalityAmbientSoundRange() {
-        return 12.0D;
+        return 8.0D;
     }
 
     @Override
@@ -200,19 +234,19 @@ public class EntityLeticia extends AbstractAbnormality {
     @Override
     public ObservationLevelBonus[] getObservationBonuses() {
         return new ObservationLevelBonus[]{
-                new ObservationLevelBonus(0.04f, 0),
-                new ObservationLevelBonus(0.0f, 5, true, false, false),
-                new ObservationLevelBonus(0.04f, 0),
-                new ObservationLevelBonus(0.0f, 5, false, true, true)
+                new ObservationLevelBonus(0.0f, 4),
+                new ObservationLevelBonus(0.04f, 0, true, false, false),
+                new ObservationLevelBonus(0.0f, 4),
+                new ObservationLevelBonus(0.04f, 0, false, true, true)
         };
     }
 
     @Override
     public List<String> getWorkLogs() {
         return List.of(
-                "蕾蒂希雅认真挑选着要送给<员工名称>的礼物。",
+                "蕾蒂希娅认真挑选着要送给<员工名称>的礼物。",
                 "收容单元里传来轻柔的铃声。",
-                "蕾蒂希雅希望这份礼物能让朋友露出笑容。"
+                "蕾蒂希娅希望这份礼物能让朋友露出笑容。"
         );
     }
 

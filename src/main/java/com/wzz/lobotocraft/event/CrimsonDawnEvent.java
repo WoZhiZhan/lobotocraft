@@ -47,13 +47,11 @@ public class CrimsonDawnEvent {
         ServerPlayer player = event.getEntity();
         if (!(player.level() instanceof ServerLevel level)) return;
 
-        final int[] currentDay = {1};
-        player.getCapability(CompanyDailyDataProvider.COMPANY_DAILY_DATA)
-                .ifPresent(data -> currentDay[0] = data.getCurrentDay());
-        if (currentDay[0] < UNLOCK_DAY) return;
+        int currentDay = getMaxServerDay(player.getServer());
+        if (currentDay < UNLOCK_DAY) return;
 
         OrdealData data = OrdealData.get(level);
-        data.syncDay(currentDay[0]);
+        data.syncDay(currentDay);
         if (data.hasActiveDawn()) return;
         boolean nextGreenDawn = getOrCreateNextDawnType(level, data);
         if (data.getDawnTriggersToday() >= MAX_STAGE_TRIGGERS_PER_DAY) {
@@ -72,6 +70,18 @@ public class CrimsonDawnEvent {
                 triggerBloodDawn(level);
             }
         }
+    }
+
+    private static int getMaxServerDay(MinecraftServer server) {
+        if (server == null) {
+            return 1;
+        }
+        final int[] maxDay = {1};
+        for (ServerPlayer serverPlayer : server.getPlayerList().getPlayers()) {
+            serverPlayer.getCapability(CompanyDailyDataProvider.COMPANY_DAILY_DATA)
+                    .ifPresent(data -> maxDay[0] = Math.max(maxDay[0], data.getCurrentDay()));
+        }
+        return maxDay[0];
     }
 
     private static boolean getOrCreateNextDawnType(ServerLevel level, OrdealData data) {

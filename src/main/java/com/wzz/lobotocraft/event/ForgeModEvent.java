@@ -28,7 +28,6 @@ import com.wzz.lobotocraft.network.packet.StopAmbientSoundPacket;
 import com.wzz.lobotocraft.util.*;
 import com.wzz.lobotocraft.work.WorkManager;
 import com.wzz.lobotocraft.work.WorkType;
-import com.wzz.lobotocraft.world.data.OrdealData;
 import com.wzz.lobotocraft.world.structure.StructureLoader;
 import com.wzz.lobotocraft.world.structure.Structures;
 import net.minecraft.core.BlockPos;
@@ -393,7 +392,6 @@ public class ForgeModEvent {
 				}
 			});
 			if (player.level() instanceof ServerLevel level) {
-				OrdealData.get(level).resetDawnTriggersToday();
 				ServerLevel lobotoLevel = level.getServer().getLevel(ModDimensions.LOBOTO_KEY);
 				if (lobotoLevel != null) {
 					ClerkEvent.resetDayClerks(lobotoLevel);
@@ -422,6 +420,9 @@ public class ForgeModEvent {
 		if (event.getEntity().level.dimension == ModDimensions.LOBOTO_KEY
 				&& (event.getEntity() instanceof Player || event.getEntity() instanceof Villager
 				|| event.getEntity() instanceof EntityClerk)) {
+			if (event.getEntity() instanceof EntityClerk clerk && EntityClerk.isCommandKill(clerk)) {
+				return;
+			}
 			boolean isClerkOrVillagerDeath = event.getEntity() instanceof Villager || event.getEntity() instanceof EntityClerk;
 			for (Entity entity : EntityUtil.findAllEntities(event.getEntity(), 300)) {
 				if (entity instanceof EntityLargeBird largeBird) {
@@ -677,7 +678,8 @@ public class ForgeModEvent {
 	@SubscribeEvent
 	public static void onLivingFall(LivingFallEvent event) {
 		if (event.getEntity() instanceof Player player) {
-			if (EgoArmorHelper.isFullEGO(player, "wingbeat")) {
+			if (EgoArmorHelper.isFullEGO(player, "wingbeat")
+					|| CuriosUtil.hasCurios(player, ModItems.END_BIRD_CURIO.get())) {
 				event.setCanceled(true);
 			}
 		}

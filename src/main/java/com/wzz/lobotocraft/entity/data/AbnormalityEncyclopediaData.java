@@ -173,6 +173,15 @@ public class AbnormalityEncyclopediaData {
                 "计数器极限：5 | 不会突破收容"
         ));
 
+        ENCYCLOPEDIA_DATA.put("O-01-67", new EntryData(
+                new String[]{
+                        "当工作结果为良时，“蕾蒂希娅”会赠送一个小小的礼物给完成工作的员工。",
+                        "当持有礼物的员工被派去其他异想体的收容单元进行多次工作时，一个████会从其体内爆出并杀死这名员工。",
+                        "如果在████诞生前再次与蕾蒂希娅工作的话，持有礼物的员工就不会出现任何变化。"
+                },
+                "计数器极限：X | 此异想体不会突破收容"
+        ));
+
         ENCYCLOPEDIA_DATA.put("O-03-93", new EntryData(
                 new String[]{
                         "自律等级低于4级的员工进入“碧蓝新星”的收容单元后会被吸入它的中心并死亡。",

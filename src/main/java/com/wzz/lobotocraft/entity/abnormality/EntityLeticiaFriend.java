@@ -1,6 +1,6 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
-import com.wzz.lobotocraft.entity.EntityClerk;
+import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.BaseGeoEntity;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModSounds;
@@ -22,9 +22,9 @@ import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
-import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
 import software.bernie.geckolib.core.animation.AnimationState;
@@ -34,10 +34,14 @@ import software.bernie.geckolib.core.object.PlayState;
 public class EntityLeticiaFriend extends BaseGeoEntity {
     private static final int SPAWN_ANIMATION_TICKS = 36;
     private static final int ATTACK_ANIMATION_TICKS = 24;
+    private static final int ATTACK_INTERVAL_TICKS = 28;
+    private static final int IDLE_SOUND_INTERVAL_TICKS = 80;
+    private static final double FRONT_ATTACK_RANGE = 4.0D;
+    private static final double FRONT_ATTACK_WIDTH = 2.0D;
 
     private int spawnAnimationTimer = SPAWN_ANIMATION_TICKS;
     private int attackAnimationTimer = 0;
-    private int idleSoundCooldown = 120;
+    private int idleSoundCooldown = IDLE_SOUND_INTERVAL_TICKS;
 
     public EntityLeticiaFriend(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -48,16 +52,15 @@ public class EntityLeticiaFriend extends BaseGeoEntity {
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
-        this.goalSelector.addGoal(1, new MeleeAttackGoal(this, 1.05D, true));
+        this.goalSelector.addGoal(1, new LeticiaFriendAttackGoal(this, 1.05D, true));
         this.goalSelector.addGoal(2, new WaterAvoidingRandomStrollGoal(this, 0.8D));
         this.goalSelector.addGoal(3, new LookAtPlayerGoal(this, Player.class, 16.0F));
         this.goalSelector.addGoal(4, new RandomLookAroundGoal(this));
 
         this.targetSelector.addGoal(0, new HurtByTargetGoal(this));
-        this.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(this, EntityClerk.class, true));
-        this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Villager.class, true));
-        this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Player.class, true,
-                entity -> entity instanceof Player player && !player.isCreative() && !player.isSpectator()));
+        this.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(
+                this, AbstractAbnormality.class, true,
+                abnormality -> abnormality instanceof AbstractAbnormality ab && ab.hasEscape()));
     }
 
     @Override
@@ -84,7 +87,7 @@ public class EntityLeticiaFriend extends BaseGeoEntity {
         idleSoundCooldown--;
         if (idleSoundCooldown <= 0) {
             playFriendSound(randomIdleSound());
-            idleSoundCooldown = 120 + this.random.nextInt(80);
+            idleSoundCooldown = IDLE_SOUND_INTERVAL_TICKS;
         }
     }
 
@@ -96,10 +99,27 @@ public class EntityLeticiaFriend extends BaseGeoEntity {
 
         attackAnimationTimer = ATTACK_ANIMATION_TICKS;
         setAnimation(this.random.nextBoolean() ? "attack1" : "attack2");
-        float damage = 7.0F + this.random.nextFloat() * 3.0F;
-        boolean hurt = living.hurt(DamageHelper.getDamage(this, "lobotocraft:black"), damage);
-        if (hurt && !living.isAlive() && living instanceof Player) {
-            playFriendSound(ModSounds.LETICIA_FRIEND_KILL_PLAYER.get());
+        playFriendSound(randomIdleSound());
+        boolean hurt = hurtFrontalTargets(living, 8.0F + this.random.nextInt(3));
+        return hurt;
+    }
+
+    private boolean hurtFrontalTargets(LivingEntity directTarget, float damage) {
+        Vec3 look = this.getLookAngle().normalize();
+        boolean hurt = false;
+        for (AbstractAbnormality target : this.level().getEntitiesOfClass(AbstractAbnormality.class,
+                this.getBoundingBox().inflate(FRONT_ATTACK_RANGE, 2.0D, FRONT_ATTACK_RANGE),
+                target -> target.isAlive() && target.hasEscape())) {
+            Vec3 toTarget = target.getBoundingBox().getCenter().subtract(this.position());
+            double forward = toTarget.dot(look);
+            if (target != directTarget && (forward < 0.0D || forward > FRONT_ATTACK_RANGE)) {
+                continue;
+            }
+            double side = toTarget.subtract(look.scale(forward)).horizontalDistance();
+            if (target != directTarget && side > FRONT_ATTACK_WIDTH) {
+                continue;
+            }
+            hurt |= target.hurt(DamageHelper.getDamage(this, "lobotocraft:red"), damage);
         }
         return hurt;
     }
@@ -153,14 +173,25 @@ public class EntityLeticiaFriend extends BaseGeoEntity {
 
     public static AttributeSupplier.Builder createAttributes() {
         return Mob.createMobAttributes()
-                .add(Attributes.MAX_HEALTH, 140.0D)
-                .add(Attributes.MOVEMENT_SPEED, 0.28D)
+                .add(Attributes.MAX_HEALTH, 350.0D)
+                .add(Attributes.MOVEMENT_SPEED, 0.30D)
                 .add(Attributes.ATTACK_DAMAGE, 1.0D)
                 .add(Attributes.FOLLOW_RANGE, 32.0D)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 0.8D)
-                .add(ModAttributes.RED_DAMAGE_RESISTANCE.get(), 1.0D)
-                .add(ModAttributes.WHITE_DAMAGE_RESISTANCE.get(), 1.2D)
-                .add(ModAttributes.BLACK_DAMAGE_RESISTANCE.get(), 0.7D)
-                .add(ModAttributes.BLUE_DAMAGE_RESISTANCE.get(), 2.0D);
+                .add(ModAttributes.RED_DAMAGE_RESISTANCE.get(), 0.8D)
+                .add(ModAttributes.WHITE_DAMAGE_RESISTANCE.get(), 0.8D)
+                .add(ModAttributes.BLACK_DAMAGE_RESISTANCE.get(), 1.2D)
+                .add(ModAttributes.BLUE_DAMAGE_RESISTANCE.get(), 1.0D);
+    }
+
+    private static class LeticiaFriendAttackGoal extends MeleeAttackGoal {
+        public LeticiaFriendAttackGoal(EntityLeticiaFriend mob, double speedModifier, boolean followingTargetEvenIfNotSeen) {
+            super(mob, speedModifier, followingTargetEvenIfNotSeen);
+        }
+
+        @Override
+        protected int getAttackInterval() {
+            return adjustedTickDelay(ATTACK_INTERVAL_TICKS);
+        }
     }
 }

@@ -31,6 +31,7 @@ import org.jetbrains.annotations.Nullable;
 public class EntityClerk extends PathfinderMob {
     public static final int TEXTURE_VARIANT_COUNT = 16;
     public static final String NO_TOMBSTONE_TAG = "lobotocraft_no_clerk_tombstone";
+    public static final String COMMAND_KILL_TAG = "lobotocraft_command_kill";
 
     private static final EntityDataAccessor<Integer> DATA_TEXTURE_VARIANT =
             SynchedEntityData.defineId(EntityClerk.class, EntityDataSerializers.INT);
@@ -106,6 +107,15 @@ public class EntityClerk extends PathfinderMob {
 
     public static void markNoTombstone(net.minecraft.world.entity.LivingEntity entity) {
         entity.getPersistentData().putBoolean(NO_TOMBSTONE_TAG, true);
+    }
+
+    public static void markCommandKill(net.minecraft.world.entity.LivingEntity entity) {
+        entity.getPersistentData().putBoolean(COMMAND_KILL_TAG, true);
+        markNoTombstone(entity);
+    }
+
+    public static boolean isCommandKill(net.minecraft.world.entity.LivingEntity entity) {
+        return entity.getPersistentData().getBoolean(COMMAND_KILL_TAG);
     }
 
     public boolean shouldCreateTombstone() {

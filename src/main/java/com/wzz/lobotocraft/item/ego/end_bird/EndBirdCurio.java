@@ -50,6 +50,7 @@ public class EndBirdCurio extends BaseEgoCurio {
             tooltip.add(Component.literal("  • 移动速度 + 7").withStyle(ChatFormatting.GREEN));
             tooltip.add(Component.literal("  • 攻击速度 + 7").withStyle(ChatFormatting.GREEN));
             tooltip.add(Component.literal("  • 造成伤害提高 10%").withStyle(ChatFormatting.GREEN));
+            tooltip.add(Component.literal("  • 免疫摔落伤害").withStyle(ChatFormatting.GREEN));
             return;
         }
         tooltip.add(Component.literal("人们最终战胜了黄昏的黑暗，准备面对黎明的光辉。").withStyle(ChatFormatting.GOLD));

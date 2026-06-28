@@ -21,6 +21,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.phys.AABB;
 import net.minecraftforge.fml.common.Mod;
 
 import java.util.ArrayList;
@@ -32,17 +33,25 @@ import java.util.List;
  */
 @Mod.EventBusSubscriber(modid = ModMain.MODID)
 public class GreenDawnEvent {
+    private static final int MAX_NATURAL_GREEN_DAWNS_PER_DIMENSION = 10;
+    private static final int SEARCH_LIMIT = 30_000_000;
+
     public static void triggerGreenDawn(ServerLevel level) {
         OrdealData data = OrdealData.get(level);
         if (data.hasActiveDawn()) return;
+
+        List<ServerPlayer> players = getEligiblePlayers(level);
+        int available = MAX_NATURAL_GREEN_DAWNS_PER_DIMENSION - countActiveOrdealGreenDawns(level);
+        int count = Math.min(available, Math.max(1, players.size()));
+        if (count <= 0) {
+            return;
+        }
 
         data.setDawnChance(0);
         data.incrementDawnTriggersToday();
         data.setNextDawnType(level.getRandom().nextBoolean());
 
         MinecraftServer server = level.getServer();
-        List<ServerPlayer> players = getEligiblePlayers(level);
-        int count = Math.max(1, players.size()) * 3;
         data.startGreenDawn(count);
 
         showGreenDawnTitle(server,
@@ -59,10 +68,17 @@ public class GreenDawnEvent {
             return;
         }
 
+        int spawned = 0;
         for (ServerPlayer player : players) {
-            for (int i = 0; i < 3; i++) {
-                spawnGreenDawnNearPlayer(level, player, fallbackSpawnPoints);
+            if (spawned >= count) {
+                break;
             }
+            spawnGreenDawnNearPlayer(level, player, fallbackSpawnPoints);
+            spawned++;
+        }
+        while (spawned < count) {
+            spawnGreenDawn(level, fallbackSpawnPoints, spawned);
+            spawned++;
         }
     }
 
@@ -99,6 +115,13 @@ public class GreenDawnEvent {
         List<ServerPlayer> players = new ArrayList<>(level.players());
         players.removeIf(player -> !player.isAlive() || player.isSpectator());
         return players;
+    }
+
+    private static int countActiveOrdealGreenDawns(ServerLevel level) {
+        AABB whole = new AABB(-SEARCH_LIMIT, level.getMinBuildHeight(), -SEARCH_LIMIT,
+                SEARCH_LIMIT, level.getMaxBuildHeight(), SEARCH_LIMIT);
+        return level.getEntitiesOfClass(EntityGreenDawn.class, whole,
+                greenDawn -> greenDawn.isAlive() && greenDawn.isOrdealSpawn()).size();
     }
 
     private static List<SpawnPoint> collectPlayerSpawnPoints(ServerLevel level, BlockPos playerPos) {
@@ -142,6 +165,7 @@ public class GreenDawnEvent {
         greenDawn.moveTo(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D,
                 level.getRandom().nextFloat() * 360.0F, 0.0F);
         greenDawn.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), MobSpawnType.EVENT, null, null);
+        greenDawn.setOrdealSpawn(true);
         greenDawn.setPersistenceRequired();
         if (!level.addFreshEntity(greenDawn)) {
             OrdealData.get(level).decrementGreenDawnRemaining();

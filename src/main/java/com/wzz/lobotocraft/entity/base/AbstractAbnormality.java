@@ -6,6 +6,7 @@ import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
 import com.wzz.lobotocraft.entity.ai.goal.MoveToBlackForestDoorGoal;
 import com.wzz.lobotocraft.entity.abnormality.EntityIsharmla;
+import com.wzz.lobotocraft.entity.abnormality.EntityLeticiaFriend;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.event.abnormality.AbnormalityEscapeEvent;
 import com.wzz.lobotocraft.event.abnormality.AbnormalityEscapeStopEvent;
@@ -618,7 +619,7 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         }
         Entity entity = damageSource.getEntity();
         if (entity instanceof LivingEntity living && !living.getMainHandItem().getItem().getClass().getName().startsWith("com.wzz.lobotocraft")
-        && !(living instanceof AbstractAbnormality))
+        && !(living instanceof AbstractAbnormality) && !(living instanceof EntityLeticiaFriend))
             return false;
         boolean hurt = super.hurt(damageSource, f);
         if (hurt) {

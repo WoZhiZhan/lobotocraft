@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.item.ego.blue_star;
 
+import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
@@ -7,6 +8,7 @@ import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.ScreenDistortionEffectPacket;
 import com.wzz.lobotocraft.util.ClientInputUtil;
 import com.wzz.lobotocraft.util.DamageHelper;
+import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -15,10 +17,11 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -45,7 +48,7 @@ import java.util.Map;
  *     30~60% : 2段,额外1段15-18
  *     >60%   : 3段,再额外1段20-22
  * Shift右键(120秒CD):特殊攻击,播放碧蓝新星攻击音效+屏幕扭曲,
- *   对全图已出逃异想体造成等同玩家精神值的白伤,解除自身恐慌并回10%精神,
+ *   对全图敌对生物造成等同玩家精神值的白伤,解除该维度恐慌员工并回10%精神,
  *   并使该维度未出逃且计数器未满的异想体计数器+1。
  * 套装效果(武器+护甲+饰品):见 BlueStarSetEvent(命中减速、满精神光束+25%、致命复活)。
  */
@@ -271,24 +274,51 @@ public class BlueStarWeapon extends BaseEgoWeapon {
         // 全图范围
         AABB whole = new AABB(-30000000, level.getMinBuildHeight(), -30000000,
                 30000000, level.getMaxBuildHeight(), 30000000);
-        for (AbstractAbnormality ab : level.getEntitiesOfClass(AbstractAbnormality.class, whole, AbstractAbnormality::isAlive)) {
-            if (ab.hasEscape()) {
-                // 已出逃:造成等同玩家精神值的白色伤害
-                ab.hurt(DamageHelper.getDamage(player, "white"), mentalDamage);
-            } else {
-                // 未出逃且计数器未满:计数器+1
-                if (ab.getQliphothCounter() < ab.getMaxQliphothCounter()) {
-                    ab.increaseQliphothCounter(1);
+        for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, whole, LivingEntity::isAlive)) {
+            if (target instanceof AbstractAbnormality abnormality) {
+                if (abnormality.hasEscape()) {
+                    EntityUtil.clearHurtTime(abnormality);
+                    abnormality.hurt(DamageHelper.getDamage(player, "white"), mentalDamage);
+                } else if (abnormality.getQliphothCounter() < abnormality.getMaxQliphothCounter()) {
+                    abnormality.increaseQliphothCounter(1);
                 }
+                continue;
+            }
+
+            if (isSpecialAttackEnemy(target)) {
+                EntityUtil.clearHurtTime(target);
+                target.hurt(DamageHelper.getDamage(player, "white"), mentalDamage);
             }
         }
 
-        // 解除恐慌并回复10%精神(无论是否恐慌都回10%)
-        float max = MentalValueUtil.getEffectiveMaxMentalValue(player);
-        MentalValueUtil.addMentalValue(player, max * 0.10f);
-        player.getPersistentData().putBoolean("isharmla_panic", false); // 复用恐慌标记清除
+        for (ServerPlayer targetPlayer : level.getServer().getPlayerList().getPlayers()) {
+            if (targetPlayer.serverLevel() == level && isPanicking(targetPlayer)) {
+                recoverFromPanic(targetPlayer);
+            }
+        }
 
         player.displayClientMessage(Component.literal("§b新星之声：群星共鸣！"), true);
+    }
+
+    private boolean isSpecialAttackEnemy(LivingEntity target) {
+        return !(target instanceof Player)
+                && !(target instanceof EntityClerk)
+                && !(target instanceof Villager)
+                && target.getType().getCategory() == MobCategory.MONSTER;
+    }
+
+    private boolean isPanicking(ServerPlayer player) {
+        return MentalValueUtil.getMentalValue(player) <= 0.0F
+                || player.getPersistentData().getBoolean("isharmla_panic");
+    }
+
+    private void recoverFromPanic(ServerPlayer player) {
+        float current = MentalValueUtil.getMentalValue(player);
+        float recoveredMental = Math.max(1.0F, MentalValueUtil.getEffectiveMaxMentalValue(player) * 0.10F);
+        MentalValueUtil.setMentalValue(player, Math.max(current, recoveredMental));
+        player.getPersistentData().putBoolean("isharmla_panic", false);
+        player.removeEffect(MobEffects.BLINDNESS);
+        player.removeEffect(MobEffects.MOVEMENT_SLOWDOWN);
     }
 
     // ==================== 冷却倒计时 ====================
@@ -345,8 +375,8 @@ public class BlueStarWeapon extends BaseEgoWeapon {
             components.add(Component.literal("§6※攻击时，持有者的精神值越高，就会生成额外的“新星之声”以造成更高的伤害。"));
             components.add(Component.literal("§7右键从身旁射出最多三段白色光束(射程25格)。"));
             components.add(Component.literal("§7精神<30%：1段8-12；30~60%：2段(+15-18)；>60%：3段(再+20-22)。"));
-            components.add(Component.literal("§7Shift右键(120秒)：对全图出逃异想体造成等同精神值的白伤，"));
-            components.add(Component.literal("§7解除恐慌并回10%精神，未出逃异想体计数器+1。"));
+            components.add(Component.literal("§7Shift右键(120秒)：对全图敌对生物造成等同精神值的白伤，"));
+            components.add(Component.literal("§7解除该维度恐慌员工并回10%精神，未出逃异想体计数器+1。"));
             return;
         }
         components.add(Component.literal("§7新星自我们的绝望中闪耀。在它的光芒之下，众生皆为平等。"));

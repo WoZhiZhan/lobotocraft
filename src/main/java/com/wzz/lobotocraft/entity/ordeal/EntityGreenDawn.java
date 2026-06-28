@@ -71,6 +71,7 @@ public class EntityGreenDawn extends BaseGeoEntity {
     private int deathAnimationTick = 0;
     private boolean deathFinalized = false;
     private DamageSource delayedDeathSource = null;
+    private boolean ordealSpawn = false;
 
     public EntityGreenDawn(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -118,6 +119,14 @@ public class EntityGreenDawn extends BaseGeoEntity {
                                         @Nullable CompoundTag tag) {
         this.addEffect(new MobEffectInstance(MobEffects.GLOWING, Integer.MAX_VALUE, 0, false, false));
         return super.finalizeSpawn(level, difficulty, spawnType, data, tag);
+    }
+
+    public boolean isOrdealSpawn() {
+        return ordealSpawn;
+    }
+
+    public void setOrdealSpawn(boolean ordealSpawn) {
+        this.ordealSpawn = ordealSpawn;
     }
 
     @Override
@@ -310,7 +319,7 @@ public class EntityGreenDawn extends BaseGeoEntity {
         specialAttackTick = 0;
         setNoAi(true);
         stopAttackMovement();
-        if (!this.level().isClientSide && !countedDeath && this.level() instanceof ServerLevel level) {
+        if (!this.level().isClientSide && ordealSpawn && !countedDeath && this.level() instanceof ServerLevel level) {
             countedDeath = true;
             setAnim("death");
             GreenDawnEvent.onGreenDawnKilled(level);
@@ -377,6 +386,7 @@ public class EntityGreenDawn extends BaseGeoEntity {
         tag.putBoolean("CountedDeath", countedDeath);
         tag.putBoolean("DeathAnimationStarted", deathAnimationStarted);
         tag.putInt("DeathAnimationTick", deathAnimationTick);
+        tag.putBoolean("OrdealSpawn", ordealSpawn);
         tag.putString("Anim", getAnim());
         tag.putInt("AnimVersion", getAnimVersion());
     }
@@ -391,6 +401,7 @@ public class EntityGreenDawn extends BaseGeoEntity {
         countedDeath = tag.getBoolean("CountedDeath");
         deathAnimationStarted = tag.getBoolean("DeathAnimationStarted");
         deathAnimationTick = tag.getInt("DeathAnimationTick");
+        ordealSpawn = tag.getBoolean("OrdealSpawn");
         if (deathAnimationStarted) {
             setNoAi(true);
         }
