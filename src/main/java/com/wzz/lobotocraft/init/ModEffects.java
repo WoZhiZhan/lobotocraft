@@ -3,6 +3,8 @@ package com.wzz.lobotocraft.init;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.effect.FriendshipProofEffect;
 import com.wzz.lobotocraft.effect.KissEffect;
+import com.wzz.lobotocraft.effect.LeticiaBrokenGiftEffect;
+import com.wzz.lobotocraft.effect.LeticiaGiftEffect;
 import com.wzz.lobotocraft.effect.QueenBeeSporeEffect;
 import com.wzz.lobotocraft.effect.WishWithoutLightEffect;
 import com.wzz.lobotocraft.effect.ButterflyShroudEffect;
@@ -39,4 +41,12 @@ public class ModEffects {
     // 蜂后孢子
     public static final RegistryObject<MobEffect> QUEEN_BEE_SPORE =
             EFFECTS.register("queen_bee_spore", QueenBeeSporeEffect::new);
+
+    // 蕾蒂希雅的礼物
+    public static final RegistryObject<MobEffect> LETICIA_GIFT =
+            EFFECTS.register("leticia_gift", LeticiaGiftEffect::new);
+
+    // 蕾蒂希雅的破碎礼物
+    public static final RegistryObject<MobEffect> LETICIA_BROKEN_GIFT =
+            EFFECTS.register("leticia_broken_gift", LeticiaBrokenGiftEffect::new);
 }

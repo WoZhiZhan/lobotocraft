@@ -65,6 +65,8 @@ public class ModClientEvent {
         event.registerEntityRenderer(ModEntities.army_in_black.get(), (r) -> new AbnormalityRenderer<>(r, 1.0f, 1.0f));
         event.registerEntityRenderer(ModEntities.crumbling_armor.get(), (r) -> new AbnormalityRenderer<>(r, 1.0f, 1.0f));
         event.registerEntityRenderer(ModEntities.the_lady_facing_the_wall.get(), (r) -> new AbnormalityRenderer<>(r, 1.0f, 1.0f));
+        event.registerEntityRenderer(ModEntities.leticia.get(), (r) -> new AbnormalityRenderer<>(r, 0.9f, 0.9f));
+        event.registerEntityRenderer(ModEntities.leticia_friend.get(), (r) -> new GeoEntityRenderer<>(r, 0.9f, 0.9f));
         event.registerEntityRenderer(ModEntities.bloody_small.get(), (r) -> new GeoEntityRenderer<>(r, 0.5f, 0.5f));
         event.registerEntityRenderer(ModEntities.green_dawn.get(), (r) -> new GeoEntityRenderer<>(r, 1.0f, 1.0f));
         event.registerEntityRenderer(ModEntities.butterfly_funeral.get(), (r) -> new AbnormalityRenderer<>(r, "butterfly", "butterfly", 0.6f, 0.6f));

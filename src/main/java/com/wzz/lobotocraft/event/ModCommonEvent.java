@@ -30,6 +30,8 @@ public class ModCommonEvent {
 		event.put(ModEntities.army_in_black.get(), EntityArmyInBlack.createAttributes().build());
 		event.put(ModEntities.crumbling_armor.get(), EntityCrumblingArmor.createAttributes().build());
 		event.put(ModEntities.the_lady_facing_the_wall.get(), EntityLadyFacingTheWall.createAttributes().build());
+		event.put(ModEntities.leticia.get(), EntityLeticia.createAttributes().build());
+		event.put(ModEntities.leticia_friend.get(), EntityLeticiaFriend.createAttributes().build());
 		event.put(ModEntities.bloody_small.get(), EntityBloodySmall.createAttributes().build());
 		event.put(ModEntities.green_dawn.get(), EntityGreenDawn.createAttributes().build());
 		event.put(ModEntities.butterfly_funeral.get(), EntityButterflyFuneral.createAttributes().build());

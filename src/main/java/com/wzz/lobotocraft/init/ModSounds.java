@@ -64,6 +64,13 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> WORKER_BEE_DEATH = register("worker_bee_death");
 	public static final RegistryObject<SoundEvent> WORKER_BEE_DEATH2 = register("worker_bee_death2");
 	public static final RegistryObject<SoundEvent> WORKER_BEE_SPAWN = register("worker_bee_spawn");
+	public static final RegistryObject<SoundEvent> LETICIA_IDLE = register("leticia_idle");
+	public static final RegistryObject<SoundEvent> LETICIA_FRIEND_SPAWN = register("leticia_friend_spawn");
+	public static final RegistryObject<SoundEvent> LETICIA_FRIEND_IDLE_1 = register("leticia_friend_idle_1");
+	public static final RegistryObject<SoundEvent> LETICIA_FRIEND_IDLE_2 = register("leticia_friend_idle_2");
+	public static final RegistryObject<SoundEvent> LETICIA_FRIEND_IDLE_3 = register("leticia_friend_idle_3");
+	public static final RegistryObject<SoundEvent> LETICIA_FRIEND_DEATH = register("leticia_friend_death");
+	public static final RegistryObject<SoundEvent> LETICIA_FRIEND_KILL_PLAYER = register("leticia_friend_kill_player");
 	public static final RegistryObject<SoundEvent> PPODAE_DEATH = register("ppodae_death");
 	public static final RegistryObject<SoundEvent> PPODAE_ATTACK = register("ppodae_attack");
 	public static final RegistryObject<SoundEvent> PPODAE_RETURN = register("ppodae_return");

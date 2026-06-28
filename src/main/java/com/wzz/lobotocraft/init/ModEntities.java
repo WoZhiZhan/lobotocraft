@@ -141,6 +141,22 @@ public class ModEntities {
                             .updateInterval(3)
                             .build("the_lady_facing_the_wall"));
 
+    public static final RegistryObject<EntityType<EntityLeticia>> leticia =
+            ENTITIES.register("leticia",
+                    () -> EntityType.Builder.of(EntityLeticia::new, MobCategory.CREATURE)
+                            .sized(0.7F, 1.8F)
+                            .clientTrackingRange(8)
+                            .updateInterval(3)
+                            .build("leticia"));
+
+    public static final RegistryObject<EntityType<EntityLeticiaFriend>> leticia_friend =
+            ENTITIES.register("leticia_friend",
+                    () -> EntityType.Builder.of(EntityLeticiaFriend::new, MobCategory.MONSTER)
+                            .sized(0.9F, 1.7F)
+                            .clientTrackingRange(8)
+                            .updateInterval(3)
+                            .build("leticia_friend"));
+
     public static final RegistryObject<EntityType<EntityBloodySmall>> bloody_small =
             ENTITIES.register("bloody_small",
                     () -> EntityType.Builder.of(EntityBloodySmall::new, MobCategory.MONSTER)

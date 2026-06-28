@@ -1074,5 +1074,61 @@
         "stream": false
       }
     ]
+  },
+  "leticia_idle": {
+    "sounds": [
+      {
+        "name": "lobotocraft:leticia_idle",
+        "stream": false
+      }
+    ]
+  },
+  "leticia_friend_spawn": {
+    "sounds": [
+      {
+        "name": "lobotocraft:leticia_friend_spawn",
+        "stream": false
+      }
+    ]
+  },
+  "leticia_friend_idle_1": {
+    "sounds": [
+      {
+        "name": "lobotocraft:leticia_friend_idle_1",
+        "stream": false
+      }
+    ]
+  },
+  "leticia_friend_idle_2": {
+    "sounds": [
+      {
+        "name": "lobotocraft:leticia_friend_idle_2",
+        "stream": false
+      }
+    ]
+  },
+  "leticia_friend_idle_3": {
+    "sounds": [
+      {
+        "name": "lobotocraft:leticia_friend_idle_3",
+        "stream": false
+      }
+    ]
+  },
+  "leticia_friend_death": {
+    "sounds": [
+      {
+        "name": "lobotocraft:leticia_friend_death",
+        "stream": false
+      }
+    ]
+  },
+  "leticia_friend_kill_player": {
+    "sounds": [
+      {
+        "name": "lobotocraft:leticia_friend_kill_player",
+        "stream": false
+      }
+    ]
   }
 }

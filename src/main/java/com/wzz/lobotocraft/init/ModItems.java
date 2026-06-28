@@ -140,6 +140,9 @@ public class ModItems {
     public static final RegistryObject<Item> THE_LADY_FACING_THE_WALL_SPAWN_EGG = REGISTRY.register("the_lady_facing_the_wall_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.the_lady_facing_the_wall, 0x5a5048, 0xd8d2c8, new Item.Properties(),
                     "§c她只是坐在那里，面对着墙。"));
+    public static final RegistryObject<Item> LETICIA_SPAWN_EGG = REGISTRY.register("leticia_spawn_egg",
+            () -> new TextSpawnEggItem(ModEntities.leticia, 0x5a2f67, 0xe7d7f0, new Item.Properties(),
+                    "§c今天会收到可爱的礼物吗？"));
     public static final RegistryObject<Item> INNER_COURAGE_CURIO = REGISTRY.register("inner_courage_curio", InnerCourageCurio::new);
     public static final RegistryObject<Item> FOOLHARDY_COURAGE_CURIO = REGISTRY.register("foolhardy_courage_curio", FoolhardyCourageCurio::new);
     public static final RegistryObject<Item> SHELL_SEA_RUNNER_SPAWN_EGG = REGISTRY.register("shell_sea_runner_spawn_egg",
