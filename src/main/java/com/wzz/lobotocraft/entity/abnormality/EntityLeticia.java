@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
+import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModEffects;
 import com.wzz.lobotocraft.init.ModEntities;
@@ -32,6 +33,8 @@ import software.bernie.geckolib.core.animation.AnimationState;
 import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 public class EntityLeticia extends AbstractAbnormality {
@@ -116,9 +119,10 @@ public class EntityLeticia extends AbstractAbnormality {
             return;
         }
 
-        BlockPos spawnPos = EntityUtil.findSafeGroundPositionInCompany(serverLevel, player.blockPosition(), 4);
-        double angle = serverLevel.getRandom().nextDouble() * Math.PI * 2.0D;
-        double distance = 1.0D + serverLevel.getRandom().nextDouble() * 2.0D;
+        BlockPos spawnPos = findFriendSpawnPosition(serverLevel, player.blockPosition());
+        boolean escapeBlockSpawn = isEscapeBlockSpawn(serverLevel, spawnPos);
+        double angle = escapeBlockSpawn ? 0.0D : serverLevel.getRandom().nextDouble() * Math.PI * 2.0D;
+        double distance = escapeBlockSpawn ? 0.0D : 1.0D + serverLevel.getRandom().nextDouble() * 2.0D;
         friend.moveTo(
                 spawnPos.getX() + 0.5D + Math.cos(angle) * distance,
                 spawnPos.getY(),
@@ -137,6 +141,19 @@ public class EntityLeticia extends AbstractAbnormality {
         serverLevel.playSound(null, friend.blockPosition(), ModSounds.LETICIA_FRIEND_SPAWN.get(),
                 SoundSource.HOSTILE, 1.0F, 1.0F);
         ParticleUtil.spawnParticles(friend, ParticleUtil.getDustParticle(0.82f, 0.35f, 0.88f, 1.4f), 24, 0.03D);
+    }
+
+    private static BlockPos findFriendSpawnPosition(ServerLevel level, BlockPos origin) {
+        List<BlockPos> escapeBlocks = new ArrayList<>(EscapeBlockEntity.getEscapeBlocks(level.dimension()));
+        return escapeBlocks.stream()
+                .filter(pos -> level.getBlockEntity(pos) instanceof EscapeBlockEntity)
+                .min(Comparator.comparingDouble(pos -> pos.distSqr(origin)))
+                .map(BlockPos::above)
+                .orElseGet(() -> EntityUtil.findSafeGroundPositionInCompany(level, origin, 4));
+    }
+
+    private static boolean isEscapeBlockSpawn(ServerLevel level, BlockPos spawnPos) {
+        return level.getBlockEntity(spawnPos.below()) instanceof EscapeBlockEntity;
     }
 
     private void clearOtherGiftHolders(ServerPlayer giftHolder) {

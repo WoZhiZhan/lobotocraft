@@ -32,9 +32,10 @@ import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 
 public class EntityLeticiaFriend extends BaseGeoEntity {
-    private static final int SPAWN_ANIMATION_TICKS = 36;
-    private static final int ATTACK_ANIMATION_TICKS = 24;
-    private static final int ATTACK_INTERVAL_TICKS = 28;
+    private static final int SPAWN_ANIMATION_TICKS = 24;
+    private static final int ATTACK1_ANIMATION_TICKS = 30;
+    private static final int ATTACK2_ANIMATION_TICKS = 36;
+    private static final int ATTACK_INTERVAL_TICKS = 38;
     private static final int IDLE_SOUND_INTERVAL_TICKS = 80;
     private static final double FRONT_ATTACK_RANGE = 4.0D;
     private static final double FRONT_ATTACK_WIDTH = 2.0D;
@@ -60,7 +61,10 @@ public class EntityLeticiaFriend extends BaseGeoEntity {
         this.targetSelector.addGoal(0, new HurtByTargetGoal(this));
         this.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(
                 this, AbstractAbnormality.class, true,
-                abnormality -> abnormality instanceof AbstractAbnormality ab && ab.hasEscape()));
+                abnormality -> abnormality instanceof AbstractAbnormality ab && isValidAttackTarget(ab)));
+        this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(
+                this, Player.class, true,
+                player -> player instanceof Player target && isValidAttackTarget(target)));
     }
 
     @Override
@@ -97,8 +101,9 @@ public class EntityLeticiaFriend extends BaseGeoEntity {
             return false;
         }
 
-        attackAnimationTimer = ATTACK_ANIMATION_TICKS;
-        setAnimation(this.random.nextBoolean() ? "attack1" : "attack2");
+        boolean attack1 = this.random.nextBoolean();
+        attackAnimationTimer = attack1 ? ATTACK1_ANIMATION_TICKS : ATTACK2_ANIMATION_TICKS;
+        setAnimation(attack1 ? "attack1" : "attack2");
         playFriendSound(randomIdleSound());
         boolean hurt = hurtFrontalTargets(living, 8.0F + this.random.nextInt(3));
         return hurt;
@@ -107,9 +112,9 @@ public class EntityLeticiaFriend extends BaseGeoEntity {
     private boolean hurtFrontalTargets(LivingEntity directTarget, float damage) {
         Vec3 look = this.getLookAngle().normalize();
         boolean hurt = false;
-        for (AbstractAbnormality target : this.level().getEntitiesOfClass(AbstractAbnormality.class,
+        for (LivingEntity target : this.level().getEntitiesOfClass(LivingEntity.class,
                 this.getBoundingBox().inflate(FRONT_ATTACK_RANGE, 2.0D, FRONT_ATTACK_RANGE),
-                target -> target.isAlive() && target.hasEscape())) {
+                this::isValidAttackTarget)) {
             Vec3 toTarget = target.getBoundingBox().getCenter().subtract(this.position());
             double forward = toTarget.dot(look);
             if (target != directTarget && (forward < 0.0D || forward > FRONT_ATTACK_RANGE)) {
@@ -122,6 +127,16 @@ public class EntityLeticiaFriend extends BaseGeoEntity {
             hurt |= target.hurt(DamageHelper.getDamage(this, "lobotocraft:red"), damage);
         }
         return hurt;
+    }
+
+    private boolean isValidAttackTarget(LivingEntity target) {
+        if (target == null || target == this || !target.isAlive()) {
+            return false;
+        }
+        if (target instanceof Player player) {
+            return !player.isCreative() && !player.isSpectator();
+        }
+        return target instanceof AbstractAbnormality abnormality && abnormality.hasEscape();
     }
 
     @Override
