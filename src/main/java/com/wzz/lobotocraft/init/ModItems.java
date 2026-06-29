@@ -139,7 +139,7 @@ public class ModItems {
                     "§c“不畏死，方可生。”"));
     public static final RegistryObject<Item> THE_LADY_FACING_THE_WALL_SPAWN_EGG = REGISTRY.register("the_lady_facing_the_wall_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.the_lady_facing_the_wall, 0x5a5048, 0xd8d2c8, new Item.Properties(),
-                    "§c她只是坐在那里，面对着墙。"));
+                    "§c一个人，即便生前有再多的故事能够讲述，可到了死后，唯有孤独才是唯一的倾听者。"));
     public static final RegistryObject<Item> LETICIA_SPAWN_EGG = REGISTRY.register("leticia_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.leticia, 0x5a2f67, 0xe7d7f0, new Item.Properties(),
                     "§c今天会收到可爱的礼物吗？"));
