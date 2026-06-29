@@ -106,6 +106,12 @@ repositories {
             includeGroup "curse.maven"
         }
     }
+    maven {
+        url "https://api.modrinth.com/maven"
+        content {
+            includeGroup "maven.modrinth"
+        }
+    }
 }
 
 dependencies {
@@ -114,6 +120,7 @@ dependencies {
     implementation fg.deobf("curse.maven:geckolib-388172:7025129")
     implementation fg.deobf("curse.maven:jade-324717:6271651")
     implementation fg.deobf("curse.maven:curios-309927:6418456")
+    runtimeOnly fg.deobf("maven.modrinth:infinity-item-editor-re:1.20.1-1.2.0-B")
 }
 
 tasks.named('processResources', ProcessResources).configure {
