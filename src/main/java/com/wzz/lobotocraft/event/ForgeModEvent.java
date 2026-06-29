@@ -19,6 +19,7 @@ import com.wzz.lobotocraft.init.*;
 import com.wzz.lobotocraft.item.CaptureUnitItem;
 import com.wzz.lobotocraft.item.PEBoxItem;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.children_galaxy.ChildrenGalaxyCurio;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
 import com.wzz.lobotocraft.network.packet.LargeBirdBorderPacket;
@@ -185,6 +186,9 @@ public class ForgeModEvent {
 			}
 			if (CuriosUtil.hasCurios(player, ModItems.END_BIRD_CURIO.get())) {
 				event.setAmount(event.getAmount() * 1.1f);
+			}
+			if (ChildrenGalaxyCurio.hasFullSet(player) && BuffUtil.hasFriendshipProof(player)) {
+				ChildrenGalaxyCurio.triggerRecovery(player);
 			}
 			if (src.getEntity() instanceof Player attacker && !player.level.isClientSide) {
 				if (MentalValueUtil.getMentalValue(player) <= 0 && isWhiteDamage(src) && MentalValueUtil.getMentalValue(attacker) > 0) {

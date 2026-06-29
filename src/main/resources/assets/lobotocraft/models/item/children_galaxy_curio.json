@@ -1,0 +1,25 @@
+{
+  "credit": "Made with Blockbench",
+  "parent": "builtin/entity",
+  "texture_size": [
+    64,
+    64
+  ],
+  "display": {
+    "head": {
+      "translation": [
+        0,
+        -12.75,
+        0
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        1.5
+      ]
+    }
+  },
+  "textures": {
+    "particle": "lobotocraft:item/children_galaxy_curio"
+  }
+}

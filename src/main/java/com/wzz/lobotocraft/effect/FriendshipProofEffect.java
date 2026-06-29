@@ -1,5 +1,7 @@
 package com.wzz.lobotocraft.effect;
 
+import com.wzz.lobotocraft.item.ego.children_galaxy.ChildrenGalaxyCurio;
+import com.wzz.lobotocraft.util.EgoArmorHelper;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffect;
@@ -32,8 +34,15 @@ public class FriendshipProofEffect extends MobEffect {
                 return;
             }
             int count = amplifier + 1; // 还原 QliphothCounter
-            player.heal(count * 2);
-            MentalValueUtil.addMentalValue(player, count * 2);
+            float amount = count * 2.0f;
+            if (EgoArmorHelper.isWearingFullSet(player, "children_galaxy")) {
+                amount *= 2.0f;
+            }
+            if (ChildrenGalaxyCurio.hasFullSet(player)) {
+                amount *= 1.5f;
+            }
+            player.heal(amount);
+            MentalValueUtil.addMentalValue(player, amount);
         }
     }
 }

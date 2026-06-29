@@ -12,6 +12,7 @@ import com.wzz.lobotocraft.item.debug.*;
 import com.wzz.lobotocraft.item.ego.OttoItem;
 import com.wzz.lobotocraft.item.ego.abandoned_murderer.*;
 import com.wzz.lobotocraft.item.ego.approval_birds.*;
+import com.wzz.lobotocraft.item.ego.children_galaxy.*;
 import com.wzz.lobotocraft.item.ego.crumbling_armor.*;
 import com.wzz.lobotocraft.item.ego.end_bird.*;
 import com.wzz.lobotocraft.item.ego.fourth_match_flame.*;
@@ -76,6 +77,10 @@ public class ModItems {
     public static final RegistryObject<Item> QUEEN_BEE_SPAWN_EGG = REGISTRY.register("queen_bee_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.queen_bee, 0xEDC343, 0x43241B, new Item.Properties(),
                     "§c如果你感到胃部剧痛或是颈部发痒，那么唯一能做的事就是最后一次仰望蓝天。"));
+
+    public static final RegistryObject<Item> RED_SHOES_SPAWN_EGG = REGISTRY.register("red_shoes_spawn_egg",
+            () -> new TextSpawnEggItem(ModEntities.red_shoes, 0x8B0000, 0xF4D7D7, new Item.Properties(),
+                    "§c女孩泪流满面地哀求着：“先生，求您把我的脚砍下来吧！”"));
 
     public static final RegistryObject<Item> SNOWQUEEN_SPAWN_EGG = REGISTRY.register("snowqueen_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.snowqueen, ExtendedColor.NEON_CYAN.getRGB(), ExtendedColor.LAVENDER_BLUSH.getRGB(), new Item.Properties(),
@@ -200,6 +205,11 @@ public class ModItems {
     public static final RegistryObject<Item> BLUE_STAR_BOOTS = REGISTRY.register("blue_star_boots", com.wzz.lobotocraft.item.ego.blue_star.BlueStarBoots::new);
     public static final RegistryObject<Item> BLUE_STAR_WEAPON = REGISTRY.register("blue_star_weapon", com.wzz.lobotocraft.item.ego.blue_star.BlueStarWeapon::new);
     public static final RegistryObject<Item> BLUE_STAR_CURIO = REGISTRY.register("blue_star_curio", com.wzz.lobotocraft.item.ego.blue_star.BlueStarCurio::new);
+    public static final RegistryObject<Item> CHILDREN_GALAXY_CHESTPLATE = REGISTRY.register("children_galaxy_chestplate", ChildrenGalaxyChestplate::new);
+    public static final RegistryObject<Item> CHILDREN_GALAXY_LEGGINGS = REGISTRY.register("children_galaxy_leggings", ChildrenGalaxyLeggings::new);
+    public static final RegistryObject<Item> CHILDREN_GALAXY_BOOTS = REGISTRY.register("children_galaxy_boots", ChildrenGalaxyBoots::new);
+    public static final RegistryObject<Item> CHILDREN_GALAXY_WEAPON = REGISTRY.register("children_galaxy_weapon", ChildrenGalaxyWeapon::new);
+    public static final RegistryObject<Item> CHILDREN_GALAXY_CURIO = REGISTRY.register("children_galaxy_curio", ChildrenGalaxyCurio::new);
     public static final RegistryObject<Item> OTTO = REGISTRY.register("otto", OttoItem::new);
     public static final RegistryObject<Item> ESCAPE = REGISTRY.register("escape", EscapeBlockItem::new);
     public static final RegistryObject<Item> ELEVATOR = REGISTRY.register("elevator", ElevatorBlockItem::new);

@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.world.data;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.saveddata.SavedData;
 
 /**
@@ -9,9 +10,10 @@ import net.minecraft.world.level.saveddata.SavedData;
  */
 public class OrdealData extends SavedData {
     private static final String NAME = "lobotocraft_ordeal_data";
-    private static final int NO_DAWN_TYPE = 0;
-    private static final int BLOOD_DAWN_TYPE = 1;
-    private static final int GREEN_DAWN_TYPE = 2;
+    public static final int NO_DAWN_TYPE = 0;
+    public static final int BLOOD_DAWN_TYPE = 1;
+    public static final int GREEN_DAWN_TYPE = 2;
+    public static final int VIOLET_DAWN_TYPE = 3;
 
     private int trackedDay = 0;
     private int dawnChance = 0;
@@ -21,6 +23,8 @@ public class OrdealData extends SavedData {
     private int bloodDawnRemaining = 0;
     private boolean greenDawnActive = false;
     private int greenDawnRemaining = 0;
+    private boolean violetDawnActive = false;
+    private int violetDawnRemaining = 0;
 
     public static OrdealData get(ServerLevel level) {
         return level.getServer().overworld().getDataStorage().computeIfAbsent(
@@ -46,6 +50,8 @@ public class OrdealData extends SavedData {
             bloodDawnRemaining = 0;
             greenDawnActive = false;
             greenDawnRemaining = 0;
+            violetDawnActive = false;
+            violetDawnRemaining = 0;
             setDirty();
         }
     }
@@ -84,6 +90,27 @@ public class OrdealData extends SavedData {
     public void setNextDawnType(boolean greenDawn) {
         nextDawnType = greenDawn ? GREEN_DAWN_TYPE : BLOOD_DAWN_TYPE;
         setDirty();
+    }
+
+    public boolean isNextVioletDawn() {
+        return nextDawnType == VIOLET_DAWN_TYPE;
+    }
+
+    public int getNextDawnType() {
+        return nextDawnType;
+    }
+
+    public void setNextDawnType(int dawnType) {
+        if (dawnType < BLOOD_DAWN_TYPE || dawnType > VIOLET_DAWN_TYPE) {
+            nextDawnType = NO_DAWN_TYPE;
+        } else {
+            nextDawnType = dawnType;
+        }
+        setDirty();
+    }
+
+    public void setRandomNextDawnType(RandomSource random) {
+        setNextDawnType(BLOOD_DAWN_TYPE + random.nextInt(VIOLET_DAWN_TYPE));
     }
 
     public boolean isBloodDawnActive() {
@@ -134,8 +161,32 @@ public class OrdealData extends SavedData {
         setDirty();
     }
 
+    public boolean isVioletDawnActive() {
+        return violetDawnActive;
+    }
+
+    public void startVioletDawn(int entityCount) {
+        violetDawnActive = true;
+        violetDawnRemaining = Math.max(0, entityCount);
+        setDirty();
+    }
+
+    public int decrementVioletDawnRemaining() {
+        if (violetDawnRemaining > 0) {
+            violetDawnRemaining--;
+            setDirty();
+        }
+        return violetDawnRemaining;
+    }
+
+    public void finishVioletDawn() {
+        violetDawnActive = false;
+        violetDawnRemaining = 0;
+        setDirty();
+    }
+
     public boolean hasActiveDawn() {
-        return bloodDawnActive || greenDawnActive;
+        return bloodDawnActive || greenDawnActive || violetDawnActive;
     }
 
     @Override
@@ -148,6 +199,8 @@ public class OrdealData extends SavedData {
         tag.putInt("BloodDawnRemaining", bloodDawnRemaining);
         tag.putBoolean("GreenDawnActive", greenDawnActive);
         tag.putInt("GreenDawnRemaining", greenDawnRemaining);
+        tag.putBoolean("VioletDawnActive", violetDawnActive);
+        tag.putInt("VioletDawnRemaining", violetDawnRemaining);
         return tag;
     }
 
@@ -161,6 +214,8 @@ public class OrdealData extends SavedData {
         data.bloodDawnRemaining = tag.getInt("BloodDawnRemaining");
         data.greenDawnActive = tag.getBoolean("GreenDawnActive");
         data.greenDawnRemaining = tag.getInt("GreenDawnRemaining");
+        data.violetDawnActive = tag.getBoolean("VioletDawnActive");
+        data.violetDawnRemaining = tag.getInt("VioletDawnRemaining");
         return data;
     }
 }

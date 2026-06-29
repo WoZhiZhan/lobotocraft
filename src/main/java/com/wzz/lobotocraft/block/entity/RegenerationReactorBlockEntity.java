@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.block.entity;
 
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.entity.EntityClerk;
+import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
 import com.wzz.lobotocraft.init.ModBlockEntities;
 import com.wzz.lobotocraft.init.ModEffects;
 import com.wzz.lobotocraft.init.ModParticleTypes;
@@ -228,6 +229,9 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
         if (player.hasEffect(ModEffects.QUEEN_BEE_SPORE.get())) {
             return;
         }
+        if (EntityRedShoes.isRedShoesControlled(player)) {
+            return;
+        }
         float maxHealth = player.getMaxHealth();
         if (MentalValueUtil.getMentalValue(serverPlayer) <= 0) {
             return;
@@ -254,6 +258,9 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
 
     private void healClerk(EntityClerk clerk) {
         if (clerk.hasEffect(ModEffects.QUEEN_BEE_SPORE.get())) {
+            return;
+        }
+        if (EntityRedShoes.isRedShoesControlled(clerk)) {
             return;
         }
         float maxHealth = clerk.getMaxHealth();

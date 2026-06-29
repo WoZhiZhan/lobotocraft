@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.init.ModSounds;
@@ -63,6 +64,42 @@ public class EntityChildrenGalaxy extends AbstractAbnormality {
                 new ObservationLevelBonus(0.0f, 4),
                 new ObservationLevelBonus(0.04f, 0, false, false, true)
         };
+    }
+
+    @Override
+    public float getGiftProbability() {
+        return 0.04f;
+    }
+
+    @Override public int getWeaponDevelopmentCost() { return 45; }
+    @Override public int getWeaponDevelopmentMaxCount() { return 1; }
+    @Override public int getArmorDevelopmentCost() { return 30; }
+    @Override public int getArmorDevelopmentMaxCount() { return 3; }
+
+    @Override
+    public EGOEquipmentData.GiftData getEGOGiftData() {
+        return new EGOEquipmentData.GiftData(
+                ResourceUtil.createInstance("textures/item/children_galaxy_curio.png"),
+                "小小银河", "颈部", "children_galaxy_curio",
+                "成功率+3,工作速度+3",
+                "每3秒恢复3点生命值与精神值");
+    }
+
+    @Override
+    public EGOEquipmentData.WeaponData getEGOWeaponData() {
+        return new EGOEquipmentData.WeaponData(
+                ResourceUtil.createInstance("textures/gui/ego/children_galaxy_weapon.png"),
+                "小小银河", RiskLevel.HE, "BLACK", "15", "2", "3x3",
+                getWeaponDevelopmentMaxCount(), "children_galaxy_weapon");
+    }
+
+    @Override
+    public EGOEquipmentData.ArmorData getEGOArmorData() {
+        return new EGOEquipmentData.ArmorData(
+                ResourceUtil.createInstance("textures/gui/ego/children_galaxy_armor.png"),
+                "小小银河", RiskLevel.HE,
+                0.8f, 0.8f, 1.2f, 1.5f,
+                getArmorDevelopmentMaxCount(), "children_galaxy");
     }
 
     @Override

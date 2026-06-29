@@ -87,6 +87,38 @@
       }
     ]
   },
+  "violet_dawn_start": {
+    "sounds": [
+      {
+        "name": "lobotocraft:violet_dawn_start",
+        "stream": true
+      }
+    ]
+  },
+  "violet_dawn_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:violet_dawn_attack",
+        "stream": false
+      }
+    ]
+  },
+  "violet_dawn_death": {
+    "sounds": [
+      {
+        "name": "lobotocraft:violet_dawn_death",
+        "stream": false
+      }
+    ]
+  },
+  "violet_dawn_end": {
+    "sounds": [
+      {
+        "name": "lobotocraft:violet_dawn_end",
+        "stream": true
+      }
+    ]
+  },
   "iron_maiden_closing": {
     "sounds": [
       {
@@ -511,6 +543,14 @@
     "sounds": [
       {
         "name": "lobotocraft:children_galaxy_attack",
+        "stream": false
+      }
+    ]
+  },
+  "children_galaxy_weapon": {
+    "sounds": [
+      {
+        "name": "lobotocraft:children_galaxy_weapon",
         "stream": false
       }
     ]

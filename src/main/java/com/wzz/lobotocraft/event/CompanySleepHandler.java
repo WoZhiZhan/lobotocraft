@@ -102,13 +102,17 @@ public class CompanySleepHandler {
         if (player.level().dimension() != ModDimensions.LOBOTO_KEY) {
             return;
         }
+        if (!(player instanceof ServerPlayer serverPlayer)) {
+            return;
+        }
         player.getCapability(CompanyDailyDataProvider.COMPANY_DAILY_DATA).ifPresent(data -> {
-            data.setOwner((ServerPlayer) player);
+            data.setOwner(serverPlayer);
             if (data.hasCompletedTodayWork()) {
                 data.advanceToNextDay();
                 int newDay = data.getCurrentDay();
                 int requiredWork = data.getRequiredWorkCount();
                 data.setHasSleep(true);
+                PlayerTabListDayHandler.refreshPlayerTabListName(serverPlayer);
 
                 // 同葬"无光之愿"buff在睡觉进入下一天后消失
                 if (player.hasEffect(com.wzz.lobotocraft.init.ModEffects.WISH_WITHOUT_LIGHT.get())) {
@@ -123,17 +127,15 @@ public class CompanySleepHandler {
                 ).withStyle(ChatFormatting.YELLOW));
 
                 // 同步数据到客户端
-                if (player instanceof ServerPlayer serverPlayer) {
-                    if (!ItemUtil.hasItem(serverPlayer, ModItems.ARMOR_LOCK.get())) {
-                        serverPlayer.inventory.add(new ItemStack(ModItems.ARMOR_LOCK.get()));
-                    }
-                    com.wzz.lobotocraft.network.MessageLoader.getLoader().sendToPlayer(
-                            serverPlayer,
-                            new com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket(
-                                    newDay, 0, false, true
-                            )
-                    );
+                if (!ItemUtil.hasItem(serverPlayer, ModItems.ARMOR_LOCK.get())) {
+                    serverPlayer.inventory.add(new ItemStack(ModItems.ARMOR_LOCK.get()));
                 }
+                com.wzz.lobotocraft.network.MessageLoader.getLoader().sendToPlayer(
+                        serverPlayer,
+                        new com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket(
+                                newDay, 0, false, true
+                        )
+                );
             }
         });
     }

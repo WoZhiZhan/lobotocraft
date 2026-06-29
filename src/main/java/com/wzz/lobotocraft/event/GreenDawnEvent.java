@@ -49,7 +49,7 @@ public class GreenDawnEvent {
 
         data.setDawnChance(0);
         data.incrementDawnTriggersToday();
-        data.setNextDawnType(level.getRandom().nextBoolean());
+        data.setRandomNextDawnType(level.getRandom());
 
         MinecraftServer server = level.getServer();
         data.startGreenDawn(count);

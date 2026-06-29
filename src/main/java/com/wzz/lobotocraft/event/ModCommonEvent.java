@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.entity.EntityGallows;
 import com.wzz.lobotocraft.entity.abnormality.*;
 import com.wzz.lobotocraft.entity.ordeal.EntityBloodySmall;
 import com.wzz.lobotocraft.entity.ordeal.EntityGreenDawn;
+import com.wzz.lobotocraft.entity.ordeal.EntityVioletDawn;
 import com.wzz.lobotocraft.init.ModEntities;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -34,6 +35,7 @@ public class ModCommonEvent {
 		event.put(ModEntities.leticia_friend.get(), EntityLeticiaFriend.createAttributes().build());
 		event.put(ModEntities.bloody_small.get(), EntityBloodySmall.createAttributes().build());
 		event.put(ModEntities.green_dawn.get(), EntityGreenDawn.createAttributes().build());
+		event.put(ModEntities.violet_dawn.get(), EntityVioletDawn.createAttributes().build());
 		event.put(ModEntities.butterfly_funeral.get(), EntityButterflyFuneral.createAttributes().build());
 		event.put(ModEntities.fragment_of_the_universe.get(), EntityFragmentOfUniverse.createAttributes().build());
 		event.put(ModEntities.bigbadwolf.get(), EntityBigBadWolf.createAttributes().build());
@@ -48,6 +50,7 @@ public class ModCommonEvent {
 		event.put(ModEntities.fourth_match_flame.get(), EntityFourthMatchFlame.createAttributes().build());
 		event.put(ModEntities.wingbeat.get(), EntityWingBeat.createAttributes().build());
 		event.put(ModEntities.queen_bee.get(), EntityQueenBee.createAttributes().build());
+		event.put(ModEntities.red_shoes.get(), EntityRedShoes.createAttributes().build());
 		event.put(ModEntities.worker_bee.get(), EntityWorkerBee.createAttributes().build());
 		event.put(ModEntities.snowqueen.get(), EntitySnowQueen.createAttributes().build());
 		event.put(ModEntities.ppodae.get(), EntityPpodae.createAttributes().build());

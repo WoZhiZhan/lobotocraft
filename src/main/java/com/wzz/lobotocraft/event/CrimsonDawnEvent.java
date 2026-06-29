@@ -53,21 +53,21 @@ public class CrimsonDawnEvent {
         OrdealData data = OrdealData.get(level);
         data.syncDay(currentDay);
         if (data.hasActiveDawn()) return;
-        boolean nextGreenDawn = getOrCreateNextDawnType(level, data);
+        int nextDawnType = getOrCreateNextDawnType(level, data);
         if (data.getDawnTriggersToday() >= MAX_STAGE_TRIGGERS_PER_DAY) {
-            broadcastChance(player.getServer(), data.getDawnChance(), nextGreenDawn, true);
+            broadcastChance(player.getServer(), data.getDawnChance(), nextDawnType, true);
             return;
         }
 
         int chance = Math.min(100, data.getDawnChance() + CHANCE_STEP);
         data.setDawnChance(chance);
-        broadcastChance(player.getServer(), chance, nextGreenDawn, false);
+        broadcastChance(player.getServer(), chance, nextDawnType, false);
 
         if (level.getRandom().nextInt(100) < chance) {
-            if (nextGreenDawn) {
-                GreenDawnEvent.triggerGreenDawn(level);
-            } else {
-                triggerBloodDawn(level);
+            switch (nextDawnType) {
+                case OrdealData.GREEN_DAWN_TYPE -> GreenDawnEvent.triggerGreenDawn(level);
+                case OrdealData.VIOLET_DAWN_TYPE -> VioletDawnEvent.triggerVioletDawn(level);
+                default -> triggerBloodDawn(level);
             }
         }
     }
@@ -84,11 +84,11 @@ public class CrimsonDawnEvent {
         return maxDay[0];
     }
 
-    private static boolean getOrCreateNextDawnType(ServerLevel level, OrdealData data) {
+    private static int getOrCreateNextDawnType(ServerLevel level, OrdealData data) {
         if (!data.hasNextDawnType()) {
-            data.setNextDawnType(level.getRandom().nextBoolean());
+            data.setRandomNextDawnType(level.getRandom());
         }
-        return data.isNextGreenDawn();
+        return data.getNextDawnType();
     }
 
     private static void triggerBloodDawn(ServerLevel level) {
@@ -109,7 +109,7 @@ public class CrimsonDawnEvent {
 
         data.setDawnChance(0);
         data.incrementDawnTriggersToday();
-        data.setNextDawnType(level.getRandom().nextBoolean());
+        data.setRandomNextDawnType(level.getRandom());
         data.startBloodDawn(spawned);
 
         showBloodDawnTitle(server,
@@ -264,11 +264,11 @@ public class CrimsonDawnEvent {
     private record SpawnTarget(BlockPos pos, AbstractAbnormality abnormality) {
     }
 
-    private static void broadcastChance(MinecraftServer server, int chance, boolean greenDawn, boolean capped) {
+    private static void broadcastChance(MinecraftServer server, int chance, int dawnType, boolean capped) {
         if (server == null) return;
-        ChatFormatting labelColor = greenDawn ? ChatFormatting.GREEN : ChatFormatting.DARK_RED;
-        ChatFormatting chanceColor = greenDawn ? ChatFormatting.GREEN : ChatFormatting.RED;
-        Component message = Component.literal(greenDawn ? "绿色的黎明：" : "血色的黎明：")
+        ChatFormatting labelColor = getDawnLabelColor(dawnType);
+        ChatFormatting chanceColor = getDawnChanceColor(dawnType);
+        Component message = Component.literal(getDawnLabel(dawnType) + "：")
                 .withStyle(labelColor)
                 .append(Component.literal(chance + "%").withStyle(chanceColor));
         if (capped) {
@@ -277,6 +277,30 @@ public class CrimsonDawnEvent {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             player.connection.send(new ClientboundSetActionBarTextPacket(message));
         }
+    }
+
+    private static String getDawnLabel(int dawnType) {
+        return switch (dawnType) {
+            case OrdealData.GREEN_DAWN_TYPE -> "绿色的黎明";
+            case OrdealData.VIOLET_DAWN_TYPE -> "紫罗兰的黎明";
+            default -> "血色的黎明";
+        };
+    }
+
+    private static ChatFormatting getDawnLabelColor(int dawnType) {
+        return switch (dawnType) {
+            case OrdealData.GREEN_DAWN_TYPE -> ChatFormatting.GREEN;
+            case OrdealData.VIOLET_DAWN_TYPE -> ChatFormatting.DARK_PURPLE;
+            default -> ChatFormatting.DARK_RED;
+        };
+    }
+
+    private static ChatFormatting getDawnChanceColor(int dawnType) {
+        return switch (dawnType) {
+            case OrdealData.GREEN_DAWN_TYPE -> ChatFormatting.GREEN;
+            case OrdealData.VIOLET_DAWN_TYPE -> ChatFormatting.LIGHT_PURPLE;
+            default -> ChatFormatting.RED;
+        };
     }
 
     private static void showBloodDawnTitle(MinecraftServer server, String top, String middle, String bottom) {

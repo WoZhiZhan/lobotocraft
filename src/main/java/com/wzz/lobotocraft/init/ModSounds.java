@@ -25,6 +25,10 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> GREEN_DAWN_AMBIENT = register("green_dawn_ambient");
 	public static final RegistryObject<SoundEvent> GREEN_DAWN_ATTACK = register("green_dawn_attack");
 	public static final RegistryObject<SoundEvent> GREEN_DAWN_END = register("green_dawn_end");
+	public static final RegistryObject<SoundEvent> VIOLET_DAWN_START = register("violet_dawn_start");
+	public static final RegistryObject<SoundEvent> VIOLET_DAWN_ATTACK = register("violet_dawn_attack");
+	public static final RegistryObject<SoundEvent> VIOLET_DAWN_DEATH = register("violet_dawn_death");
+	public static final RegistryObject<SoundEvent> VIOLET_DAWN_END = register("violet_dawn_end");
 	public static final RegistryObject<SoundEvent> IRON_MAIDEN_CLOSING = register("iron_maiden_closing");
 	public static final RegistryObject<SoundEvent> IRON_MAIDEN_DAMAGE = register("iron_maiden_damage");
 	public static final RegistryObject<SoundEvent> IRON_MAIDEN_OPENING = register("iron_maiden_opening");
@@ -85,6 +89,7 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> SNOW_QUEEN_SIGN_KISS = register("snow_queen_sign_kiss");
 	public static final RegistryObject<SoundEvent> SNOW_QUEEN_KISS = register("snow_queen_kiss");
 	public static final RegistryObject<SoundEvent> CHILDREN_GALAXY_ATTACK = register("children_galaxy_attack");
+	public static final RegistryObject<SoundEvent> CHILDREN_GALAXY_WEAPON = register("children_galaxy_weapon");
 	public static final RegistryObject<SoundEvent> HAPPY_TEDDY_IDLE = register("happy_teddy_idle");
 	public static final RegistryObject<SoundEvent> BLUE_STAR_ESCAPE = register("blue_star_escape");
 	public static final RegistryObject<SoundEvent> BLUE_STAR_DIE = register("blue_star_die");

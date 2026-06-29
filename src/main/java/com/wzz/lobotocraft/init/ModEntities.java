@@ -11,6 +11,7 @@ import com.wzz.lobotocraft.entity.EntityLightFollower;
 import com.wzz.lobotocraft.entity.abnormality.*;
 import com.wzz.lobotocraft.entity.ordeal.EntityBloodySmall;
 import com.wzz.lobotocraft.entity.ordeal.EntityGreenDawn;
+import com.wzz.lobotocraft.entity.ordeal.EntityVioletDawn;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.registries.DeferredRegister;
@@ -173,6 +174,14 @@ public class ModEntities {
                             .updateInterval(3)
                             .build("green_dawn"));
 
+    public static final RegistryObject<EntityType<EntityVioletDawn>> violet_dawn =
+            ENTITIES.register("violet_dawn",
+                    () -> EntityType.Builder.of(EntityVioletDawn::new, MobCategory.MONSTER)
+                            .sized(1.2F, 1.4F)
+                            .clientTrackingRange(8)
+                            .updateInterval(3)
+                            .build("violet_dawn"));
+
     // ============ 海嗣(深蓝色正午——大群的意志) ============
     public static final RegistryObject<EntityType<com.wzz.lobotocraft.entity.seaborn.EntityShellSeaRunner>> shell_sea_runner =
             ENTITIES.register("shell_sea_runner",
@@ -300,6 +309,14 @@ public class ModEntities {
                             .clientTrackingRange(8)
                             .updateInterval(3)
                             .build("queen_bee"));
+
+    public static final RegistryObject<EntityType<EntityRedShoes>> red_shoes =
+            ENTITIES.register("red_shoes",
+                    () -> EntityType.Builder.of(EntityRedShoes::new, MobCategory.CREATURE)
+                            .sized(1.2F, 1.8F)
+                            .clientTrackingRange(8)
+                            .updateInterval(3)
+                            .build("red_shoes"));
 
     public static final RegistryObject<EntityType<EntityWorkerBee>> worker_bee =
             ENTITIES.register("worker_bee",

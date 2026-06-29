@@ -6,6 +6,7 @@ import com.wzz.lobotocraft.effect.KissEffect;
 import com.wzz.lobotocraft.effect.LeticiaBrokenGiftEffect;
 import com.wzz.lobotocraft.effect.LeticiaGiftEffect;
 import com.wzz.lobotocraft.effect.QueenBeeSporeEffect;
+import com.wzz.lobotocraft.effect.RedShoesBloodlustEffect;
 import com.wzz.lobotocraft.effect.WishWithoutLightEffect;
 import com.wzz.lobotocraft.effect.ButterflyShroudEffect;
 import net.minecraft.world.effect.MobEffect;
@@ -41,6 +42,10 @@ public class ModEffects {
     // 蜂后孢子
     public static final RegistryObject<MobEffect> QUEEN_BEE_SPORE =
             EFFECTS.register("queen_bee_spore", QueenBeeSporeEffect::new);
+
+    // 血之渴望
+    public static final RegistryObject<MobEffect> RED_SHOES_BLOODLUST =
+            EFFECTS.register("red_shoes_bloodlust", RedShoesBloodlustEffect::new);
 
     // 蕾蒂希雅的礼物
     public static final RegistryObject<MobEffect> LETICIA_GIFT =
