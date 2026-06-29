@@ -93,24 +93,30 @@ public class CrimsonDawnEvent {
 
     private static void triggerBloodDawn(ServerLevel level) {
         OrdealData data = OrdealData.get(level);
-        data.setDawnChance(0);
-        data.incrementDawnTriggersToday();
-        data.setNextDawnType(level.getRandom().nextBoolean());
-
         MinecraftServer server = level.getServer();
         int count = Math.min(MAX_BLOOD_DAWN_ENTITIES,
                 Math.max(1, server.getPlayerList().getPlayers().size()));
-        data.startBloodDawn(count);
+        int spawned = 0;
+        for (int i = 0; i < count; i++) {
+            if (spawnBloodySmall(level)) {
+                spawned++;
+            }
+        }
+
+        if (spawned <= 0) {
+            return;
+        }
+
+        data.setDawnChance(0);
+        data.incrementDawnTriggersToday();
+        data.setNextDawnType(level.getRandom().nextBoolean());
+        data.startBloodDawn(spawned);
 
         showBloodDawnTitle(server,
                 "血色的黎明",
                 "开始欢呼吧！",
                 "让我们在这宛如风中残烛的生命里，纵情放一把大火吧！");
         playGlobalSound(server, ModSounds.BLOODY_DAWN_START.get());
-
-        for (int i = 0; i < count; i++) {
-            spawnBloodySmall(level);
-        }
     }
 
     public static void onBloodySmallKilled(ServerLevel level) {
@@ -150,32 +156,49 @@ public class CrimsonDawnEvent {
                         && !abnormality.hasEscape());
     }
 
-    private static void spawnBloodySmall(ServerLevel level) {
+    private static boolean spawnBloodySmall(ServerLevel level) {
         EntityBloodySmall clown = ModEntities.bloody_small.get().create(level);
-        if (clown == null) return;
+        if (clown == null) return false;
 
-        AbstractAbnormality target = chooseAbnormality(level);
-        BlockPos spawnPos;
-        if (target != null) {
-            spawnPos = findBloodySmallSpawnPosition(level, clown, target.blockPosition(), 4);
-            clown.setTrackedAbnormality(target);
-        } else {
-            ServerPlayer fallbackPlayer = level.players().isEmpty() ? null : level.players().get(0);
-            BlockPos fallback = fallbackPlayer == null ? level.getSharedSpawnPos() : fallbackPlayer.blockPosition();
-            spawnPos = findBloodySmallSpawnPosition(level, clown, fallback, 4);
-        }
+        SpawnTarget spawnTarget = chooseSpawnTarget(level, clown);
+        BlockPos spawnPos = spawnTarget.pos();
         if (spawnPos == null) {
-            OrdealData.get(level).decrementBloodDawnRemaining();
-            return;
+            return false;
         }
 
         clown.moveTo(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D,
                 level.getRandom().nextFloat() * 360.0F, 0.0F);
         clown.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), MobSpawnType.EVENT, null, null);
         clown.setPersistenceRequired();
-        if (!level.addFreshEntity(clown)) {
-            OrdealData.get(level).decrementBloodDawnRemaining();
+        boolean added = level.addFreshEntity(clown);
+        if (added && spawnTarget.abnormality() != null) {
+            clown.setTrackedAbnormality(spawnTarget.abnormality());
         }
+        return added;
+    }
+
+    private static SpawnTarget chooseSpawnTarget(ServerLevel level, EntityBloodySmall clown) {
+        List<AbstractAbnormality> candidates = new ArrayList<>(findCandidateAbnormalities(level));
+        Collections.shuffle(candidates, new java.util.Random(level.getRandom().nextLong()));
+        for (AbstractAbnormality candidate : candidates) {
+            BlockPos pos = findBloodySmallSpawnPosition(level, clown, candidate.blockPosition(), 4);
+            if (pos != null) {
+                return new SpawnTarget(pos, candidate);
+            }
+        }
+
+        List<ServerPlayer> players = new ArrayList<>(level.players());
+        Collections.shuffle(players, new java.util.Random(level.getRandom().nextLong()));
+        for (ServerPlayer player : players) {
+            if (!player.isAlive() || player.isSpectator()) continue;
+            BlockPos pos = findBloodySmallSpawnPosition(level, clown, player.blockPosition(), 6);
+            if (pos != null) {
+                return new SpawnTarget(pos, null);
+            }
+        }
+
+        BlockPos sharedSpawn = findBloodySmallSpawnPosition(level, clown, level.getSharedSpawnPos(), 8);
+        return new SpawnTarget(sharedSpawn, null);
     }
 
     public static BlockPos findBloodySmallSpawnPosition(ServerLevel level, EntityBloodySmall clown,
@@ -228,23 +251,17 @@ public class CrimsonDawnEvent {
         if (!level.isEmptyBlock(pos) || !level.isEmptyBlock(pos.above())) {
             return false;
         }
-        double originalX = clown.getX();
-        double originalY = clown.getY();
-        double originalZ = clown.getZ();
-        float originalYRot = clown.getYRot();
-        float originalXRot = clown.getXRot();
-        clown.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D,
-                clown.getYRot(), clown.getXRot());
-        boolean canPlace = level.noCollision(clown);
-        clown.moveTo(originalX, originalY, originalZ, originalYRot, originalXRot);
-        return canPlace;
+        double x = pos.getX() + 0.5D;
+        double y = pos.getY();
+        double z = pos.getZ() + 0.5D;
+        double halfWidth = clown.getBbWidth() / 2.0D;
+        AABB boundingBox = new AABB(
+                x - halfWidth, y, z - halfWidth,
+                x + halfWidth, y + clown.getBbHeight(), z + halfWidth);
+        return level.noCollision(clown, boundingBox);
     }
 
-    private static AbstractAbnormality chooseAbnormality(ServerLevel level) {
-        List<AbstractAbnormality> candidates = new ArrayList<>(findCandidateAbnormalities(level));
-        if (candidates.isEmpty()) return null;
-        Collections.shuffle(candidates, new java.util.Random(level.getRandom().nextLong()));
-        return candidates.get(0);
+    private record SpawnTarget(BlockPos pos, AbstractAbnormality abnormality) {
     }
 
     private static void broadcastChance(MinecraftServer server, int chance, boolean greenDawn, boolean capped) {
