@@ -21,7 +21,6 @@ import java.util.Map;
  * 抗性:红/白/黑 0.4(极高减伤)、蓝 1.0(一般)。
  * 装备要求:谨慎V 自律V 等级V。
  * 特殊效果:每5秒为同一房间内所有员工(含自己)恢复5点精神值(对恐慌玩家无效)——由 BlueStarSetEvent 处理。
- * 套装效果(武器+护甲+饰品)文本见此处 tooltip,逻辑在 BlueStarSetEvent。
  */
 public abstract class BlueStarBaseArmor extends BaseEgoArmor {
 
@@ -97,11 +96,6 @@ public abstract class BlueStarBaseArmor extends BaseEgoArmor {
             tooltip.add(Component.literal("§7如果仔细地凝视它，那你必会醒悟——我们终有一天会回到那个地方。"));
         } else {
             tooltip.add(Component.literal("§6每5秒为同一房间内的所有员工（包括自己）恢复5点精神值。（对陷入恐慌玩家无效）"));
-            tooltip.add(Component.literal(""));
-            tooltip.add(Component.literal("§b套装效果（武器 + 护甲 + 饰品）："));
-            tooltip.add(Component.literal("§d  • 使用新星之声造成伤害时，使目标减少30%移动速度，持续10秒，不可叠加，每次造成伤害刷新"));
-            tooltip.add(Component.literal("§d  • 精神值为满时，新星之声光束伤害提高25%"));
-            tooltip.add(Component.literal("§d  • 受到致命伤害时强行保留1%生命与精神原地复活一次"));
             tooltip.add(Component.literal("§7<按Shift查看详细信息>"));
         }
     }
