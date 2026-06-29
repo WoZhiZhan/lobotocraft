@@ -60,6 +60,8 @@ public class EntityVioletDawn extends BaseGeoEntity {
     private static final int SELF_DESTRUCT_TICKS = 65 * 20;
     private static final int ATTACK_COOLDOWN_TICKS = 30;
     private static final int DEATH_ANIM_TICKS = 50;
+    private static final int MIN_CHASE_TICKS = 10 * 20;
+    private static final int MAX_CHASE_TICKS = 15 * 20;
     private static final int SEARCH_LIMIT = 30_000_000;
     private static final double ATTACK_RANGE_SQR = 1.6D;
     private static final double SELF_DESTRUCT_RANGE = 10.0D;
@@ -68,6 +70,7 @@ public class EntityVioletDawn extends BaseGeoEntity {
     private int lastClientAnimVersion = -1;
     private int lifeTicks = 0;
     private int attackCooldown = 0;
+    private int chaseTicksRemaining = 0;
     private boolean countedDeath = false;
     private boolean deathAnimationStarted = false;
     private int deathAnimationTick = 0;
@@ -136,6 +139,7 @@ public class EntityVioletDawn extends BaseGeoEntity {
             Entity attacker = source.getEntity();
             if (attacker instanceof LivingEntity living && living != this && isValidTarget(living)) {
                 this.setTarget(living);
+                this.chaseTicksRemaining = MIN_CHASE_TICKS + this.random.nextInt(MAX_CHASE_TICKS - MIN_CHASE_TICKS + 1);
                 this.getNavigation().moveTo(living, 1.0D);
             }
         }
@@ -177,9 +181,18 @@ public class EntityVioletDawn extends BaseGeoEntity {
         LivingEntity target = this.getTarget();
         if (!isValidTarget(target)) {
             this.setTarget(null);
+            chaseTicksRemaining = 0;
             setAnimIfChanged("idle");
             return;
         }
+
+        if (chaseTicksRemaining <= 0) {
+            this.setTarget(null);
+            this.getNavigation().stop();
+            setAnimIfChanged("idle");
+            return;
+        }
+        chaseTicksRemaining--;
 
         if (isInAttackRange(target)) {
             this.getNavigation().stop();
@@ -300,6 +313,7 @@ public class EntityVioletDawn extends BaseGeoEntity {
         deathAnimationTick = 0;
         deathFinalized = false;
         delayedDeathSource = source;
+        this.setHealth(1.0F);
         this.setTarget(null);
         this.setNoAi(true);
         stopMovement();
@@ -313,7 +327,9 @@ public class EntityVioletDawn extends BaseGeoEntity {
             return;
         }
         deathFinalized = true;
+        this.setHealth(0.0F);
         super.die(delayedDeathSource == null ? damageSources().generic() : delayedDeathSource);
+        this.remove(Entity.RemovalReason.KILLED);
     }
 
     private void stopMovement() {
@@ -384,6 +400,7 @@ public class EntityVioletDawn extends BaseGeoEntity {
         super.addAdditionalSaveData(tag);
         tag.putInt("LifeTicks", lifeTicks);
         tag.putInt("AttackCooldown", attackCooldown);
+        tag.putInt("ChaseTicksRemaining", chaseTicksRemaining);
         tag.putBoolean("CountedDeath", countedDeath);
         tag.putBoolean("DeathAnimationStarted", deathAnimationStarted);
         tag.putInt("DeathAnimationTick", deathAnimationTick);
@@ -397,11 +414,13 @@ public class EntityVioletDawn extends BaseGeoEntity {
         super.readAdditionalSaveData(tag);
         lifeTicks = tag.getInt("LifeTicks");
         attackCooldown = tag.getInt("AttackCooldown");
+        chaseTicksRemaining = tag.getInt("ChaseTicksRemaining");
         countedDeath = tag.getBoolean("CountedDeath");
         deathAnimationStarted = tag.getBoolean("DeathAnimationStarted");
         deathAnimationTick = tag.getInt("DeathAnimationTick");
         ordealSpawn = tag.getBoolean("OrdealSpawn");
         if (deathAnimationStarted) {
+            this.setHealth(1.0F);
             setNoAi(true);
         }
         if (tag.contains("Anim")) this.entityData.set(ANIM, tag.getString("Anim"));

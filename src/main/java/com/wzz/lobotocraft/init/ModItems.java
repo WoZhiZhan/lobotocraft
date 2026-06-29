@@ -79,7 +79,7 @@ public class ModItems {
                     "§c如果你感到胃部剧痛或是颈部发痒，那么唯一能做的事就是最后一次仰望蓝天。"));
 
     public static final RegistryObject<Item> RED_SHOES_SPAWN_EGG = REGISTRY.register("red_shoes_spawn_egg",
-            () -> new TextSpawnEggItem(ModEntities.red_shoes, 0x8B0000, 0xF4D7D7, new Item.Properties(),
+            () -> new TextSpawnEggItem(ModEntities.red_shoes, 0x8B0000, 0xFFFFFF, new Item.Properties(),
                     "§c女孩泪流满面地哀求着：“先生，求您把我的脚砍下来吧！”"));
 
     public static final RegistryObject<Item> SNOWQUEEN_SPAWN_EGG = REGISTRY.register("snowqueen_spawn_egg",
@@ -147,7 +147,7 @@ public class ModItems {
                     "§c一个人，即便生前有再多的故事能够讲述，可到了死后，唯有孤独才是唯一的倾听者。"));
     public static final RegistryObject<Item> LETICIA_SPAWN_EGG = REGISTRY.register("leticia_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.leticia, 0x5a2f67, 0xe7d7f0, new Item.Properties(),
-                    "§c今天会收到可爱的礼物吗？"));
+                    "§c所以，她想出了这个绝妙的主意！"));
     public static final RegistryObject<Item> INNER_COURAGE_CURIO = REGISTRY.register("inner_courage_curio", InnerCourageCurio::new);
     public static final RegistryObject<Item> FOOLHARDY_COURAGE_CURIO = REGISTRY.register("foolhardy_courage_curio", FoolhardyCourageCurio::new);
     public static final RegistryObject<Item> SHELL_SEA_RUNNER_SPAWN_EGG = REGISTRY.register("shell_sea_runner_spawn_egg",

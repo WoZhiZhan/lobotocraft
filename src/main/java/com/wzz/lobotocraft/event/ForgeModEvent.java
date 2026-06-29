@@ -29,6 +29,7 @@ import com.wzz.lobotocraft.network.packet.StopAmbientSoundPacket;
 import com.wzz.lobotocraft.util.*;
 import com.wzz.lobotocraft.work.WorkManager;
 import com.wzz.lobotocraft.work.WorkType;
+import com.wzz.lobotocraft.world.data.OrdealData;
 import com.wzz.lobotocraft.world.structure.StructureLoader;
 import com.wzz.lobotocraft.world.structure.Structures;
 import net.minecraft.core.BlockPos;
@@ -42,6 +43,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
@@ -81,6 +83,12 @@ public class ForgeModEvent {
 
 	@SubscribeEvent
 	public static void onLivingAttack(LivingAttackEvent event) {
+		if (event.getEntity() instanceof AbstractAbnormality abnormality
+				&& event.getSource().is(DamageTypeTags.IS_FIRE)) {
+			abnormality.clearFire();
+			event.setCanceled(true);
+			return;
+		}
 		if (event.getEntity() instanceof ServerPlayer player && event.getSource() != null && event.getSource().getEntity() instanceof Player attacker) {
 			if (MentalValueUtil.getMentalValue(player) <= 0) {
 				if (attacker.getMainHandItem().getItem() instanceof BaseEgoWeapon) {
@@ -396,6 +404,7 @@ public class ForgeModEvent {
 				}
 			});
 			if (player.level() instanceof ServerLevel level) {
+				OrdealData.get(level).decrementDawnTriggersToday();
 				ServerLevel lobotoLevel = level.getServer().getLevel(ModDimensions.LOBOTO_KEY);
 				if (lobotoLevel != null) {
 					ClerkEvent.respawnClerksAfterPlayerDeath(lobotoLevel);

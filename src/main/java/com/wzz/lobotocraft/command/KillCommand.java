@@ -43,9 +43,6 @@ public class KillCommand implements ICommand {
             for (Entity entity : level.getAllEntities()) {
                 if (isKillTarget(entity)) {
                     LivingEntity living = (LivingEntity) entity;
-                    if (living instanceof EntityClerk) {
-                        EntityClerk.markCommandKill(living);
-                    }
                     KILL_QUEUE.add(living);
                     count++;
                 }
@@ -77,7 +74,10 @@ public class KillCommand implements ICommand {
     }
 
     private static boolean isKillTarget(Entity entity) {
-        if (!(entity instanceof LivingEntity living) || living instanceof Player || !living.isAlive()) {
+        if (!(entity instanceof LivingEntity living)
+                || living instanceof Player
+                || living instanceof EntityClerk
+                || !living.isAlive()) {
             return false;
         }
         if (living instanceof AbstractAbnormality abnormality) {

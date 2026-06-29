@@ -559,9 +559,11 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         ResourceLocation resourceLocation = giftData.iconTexture();
         if (resourceLocation != null && ResourceUtil.exists(resourceLocation)) {
             RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+            graphics.pose().pushPose();
+            graphics.pose().translate(x + abnormality.getGiftRenderOffset()[0], y + abnormality.getGiftRenderOffset()[1], abnormality.getGiftRenderOffset()[2]);
             graphics.pose().scale(abnormality.getGiftRenderScale()[0], abnormality.getGiftRenderScale()[1], abnormality.getGiftRenderScale()[2]);
-            graphics.pose().translate(abnormality.getGiftRenderOffset()[0], abnormality.getGiftRenderOffset()[1], abnormality.getGiftRenderOffset()[2]);
-            graphics.blit(resourceLocation, x, y, 0, 0, 70, 70, 70, 70);
+            graphics.blit(resourceLocation, 0, 0, 0, 0, 70, 70, 70, 70);
+            graphics.pose().popPose();
         } else graphics.fill(x, y, x + 70, y + 70, 0xFF664422);
 
         // 渲染饰品信息
@@ -723,10 +725,12 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         ResourceLocation resourceLocation = armorData.iconTexture();
         if (resourceLocation != null && ResourceUtil.exists(resourceLocation)) {
             RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+            graphics.pose().pushPose();
+            graphics.pose().translate(iconX + abnormality.getArmorRenderOffset()[0], iconY + abnormality.getArmorRenderOffset()[1], abnormality.getArmorRenderOffset()[2]);
             graphics.pose().scale(abnormality.getArmorRenderScale()[0], abnormality.getArmorRenderScale()[1], abnormality.getArmorRenderScale()[2]);
-            graphics.pose().translate(abnormality.getArmorRenderOffset()[0], abnormality.getArmorRenderOffset()[1], abnormality.getArmorRenderOffset()[2]);
-            graphics.blit(resourceLocation, iconX, iconY, 0, 0,
+            graphics.blit(resourceLocation, 0, 0, 0, 0,
                     iconSize, iconSize, iconSize, iconSize);
+            graphics.pose().popPose();
         } else {
             graphics.fill(iconX, iconY, iconX + iconSize, iconY + iconSize, 0xFF664422);
         }

@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.children_galaxy;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.util.ClientInputUtil;
 import com.wzz.lobotocraft.util.DamageHelper;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -30,9 +31,9 @@ import java.util.Map;
 public class ChildrenGalaxyWeapon extends BaseEgoWeapon {
     private static final int COOLDOWN = 40;
     private static final float DAMAGE = 15.0f;
-    private static final double ATTACK_RANGE = 3.5D;
+    private static final double ATTACK_RANGE = 3.0D;
     private static final double ATTACK_HALF_WIDTH = 1.5D;
-    private static final double ATTACK_HALF_HEIGHT = 2.0D;
+    private static final double ATTACK_HALF_HEIGHT = 1.5D;
 
     public ChildrenGalaxyWeapon() {
         super(new Tier(), 14, -2.0f, new Properties().stacksTo(1).fireResistant());
@@ -138,8 +139,13 @@ public class ChildrenGalaxyWeapon extends BaseEgoWeapon {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
         super.appendHoverText(stack, level, tooltip, flag);
-        tooltip.add(Component.literal("§7右键挥洒坠落的星泪，对前方小范围敌人造成15点黑色伤害。"));
-        tooltip.add(Component.literal("§7别让那枚小小的卵石离开身边。"));
+        if (ClientInputUtil.isShiftPressed()) {
+            tooltip.add(Component.literal("§7别让那枚小小的卵石离开身边。"));
+            tooltip.add(Component.literal("§6※右键挥洒坠落的星泪，对身前3x3范围内敌人造成15点黑色伤害。"));
+            return;
+        }
+        tooltip.add(Component.literal("§6※右键挥洒坠落的星泪，对身前3x3范围内敌人造成15点黑色伤害。"));
+        tooltip.add(Component.literal("§7按住<Shift>查看详情"));
     }
 
     private static class Tier implements net.minecraft.world.item.Tier {

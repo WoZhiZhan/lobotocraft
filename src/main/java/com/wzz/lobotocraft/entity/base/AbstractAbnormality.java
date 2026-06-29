@@ -29,6 +29,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.*;
@@ -82,6 +83,11 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         this.setPersistenceRequired();
         this.setCustomNameVisible(false);
         this.setCustomName(Component.literal(this.abnormalityCode));
+    }
+
+    @Override
+    public boolean fireImmune() {
+        return true;
     }
 
     @Override
@@ -612,6 +618,10 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
 
     @Override
     public boolean hurt(DamageSource damageSource, float f) {
+        if (damageSource.is(DamageTypeTags.IS_FIRE)) {
+            clearFire();
+            return false;
+        }
         if (!hasEscape() && !DamageHelper.getDamage().isKill(damageSource))
             return false;
         if (!this.canEscape()) {

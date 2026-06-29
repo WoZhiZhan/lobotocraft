@@ -42,6 +42,6 @@
     }
   },
   "textures": {
-    "particle": "lobotocraft:weapon/children_galaxy_weapon"
+    "particle": "lobotocraft:item/children_galaxy_weapon"
   }
 }

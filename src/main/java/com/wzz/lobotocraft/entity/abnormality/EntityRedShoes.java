@@ -70,6 +70,7 @@ public class EntityRedShoes extends AbstractAbnormality {
     private static final String BLOODLUST_WEAPON_ITEM_TAG = "lobotocraft_red_shoes_weapon";
     private static final String BLOODLUST_ATTACK_COOLDOWN_TAG = "lobotocraft_red_shoes_attack_cooldown";
     private static final String BLOODLUST_TARGET_UUID_TAG = "lobotocraft_red_shoes_target";
+    private static final String LOW_TEMPERANCE_WORK_TAG = "lobotocraft_red_shoes_low_temperance_work";
 
     private static final int CHARM_CLEAR_LEFT_CLICKS = 10;
     private static final int CHARM_CLEAR_HURTS = 5;
@@ -77,6 +78,11 @@ public class EntityRedShoes extends AbstractAbnormality {
     private static final int BLOODLUST_ATTACK_INTERVAL = 20;
     private static final float BLOODLUST_ATTACK_DAMAGE = 6.0F;
     private static final double CHARM_REACH_DISTANCE_SQR = 4.0D;
+    private static final double CHARM_TARGET_SEARCH_RANGE = 512.0D;
+    private static final double CHARM_PLAYER_SPEED = 0.14D;
+    private static final double CHARM_PLAYER_STOP_RANGE = 1.6D;
+    private static final double CHARM_MOB_NAV_SPEED = 1.2D;
+    private static final double CHARM_DIRECT_SPEED = 0.12D;
     private static final double BLOODLUST_TARGET_RANGE = 24.0D;
 
     private static final UUID BLOODLUST_HEALTH_UUID = UUID.fromString("ee65501e-910d-49d1-81f7-2536782f8b02");
@@ -115,7 +121,21 @@ public class EntityRedShoes extends AbstractAbnormality {
     }
 
     @Override
+    public boolean onWorkStart(ServerPlayer player, WorkType workType) {
+        boolean canStart = super.onWorkStart(player, workType);
+        if (canStart && getTemperanceLevel(player) < 3) {
+            player.getPersistentData().putBoolean(LOW_TEMPERANCE_WORK_TAG, true);
+        } else {
+            player.getPersistentData().remove(LOW_TEMPERANCE_WORK_TAG);
+        }
+        return canStart;
+    }
+
+    @Override
     public void onNormalWork(ServerPlayer player) {
+        if (shouldWearRedShoesOnWorkComplete(player)) {
+            return;
+        }
         if (this.random.nextFloat() < 0.50F) {
             decreaseQliphothCounter(1);
         }
@@ -123,6 +143,9 @@ public class EntityRedShoes extends AbstractAbnormality {
 
     @Override
     public void onBadWork(ServerPlayer player) {
+        if (shouldWearRedShoesOnWorkComplete(player)) {
+            return;
+        }
         if (this.random.nextFloat() < 0.70F) {
             decreaseQliphothCounter(1);
         }
@@ -130,10 +153,22 @@ public class EntityRedShoes extends AbstractAbnormality {
 
     @Override
     public void onWorkComplete(ServerPlayer player, WorkType workType, WorkResult result) {
-        if (getTemperanceLevel(player) < 3) {
+        boolean shouldWearRedShoes = shouldWearRedShoesOnWorkComplete(player);
+        player.getPersistentData().remove(LOW_TEMPERANCE_WORK_TAG);
+        if (shouldWearRedShoes) {
             startBloodlust(player, this);
             setQliphothCounter(getMaxQliphothCounter());
         }
+    }
+
+    @Override
+    public void onWorkInterrupted(ServerPlayer player, WorkType workType, String reason) {
+        player.getPersistentData().remove(LOW_TEMPERANCE_WORK_TAG);
+    }
+
+    private static boolean shouldWearRedShoesOnWorkComplete(ServerPlayer player) {
+        return player.getPersistentData().getBoolean(LOW_TEMPERANCE_WORK_TAG)
+                || getTemperanceLevel(player) < 3;
     }
 
     @Override
@@ -149,17 +184,18 @@ public class EntityRedShoes extends AbstractAbnormality {
             return false;
         }
 
-        for (Entity entity : serverLevel.getAllEntities()) {
-            if (entity instanceof EntityClerk clerk && clerk.isAlive()) {
+        for (ServerPlayer player : serverLevel.players()) {
+            if (isCharmablePlayer(player)) {
                 return false;
             }
         }
 
-        for (ServerPlayer player : serverLevel.players()) {
-            if (player.isAlive() && !player.isCreative() && !player.isSpectator()
-                    && getTemperanceLevel(player) <= 3) {
-                return false;
-            }
+        for (EntityClerk clerk : serverLevel.getEntitiesOfClass(
+                EntityClerk.class,
+                new AABB(this.blockPosition()).inflate(CHARM_TARGET_SEARCH_RANGE),
+                clerk -> clerk.isAlive() && !isRedShoesControlled(clerk)
+        )) {
+            return false;
         }
         return true;
     }
@@ -180,11 +216,7 @@ public class EntityRedShoes extends AbstractAbnormality {
         }
 
         List<ServerPlayer> lowTemperancePlayers = serverLevel.players().stream()
-                .filter(player -> player.isAlive()
-                        && !player.isCreative()
-                        && !player.isSpectator()
-                        && getTemperanceLevel(player) < 3
-                        && !isRedShoesControlled(player))
+                .filter(EntityRedShoes::isCharmEligiblePlayer)
                 .toList();
         if (!lowTemperancePlayers.isEmpty()) {
             return lowTemperancePlayers.get(this.random.nextInt(lowTemperancePlayers.size()));
@@ -192,13 +224,32 @@ public class EntityRedShoes extends AbstractAbnormality {
 
         List<EntityClerk> clerks = serverLevel.getEntitiesOfClass(
                 EntityClerk.class,
-                new AABB(this.blockPosition()).inflate(512.0D),
+                new AABB(this.blockPosition()).inflate(CHARM_TARGET_SEARCH_RANGE),
                 clerk -> clerk.isAlive() && !isRedShoesControlled(clerk)
         );
         if (!clerks.isEmpty()) {
             return clerks.get(this.random.nextInt(clerks.size()));
         }
+
+        List<ServerPlayer> players = serverLevel.players().stream()
+                .filter(EntityRedShoes::isCharmablePlayer)
+                .toList();
+        if (!players.isEmpty()) {
+            return players.get(this.random.nextInt(players.size()));
+        }
         return null;
+    }
+
+    private static boolean isCharmEligiblePlayer(ServerPlayer player) {
+        return isCharmablePlayer(player)
+                && getTemperanceLevel(player) < 3;
+    }
+
+    private static boolean isCharmablePlayer(ServerPlayer player) {
+        return player.isAlive()
+                && !player.isCreative()
+                && !player.isSpectator()
+                && !isRedShoesControlled(player);
     }
 
     private static int getTemperanceLevel(Player player) {
@@ -215,7 +266,12 @@ public class EntityRedShoes extends AbstractAbnormality {
         data.putInt(CHARM_LEFT_CLICK_TAG, 0);
         data.putInt(CHARM_HURT_COUNT_TAG, 0);
         if (target instanceof Player player) {
-            PlayerControlLock.lock(player, source, 0.12D, 1.8D);
+            player.sendSystemMessage(Component.literal("§5“红舞鞋”的低语缠住了你。"));
+            PlayerControlLock.lock(player, source, CHARM_PLAYER_SPEED, CHARM_PLAYER_STOP_RANGE);
+        }
+        if (target instanceof Mob mob) {
+            mob.setTarget(null);
+            mob.getNavigation().stop();
         }
     }
 
@@ -227,6 +283,10 @@ public class EntityRedShoes extends AbstractAbnormality {
         data.remove(CHARM_HURT_COUNT_TAG);
         if (target instanceof Player player) {
             PlayerControlLock.unlock(player);
+        }
+        if (target instanceof Mob mob) {
+            mob.setTarget(null);
+            mob.getNavigation().stop();
         }
         if (source != null && source.isAlive()) {
             source.setQliphothCounter(source.getMaxQliphothCounter());
@@ -251,6 +311,7 @@ public class EntityRedShoes extends AbstractAbnormality {
         }
 
         if (target instanceof ServerPlayer player) {
+            player.sendSystemMessage(Component.literal("§4你穿上了“红舞鞋”，血之渴望吞没了理智！"));
             unlockArmor(player);
             giveBloodlustWeapon(player);
         }
@@ -445,16 +506,17 @@ public class EntityRedShoes extends AbstractAbnormality {
         }
 
         if (entity instanceof Player player) {
-            PlayerControlLock.lock(player, source, 0.12D, 1.8D);
+            PlayerControlLock.lock(player, source, CHARM_PLAYER_SPEED, CHARM_PLAYER_STOP_RANGE);
             return;
         }
 
         if (entity instanceof Mob mob) {
-            mob.setNoAi(false);
+            mob.setTarget(null);
             mob.getLookControl().setLookAt(source);
-            mob.getNavigation().moveTo(source, 1.0D);
+            mob.getNavigation().moveTo(source, CHARM_MOB_NAV_SPEED);
+            mob.getMoveControl().setWantedPosition(source.getX(), source.getY(), source.getZ(), CHARM_MOB_NAV_SPEED);
         }
-        moveDirectly(entity, source, 0.09D);
+        moveDirectly(entity, source, CHARM_DIRECT_SPEED);
     }
 
     private static void tickBloodlust(LivingEntity entity) {

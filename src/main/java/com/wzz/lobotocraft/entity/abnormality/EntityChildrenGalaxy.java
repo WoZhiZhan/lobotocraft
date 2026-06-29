@@ -82,7 +82,8 @@ public class EntityChildrenGalaxy extends AbstractAbnormality {
                 ResourceUtil.createInstance("textures/item/children_galaxy_curio.png"),
                 "小小银河", "颈部", "children_galaxy_curio",
                 "成功率+3,工作速度+3",
-                "每3秒恢复3点生命值与精神值");
+                "每5.5秒恢复2点生命值与精神值",
+                "套装：10x10范围内共享一半回复");
     }
 
     @Override
@@ -100,6 +101,26 @@ public class EntityChildrenGalaxy extends AbstractAbnormality {
                 "小小银河", RiskLevel.HE,
                 0.8f, 0.8f, 1.2f, 1.5f,
                 getArmorDevelopmentMaxCount(), "children_galaxy");
+    }
+
+    @Override
+    public float[] getWeaponRenderScale() {
+        return new float[] {0.5f, 1.0f, 1.0f};
+    }
+
+    @Override
+    public float[] getWeaponRenderOffset() {
+        return new float[] {55.0f, 0.0f, 0.0f};
+    }
+
+    @Override
+    public float[] getArmorRenderScale() {
+        return new float[] {1.0f, 0.54f, 1.0f};
+    }
+
+    @Override
+    public float[] getArmorRenderOffset() {
+        return new float[] {0.0f, 18.0f, 0.0f};
     }
 
     @Override

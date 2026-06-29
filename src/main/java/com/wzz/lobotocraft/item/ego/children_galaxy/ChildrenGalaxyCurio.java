@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.children_galaxy;
 import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.item.base.IBodyPartRenderer.BodyPartType;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
+import com.wzz.lobotocraft.util.ClientInputUtil;
 import com.wzz.lobotocraft.util.CuriosUtil;
 import com.wzz.lobotocraft.util.EgoArmorHelper;
 import com.wzz.lobotocraft.util.MentalValueUtil;
@@ -23,8 +24,9 @@ import java.util.List;
 
 public class ChildrenGalaxyCurio extends BaseEgoCurio {
     private static final String SET_ID = "children_galaxy";
-    private static final float BASE_RECOVERY = 3.0f;
-    private static final double SHARE_RADIUS_SQR = 64.0D;
+    private static final int RECOVERY_INTERVAL_TICKS = 110;
+    private static final float BASE_RECOVERY = 2.0f;
+    private static final double SHARE_HALF_RANGE = 5.0D;
 
     public ChildrenGalaxyCurio() {
         super(new Properties().stacksTo(1).fireResistant());
@@ -58,7 +60,7 @@ public class ChildrenGalaxyCurio extends BaseEgoCurio {
     @Override
     public void curioTick(SlotContext slotContext, ItemStack stack) {
         super.curioTick(slotContext, stack);
-        if (slotContext.entity() instanceof ServerPlayer player && player.tickCount % 60 == 0) {
+        if (slotContext.entity() instanceof ServerPlayer player && player.tickCount % RECOVERY_INTERVAL_TICKS == 0) {
             triggerRecovery(player);
         }
     }
@@ -89,12 +91,17 @@ public class ChildrenGalaxyCurio extends BaseEgoCurio {
             if (other == player || other.serverLevel() != level || other.isDeadOrDying()) {
                 continue;
             }
-            if (other.distanceToSqr(player) > SHARE_RADIUS_SQR) {
+            if (!isWithinShareRange(player, other)) {
                 continue;
             }
             recover(other, sharedAmount);
             spawnRecoveryParticles(level, other);
         }
+    }
+
+    private static boolean isWithinShareRange(ServerPlayer source, ServerPlayer target) {
+        return Math.abs(target.getX() - source.getX()) <= SHARE_HALF_RANGE
+                && Math.abs(target.getZ() - source.getZ()) <= SHARE_HALF_RANGE;
     }
 
     private static void recover(ServerPlayer player, float amount) {
@@ -114,12 +121,18 @@ public class ChildrenGalaxyCurio extends BaseEgoCurio {
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.literal("  • 成功率 +3").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal("  • 工作速度 +3").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 每3秒恢复3点生命值与精神值").withStyle(ChatFormatting.GREEN));
+        tooltip.add(Component.literal("  • 每5.5秒恢复2点生命值与精神值").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal(""));
         tooltip.add(Component.literal("套装效果（武器 + 护甲 + 饰品）：").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("  • 小小银河的恢复效果提高50%").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 触发饰品恢复时，附近玩家恢复一半数值").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 持有友谊之证时，每次受伤立刻触发一次恢复").withStyle(ChatFormatting.LIGHT_PURPLE));
+        if (ClientInputUtil.isShiftPressed()) {
+            tooltip.add(Component.literal("§6※玩家手持武器小小银河时回复效果提高50%。"));
+            tooltip.add(Component.literal("§6※触发饰品恢复时，10x10范围内其他玩家恢复一半数值。"));
+            tooltip.add(Component.literal("§6※持有友谊之证时，每次受伤立刻触发一次恢复。"));
+        } else {
+            tooltip.add(Component.literal("§6※玩家手持武器小小银河时回复效果提高50%。"));
+            tooltip.add(Component.literal("§6※触发饰品恢复时，10x10范围内其他玩家恢复一半数值。"));
+            tooltip.add(Component.literal("§7按住<Shift>查看详情"));
+        }
         super.appendHoverText(stack, level, tooltip, flag);
     }
 }

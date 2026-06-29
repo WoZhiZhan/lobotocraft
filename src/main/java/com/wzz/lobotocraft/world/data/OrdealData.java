@@ -74,6 +74,12 @@ public class OrdealData extends SavedData {
         setDirty();
     }
 
+    public void decrementDawnTriggersToday() {
+        if (dawnTriggersToday <= 0) return;
+        dawnTriggersToday--;
+        setDirty();
+    }
+
     public void resetDawnTriggersToday() {
         dawnTriggersToday = 0;
         setDirty();
