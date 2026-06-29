@@ -56,6 +56,21 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
     }
 
     @Override
+    public void remove(@NotNull Entity.RemovalReason reason) {
+        if (!level().isClientSide
+                && reason.shouldDestroy()
+                && !endBirdSpawned
+                && level() instanceof ServerLevel serverLevel) {
+            BlackForestEvent.BlackForestSavedData data =
+                    BlackForestEvent.BlackForestSavedData.get(serverLevel);
+            restoreCapturedBirds(serverLevel);
+            stopTrackedEscapedBirds(serverLevel, data);
+            resetBlackForestData(data);
+        }
+        super.remove(reason);
+    }
+
+    @Override
     public void tick() {
         super.tick();
         if (level().isClientSide) return;
@@ -232,32 +247,47 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
             BlackForestEvent.BlackForestSavedData data =
                     BlackForestEvent.BlackForestSavedData.get(serverLevel);
 
-            for (Map.Entry<String, Pair<String, BlockPos>> entry : birdInfo.entrySet()) {
-                BlockPos returnPos = entry.getValue().getSecond();
-                if (returnPos == null) continue;
-                AbstractAbnormality bird = createBirdByCode(entry.getKey(), serverLevel);
-                if (bird != null) {
-                    bird.setPos(returnPos.getX() + 0.5, returnPos.getY(), returnPos.getZ() + 0.5);
-                    bird.setEscape(false);
-                    bird.setQliphothCounter(bird.getMaxQliphothCounter());
-                    serverLevel.addFreshEntity(bird);
-                }
-            }
-
-            for (String uuid : data.getEscapedBirdUUIDs()) {
-                try {
-                    if (serverLevel.getEntity(UUID.fromString(uuid)) instanceof AbstractAbnormality bird
-                            && bird.hasEscape()) {
-                        bird.stopEscape();
-                    }
-                } catch (IllegalArgumentException ignored) {}
-            }
-
-            data.setDoorSpawned(false);
-            data.getEscapedBirdUUIDs().clear();
-            data.setDirty();
+            restoreCapturedBirds(serverLevel);
+            stopTrackedEscapedBirds(serverLevel, data);
+            resetBlackForestData(data);
         }
         super.die(p_21809_);
+    }
+
+    private void restoreCapturedBirds(ServerLevel serverLevel) {
+        if (birdInfo.isEmpty()) return;
+
+        for (Map.Entry<String, Pair<String, BlockPos>> entry : birdInfo.entrySet()) {
+            BlockPos returnPos = entry.getValue().getSecond();
+            if (returnPos == null) continue;
+            AbstractAbnormality bird = createBirdByCode(entry.getKey(), serverLevel);
+            if (bird != null) {
+                bird.setPos(returnPos.getX() + 0.5, returnPos.getY(), returnPos.getZ() + 0.5);
+                bird.setEscape(false);
+                bird.setQliphothCounter(bird.getMaxQliphothCounter());
+                serverLevel.addFreshEntity(bird);
+            }
+        }
+
+        birdInfo.clear();
+        birdsEntered = 0;
+    }
+
+    private void stopTrackedEscapedBirds(ServerLevel serverLevel, BlackForestEvent.BlackForestSavedData data) {
+        for (String uuid : new HashSet<>(data.getEscapedBirdUUIDs())) {
+            try {
+                if (serverLevel.getEntity(UUID.fromString(uuid)) instanceof AbstractAbnormality bird
+                        && bird.hasEscape()) {
+                    bird.stopEscape();
+                }
+            } catch (IllegalArgumentException ignored) {}
+        }
+    }
+
+    private void resetBlackForestData(BlackForestEvent.BlackForestSavedData data) {
+        data.setDoorSpawned(false);
+        data.getEscapedBirdUUIDs().clear();
+        data.setDirty();
     }
 
     @Nullable

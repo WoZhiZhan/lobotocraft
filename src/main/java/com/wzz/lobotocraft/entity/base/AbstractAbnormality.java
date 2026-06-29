@@ -79,6 +79,7 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
     public AbstractAbnormality(EntityType<? extends TamableAnimal> type, Level level) {
         super(type, level);
         initializeAbnormality();
+        this.setPersistenceRequired();
         this.setCustomNameVisible(false);
         this.setCustomName(Component.literal(this.abnormalityCode));
     }
