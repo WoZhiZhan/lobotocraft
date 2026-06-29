@@ -37,6 +37,7 @@ import java.util.List;
 public class EntityLeticia extends AbstractAbnormality {
     private static final int GIFT_DURATION = 20 * 60 * 20;
     private static final int GIFT_ANIMATION_TICKS = 45;
+    private static final int IDLE_SOUND_INTERVAL_TICKS = 20 * 53;
 
     private int actionAnimationTimer = 0;
 
@@ -218,7 +219,7 @@ public class EntityLeticia extends AbstractAbnormality {
 
     @Override
     public int getAbnormalityAmbientSoundInterval() {
-        return 700;
+        return IDLE_SOUND_INTERVAL_TICKS;
     }
 
     @Override
