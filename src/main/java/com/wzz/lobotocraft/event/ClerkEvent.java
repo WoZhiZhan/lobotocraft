@@ -29,12 +29,17 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Mod.EventBusSubscriber(modid = ModMain.MODID)
 public class ClerkEvent {
     private static final int CLERKS_PER_REACTOR = 8;
+    private static final int PLAYER_DEATH_CLERK_RESPAWN_COUNT = 3;
 
     @SubscribeEvent
     public static void onDayAdvance(CompanyDayAdvanceEvent event) {
@@ -45,9 +50,19 @@ public class ClerkEvent {
         resetDayClerks(level);
     }
 
-    public static void resetDayClerks(ServerLevel level) {
-        clearTombstones(level);
-        replenishClerks(level);
+    public static ClerkResetResult resetDayClerks(ServerLevel level) {
+        int clearedTombstones = clearTombstones(level);
+        return resetClerks(level, clearedTombstones);
+    }
+
+    public static void respawnClerksAfterPlayerDeath(ServerLevel level) {
+        ArrayList<BlockPos> reactorPositions = new ArrayList<>(collectReactorPositions(level));
+        if (reactorPositions.isEmpty()) return;
+
+        BlockPos reactorPos = reactorPositions.get(level.random.nextInt(reactorPositions.size()));
+        for (int i = 0; i < PLAYER_DEATH_CLERK_RESPAWN_COUNT; i++) {
+            spawnClerk(level, reactorPos);
+        }
     }
 
     @SubscribeEvent
@@ -60,10 +75,16 @@ public class ClerkEvent {
         placeTombstone(level, clerk.blockPosition());
     }
 
-    private static void clearTombstones(ServerLevel level) {
+    private static int clearTombstones(ServerLevel level) {
         Set<BlockPos> tombstonePositions = new HashSet<>();
         ClerkTombstoneData tombstoneData = ClerkTombstoneData.get(level);
         tombstonePositions.addAll(tombstoneData.getPositions());
+
+        for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level)) {
+            if (blockEntity instanceof TombstoneBlockEntity) {
+                tombstonePositions.add(blockEntity.getBlockPos().immutable());
+            }
+        }
 
         GenerationBiggerData.Entry company = Structures.LOBOTO.data(level);
         if (company.generated && company.currentRadius > 0) {
@@ -75,12 +96,16 @@ public class ClerkEvent {
                     tombstonePositions);
         }
 
+        int cleared = 0;
         for (BlockPos pos : tombstonePositions) {
             if (level.getBlockState(pos).is(ModBlocks.TOMBSTONE.get())) {
-                level.removeBlock(pos, false);
+                if (level.removeBlock(pos, false)) {
+                    cleared++;
+                }
             }
         }
         tombstoneData.clearAll();
+        return cleared;
     }
 
     private static void collectTombstonesInArea(ServerLevel level, int minX, int minZ, int maxX, int maxZ,
@@ -106,13 +131,53 @@ public class ClerkEvent {
         }
     }
 
-    private static void replenishClerks(ServerLevel level) {
-        for (BlockPos reactorPos : collectReactorPositions(level)) {
-            int existing = countAssignedClerks(level, reactorPos);
-            for (int i = existing; i < CLERKS_PER_REACTOR; i++) {
-                spawnClerk(level, reactorPos);
+    private static ClerkResetResult resetClerks(ServerLevel level, int clearedTombstones) {
+        Set<BlockPos> reactorPositions = collectReactorPositions(level);
+        Map<BlockPos, List<EntityClerk>> clerksByReactor = new HashMap<>();
+        List<EntityClerk> clerksToRemove = new ArrayList<>();
+
+        for (Entity entity : level.getAllEntities()) {
+            if (!(entity instanceof EntityClerk clerk) || !clerk.isAlive()) {
+                continue;
+            }
+
+            BlockPos reactorPos = clerk.getReactorPos();
+            if (reactorPos == null || !reactorPositions.contains(reactorPos)) {
+                clerksToRemove.add(clerk);
+                continue;
+            }
+
+            clerksByReactor.computeIfAbsent(reactorPos, ignored -> new ArrayList<>()).add(clerk);
+        }
+
+        int resetClerks = 0;
+        int spawnedClerks = 0;
+
+        for (BlockPos reactorPos : reactorPositions) {
+            List<EntityClerk> clerks = clerksByReactor.getOrDefault(reactorPos, Collections.emptyList());
+            int retained = Math.min(clerks.size(), CLERKS_PER_REACTOR);
+
+            for (int i = 0; i < retained; i++) {
+                resetClerkState(clerks.get(i));
+                resetClerks++;
+            }
+
+            for (int i = CLERKS_PER_REACTOR; i < clerks.size(); i++) {
+                clerksToRemove.add(clerks.get(i));
+            }
+
+            for (int i = retained; i < CLERKS_PER_REACTOR; i++) {
+                if (spawnClerk(level, reactorPos)) {
+                    spawnedClerks++;
+                }
             }
         }
+
+        for (EntityClerk clerk : clerksToRemove) {
+            clerk.discard();
+        }
+
+        return new ClerkResetResult(clearedTombstones, resetClerks, spawnedClerks, clerksToRemove.size());
     }
 
     private static Set<BlockPos> collectReactorPositions(ServerLevel level) {
@@ -159,28 +224,24 @@ public class ClerkEvent {
         }
     }
 
-    private static int countAssignedClerks(ServerLevel level, BlockPos reactorPos) {
-        int count = 0;
-        for (Entity entity : level.getAllEntities()) {
-            if (entity instanceof EntityClerk clerk
-                    && clerk.isAlive()
-                    && reactorPos.equals(clerk.getReactorPos())) {
-                count++;
-            }
-        }
-        return count;
+    private static void resetClerkState(EntityClerk clerk) {
+        clerk.setHealth(clerk.getMaxHealth());
+        clerk.removeAllEffects();
+        clerk.getPersistentData().remove(EntityClerk.NO_TOMBSTONE_TAG);
+        clerk.getPersistentData().remove(EntityClerk.COMMAND_KILL_TAG);
     }
 
-    private static void spawnClerk(ServerLevel level, BlockPos reactorPos) {
+    private static boolean spawnClerk(ServerLevel level, BlockPos reactorPos) {
         BlockPos spawnPos = EntityUtil.findReactorSpawnPositionInCompany(level, reactorPos, 8);
         EntityClerk clerk = ModEntities.clerk.get().create(level);
-        if (clerk == null) return;
+        if (clerk == null) return false;
 
         clerk.moveTo(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D,
                 level.random.nextFloat() * 360.0F, 0.0F);
         clerk.setReactorPos(reactorPos);
         clerk.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), MobSpawnType.EVENT, null, null);
         level.addFreshEntity(clerk);
+        return true;
     }
 
     private static boolean isSpecialDeath(DamageSource source) {
@@ -202,5 +263,8 @@ public class ClerkEvent {
             }
             cursor.move(0, 1, 0);
         }
+    }
+
+    public record ClerkResetResult(int clearedTombstones, int resetClerks, int spawnedClerks, int removedClerks) {
     }
 }

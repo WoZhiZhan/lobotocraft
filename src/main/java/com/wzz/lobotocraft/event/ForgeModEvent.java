@@ -394,7 +394,7 @@ public class ForgeModEvent {
 			if (player.level() instanceof ServerLevel level) {
 				ServerLevel lobotoLevel = level.getServer().getLevel(ModDimensions.LOBOTO_KEY);
 				if (lobotoLevel != null) {
-					ClerkEvent.resetDayClerks(lobotoLevel);
+					ClerkEvent.respawnClerksAfterPlayerDeath(lobotoLevel);
 				}
 			}
 			if (com.wzz.lobotocraft.util.BuffUtil.hasFriendshipProof(player)) {

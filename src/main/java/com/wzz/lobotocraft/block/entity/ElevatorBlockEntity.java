@@ -36,6 +36,8 @@ public class ElevatorBlockEntity extends BaseGeoBlockEntity {
     private boolean isActive = false;
     private long activatedTick = -1;
     private static final long DELAY_TICKS = 20;
+    private static final long TELEPORT_COOLDOWN_TICKS = 20 * 6L;
+    private static final Map<UUID, Long> TELEPORT_COOLDOWNS = new HashMap<>();
     private final Map<UUID, Long> entitiesInRangeSince = new HashMap<>();
 
     public ElevatorBlockEntity(BlockPos pos, BlockState blockState) {
@@ -47,11 +49,7 @@ public class ElevatorBlockEntity extends BaseGeoBlockEntity {
         be.tickDwellDetection(level, pos);
         if (!be.isActive) return;
 
-        long currentTick = level.getGameTime();
-        if (be.hasEntityStayedLongEnough(currentTick)) {
-            be.executeTeleport(level, pos);
-            be.resetActivation();
-        }
+        be.executeReadyTeleports(level, pos, level.getGameTime());
     }
 
     public void onStep(LivingEntity entity) {
@@ -60,13 +58,25 @@ public class ElevatorBlockEntity extends BaseGeoBlockEntity {
         if (!getDetectionBox(getBlockPos()).intersects(entity.getBoundingBox())) return;
 
         long currentTick = level.getGameTime();
+        cleanupExpiredCooldowns(currentTick);
+        if (isOnTeleportCooldown(entity, currentTick)) {
+            this.entitiesInRangeSince.remove(entity.getUUID());
+            return;
+        }
+
         this.entitiesInRangeSince.putIfAbsent(entity.getUUID(), currentTick);
         beginActivation(currentTick);
     }
 
     private void tickDwellDetection(Level level, BlockPos pos) {
         long currentTick = level.getGameTime();
-        List<LivingEntity> entities = level.getEntitiesOfClass(LivingEntity.class, getDetectionBox(pos), LivingEntity::isAlive);
+        cleanupExpiredCooldowns(currentTick);
+
+        List<LivingEntity> entities = level.getEntitiesOfClass(
+                LivingEntity.class,
+                getDetectionBox(pos),
+                entity -> entity.isAlive() && !isOnTeleportCooldown(entity, currentTick)
+        );
         if (entities.isEmpty()) {
             resetActivation();
             return;
@@ -92,9 +102,22 @@ public class ElevatorBlockEntity extends BaseGeoBlockEntity {
         syncToClient();
     }
 
-    private boolean hasEntityStayedLongEnough(long currentTick) {
-        return entitiesInRangeSince.values().stream()
-                .anyMatch(startTick -> currentTick - startTick >= DELAY_TICKS);
+    private boolean hasEntityStayedLongEnough(LivingEntity entity, long currentTick) {
+        Long startTick = entitiesInRangeSince.get(entity.getUUID());
+        return startTick != null && currentTick - startTick >= DELAY_TICKS;
+    }
+
+    private static boolean isOnTeleportCooldown(LivingEntity entity, long currentTick) {
+        Long cooldownUntil = TELEPORT_COOLDOWNS.get(entity.getUUID());
+        return cooldownUntil != null && cooldownUntil > currentTick;
+    }
+
+    private static void startTeleportCooldown(LivingEntity entity, long currentTick) {
+        TELEPORT_COOLDOWNS.put(entity.getUUID(), currentTick + TELEPORT_COOLDOWN_TICKS);
+    }
+
+    private static void cleanupExpiredCooldowns(long currentTick) {
+        TELEPORT_COOLDOWNS.entrySet().removeIf(entry -> entry.getValue() <= currentTick);
     }
 
     private void resetActivation() {
@@ -107,9 +130,13 @@ public class ElevatorBlockEntity extends BaseGeoBlockEntity {
         }
     }
 
-    private void executeTeleport(Level level, BlockPos pos) {
+    private void executeReadyTeleports(Level level, BlockPos pos, long currentTick) {
         AABB detectionBox = getDetectionBox(pos);
-        List<LivingEntity> entities = level.getEntitiesOfClass(LivingEntity.class, detectionBox);
+        List<LivingEntity> entities = level.getEntitiesOfClass(
+                LivingEntity.class,
+                detectionBox,
+                entity -> entity.isAlive() && hasEntityStayedLongEnough(entity, currentTick)
+        );
         for (LivingEntity entity : entities) {
             double targetY = teleportUp
                     ? entity.getY() + teleportDistance
@@ -125,6 +152,12 @@ public class ElevatorBlockEntity extends BaseGeoBlockEntity {
             } else {
                 entity.teleportTo(entity.getX(), targetY, entity.getZ());
             }
+            startTeleportCooldown(entity, currentTick);
+            entitiesInRangeSince.remove(entity.getUUID());
+        }
+
+        if (entitiesInRangeSince.isEmpty()) {
+            resetActivation();
         }
     }
 
