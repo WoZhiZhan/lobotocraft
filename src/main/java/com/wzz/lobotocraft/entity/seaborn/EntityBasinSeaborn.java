@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.entity.seaborn;
 
 import com.wzz.lobotocraft.entity.base.BaseGeoEntity;
+import com.wzz.lobotocraft.util.AnimationTimingUtil;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -117,11 +118,26 @@ public abstract class EntityBasinSeaborn extends BaseGeoEntity {
         }
     }
 
+    protected void startAttackAnimation(String animationFileName, String animationName, int fallbackDuration) {
+        int duration = AnimationTimingUtil.getAnimationDurationTicks(
+                animationFileName, animationName, fallbackDuration);
+        startAttackAnimation(duration);
+    }
+
     /** 子类在 doHurtTarget 中调用:延迟 delay tick 后执行伤害结算,并驱动攻击动画 */
     protected void scheduleAttackDamage(int animDuration, int hitDelay, Runnable damageAction) {
         startAttackAnimation(animDuration);
         this.pendingDamageDelay = hitDelay;
         this.pendingDamageAction = damageAction;
+    }
+
+    protected void scheduleAttackDamage(String animationFileName, String animationName,
+                                        int fallbackDuration, int fallbackHitDelay, Runnable damageAction) {
+        int duration = AnimationTimingUtil.getAnimationDurationTicks(
+                animationFileName, animationName, fallbackDuration);
+        int hitDelay = AnimationTimingUtil.getNearestKeyframeTick(
+                animationFileName, animationName, fallbackHitDelay);
+        scheduleAttackDamage(duration, Math.min(hitDelay, duration), damageAction);
     }
 
     /** 攻击动画是否正在播放(供子类 predicate 替代 this.swinging 判定) */

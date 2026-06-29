@@ -23,6 +23,7 @@ import software.bernie.geckolib.core.object.PlayState;
  * 血量25、全抗1.2、移速≈苦力怕、从口中喷出蓝色粒子(抛物线、可躲、射程10),命中造成6点红色伤害。
  */
 public class EntityRidgeSeaSpitter extends EntityBasinSeaborn implements RangedAttackMob {
+    private static final String ATTACK_ANIMATION = "animation.ridgesea_spitter.attack";
 
     public EntityRidgeSeaSpitter(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -49,7 +50,7 @@ public class EntityRidgeSeaSpitter extends EntityBasinSeaborn implements RangedA
     @Override
     public void performRangedAttack(LivingEntity target, float velocity) {
         if (this.level().isClientSide) return;
-        startAttackAnimation(13);
+        startAttackAnimation("ridgesea_spitter", ATTACK_ANIMATION, 13);
         // 攻击音效:羊驼吐口水
         this.level().playSound(null, this.blockPosition(),
                 SoundEvents.LLAMA_SPIT, SoundSource.HOSTILE, 1.0f, 1.0f);
@@ -72,7 +73,7 @@ public class EntityRidgeSeaSpitter extends EntityBasinSeaborn implements RangedA
 
     private PlayState predicate(AnimationState<EntityRidgeSeaSpitter> event) {
         if (isPlayingAttackAnim()) {
-            return event.setAndContinue(RawAnimation.begin().thenPlay("animation.ridgesea_spitter.attack"));
+            return event.setAndContinue(RawAnimation.begin().thenPlayAndHold(ATTACK_ANIMATION));
         }
         if (isMovingForAnimation(event)) {
             return event.setAndContinue(RawAnimation.begin().thenLoop("animation.ridgesea_spitter.move"));

@@ -26,6 +26,7 @@ import software.bernie.geckolib.core.object.PlayState;
  * 攻击射出小喙同款追踪弹(EntityLightOrb)造成15点红色伤害。
  */
 public class EntityPrimalSeaPiercer extends EntityBasinSeaborn implements RangedAttackMob {
+    private static final String ATTACK_ANIMATION = "animation.primalsea_piercer.attack";
 
     public EntityPrimalSeaPiercer(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -60,7 +61,7 @@ public class EntityPrimalSeaPiercer extends EntityBasinSeaborn implements Ranged
     @Override
     public void performRangedAttack(LivingEntity target, float velocity) {
         if (this.level().isClientSide) return;
-        startAttackAnimation(19);
+        startAttackAnimation("primalsea_piercer", ATTACK_ANIMATION, 19);
         this.level().playSound(null, this.blockPosition(),
                 SoundEvents.ARROW_SHOOT, SoundSource.HOSTILE, 1.0f, 1.0f);
 
@@ -91,7 +92,7 @@ public class EntityPrimalSeaPiercer extends EntityBasinSeaborn implements Ranged
             return event.setAndContinue(RawAnimation.begin().thenPlayAndHold("animation.primalsea_piercer.die"));
         }
         if (isPlayingAttackAnim()) {
-            return event.setAndContinue(RawAnimation.begin().thenPlay("animation.primalsea_piercer.attack"));
+            return event.setAndContinue(RawAnimation.begin().thenPlayAndHold(ATTACK_ANIMATION));
         }
         if (isMovingForAnimation(event)) {
             return event.setAndContinue(RawAnimation.begin().thenLoop("animation.primalsea_piercer.move"));

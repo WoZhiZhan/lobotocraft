@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.integration.jade;
 
 import com.wzz.lobotocraft.entity.abnormality.EntityCrumblingArmor;
 import com.wzz.lobotocraft.entity.abnormality.EntityHappyTeddy;
+import com.wzz.lobotocraft.entity.abnormality.EntityLeticia;
 import com.wzz.lobotocraft.entity.abnormality.EntityOneBad;
 import com.wzz.lobotocraft.entity.abnormality.EntitySnowQueen;
 import com.wzz.lobotocraft.entity.abnormality.EntityWingBeat;
@@ -53,7 +54,8 @@ public enum AbnormalityDataProvider implements IServerDataProvider<EntityAccesso
                 || abnormality instanceof EntityHappyTeddy
                 || abnormality instanceof EntityWingBeat
                 || abnormality instanceof EntitySnowQueen
-                || abnormality instanceof EntityCrumblingArmor;
+                || abnormality instanceof EntityCrumblingArmor
+                || abnormality instanceof EntityLeticia;
     }
 
     @Override

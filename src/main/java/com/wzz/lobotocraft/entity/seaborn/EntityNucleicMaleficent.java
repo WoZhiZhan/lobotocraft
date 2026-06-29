@@ -31,6 +31,7 @@ import java.util.List;
  * 攻击6黑伤、每秒对6x6玩家额外5白伤(无视无敌帧)。
  */
 public class EntityNucleicMaleficent extends EntityBasinSeaborn {
+    private static final String ATTACK_ANIMATION = "animation.nucleic_maleficent.attack";
 
     private static final EntityDataAccessor<Boolean> ENRAGED =
             SynchedEntityData.defineId(EntityNucleicMaleficent.class, EntityDataSerializers.BOOLEAN);
@@ -95,7 +96,7 @@ public class EntityNucleicMaleficent extends EntityBasinSeaborn {
     @Override
     public boolean doHurtTarget(Entity target) {
         if (target instanceof Player player) {
-            scheduleAttackDamage(19, 9, () -> {
+            scheduleAttackDamage("nucleic_maleficent", ATTACK_ANIMATION, 19, 9, () -> {
                 if (player.isAlive() && this.distanceToSqr(player) <= 9.0) {
                     EntityUtil.clearHurtTime(player, () ->
                             player.hurt(DamageHelper.getDamage(this, "black"), 6f));
@@ -150,7 +151,7 @@ public class EntityNucleicMaleficent extends EntityBasinSeaborn {
         }
         if (isEnraged()) {
             if (isPlayingAttackAnim()) {
-                return event.setAndContinue(RawAnimation.begin().thenPlay("animation.nucleic_maleficent.attack"));
+                return event.setAndContinue(RawAnimation.begin().thenPlayAndHold(ATTACK_ANIMATION));
             }
             return event.setAndContinue(RawAnimation.begin().thenLoop("animation.nucleic_maleficent.swim"));
         }

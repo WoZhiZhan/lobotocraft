@@ -23,6 +23,7 @@ import software.bernie.geckolib.core.object.PlayState;
  * 血量30、全抗1.2、移速≈苦力怕、攻击造成3点黑色伤害,命中后额外造成3点白色伤害。
  */
 public class EntityDeepSeaSlider extends EntityBasinSeaborn {
+    private static final String ATTACK_ANIMATION = "animation.deepsea_slider.attack";
 
     public EntityDeepSeaSlider(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -42,7 +43,7 @@ public class EntityDeepSeaSlider extends EntityBasinSeaborn {
     @Override
     public boolean doHurtTarget(Entity target) {
         if (target instanceof Player player) {
-            scheduleAttackDamage(16, 8, () -> {
+            scheduleAttackDamage("deepsea_slider", ATTACK_ANIMATION, 16, 8, () -> {
                 if (player.isAlive() && this.distanceToSqr(player) <= 9.0) {
                     EntityUtil.clearHurtTime(player, () ->
                             player.hurt(DamageHelper.getDamage(this, "black"), 3f));
@@ -65,7 +66,7 @@ public class EntityDeepSeaSlider extends EntityBasinSeaborn {
             return event.setAndContinue(RawAnimation.begin().thenPlayAndHold("animation.deepsea_slider.die"));
         }
         if (isPlayingAttackAnim()) {
-            return event.setAndContinue(RawAnimation.begin().thenPlay("animation.deepsea_slider.attack"));
+            return event.setAndContinue(RawAnimation.begin().thenPlayAndHold(ATTACK_ANIMATION));
         }
         if (isMovingForAnimation(event)) {
             return event.setAndContinue(RawAnimation.begin().thenLoop("animation.deepsea_slider.move"));

@@ -22,6 +22,7 @@ import software.bernie.geckolib.core.object.PlayState;
  * 血量20、全抗1.2、移速≈奔跑玩家、攻击造成4点红色伤害。
  */
 public class EntityShellSeaRunner extends EntityBasinSeaborn {
+    private static final String ATTACK_ANIMATION = "animation.shell_sea_runner.attack";
 
     public EntityShellSeaRunner(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -47,7 +48,7 @@ public class EntityShellSeaRunner extends EntityBasinSeaborn {
     @Override
     public boolean doHurtTarget(Entity target) {
         if (target instanceof Player player) {
-            scheduleAttackDamage(15, 7, () -> {
+            scheduleAttackDamage("shell_sea_runner", ATTACK_ANIMATION, 15, 7, () -> {
                 if (player.isAlive() && this.distanceToSqr(player) <= 9.0) {
                     player.hurt(DamageHelper.getDamage(this, "red"), 4f);
                 }
@@ -68,7 +69,7 @@ public class EntityShellSeaRunner extends EntityBasinSeaborn {
 
     private PlayState predicate(AnimationState<EntityShellSeaRunner> event) {
         if (isPlayingAttackAnim()) {
-            return event.setAndContinue(RawAnimation.begin().thenPlay("animation.shell_sea_runner.attack"));
+            return event.setAndContinue(RawAnimation.begin().thenPlayAndHold(ATTACK_ANIMATION));
         }
         if (isMovingForAnimation(event)) {
             return event.setAndContinue(RawAnimation.begin().thenLoop("animation.shell_sea_runner.move"));

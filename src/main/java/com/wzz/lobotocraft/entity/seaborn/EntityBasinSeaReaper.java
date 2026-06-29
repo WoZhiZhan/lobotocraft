@@ -31,6 +31,7 @@ import java.util.List;
  * 每秒-5血、sprint追击(移速≈奔跑2)、攻击7黑伤、每秒对6x6玩家额外5白伤(无视无敌帧)。
  */
 public class EntityBasinSeaReaper extends EntityBasinSeaborn {
+    private static final String ATTACK_ANIMATION = "animation.basinsea_reaper.attack";
 
     private static final EntityDataAccessor<Boolean> ENRAGED =
             SynchedEntityData.defineId(EntityBasinSeaReaper.class, EntityDataSerializers.BOOLEAN);
@@ -93,7 +94,7 @@ public class EntityBasinSeaReaper extends EntityBasinSeaborn {
     @Override
     public boolean doHurtTarget(Entity target) {
         if (target instanceof Player player) {
-            scheduleAttackDamage(15, 8, () -> {
+            scheduleAttackDamage("basinsea_reaper", ATTACK_ANIMATION, 15, 8, () -> {
                 if (player.isAlive() && this.distanceToSqr(player) <= 9.0) {
                     EntityUtil.clearHurtTime(player, () ->
                             player.hurt(DamageHelper.getDamage(this, "lobotocraft:black"), 7f));
@@ -141,7 +142,7 @@ public class EntityBasinSeaReaper extends EntityBasinSeaborn {
     private PlayState predicate(AnimationState<EntityBasinSeaReaper> event) {
         if (isEnraged()) {
             if (isPlayingAttackAnim()) {
-                return event.setAndContinue(RawAnimation.begin().thenPlay("animation.basinsea_reaper.attack"));
+                return event.setAndContinue(RawAnimation.begin().thenPlayAndHold(ATTACK_ANIMATION));
             }
             return event.setAndContinue(RawAnimation.begin().thenLoop("animation.basinsea_reaper.sprint"));
         }

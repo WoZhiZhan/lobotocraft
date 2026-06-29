@@ -13,29 +13,28 @@ import com.wzz.lobotocraft.init.ModBlocks;
 import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.util.EntityUtil;
+import com.wzz.lobotocraft.world.data.ClerkTombstoneData;
 import com.wzz.lobotocraft.world.data.GenerationBiggerData;
 import com.wzz.lobotocraft.world.structure.Structures;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraft.world.phys.AABB;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 @Mod.EventBusSubscriber(modid = ModMain.MODID)
 public class ClerkEvent {
     private static final int CLERKS_PER_REACTOR = 8;
-    private static final int REACTOR_SEARCH_RADIUS = 64;
 
     @SubscribeEvent
     public static void onDayAdvance(CompanyDayAdvanceEvent event) {
@@ -63,20 +62,17 @@ public class ClerkEvent {
 
     private static void clearTombstones(ServerLevel level) {
         Set<BlockPos> tombstonePositions = new HashSet<>();
+        ClerkTombstoneData tombstoneData = ClerkTombstoneData.get(level);
+        tombstonePositions.addAll(tombstoneData.getPositions());
+
         GenerationBiggerData.Entry company = Structures.LOBOTO.data(level);
         if (company.generated && company.currentRadius > 0) {
-            collectLoadedTombstonesInArea(level,
+            collectTombstonesInArea(level,
                     company.centerX - company.currentRadius,
                     company.centerZ - company.currentRadius,
                     company.centerX + company.currentRadius,
                     company.centerZ + company.currentRadius,
                     tombstonePositions);
-        } else {
-            for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level)) {
-                if (blockEntity instanceof RegenerationReactorBlockEntity) {
-                    collectLoadedTombstonesAround(level, blockEntity.getBlockPos(), tombstonePositions);
-                }
-            }
         }
 
         for (BlockPos pos : tombstonePositions) {
@@ -84,19 +80,11 @@ public class ClerkEvent {
                 level.removeBlock(pos, false);
             }
         }
+        tombstoneData.clearAll();
     }
 
-    private static void collectLoadedTombstonesAround(ServerLevel level, BlockPos center, Set<BlockPos> tombstonePositions) {
-        collectLoadedTombstonesInArea(level,
-                center.getX() - REACTOR_SEARCH_RADIUS,
-                center.getZ() - REACTOR_SEARCH_RADIUS,
-                center.getX() + REACTOR_SEARCH_RADIUS,
-                center.getZ() + REACTOR_SEARCH_RADIUS,
-                tombstonePositions);
-    }
-
-    private static void collectLoadedTombstonesInArea(ServerLevel level, int minX, int minZ, int maxX, int maxZ,
-                                                     Set<BlockPos> tombstonePositions) {
+    private static void collectTombstonesInArea(ServerLevel level, int minX, int minZ, int maxX, int maxZ,
+                                               Set<BlockPos> tombstonePositions) {
         int minChunkX = Math.floorDiv(minX, 16);
         int minChunkZ = Math.floorDiv(minZ, 16);
         int maxChunkX = Math.floorDiv(maxX, 16);
@@ -104,8 +92,7 @@ public class ClerkEvent {
 
         for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
             for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-                LevelChunk chunk = level.getChunkSource().getChunkNow(chunkX, chunkZ);
-                if (chunk == null) continue;
+                LevelChunk chunk = level.getChunk(chunkX, chunkZ);
                 collectTombstonesInChunk(chunk, tombstonePositions);
             }
         }
@@ -120,10 +107,7 @@ public class ClerkEvent {
     }
 
     private static void replenishClerks(ServerLevel level) {
-        for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level)) {
-            if (!(blockEntity instanceof RegenerationReactorBlockEntity)) continue;
-
-            BlockPos reactorPos = blockEntity.getBlockPos();
+        for (BlockPos reactorPos : collectReactorPositions(level)) {
             int existing = countAssignedClerks(level, reactorPos);
             for (int i = existing; i < CLERKS_PER_REACTOR; i++) {
                 spawnClerk(level, reactorPos);
@@ -131,11 +115,60 @@ public class ClerkEvent {
         }
     }
 
+    private static Set<BlockPos> collectReactorPositions(ServerLevel level) {
+        Set<BlockPos> reactorPositions = new HashSet<>();
+        GenerationBiggerData.Entry company = Structures.LOBOTO.data(level);
+        if (company.generated && company.currentRadius > 0) {
+            collectReactorsInArea(level,
+                    company.centerX - company.currentRadius,
+                    company.centerZ - company.currentRadius,
+                    company.centerX + company.currentRadius,
+                    company.centerZ + company.currentRadius,
+                    reactorPositions);
+            return reactorPositions;
+        }
+
+        for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level)) {
+            if (blockEntity instanceof RegenerationReactorBlockEntity) {
+                reactorPositions.add(blockEntity.getBlockPos().immutable());
+            }
+        }
+        return reactorPositions;
+    }
+
+    private static void collectReactorsInArea(ServerLevel level, int minX, int minZ, int maxX, int maxZ,
+                                             Set<BlockPos> reactorPositions) {
+        int minChunkX = Math.floorDiv(minX, 16);
+        int minChunkZ = Math.floorDiv(minZ, 16);
+        int maxChunkX = Math.floorDiv(maxX, 16);
+        int maxChunkZ = Math.floorDiv(maxZ, 16);
+
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                LevelChunk chunk = level.getChunk(chunkX, chunkZ);
+                collectReactorsInChunk(chunk, reactorPositions);
+            }
+        }
+    }
+
+    private static void collectReactorsInChunk(LevelChunk chunk, Set<BlockPos> reactorPositions) {
+        for (BlockEntity blockEntity : new ArrayList<>(chunk.getBlockEntities().values())) {
+            if (blockEntity instanceof RegenerationReactorBlockEntity) {
+                reactorPositions.add(blockEntity.getBlockPos().immutable());
+            }
+        }
+    }
+
     private static int countAssignedClerks(ServerLevel level, BlockPos reactorPos) {
-        AABB searchBox = new AABB(reactorPos).inflate(REACTOR_SEARCH_RADIUS);
-        List<EntityClerk> clerks = level.getEntitiesOfClass(EntityClerk.class, searchBox, clerk ->
-                clerk.isAlive() && reactorPos.equals(clerk.getReactorPos()));
-        return clerks.size();
+        int count = 0;
+        for (Entity entity : level.getAllEntities()) {
+            if (entity instanceof EntityClerk clerk
+                    && clerk.isAlive()
+                    && reactorPos.equals(clerk.getReactorPos())) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private static void spawnClerk(ServerLevel level, BlockPos reactorPos) {
@@ -162,7 +195,9 @@ public class ClerkEvent {
         for (int i = 0; i < 4; i++) {
             BlockState state = level.getBlockState(cursor);
             if (state.isAir() || state.canBeReplaced()) {
-                level.setBlock(cursor, ModBlocks.TOMBSTONE.get().defaultBlockState(), 3);
+                if (level.setBlock(cursor, ModBlocks.TOMBSTONE.get().defaultBlockState(), 3)) {
+                    ClerkTombstoneData.get(level).add(cursor);
+                }
                 return;
             }
             cursor.move(0, 1, 0);

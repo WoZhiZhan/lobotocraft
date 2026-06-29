@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.BaseGeoEntity;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.util.AnimationTimingUtil;
 import com.wzz.lobotocraft.util.DamageHelper;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
@@ -25,6 +26,9 @@ import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
 import software.bernie.geckolib.core.animation.AnimationState;
@@ -32,22 +36,56 @@ import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 
 public class EntityLeticiaFriend extends BaseGeoEntity {
-    private static final int SPAWN_ANIMATION_TICKS = 24;
-    private static final int ATTACK1_ANIMATION_TICKS = 30;
-    private static final int ATTACK2_ANIMATION_TICKS = 36;
-    private static final int ATTACK_INTERVAL_TICKS = 38;
+    private static final EntityDataAccessor<Integer> ANIMATION_VERSION =
+            SynchedEntityData.defineId(EntityLeticiaFriend.class, EntityDataSerializers.INT);
+    private static final String ANIMATION_FILE = "leticia_friend";
+    private static final String SPAWN_ANIMATION = "animation.laetitiafriend.spawn";
+    private static final String ATTACK1_ANIMATION = "animation.laetitiafriend.attack1";
+    private static final String ATTACK2_ANIMATION = "animation.laetitiafriend.attack2";
+    private static final int SPAWN_ANIMATION_TICKS =
+            AnimationTimingUtil.getAnimationDurationTicks(ANIMATION_FILE, SPAWN_ANIMATION, 25);
+    private static final int ATTACK1_ANIMATION_TICKS =
+            AnimationTimingUtil.getAnimationDurationTicks(ANIMATION_FILE, ATTACK1_ANIMATION, 31);
+    private static final int ATTACK2_ANIMATION_TICKS =
+            AnimationTimingUtil.getAnimationDurationTicks(ANIMATION_FILE, ATTACK2_ANIMATION, 38);
+    private static final int ATTACK1_HIT_TICK =
+            AnimationTimingUtil.getNearestKeyframeTick(ANIMATION_FILE, ATTACK1_ANIMATION, 0.9583D, 20);
+    private static final int ATTACK2_HIT_TICK =
+            AnimationTimingUtil.getNearestKeyframeTick(ANIMATION_FILE, ATTACK2_ANIMATION, 1.2917D, 26);
+    private static final int ATTACK_INTERVAL_TICKS = ATTACK2_ANIMATION_TICKS;
     private static final int IDLE_SOUND_INTERVAL_TICKS = 80;
     private static final double FRONT_ATTACK_RANGE = 4.0D;
     private static final double FRONT_ATTACK_WIDTH = 2.0D;
 
     private int spawnAnimationTimer = SPAWN_ANIMATION_TICKS;
     private int attackAnimationTimer = 0;
+    private int attackAnimationDuration = 0;
+    private int attackHitTick = 0;
+    private float pendingAttackDamage = 0.0F;
+    private boolean attackDamageApplied = false;
+    private LivingEntity pendingAttackTarget = null;
     private int idleSoundCooldown = IDLE_SOUND_INTERVAL_TICKS;
+    private String lastClientAnimation = "";
+    private int lastClientAnimationVersion = -1;
 
     public EntityLeticiaFriend(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
         this.setPersistenceRequired();
         this.setAnimation("spawn");
+    }
+
+    @Override
+    public void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(ANIMATION_VERSION, 0);
+    }
+
+    @Override
+    public void setAnimation(String name) {
+        super.setAnimation(name);
+        if (!this.level().isClientSide) {
+            this.entityData.set(ANIMATION_VERSION, this.entityData.get(ANIMATION_VERSION) + 1);
+        }
     }
 
     @Override
@@ -76,14 +114,19 @@ public class EntityLeticiaFriend extends BaseGeoEntity {
 
         if (spawnAnimationTimer > 0) {
             spawnAnimationTimer--;
-            if (spawnAnimationTimer == 0) {
+            if (spawnAnimationTimer == 0 && !isAttackAnimating()) {
                 setAnimation("idle");
             }
         }
 
-        if (attackAnimationTimer > 0) {
-            attackAnimationTimer--;
-            if (attackAnimationTimer == 0 && spawnAnimationTimer <= 0) {
+        if (isAttackAnimating()) {
+            attackAnimationTimer++;
+            if (!attackDamageApplied && attackAnimationTimer >= attackHitTick) {
+                attackDamageApplied = true;
+                hurtFrontalTargets(pendingAttackTarget, pendingAttackDamage);
+            }
+            if (attackAnimationTimer >= attackAnimationDuration) {
+                clearAttackAnimation();
                 setAnimation("idle");
             }
         }
@@ -100,13 +143,20 @@ public class EntityLeticiaFriend extends BaseGeoEntity {
         if (!(target instanceof LivingEntity living)) {
             return false;
         }
+        if (isAttackAnimating()) {
+            return true;
+        }
 
         boolean attack1 = this.random.nextBoolean();
-        attackAnimationTimer = attack1 ? ATTACK1_ANIMATION_TICKS : ATTACK2_ANIMATION_TICKS;
+        attackAnimationTimer = 0;
+        attackAnimationDuration = attack1 ? ATTACK1_ANIMATION_TICKS : ATTACK2_ANIMATION_TICKS;
+        attackHitTick = attack1 ? ATTACK1_HIT_TICK : ATTACK2_HIT_TICK;
+        attackDamageApplied = false;
+        pendingAttackTarget = living;
+        pendingAttackDamage = 8.0F + this.random.nextInt(3);
         setAnimation(attack1 ? "attack1" : "attack2");
         playFriendSound(randomIdleSound());
-        boolean hurt = hurtFrontalTargets(living, 8.0F + this.random.nextInt(3));
-        return hurt;
+        return true;
     }
 
     private boolean hurtFrontalTargets(LivingEntity directTarget, float damage) {
@@ -127,6 +177,19 @@ public class EntityLeticiaFriend extends BaseGeoEntity {
             hurt |= target.hurt(DamageHelper.getDamage(this, "lobotocraft:red"), damage);
         }
         return hurt;
+    }
+
+    private boolean isAttackAnimating() {
+        return attackAnimationDuration > 0;
+    }
+
+    private void clearAttackAnimation() {
+        attackAnimationTimer = 0;
+        attackAnimationDuration = 0;
+        attackHitTick = 0;
+        pendingAttackDamage = 0.0F;
+        attackDamageApplied = false;
+        pendingAttackTarget = null;
     }
 
     private boolean isValidAttackTarget(LivingEntity target) {
@@ -172,11 +235,19 @@ public class EntityLeticiaFriend extends BaseGeoEntity {
     }
 
     private PlayState predicate(AnimationState<EntityLeticiaFriend> event) {
-        return switch (getAnimation()) {
+        String animation = getAnimation();
+        int animationVersion = this.entityData.get(ANIMATION_VERSION);
+        if (!animation.equals(lastClientAnimation) || animationVersion != lastClientAnimationVersion) {
+            event.getController().forceAnimationReset();
+            lastClientAnimation = animation;
+            lastClientAnimationVersion = animationVersion;
+        }
+
+        return switch (animation) {
             case "spawn" -> event.setAndContinue(RawAnimation.begin().thenPlay("animation.laetitiafriend.spawn"));
             case "dead" -> event.setAndContinue(RawAnimation.begin().thenPlay("animation.laetitiafriend.dead"));
-            case "attack1" -> event.setAndContinue(RawAnimation.begin().thenPlay("animation.laetitiafriend.attack1"));
-            case "attack2" -> event.setAndContinue(RawAnimation.begin().thenPlay("animation.laetitiafriend.attack2"));
+            case "attack1" -> event.setAndContinue(RawAnimation.begin().thenPlayAndHold("animation.laetitiafriend.attack1"));
+            case "attack2" -> event.setAndContinue(RawAnimation.begin().thenPlayAndHold("animation.laetitiafriend.attack2"));
             default -> {
                 if (event.isMoving()) {
                     yield event.setAndContinue(RawAnimation.begin().thenLoop("animation.laetitiafriend.move"));
