@@ -169,8 +169,21 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
     }
 
     @Override
+    public boolean startRiding(Entity vehicle, boolean force) {
+        return false;
+    }
+
+    @Override
+    protected boolean canRide(Entity vehicle) {
+        return false;
+    }
+
+    @Override
     public void tick() {
         super.tick();
+        if (!this.level().isClientSide && this.isPassenger()) {
+            this.stopRiding();
+        }
         if (!this.level().isClientSide) {
             if (this.tickCount == 1 || this.tickCount % 100 == 0) {
                 syncNearbyPlayers();

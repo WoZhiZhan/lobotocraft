@@ -9,6 +9,7 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.util.Mth;
 import net.minecraft.world.DifficultyInstance;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
@@ -41,6 +42,16 @@ public class EntityClerk extends PathfinderMob {
 
     public EntityClerk(EntityType<? extends EntityClerk> entityType, Level level) {
         super(entityType, level);
+    }
+
+    @Override
+    public boolean startRiding(Entity vehicle, boolean force) {
+        return false;
+    }
+
+    @Override
+    protected boolean canRide(Entity vehicle) {
+        return false;
     }
 
     @Override
@@ -78,6 +89,9 @@ public class EntityClerk extends PathfinderMob {
     @Override
     public void tick() {
         super.tick();
+        if (!this.level().isClientSide && this.isPassenger()) {
+            this.stopRiding();
+        }
         if (!this.level().isClientSide && this.tickCount % 100 == 0 && this.isAlive()
                 && this.getHealth() < this.getMaxHealth()) {
             this.heal(1.0F);
