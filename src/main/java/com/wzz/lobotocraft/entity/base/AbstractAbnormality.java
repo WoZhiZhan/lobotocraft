@@ -411,8 +411,27 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         playEscapeWarningSound();
         playEscapeSound();
         broadcastEscapeMessage();
+        decreaseAllPlayersTodayWorkCount();
         MinecraftForge.EVENT_BUS.post(new AbnormalityEscapeEvent(this));
         EscapeTracker.getInstance().onEscapeStart(this);
+    }
+
+    protected void decreaseAllPlayersTodayWorkCount() {
+        if (!(this.level() instanceof ServerLevel serverLevel)) return;
+        for (ServerPlayer player : serverLevel.getServer().getPlayerList().getPlayers()) {
+            player.getCapability(CompanyDailyDataProvider.COMPANY_DAILY_DATA).ifPresent(data -> {
+                int oldCount = data.getTodayWorkCount();
+                if (oldCount <= 0) return;
+                data.setTodayWorkCount(oldCount - 1);
+                MessageLoader.getLoader().sendToPlayer(player,
+                        new CompanyDailySyncPacket(
+                                data.getCurrentDay(),
+                                data.getTodayWorkCount(),
+                                data.isArmorLocked(),
+                                data.isHasSleep()
+                        ));
+            });
+        }
     }
 
     protected void broadcastEscapeMessage() {

@@ -761,6 +761,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
             army.setPersistenceRequired();
             army.initializeSpawnedEscape(spawnPoint, groupId, groupSize);
             if (level.addFreshEntity(army)) {
+                army.decreaseAllPlayersTodayWorkCount();
                 EscapeTracker.getInstance().onEscapeStart(army);
             }
         }

@@ -142,6 +142,7 @@ public class EntityBlueStar extends AbstractAbnormality {
         stopAmbientSoundForAllPlayers();
         playEscapeWarningSound();
         playEscapeSound();
+        decreaseAllPlayersTodayWorkCount();
     }
 
     @Override
