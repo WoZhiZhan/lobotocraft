@@ -20,6 +20,7 @@ import com.wzz.lobotocraft.item.CaptureUnitItem;
 import com.wzz.lobotocraft.item.PEBoxItem;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.item.ego.children_galaxy.ChildrenGalaxyCurio;
+import com.wzz.lobotocraft.item.ego.thorn_bus.ThornBusWeapon;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
 import com.wzz.lobotocraft.network.packet.LargeBirdBorderPacket;
@@ -381,6 +382,7 @@ public class ForgeModEvent {
 
 	@SubscribeEvent
 	public static void onLivingDeath(LivingDeathEvent event) {
+		ThornBusWeapon.tryAwardKillTulip(event.getEntity(), event.getSource());
 		if (event.getEntity() instanceof Player player) {
 			if (PlayerControlLock.isLocked(player)) {
 				PlayerControlLock.unlock(player);
