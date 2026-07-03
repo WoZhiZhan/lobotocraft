@@ -66,8 +66,12 @@ public class EntityEndBirdEggHigh extends AbstractAbnormality {
         if (entity instanceof LivingEntity living && !living.getMainHandItem().getItem().getClass().getName().startsWith("com.wzz.lobotocraft")
                 && !(living instanceof AbstractAbnormality))
             return false;
-        if (DamageHelper.isBlueDamage(damageSource))
+        if (DamageHelper.isBlueDamage(damageSource)) {
+            if (!level().isClientSide) {
+                heal(f);
+            }
             return false;
+        }
         return baseHurt(damageSource, f);
     }
 
