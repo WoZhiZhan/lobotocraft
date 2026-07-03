@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.event;
 
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.EntityGallows;
+import com.wzz.lobotocraft.entity.EntityRedShoesClerk;
 import com.wzz.lobotocraft.entity.abnormality.*;
 import com.wzz.lobotocraft.entity.ordeal.EntityBloodySmall;
 import com.wzz.lobotocraft.entity.ordeal.EntityGreenDawn;
@@ -17,6 +18,7 @@ public class ModCommonEvent {
 	public static void registerAttributes(EntityAttributeCreationEvent event) {
 		event.put(ModEntities.onebad.get(), EntityOneBad.createAttributes().build());
 		event.put(ModEntities.clerk.get(), EntityClerk.createAttributes().build());
+		event.put(ModEntities.red_shoes_clerk.get(), EntityRedShoesClerk.createAttributes().build());
 		event.put(ModEntities.happy_teddy.get(), EntityHappyTeddy.createAttributes().build());
 		event.put(ModEntities.skadi_corrupted.get(), EntityDarkSkadi.createAttributes().build());
 		event.put(ModEntities.isharmla.get(), EntityIsharmla.createAttributes().build());

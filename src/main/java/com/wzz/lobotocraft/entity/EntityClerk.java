@@ -92,10 +92,15 @@ public class EntityClerk extends PathfinderMob {
         if (!this.level().isClientSide && this.isPassenger()) {
             this.stopRiding();
         }
-        if (!this.level().isClientSide && this.tickCount % 100 == 0 && this.isAlive()
+        if (!this.level().isClientSide && shouldPassiveHeal()
+                && this.tickCount % 100 == 0 && this.isAlive()
                 && this.getHealth() < this.getMaxHealth()) {
             this.heal(1.0F);
         }
+    }
+
+    protected boolean shouldPassiveHeal() {
+        return true;
     }
 
     public int getTextureVariant() {

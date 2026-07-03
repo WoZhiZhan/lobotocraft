@@ -9,13 +9,13 @@ import net.minecraft.client.renderer.entity.MobRenderer;
 import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.NotNull;
 
-public class EntityClerkRenderer extends MobRenderer<EntityClerk, PlayerModel<EntityClerk>> {
+public class EntityClerkRenderer<T extends EntityClerk> extends MobRenderer<T, PlayerModel<T>> {
     public EntityClerkRenderer(EntityRendererProvider.Context context) {
         super(context, new PlayerModel<>(context.bakeLayer(ModelLayers.PLAYER), false), 0.5F);
     }
 
     @Override
-    public @NotNull ResourceLocation getTextureLocation(EntityClerk entity) {
+    public @NotNull ResourceLocation getTextureLocation(T entity) {
         return ResourceUtil.createInstance("textures/entities/clerk/clerk_" + entity.getTextureVariant() + ".png");
     }
 }

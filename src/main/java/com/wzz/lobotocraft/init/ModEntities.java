@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.init;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.EntityLightOrb;
+import com.wzz.lobotocraft.entity.EntityRedShoesClerk;
 import com.wzz.lobotocraft.entity.EntityWaterSpit;
 import com.wzz.lobotocraft.entity.abnormality.EntityBlackForestDoor;
 import com.wzz.lobotocraft.entity.EntityGallows;
@@ -37,6 +38,14 @@ public class ModEntities {
                             .clientTrackingRange(8)
                             .updateInterval(3)
                             .build("clerk"));
+
+    public static final RegistryObject<EntityType<EntityRedShoesClerk>> red_shoes_clerk =
+            ENTITIES.register("red_shoes_clerk",
+                    () -> EntityType.Builder.of(EntityRedShoesClerk::new, MobCategory.MONSTER)
+                            .sized(0.6F, 1.8F)
+                            .clientTrackingRange(8)
+                            .updateInterval(3)
+                            .build("red_shoes_clerk"));
 
     public static final RegistryObject<EntityType<EntityHappyTeddy>> happy_teddy =
             ENTITIES.register("happy_teddy",

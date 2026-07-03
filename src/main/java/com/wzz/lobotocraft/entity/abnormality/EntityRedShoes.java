@@ -5,12 +5,14 @@ import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.entity.EntityClerk;
+import com.wzz.lobotocraft.entity.EntityRedShoesClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.event.PlayerControlLock;
 import com.wzz.lobotocraft.event.living.LivingSwingEvent;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModEffects;
+import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
 import com.wzz.lobotocraft.util.DamageHelper;
@@ -27,6 +29,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -184,25 +187,30 @@ public class EntityRedShoes extends AbstractAbnormality {
             return false;
         }
 
-        for (ServerPlayer player : serverLevel.players()) {
-            if (isCharmablePlayer(player)) {
-                return false;
-            }
+        if (findNearestConsumableClerk(serverLevel) != null) {
+            return false;
         }
 
-        for (EntityClerk clerk : serverLevel.getEntitiesOfClass(
-                EntityClerk.class,
-                new AABB(this.blockPosition()).inflate(CHARM_TARGET_SEARCH_RANGE),
-                clerk -> clerk.isAlive() && !isRedShoesControlled(clerk)
-        )) {
-            return false;
+        for (ServerPlayer player : serverLevel.players()) {
+            if (isCharmEligiblePlayer(player)) {
+                return false;
+            }
         }
         return true;
     }
 
     @Override
     public void onQliphothMeltdown() {
-        LivingEntity target = findCharmedTarget();
+        if (this.level() instanceof ServerLevel serverLevel) {
+            EntityClerk clerk = findNearestConsumableClerk(serverLevel);
+            if (clerk != null) {
+                consumeClerkAndSpawnSpecial(serverLevel, clerk);
+                setQliphothCounter(getMaxQliphothCounter());
+                return;
+            }
+        }
+
+        LivingEntity target = findCharmedPlayerTarget();
         if (target == null) {
             setQliphothCounter(getMaxQliphothCounter());
             return;
@@ -210,7 +218,7 @@ public class EntityRedShoes extends AbstractAbnormality {
         startCharm(target, this);
     }
 
-    private LivingEntity findCharmedTarget() {
+    private LivingEntity findCharmedPlayerTarget() {
         if (!(this.level() instanceof ServerLevel serverLevel)) {
             return null;
         }
@@ -221,23 +229,45 @@ public class EntityRedShoes extends AbstractAbnormality {
         if (!lowTemperancePlayers.isEmpty()) {
             return lowTemperancePlayers.get(this.random.nextInt(lowTemperancePlayers.size()));
         }
-
-        List<EntityClerk> clerks = serverLevel.getEntitiesOfClass(
-                EntityClerk.class,
-                new AABB(this.blockPosition()).inflate(CHARM_TARGET_SEARCH_RANGE),
-                clerk -> clerk.isAlive() && !isRedShoesControlled(clerk)
-        );
-        if (!clerks.isEmpty()) {
-            return clerks.get(this.random.nextInt(clerks.size()));
-        }
-
-        List<ServerPlayer> players = serverLevel.players().stream()
-                .filter(EntityRedShoes::isCharmablePlayer)
-                .toList();
-        if (!players.isEmpty()) {
-            return players.get(this.random.nextInt(players.size()));
-        }
         return null;
+    }
+
+    private EntityClerk findNearestConsumableClerk(ServerLevel serverLevel) {
+        return serverLevel.getEntitiesOfClass(
+                        EntityClerk.class,
+                        new AABB(this.blockPosition()).inflate(CHARM_TARGET_SEARCH_RANGE),
+                        clerk -> clerk.isAlive()
+                                && !(clerk instanceof EntityRedShoesClerk)
+                                && !isRedShoesControlled(clerk)
+                )
+                .stream()
+                .min(Comparator.comparingDouble(this::distanceToSqr))
+                .orElse(null);
+    }
+
+    private void consumeClerkAndSpawnSpecial(ServerLevel serverLevel, EntityClerk clerk) {
+        BlockPos spawnPos = findNearestEscapeBlock(serverLevel, clerk.blockPosition());
+        EntityClerk.markNoTombstone(clerk);
+        clerk.hurt(clerk.damageSources().genericKill(), Float.MAX_VALUE);
+        if (clerk.isAlive()) {
+            clerk.die(clerk.damageSources().genericKill());
+        }
+
+        EntityRedShoesClerk specialClerk = ModEntities.red_shoes_clerk.get().create(serverLevel);
+        if (specialClerk == null) {
+            return;
+        }
+        specialClerk.moveTo(spawnPos.getX() + 0.5D, spawnPos.getY() + 1.0D, spawnPos.getZ() + 0.5D,
+                serverLevel.random.nextFloat() * 360.0F, 0.0F);
+        specialClerk.finalizeSpawn(serverLevel, serverLevel.getCurrentDifficultyAt(spawnPos),
+                MobSpawnType.EVENT, null, null);
+        serverLevel.addFreshEntity(specialClerk);
+    }
+
+    private BlockPos findNearestEscapeBlock(ServerLevel serverLevel, BlockPos origin) {
+        return EscapeBlockEntity.getEscapeBlocks(serverLevel.dimension()).stream()
+                .min(Comparator.comparingDouble(pos -> pos.distSqr(origin)))
+                .orElse(origin);
     }
 
     private static boolean isCharmEligiblePlayer(ServerPlayer player) {
