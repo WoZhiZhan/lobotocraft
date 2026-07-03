@@ -59,7 +59,7 @@ public abstract class ThornBusBaseArmor extends BaseEgoArmor {
 
     @Override
     public boolean useSeparateTextures() {
-        return false;
+        return true;
     }
 
     @Override
