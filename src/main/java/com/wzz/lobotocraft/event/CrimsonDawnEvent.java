@@ -35,6 +35,7 @@ import java.util.List;
 @Mod.EventBusSubscriber(modid = ModMain.MODID)
 public class CrimsonDawnEvent {
     private static final int UNLOCK_DAY = 3;
+    private static final int MIDDAY_UNLOCK_DAY = 10;
     private static final int CHANCE_STEP = 3;
     private static final int MAX_STAGE_TRIGGERS_PER_DAY = 3;
     private static final int MAX_BLOOD_DAWN_ENTITIES = 5;
@@ -52,13 +53,18 @@ public class CrimsonDawnEvent {
 
         OrdealData data = OrdealData.get(level);
         data.syncDay(currentDay);
-        if (data.hasActiveDawn()) return;
-        int nextDawnType = getOrCreateNextDawnType(level, data);
+        if (data.hasActiveOrdeal()) return;
         if (data.getDawnTriggersToday() >= MAX_STAGE_TRIGGERS_PER_DAY) {
-            broadcastChance(player.getServer(), data.getDawnChance(), nextDawnType, true);
+            if (currentDay >= MIDDAY_UNLOCK_DAY) {
+                handleMiddayChance(level, player.getServer(), data);
+            } else {
+                int nextDawnType = getOrCreateNextDawnType(level, data);
+                broadcastChance(player.getServer(), data.getDawnChance(), nextDawnType, true);
+            }
             return;
         }
 
+        int nextDawnType = getOrCreateNextDawnType(level, data);
         int chance = Math.min(100, data.getDawnChance() + CHANCE_STEP);
         data.setDawnChance(chance);
         broadcastChance(player.getServer(), chance, nextDawnType, false);
@@ -69,6 +75,21 @@ public class CrimsonDawnEvent {
                 case OrdealData.VIOLET_DAWN_TYPE -> VioletDawnEvent.triggerVioletDawn(level);
                 default -> triggerBloodDawn(level);
             }
+        }
+    }
+
+    private static void handleMiddayChance(ServerLevel level, MinecraftServer server, OrdealData data) {
+        if (data.getMiddayTriggersToday() >= BlueMiddayEvent.MAX_TRIGGERS_PER_DAY) {
+            broadcastMiddayChance(server, data.getDawnChance(), true);
+            return;
+        }
+
+        int chance = Math.min(100, data.getDawnChance() + CHANCE_STEP);
+        data.setDawnChance(chance);
+        broadcastMiddayChance(server, chance, false);
+
+        if (level.getRandom().nextInt(100) < chance) {
+            BlueMiddayEvent.triggerBlueMidday(level);
         }
     }
 
@@ -273,6 +294,19 @@ public class CrimsonDawnEvent {
                 .append(Component.literal(chance + "%").withStyle(chanceColor));
         if (capped) {
             message = message.copy().append(Component.literal(" (今日黎明已达上限)").withStyle(ChatFormatting.GRAY));
+        }
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            player.connection.send(new ClientboundSetActionBarTextPacket(message));
+        }
+    }
+
+    private static void broadcastMiddayChance(MinecraftServer server, int chance, boolean capped) {
+        if (server == null) return;
+        Component message = Component.literal("深蓝色的正午：")
+                .withStyle(ChatFormatting.DARK_BLUE)
+                .append(Component.literal(chance + "%").withStyle(ChatFormatting.AQUA));
+        if (capped) {
+            message = message.copy().append(Component.literal(" (今日正午已达上限)").withStyle(ChatFormatting.GRAY));
         }
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             player.connection.send(new ClientboundSetActionBarTextPacket(message));

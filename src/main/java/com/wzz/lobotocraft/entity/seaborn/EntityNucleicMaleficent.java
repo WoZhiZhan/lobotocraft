@@ -10,6 +10,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -64,6 +65,10 @@ public class EntityNucleicMaleficent extends EntityBasinSeaborn {
         return this.entityData.get(ENRAGED);
     }
 
+    private boolean isCombatActive() {
+        return isEnraged() || isBlueMiddaySpawn();
+    }
+
     @Override
     protected int getAttackCooldownTicks() {
         return 30;
@@ -71,6 +76,12 @@ public class EntityNucleicMaleficent extends EntityBasinSeaborn {
 
     private void setEnraged(boolean v) {
         this.entityData.set(ENRAGED, v);
+    }
+
+    @Override
+    public void activateBlueMiddayAggression() {
+        AttributeInstance speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed != null) speed.setBaseValue(0.32D);
     }
 
     @Override
@@ -95,13 +106,13 @@ public class EntityNucleicMaleficent extends EntityBasinSeaborn {
 
     @Override
     public boolean doHurtTarget(Entity target) {
-        if (target instanceof Player player) {
+        if (target instanceof LivingEntity living) {
             scheduleAttackDamage("nucleic_maleficent", ATTACK_ANIMATION, 19, 9, () -> {
-                if (player.isAlive() && this.distanceToSqr(player) <= 9.0) {
-                    EntityUtil.clearHurtTime(player, () ->
-                            player.hurt(DamageHelper.getDamage(this, "black"), 6f));
-                    EntityUtil.clearHurtTime(player, () ->
-                            player.hurt(DamageHelper.getDamage(this, "white"), 4f + this.random.nextInt(3)));
+                if (living.isAlive() && this.distanceToSqr(living) <= 9.0) {
+                    EntityUtil.clearHurtTime(living, () ->
+                            living.hurt(DamageHelper.getDamage(this, "black"), 6f));
+                    EntityUtil.clearHurtTime(living, () ->
+                            living.hurt(DamageHelper.getDamage(this, "white"), 4f + this.random.nextInt(3)));
                 }
             });
         }
@@ -149,7 +160,7 @@ public class EntityNucleicMaleficent extends EntityBasinSeaborn {
         if (this.isDeadOrDying()) {
             return event.setAndContinue(RawAnimation.begin().thenPlayAndHold("animation.nucleic_maleficent.die"));
         }
-        if (isEnraged()) {
+        if (isCombatActive()) {
             if (isPlayingAttackAnim()) {
                 return event.setAndContinue(RawAnimation.begin().thenPlayAndHold(ATTACK_ANIMATION));
             }

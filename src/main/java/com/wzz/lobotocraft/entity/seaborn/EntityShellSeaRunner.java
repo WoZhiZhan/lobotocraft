@@ -5,11 +5,11 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
@@ -47,10 +47,10 @@ public class EntityShellSeaRunner extends EntityBasinSeaborn {
 
     @Override
     public boolean doHurtTarget(Entity target) {
-        if (target instanceof Player player) {
+        if (target instanceof LivingEntity living) {
             scheduleAttackDamage("shell_sea_runner", ATTACK_ANIMATION, 15, 7, () -> {
-                if (player.isAlive() && this.distanceToSqr(player) <= 9.0) {
-                    player.hurt(DamageHelper.getDamage(this, "red"), 4f);
+                if (living.isAlive() && this.distanceToSqr(living) <= 9.0) {
+                    living.hurt(DamageHelper.getDamage(this, "red"), 4f);
                 }
             });
         }

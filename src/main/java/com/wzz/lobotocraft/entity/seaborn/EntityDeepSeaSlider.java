@@ -5,11 +5,11 @@ import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import software.bernie.geckolib.core.animation.AnimatableManager;
@@ -42,12 +42,12 @@ public class EntityDeepSeaSlider extends EntityBasinSeaborn {
 
     @Override
     public boolean doHurtTarget(Entity target) {
-        if (target instanceof Player player) {
+        if (target instanceof LivingEntity living) {
             scheduleAttackDamage("deepsea_slider", ATTACK_ANIMATION, 16, 8, () -> {
-                if (player.isAlive() && this.distanceToSqr(player) <= 9.0) {
-                    EntityUtil.clearHurtTime(player, () ->
-                            player.hurt(DamageHelper.getDamage(this, "black"), 3f));
-                    if (player instanceof ServerPlayer serverPlayer) {
+                if (living.isAlive() && this.distanceToSqr(living) <= 9.0) {
+                    EntityUtil.clearHurtTime(living, () ->
+                            living.hurt(DamageHelper.getDamage(this, "black"), 3f));
+                    if (living instanceof ServerPlayer serverPlayer) {
                         MentalValueUtil.reduceMentalValue(serverPlayer, 2 + this.random.nextInt(2));
                     }
                 }

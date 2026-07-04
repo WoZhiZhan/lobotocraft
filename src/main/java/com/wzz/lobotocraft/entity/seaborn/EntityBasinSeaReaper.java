@@ -10,6 +10,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -64,6 +65,10 @@ public class EntityBasinSeaReaper extends EntityBasinSeaborn {
         return this.entityData.get(ENRAGED);
     }
 
+    private boolean isCombatActive() {
+        return isEnraged() || isBlueMiddaySpawn();
+    }
+
     @Override
     protected int getAttackCooldownTicks() {
         return 28;
@@ -71,6 +76,12 @@ public class EntityBasinSeaReaper extends EntityBasinSeaborn {
 
     private void setEnraged(boolean v) {
         this.entityData.set(ENRAGED, v);
+    }
+
+    @Override
+    public void activateBlueMiddayAggression() {
+        AttributeInstance speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed != null) speed.setBaseValue(0.28D);
     }
 
     @Override
@@ -93,11 +104,11 @@ public class EntityBasinSeaReaper extends EntityBasinSeaborn {
 
     @Override
     public boolean doHurtTarget(Entity target) {
-        if (target instanceof Player player) {
+        if (target instanceof LivingEntity living) {
             scheduleAttackDamage("basinsea_reaper", ATTACK_ANIMATION, 15, 8, () -> {
-                if (player.isAlive() && this.distanceToSqr(player) <= 9.0) {
-                    EntityUtil.clearHurtTime(player, () ->
-                            player.hurt(DamageHelper.getDamage(this, "lobotocraft:black"), 7f));
+                if (living.isAlive() && this.distanceToSqr(living) <= 9.0) {
+                    EntityUtil.clearHurtTime(living, () ->
+                            living.hurt(DamageHelper.getDamage(this, "lobotocraft:black"), 7f));
                 }
             });
         }
@@ -140,7 +151,7 @@ public class EntityBasinSeaReaper extends EntityBasinSeaborn {
     }
 
     private PlayState predicate(AnimationState<EntityBasinSeaReaper> event) {
-        if (isEnraged()) {
+        if (isCombatActive()) {
             if (isPlayingAttackAnim()) {
                 return event.setAndContinue(RawAnimation.begin().thenPlayAndHold(ATTACK_ANIMATION));
             }

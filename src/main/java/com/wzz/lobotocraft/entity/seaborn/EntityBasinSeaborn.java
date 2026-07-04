@@ -1,6 +1,8 @@
 package com.wzz.lobotocraft.entity.seaborn;
 
 import com.wzz.lobotocraft.entity.base.BaseGeoEntity;
+import com.wzz.lobotocraft.entity.EntityClerk;
+import com.wzz.lobotocraft.event.BlueMiddayEvent;
 import com.wzz.lobotocraft.util.AnimationTimingUtil;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -71,6 +73,13 @@ public abstract class EntityBasinSeaborn extends BaseGeoEntity {
         return 30;
     }
 
+    public boolean isBlueMiddaySpawn() {
+        return this.getPersistentData().getBoolean(BlueMiddayEvent.BLUE_MIDDAY_SPAWN_TAG);
+    }
+
+    public void activateBlueMiddayAggression() {
+    }
+
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
@@ -79,8 +88,15 @@ public abstract class EntityBasinSeaborn extends BaseGeoEntity {
         }
         this.goalSelector.addGoal(6, new LookAtPlayerGoal(this, Player.class, 12.0F));
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
+        this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, EntityClerk.class,
+                10, true, false, entity -> this.isBlueMiddaySpawn() && entity.isAlive()));
+        this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Player.class,
+                10, true, false, entity -> this.isBlueMiddaySpawn()
+                && entity instanceof Player player
+                && !player.isCreative()
+                && !player.isSpectator()));
         if (isAggressiveByDefault()) {
-            this.targetSelector.addGoal(2,
+            this.targetSelector.addGoal(4,
                     new NearestAttackableTargetGoal<>(this, Player.class, true));
         }
     }

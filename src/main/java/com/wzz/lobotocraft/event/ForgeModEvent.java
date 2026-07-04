@@ -406,7 +406,12 @@ public class ForgeModEvent {
 				}
 			});
 			if (player.level() instanceof ServerLevel level) {
-				OrdealData.get(level).decrementDawnTriggersToday();
+				OrdealData ordealData = OrdealData.get(level);
+				if (ordealData.getMiddayTriggersToday() > 0) {
+					ordealData.decrementMiddayTriggersToday();
+				} else {
+					ordealData.decrementDawnTriggersToday();
+				}
 				ServerLevel lobotoLevel = level.getServer().getLevel(ModDimensions.LOBOTO_KEY);
 				if (lobotoLevel != null) {
 					ClerkEvent.respawnClerksAfterPlayerDeath(lobotoLevel);

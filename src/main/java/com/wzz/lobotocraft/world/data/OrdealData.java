@@ -25,6 +25,9 @@ public class OrdealData extends SavedData {
     private int greenDawnRemaining = 0;
     private boolean violetDawnActive = false;
     private int violetDawnRemaining = 0;
+    private int middayTriggersToday = 0;
+    private boolean blueMiddayActive = false;
+    private int blueMiddayRemaining = 0;
 
     public static OrdealData get(ServerLevel level) {
         return level.getServer().overworld().getDataStorage().computeIfAbsent(
@@ -52,6 +55,9 @@ public class OrdealData extends SavedData {
             greenDawnRemaining = 0;
             violetDawnActive = false;
             violetDawnRemaining = 0;
+            middayTriggersToday = 0;
+            blueMiddayActive = false;
+            blueMiddayRemaining = 0;
             setDirty();
         }
     }
@@ -195,6 +201,53 @@ public class OrdealData extends SavedData {
         return bloodDawnActive || greenDawnActive || violetDawnActive;
     }
 
+    public int getMiddayTriggersToday() {
+        return middayTriggersToday;
+    }
+
+    public void incrementMiddayTriggersToday() {
+        middayTriggersToday++;
+        setDirty();
+    }
+
+    public void decrementMiddayTriggersToday() {
+        if (middayTriggersToday <= 0) return;
+        middayTriggersToday--;
+        setDirty();
+    }
+
+    public boolean isBlueMiddayActive() {
+        return blueMiddayActive;
+    }
+
+    public void startBlueMidday(int entityCount) {
+        blueMiddayActive = true;
+        blueMiddayRemaining = Math.max(0, entityCount);
+        setDirty();
+    }
+
+    public int decrementBlueMiddayRemaining() {
+        if (blueMiddayRemaining > 0) {
+            blueMiddayRemaining--;
+            setDirty();
+        }
+        return blueMiddayRemaining;
+    }
+
+    public void finishBlueMidday() {
+        blueMiddayActive = false;
+        blueMiddayRemaining = 0;
+        setDirty();
+    }
+
+    public boolean hasActiveMidday() {
+        return blueMiddayActive;
+    }
+
+    public boolean hasActiveOrdeal() {
+        return hasActiveDawn() || hasActiveMidday();
+    }
+
     @Override
     public CompoundTag save(CompoundTag tag) {
         tag.putInt("TrackedDay", trackedDay);
@@ -207,6 +260,9 @@ public class OrdealData extends SavedData {
         tag.putInt("GreenDawnRemaining", greenDawnRemaining);
         tag.putBoolean("VioletDawnActive", violetDawnActive);
         tag.putInt("VioletDawnRemaining", violetDawnRemaining);
+        tag.putInt("MiddayTriggersToday", middayTriggersToday);
+        tag.putBoolean("BlueMiddayActive", blueMiddayActive);
+        tag.putInt("BlueMiddayRemaining", blueMiddayRemaining);
         return tag;
     }
 
@@ -222,6 +278,9 @@ public class OrdealData extends SavedData {
         data.greenDawnRemaining = tag.getInt("GreenDawnRemaining");
         data.violetDawnActive = tag.getBoolean("VioletDawnActive");
         data.violetDawnRemaining = tag.getInt("VioletDawnRemaining");
+        data.middayTriggersToday = tag.getInt("MiddayTriggersToday");
+        data.blueMiddayActive = tag.getBoolean("BlueMiddayActive");
+        data.blueMiddayRemaining = tag.getInt("BlueMiddayRemaining");
         return data;
     }
 }

@@ -114,21 +114,24 @@ public class EntityWaterSpit extends Entity {
 
         this.setPos(next.x, next.y, next.z);
         if (!this.level().isClientSide) {
-            tryHitPlayer();
+            tryHitLivingTarget();
         }
         this.setDeltaMovement(movement.scale(0.98D).add(0.0D, -0.02D, 0.0D));
     }
 
-    private void tryHitPlayer() {
-        List<Player> players = this.level().getEntitiesOfClass(Player.class,
-                this.getBoundingBox().inflate(0.35D),
-                player -> player.isAlive() && !player.isCreative() && !player.isSpectator());
-        if (players.isEmpty()) return;
-
-        Player player = players.get(0);
+    private void tryHitLivingTarget() {
         LivingEntity owner = getOwnerLiving();
+        List<LivingEntity> targets = this.level().getEntitiesOfClass(LivingEntity.class,
+                this.getBoundingBox().inflate(0.35D),
+                entity -> entity.isAlive()
+                        && (entity instanceof Player || entity instanceof EntityClerk)
+                        && entity != owner
+                        && !(entity instanceof Player player && (player.isCreative() || player.isSpectator())));
+        if (targets.isEmpty()) return;
+
+        LivingEntity target = targets.get(0);
         DamageSource source = owner != null ? DamageHelper.getDamage(owner, "red") : this.damageSources().generic();
-        player.hurt(source, this.entityData.get(DAMAGE));
+        target.hurt(source, this.entityData.get(DAMAGE));
         spawnImpactParticles();
         discard();
     }
