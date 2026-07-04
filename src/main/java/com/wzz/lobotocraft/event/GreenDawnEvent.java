@@ -34,13 +34,16 @@ import java.util.List;
 @Mod.EventBusSubscriber(modid = ModMain.MODID)
 public class GreenDawnEvent {
     private static final int MAX_NATURAL_GREEN_DAWNS_PER_DIMENSION = 10;
-    private static final int OUTSIDE_COMPANY_SPAWN_CHANCE = 30;
-    private static final int OUTSIDE_COMPANY_SPAWN_RANGE = 48;
     private static final int SEARCH_LIMIT = 30_000_000;
 
     public static void triggerGreenDawn(ServerLevel level) {
         OrdealData data = OrdealData.get(level);
         if (data.hasActiveDawn()) return;
+
+        List<SpawnPoint> fallbackSpawnPoints = collectSpawnPoints(level);
+        if (fallbackSpawnPoints.isEmpty()) {
+            return;
+        }
 
         List<ServerPlayer> players = getEligiblePlayers(level);
         int available = MAX_NATURAL_GREEN_DAWNS_PER_DIMENSION - countActiveOrdealGreenDawns(level);
@@ -49,39 +52,36 @@ public class GreenDawnEvent {
             return;
         }
 
+        int spawned = 0;
+        if (players.isEmpty()) {
+            spawned = spawnGreenDawns(level, fallbackSpawnPoints, count);
+        } else {
+            for (ServerPlayer player : players) {
+                if (spawned >= count) {
+                    break;
+                }
+                if (spawnGreenDawnNearPlayer(level, player, fallbackSpawnPoints)) {
+                    spawned++;
+                }
+            }
+            spawned += spawnGreenDawns(level, fallbackSpawnPoints, count - spawned);
+        }
+        if (spawned <= 0) {
+            return;
+        }
+
         data.setDawnChance(0);
         data.incrementDawnTriggersToday();
         data.setRandomNextDawnType(level.getRandom());
 
         MinecraftServer server = level.getServer();
-        data.startGreenDawn(count);
+        data.startGreenDawn(spawned);
 
         showGreenDawnTitle(server,
                 "绿色的黎明",
                 "疑问",
                 "有一天，我们想到一个问题：我们从何而来？我们被给予了生命，却又被不负责任地抛弃。");
         playGlobalSound(server, ModSounds.GREEN_DAWN_START.get());
-
-        List<SpawnPoint> fallbackSpawnPoints = collectSpawnPoints(level);
-        if (players.isEmpty()) {
-            for (int i = 0; i < count; i++) {
-                spawnGreenDawn(level, fallbackSpawnPoints, i);
-            }
-            return;
-        }
-
-        int spawned = 0;
-        for (ServerPlayer player : players) {
-            if (spawned >= count) {
-                break;
-            }
-            spawnGreenDawnNearPlayer(level, player, fallbackSpawnPoints);
-            spawned++;
-        }
-        while (spawned < count) {
-            spawnGreenDawn(level, fallbackSpawnPoints, spawned);
-            spawned++;
-        }
     }
 
     public static void onGreenDawnKilled(ServerLevel level) {
@@ -102,10 +102,13 @@ public class GreenDawnEvent {
         List<SpawnPoint> spawnPoints = new ArrayList<>();
         EntityUtil.findBlockEntities(level).stream()
                 .filter(RegenerationReactorBlockEntity.class::isInstance)
+                .filter(blockEntity -> EntityUtil.isInCompany(level, blockEntity.getBlockPos()))
                 .map(blockEntity -> new SpawnPoint(blockEntity.getBlockPos(), true))
                 .forEach(spawnPoints::add);
 
         EscapeBlockEntity.getEscapeBlocks(level.dimension()).stream()
+                .filter(pos -> level.getBlockEntity(pos) instanceof EscapeBlockEntity)
+                .filter(pos -> EntityUtil.isInCompany(level, pos))
                 .map(pos -> new SpawnPoint(pos, false))
                 .forEach(spawnPoints::add);
 
@@ -130,15 +133,20 @@ public class GreenDawnEvent {
         List<SpawnPoint> spawnPoints = new ArrayList<>();
         BlockPos nearestReactor = findNearestPos(EntityUtil.findBlockEntities(level).stream()
                 .filter(RegenerationReactorBlockEntity.class::isInstance)
+                .filter(blockEntity -> EntityUtil.isInCompany(level, blockEntity.getBlockPos()))
                 .map(blockEntity -> blockEntity.getBlockPos())
                 .toList(), playerPos);
         if (nearestReactor != null) {
             spawnPoints.add(new SpawnPoint(nearestReactor, true));
         }
 
-        BlockPos nearestEscapeBlock = findNearestPos(new ArrayList<>(EscapeBlockEntity.getEscapeBlocks(level.dimension())),
-                playerPos);
-        if (nearestEscapeBlock != null) {
+        BlockPos nearestEscapeBlock = findNearestPos(EscapeBlockEntity.getEscapeBlocks(level.dimension()).stream()
+                .filter(pos -> level.getBlockEntity(pos) instanceof EscapeBlockEntity)
+                .filter(pos -> EntityUtil.isInCompany(level, pos))
+                .toList(), playerPos);
+        if (nearestEscapeBlock != null
+                && level.getBlockEntity(nearestEscapeBlock) instanceof EscapeBlockEntity
+                && EntityUtil.isInCompany(level, nearestEscapeBlock)) {
             spawnPoints.add(new SpawnPoint(nearestEscapeBlock, false));
         }
 
@@ -146,22 +154,36 @@ public class GreenDawnEvent {
         return spawnPoints;
     }
 
-    private static void spawnGreenDawn(ServerLevel level, List<SpawnPoint> spawnPoints, int index) {
-        spawnGreenDawnAt(level, chooseSpawnPosition(level, spawnPoints, index));
+    private static boolean spawnGreenDawn(ServerLevel level, List<SpawnPoint> spawnPoints, int index) {
+        return spawnGreenDawnAt(level, chooseSpawnPosition(level, spawnPoints, index));
     }
 
-    private static void spawnGreenDawnNearPlayer(ServerLevel level, ServerPlayer player,
-                                                List<SpawnPoint> fallbackSpawnPoints) {
+    private static int spawnGreenDawns(ServerLevel level, List<SpawnPoint> spawnPoints, int count) {
+        int spawned = 0;
+        int attempts = Math.max(count * Math.max(1, spawnPoints.size()), count);
+        for (int i = 0; spawned < count && i < attempts; i++) {
+            if (spawnGreenDawn(level, spawnPoints, i)) {
+                spawned++;
+            }
+        }
+        return spawned;
+    }
+
+    private static boolean spawnGreenDawnNearPlayer(ServerLevel level, ServerPlayer player,
+                                                   List<SpawnPoint> fallbackSpawnPoints) {
         List<SpawnPoint> playerSpawnPoints = collectPlayerSpawnPoints(level, player.blockPosition());
         List<SpawnPoint> spawnPoints = playerSpawnPoints.isEmpty() ? fallbackSpawnPoints : playerSpawnPoints;
-        spawnGreenDawnAt(level, chooseRandomSpawnPosition(level, spawnPoints, player.blockPosition()));
+        return spawnGreenDawnAt(level, chooseRandomSpawnPosition(level, spawnPoints));
     }
 
-    private static void spawnGreenDawnAt(ServerLevel level, BlockPos spawnPos) {
+    private static boolean spawnGreenDawnAt(ServerLevel level, BlockPos spawnPos) {
+        if (spawnPos == null || !EntityUtil.isInCompany(level, spawnPos)) {
+            return false;
+        }
+
         EntityGreenDawn greenDawn = ModEntities.green_dawn.get().create(level);
-        if (greenDawn == null) {
-            OrdealData.get(level).decrementGreenDawnRemaining();
-            return;
+        if (greenDawn == null || !canPlaceGreenDawn(level, greenDawn, spawnPos)) {
+            return false;
         }
 
         greenDawn.moveTo(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D,
@@ -169,51 +191,54 @@ public class GreenDawnEvent {
         greenDawn.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), MobSpawnType.EVENT, null, null);
         greenDawn.setOrdealSpawn(true);
         greenDawn.setPersistenceRequired();
-        if (!level.addFreshEntity(greenDawn)) {
-            OrdealData.get(level).decrementGreenDawnRemaining();
-        }
+        return level.addFreshEntity(greenDawn);
     }
 
     private static BlockPos chooseSpawnPosition(ServerLevel level, List<SpawnPoint> spawnPoints, int index) {
-        ServerPlayer fallbackPlayer = level.players().isEmpty() ? null : level.players().get(0);
-        BlockPos fallback = fallbackPlayer == null ? level.getSharedSpawnPos() : fallbackPlayer.blockPosition();
-        BlockPos outside = chooseOutsideCompanySpawn(level, fallback);
-        if (outside != null) {
-            return outside;
-        }
-
         if (!spawnPoints.isEmpty()) {
             SpawnPoint point = spawnPoints.get(index % spawnPoints.size());
             return resolveSpawnPosition(level, point);
         }
 
-        return EntityUtil.findSafeGroundPositionInCompany(level, fallback, 4);
+        return null;
     }
 
-    private static BlockPos chooseRandomSpawnPosition(ServerLevel level, List<SpawnPoint> spawnPoints, BlockPos fallback) {
-        BlockPos outside = chooseOutsideCompanySpawn(level, fallback);
-        if (outside != null) {
-            return outside;
-        }
-
+    private static BlockPos chooseRandomSpawnPosition(ServerLevel level, List<SpawnPoint> spawnPoints) {
         if (!spawnPoints.isEmpty()) {
             SpawnPoint point = spawnPoints.get(level.getRandom().nextInt(spawnPoints.size()));
             return resolveSpawnPosition(level, point);
         }
-        return EntityUtil.findSafeGroundPositionInCompany(level, fallback, 4);
-    }
-
-    private static BlockPos chooseOutsideCompanySpawn(ServerLevel level, BlockPos fallback) {
-        if (level.getRandom().nextInt(100) >= OUTSIDE_COMPANY_SPAWN_CHANCE) {
-            return null;
-        }
-        return EntityUtil.findSafeGroundPositionOutsideCompany(level, fallback, OUTSIDE_COMPANY_SPAWN_RANGE);
+        return null;
     }
 
     private static BlockPos resolveSpawnPosition(ServerLevel level, SpawnPoint point) {
         return point.reactor
                 ? EntityUtil.findReactorSpawnPositionInCompany(level, point.pos, 4)
                 : EntityUtil.findSafeGroundPositionInCompany(level, point.pos, 4);
+    }
+
+    private static boolean canPlaceGreenDawn(ServerLevel level, EntityGreenDawn greenDawn, BlockPos pos) {
+        if (pos == null || !EntityUtil.isInCompany(level, pos)) {
+            return false;
+        }
+        if (pos.getY() <= level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight() - 1) {
+            return false;
+        }
+        if (!level.isEmptyBlock(pos) || !level.isEmptyBlock(pos.above())) {
+            return false;
+        }
+        BlockPos below = pos.below();
+        if (level.isEmptyBlock(below) || !level.getBlockState(below).isSolid()) {
+            return false;
+        }
+        double x = pos.getX() + 0.5D;
+        double y = pos.getY();
+        double z = pos.getZ() + 0.5D;
+        double halfWidth = greenDawn.getBbWidth() / 2.0D;
+        AABB boundingBox = new AABB(
+                x - halfWidth, y, z - halfWidth,
+                x + halfWidth, y + greenDawn.getBbHeight(), z + halfWidth);
+        return level.noCollision(greenDawn, boundingBox);
     }
 
     private static BlockPos findNearestPos(List<BlockPos> positions, BlockPos origin) {

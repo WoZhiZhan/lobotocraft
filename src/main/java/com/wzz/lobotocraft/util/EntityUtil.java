@@ -687,89 +687,20 @@ public class EntityUtil {
      * 若公司尚未生成或无法获取数据,返回 true(不做限制,保持兼容)。
      */
     public static boolean isInCompany(Level level, BlockPos pos) {
-        com.wzz.lobotocraft.world.data.GenerationBiggerData.Entry data = getGeneratedCompanyData(level);
+        if (pos == null) return false;
+        if (!(level instanceof ServerLevel serverLevel)) return true;
+        com.wzz.lobotocraft.world.data.GenerationBiggerData.Entry data =
+                com.wzz.lobotocraft.world.structure.Structures.LOBOTO.data(serverLevel);
         if (data == null || !data.generated || data.currentRadius <= 0) return true;
         int dx = pos.getX() - data.centerX;
         int dz = pos.getZ() - data.centerZ;
         return Math.abs(dx) <= data.currentRadius && Math.abs(dz) <= data.currentRadius;
     }
 
-    public static boolean hasGeneratedCompanyBounds(Level level) {
-        return getGeneratedCompanyData(level) != null;
-    }
-
-    /**
-     * 在公司边界外查找安全地面位置。
-     * 只有已记录公司结构范围时才会返回位置，避免在未知边界时误判“公司外”。
-     */
-    public static BlockPos findSafeGroundPositionOutsideCompany(Level level, BlockPos targetPos, int outsideRange) {
-        if (level == null || targetPos == null) return null;
-        com.wzz.lobotocraft.world.data.GenerationBiggerData.Entry data = getGeneratedCompanyData(level);
-        if (data == null) return null;
-
-        RandomSource random = level.getRandom();
-        int bandWidth = Math.max(16, outsideRange);
-        int alongRange = data.currentRadius + Math.max(8, bandWidth / 2);
-        for (int attempt = 0; attempt < 64; attempt++) {
-            int side = random.nextInt(4);
-            int margin = 6 + random.nextInt(bandWidth + 1);
-            int along = random.nextInt(alongRange * 2 + 1) - alongRange;
-            int x = data.centerX;
-            int z = data.centerZ;
-            switch (side) {
-                case 0 -> {
-                    x = data.centerX + data.currentRadius + margin;
-                    z = data.centerZ + along;
-                }
-                case 1 -> {
-                    x = data.centerX - data.currentRadius - margin;
-                    z = data.centerZ + along;
-                }
-                case 2 -> {
-                    x = data.centerX + along;
-                    z = data.centerZ + data.currentRadius + margin;
-                }
-                default -> {
-                    x = data.centerX + along;
-                    z = data.centerZ - data.currentRadius - margin;
-                }
-            }
-
-            BlockPos origin = new BlockPos(x, targetPos.getY(), z);
-            BlockPos ground = findSafeGroundPosition(level, origin, 4);
-            if (isSafeOutsideCompanyGround(level, ground)) {
-                return ground;
-            }
-
-            BlockPos surface = level.getHeightmapPos(
-                    net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, origin);
-            if (isSafeOutsideCompanyGround(level, surface)) {
-                return surface;
-            }
-        }
-        return null;
-    }
-
-    private static boolean isSafeOutsideCompanyGround(Level level, BlockPos pos) {
-        if (pos == null || isInCompany(level, pos)) return false;
-        if (pos.getY() <= level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight() - 1) return false;
-        if (!level.isEmptyBlock(pos) || !level.isEmptyBlock(pos.above())) return false;
-        BlockPos below = pos.below();
-        return !level.isEmptyBlock(below) && level.getBlockState(below).isSolid();
-    }
-
-    private static com.wzz.lobotocraft.world.data.GenerationBiggerData.Entry getGeneratedCompanyData(Level level) {
-        if (!(level instanceof ServerLevel serverLevel)) return null;
-        com.wzz.lobotocraft.world.data.GenerationBiggerData.Entry data =
-                com.wzz.lobotocraft.world.structure.Structures.LOBOTO.data(serverLevel);
-        if (data == null || !data.generated || data.currentRadius <= 0) return null;
-        return data;
-    }
-
     /**
      * 在公司范围内查找安全地面位置。
      * 先尝试在 targetPos 附近(公司内)随机寻找安全地面;若多次都落在公司外,
-     * 则退而求其次以 targetPos(反应堆位置)上方作为生成点,确保不会刷到公司外。
+     * 则只允许返回仍在公司内的兜底点。
      */
     public static BlockPos findSafeGroundPositionInCompany(Level level, BlockPos targetPos, int horizontalRange) {
         if (level == null || targetPos == null) return targetPos;
@@ -785,12 +716,12 @@ public class EntityUtil {
                 return ground;
             }
         }
-        // 兜底:直接用反应堆位置上方(反应堆必定在公司内)
+        // 兜底也必须保持在公司范围内,否则调用方应放弃本次生成。
         BlockPos fallback = findSafeGroundPosition(level, targetPos, 0);
         if (fallback != null && isInCompany(level, fallback)) {
             return fallback;
         }
-        return targetPos.above();
+        return isInCompany(level, targetPos) ? targetPos.above() : null;
     }
 
     /**

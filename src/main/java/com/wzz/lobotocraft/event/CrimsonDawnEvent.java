@@ -1,6 +1,8 @@
 package com.wzz.lobotocraft.event;
 
 import com.wzz.lobotocraft.ModMain;
+import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
+import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.ordeal.EntityBloodySmall;
@@ -39,8 +41,6 @@ public class CrimsonDawnEvent {
     private static final int CHANCE_STEP = 3;
     private static final int MAX_STAGE_TRIGGERS_PER_DAY = 3;
     private static final int MAX_BLOOD_DAWN_ENTITIES = 5;
-    private static final int OUTSIDE_COMPANY_SPAWN_CHANCE = 30;
-    private static final int OUTSIDE_COMPANY_SPAWN_RANGE = 48;
     private static final int LOCATION_NOTICE_INTERVAL_TICKS = 10 * 20;
     private static final int SEARCH_LIMIT = 30_000_000;
     private static long lastLocationNoticeGameTime = Long.MIN_VALUE;
@@ -184,6 +184,9 @@ public class CrimsonDawnEvent {
         if (clown == null) return false;
 
         SpawnTarget spawnTarget = chooseSpawnTarget(level, clown);
+        if (spawnTarget == null) {
+            return false;
+        }
         BlockPos spawnPos = spawnTarget.pos();
         if (spawnPos == null) {
             return false;
@@ -201,63 +204,45 @@ public class CrimsonDawnEvent {
     }
 
     private static SpawnTarget chooseSpawnTarget(ServerLevel level, EntityBloodySmall clown) {
-        SpawnTarget outsideTarget = chooseOutsideCompanySpawnTarget(level, clown);
-        if (outsideTarget != null) {
-            return outsideTarget;
-        }
-
         List<AbstractAbnormality> candidates = new ArrayList<>(findCandidateAbnormalities(level));
         Collections.shuffle(candidates, new java.util.Random(level.getRandom().nextLong()));
         for (AbstractAbnormality candidate : candidates) {
+            if (!EntityUtil.isInCompany(level, candidate.blockPosition())) {
+                continue;
+            }
             BlockPos pos = findBloodySmallSpawnPosition(level, clown, candidate.blockPosition(), 4);
             if (pos != null) {
                 return new SpawnTarget(pos, candidate);
             }
         }
 
-        List<ServerPlayer> players = new ArrayList<>(level.players());
-        Collections.shuffle(players, new java.util.Random(level.getRandom().nextLong()));
-        for (ServerPlayer player : players) {
-            if (!player.isAlive() || player.isSpectator()) continue;
-            BlockPos pos = findBloodySmallSpawnPosition(level, clown, player.blockPosition(), 6);
+        List<SpawnAnchor> anchors = collectSpawnAnchors(level);
+        for (SpawnAnchor anchor : anchors) {
+            BlockPos pos = findBloodySmallSpawnPosition(level, clown, anchor.pos(), 4);
             if (pos != null) {
                 return new SpawnTarget(pos, null);
             }
         }
 
-        BlockPos sharedSpawn = findBloodySmallSpawnPosition(level, clown, level.getSharedSpawnPos(), 8);
-        return new SpawnTarget(sharedSpawn, null);
-    }
-
-    private static SpawnTarget chooseOutsideCompanySpawnTarget(ServerLevel level, EntityBloodySmall clown) {
-        if (level.getRandom().nextInt(100) >= OUTSIDE_COMPANY_SPAWN_CHANCE) {
-            return null;
-        }
-
-        List<ServerPlayer> players = new ArrayList<>(level.players());
-        Collections.shuffle(players, new java.util.Random(level.getRandom().nextLong()));
-        for (ServerPlayer player : players) {
-            if (!player.isAlive() || player.isSpectator()) continue;
-            BlockPos pos = findBloodySmallSpawnPositionOutsideCompany(level, clown, player.blockPosition());
-            if (pos != null) {
-                return new SpawnTarget(pos, null);
-            }
-        }
-
-        BlockPos pos = findBloodySmallSpawnPositionOutsideCompany(level, clown, level.getSharedSpawnPos());
-        return pos == null ? null : new SpawnTarget(pos, null);
-    }
-
-    private static BlockPos findBloodySmallSpawnPositionOutsideCompany(ServerLevel level, EntityBloodySmall clown,
-                                                                       BlockPos center) {
-        for (int attempt = 0; attempt < 8; attempt++) {
-            BlockPos candidate = EntityUtil.findSafeGroundPositionOutsideCompany(
-                    level, center, OUTSIDE_COMPANY_SPAWN_RANGE);
-            if (canPlaceBloodySmallOutsideCompany(level, clown, candidate)) {
-                return candidate;
-            }
-        }
         return null;
+    }
+
+    private static List<SpawnAnchor> collectSpawnAnchors(ServerLevel level) {
+        List<SpawnAnchor> anchors = new ArrayList<>();
+        EntityUtil.findBlockEntities(level).stream()
+                .filter(RegenerationReactorBlockEntity.class::isInstance)
+                .filter(blockEntity -> EntityUtil.isInCompany(level, blockEntity.getBlockPos()))
+                .map(blockEntity -> new SpawnAnchor(blockEntity.getBlockPos()))
+                .forEach(anchors::add);
+
+        EscapeBlockEntity.getEscapeBlocks(level.dimension()).stream()
+                .filter(pos -> level.getBlockEntity(pos) instanceof EscapeBlockEntity)
+                .filter(pos -> EntityUtil.isInCompany(level, pos))
+                .map(SpawnAnchor::new)
+                .forEach(anchors::add);
+
+        Collections.shuffle(anchors, new java.util.Random(level.getRandom().nextLong()));
+        return anchors;
     }
 
     public static BlockPos findBloodySmallSpawnPosition(ServerLevel level, EntityBloodySmall clown,
@@ -292,21 +277,11 @@ public class CrimsonDawnEvent {
             }
         }
 
-        BlockPos current = clown.blockPosition();
-        return canPlaceBloodySmall(level, clown, current) ? current : null;
+        return null;
     }
 
     private static boolean canPlaceBloodySmall(ServerLevel level, EntityBloodySmall clown, BlockPos pos) {
-        return canPlaceBloodySmall(level, clown, pos, true);
-    }
-
-    private static boolean canPlaceBloodySmallOutsideCompany(ServerLevel level, EntityBloodySmall clown, BlockPos pos) {
-        return canPlaceBloodySmall(level, clown, pos, false);
-    }
-
-    private static boolean canPlaceBloodySmall(ServerLevel level, EntityBloodySmall clown, BlockPos pos,
-                                               boolean insideCompany) {
-        if (pos == null || EntityUtil.isInCompany(level, pos) != insideCompany) {
+        if (pos == null || !EntityUtil.isInCompany(level, pos)) {
             return false;
         }
         if (pos.getY() <= level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight() - 1) {
@@ -330,6 +305,9 @@ public class CrimsonDawnEvent {
     }
 
     private record SpawnTarget(BlockPos pos, AbstractAbnormality abnormality) {
+    }
+
+    private record SpawnAnchor(BlockPos pos) {
     }
 
     private static void broadcastChance(MinecraftServer server, int chance, int dawnType, boolean capped) {
