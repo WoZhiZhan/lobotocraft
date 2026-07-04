@@ -25,6 +25,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -53,6 +54,7 @@ import software.bernie.geckolib.core.animation.AnimationState;
 import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -61,6 +63,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @Mod.EventBusSubscriber(modid = ModMain.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class EntityRedShoes extends AbstractAbnormality {
+    private static final String JUDGEMENT_TAG = "lobotocraft_red_shoes_judgement";
+    private static final String JUDGEMENT_TIMER_TAG = "lobotocraft_red_shoes_judgement_timer";
     private static final String CHARMED_TAG = "lobotocraft_red_shoes_charmed";
     private static final String BLOODLUST_TAG = "lobotocraft_red_shoes_bloodlust";
     private static final String SOURCE_UUID_TAG = "lobotocraft_red_shoes_source";
@@ -75,6 +79,7 @@ public class EntityRedShoes extends AbstractAbnormality {
     private static final String BLOODLUST_TARGET_UUID_TAG = "lobotocraft_red_shoes_target";
     private static final String LOW_TEMPERANCE_WORK_TAG = "lobotocraft_red_shoes_low_temperance_work";
 
+    private static final int JUDGEMENT_DURATION = 20 * 20;
     private static final int CHARM_CLEAR_LEFT_CLICKS = 10;
     private static final int CHARM_CLEAR_HURTS = 5;
     private static final int BLOODLUST_DURATION = 20 * 60 * 60;
@@ -187,7 +192,11 @@ public class EntityRedShoes extends AbstractAbnormality {
             return false;
         }
 
-        if (findNearestConsumableClerk(serverLevel) != null) {
+        if (hasActiveJudgement(serverLevel)) {
+            return true;
+        }
+
+        if (!findConsumableClerks(serverLevel).isEmpty()) {
             return false;
         }
 
@@ -201,48 +210,55 @@ public class EntityRedShoes extends AbstractAbnormality {
 
     @Override
     public void onQliphothMeltdown() {
-        if (this.level() instanceof ServerLevel serverLevel) {
-            EntityClerk clerk = findNearestConsumableClerk(serverLevel);
-            if (clerk != null) {
-                consumeClerkAndSpawnSpecial(serverLevel, clerk);
-                setQliphothCounter(getMaxQliphothCounter());
-                return;
-            }
+        if (!(this.level() instanceof ServerLevel serverLevel)) {
+            setQliphothCounter(getMaxQliphothCounter());
+            return;
         }
 
-        LivingEntity target = findCharmedPlayerTarget();
+        LivingEntity target = findJudgementTarget(serverLevel);
         if (target == null) {
             setQliphothCounter(getMaxQliphothCounter());
             return;
         }
-        startCharm(target, this);
+        startJudgement(target, this);
     }
 
-    private LivingEntity findCharmedPlayerTarget() {
-        if (!(this.level() instanceof ServerLevel serverLevel)) {
-            return null;
-        }
-
-        List<ServerPlayer> lowTemperancePlayers = serverLevel.players().stream()
+    private LivingEntity findJudgementTarget(ServerLevel serverLevel) {
+        List<LivingEntity> candidates = new ArrayList<>();
+        candidates.addAll(serverLevel.players().stream()
                 .filter(EntityRedShoes::isCharmEligiblePlayer)
-                .toList();
-        if (!lowTemperancePlayers.isEmpty()) {
-            return lowTemperancePlayers.get(this.random.nextInt(lowTemperancePlayers.size()));
+                .toList());
+        candidates.addAll(findConsumableClerks(serverLevel));
+        if (!candidates.isEmpty()) {
+            return candidates.get(this.random.nextInt(candidates.size()));
         }
         return null;
     }
 
-    private EntityClerk findNearestConsumableClerk(ServerLevel serverLevel) {
+    private List<EntityClerk> findConsumableClerks(ServerLevel serverLevel) {
+        return serverLevel.getEntitiesOfClass(
+                EntityClerk.class,
+                new AABB(this.blockPosition()).inflate(CHARM_TARGET_SEARCH_RANGE),
+                clerk -> clerk.isAlive()
+                        && !(clerk instanceof EntityRedShoesClerk)
+                        && !isRedShoesControlled(clerk)
+        );
+    }
+
+    private boolean hasActiveJudgement(ServerLevel serverLevel) {
+        for (ServerPlayer player : serverLevel.players()) {
+            if (isJudgementFrom(player, this)) {
+                return true;
+            }
+        }
+
         return serverLevel.getEntitiesOfClass(
                         EntityClerk.class,
                         new AABB(this.blockPosition()).inflate(CHARM_TARGET_SEARCH_RANGE),
-                        clerk -> clerk.isAlive()
-                                && !(clerk instanceof EntityRedShoesClerk)
-                                && !isRedShoesControlled(clerk)
-                )
-                .stream()
-                .min(Comparator.comparingDouble(this::distanceToSqr))
-                .orElse(null);
+                        clerk -> isJudgementFrom(clerk, this)
+                ).stream()
+                .findAny()
+                .isPresent();
     }
 
     private void consumeClerkAndSpawnSpecial(ServerLevel serverLevel, EntityClerk clerk) {
@@ -289,7 +305,72 @@ public class EntityRedShoes extends AbstractAbnormality {
         return level.get();
     }
 
+    private static void startJudgement(LivingEntity target, EntityRedShoes source) {
+        CompoundTag data = target.getPersistentData();
+        data.putBoolean(JUDGEMENT_TAG, true);
+        data.putUUID(SOURCE_UUID_TAG, source.getUUID());
+        data.putInt(JUDGEMENT_TIMER_TAG, JUDGEMENT_DURATION);
+        data.putInt(CHARM_LEFT_CLICK_TAG, 0);
+        data.putInt(CHARM_HURT_COUNT_TAG, 0);
+        target.addEffect(new MobEffectInstance(MobEffects.GLOWING,
+                JUDGEMENT_DURATION, 0, false, false, true));
+
+        if (target instanceof ServerPlayer player) {
+            player.sendSystemMessage(Component.literal("§5“红舞鞋”的目光锁定了你。"));
+        }
+        if (target instanceof Mob mob) {
+            mob.setTarget(null);
+            mob.getNavigation().stop();
+        }
+    }
+
+    private static void clearJudgement(LivingEntity target, EntityRedShoes source) {
+        clearJudgementData(target);
+        if (target instanceof ServerPlayer player) {
+            player.sendSystemMessage(Component.literal("§a你挣脱了“红舞鞋”的诱惑。"));
+        }
+        if (source != null && source.isAlive()) {
+            source.setQliphothCounter(source.getMaxQliphothCounter());
+        }
+    }
+
+    private static void triggerJudgementFailure(LivingEntity target, EntityRedShoes source) {
+        clearJudgementData(target);
+        if (source == null || !source.isAlive()) {
+            return;
+        }
+
+        if (target instanceof EntityClerk clerk
+                && !(clerk instanceof EntityRedShoesClerk)
+                && target.level() instanceof ServerLevel serverLevel) {
+            source.consumeClerkAndSpawnSpecial(serverLevel, clerk);
+            source.setQliphothCounter(source.getMaxQliphothCounter());
+            return;
+        }
+
+        startCharm(target, source);
+    }
+
+    private static void clearJudgementData(LivingEntity target) {
+        CompoundTag data = target.getPersistentData();
+        data.remove(JUDGEMENT_TAG);
+        data.remove(JUDGEMENT_TIMER_TAG);
+        data.remove(SOURCE_UUID_TAG);
+        data.remove(CHARM_LEFT_CLICK_TAG);
+        data.remove(CHARM_HURT_COUNT_TAG);
+        target.removeEffect(MobEffects.GLOWING);
+    }
+
+    private static boolean isJudgementFrom(LivingEntity target, EntityRedShoes source) {
+        CompoundTag data = target.getPersistentData();
+        return data.getBoolean(JUDGEMENT_TAG)
+                && data.hasUUID(SOURCE_UUID_TAG)
+                && data.getUUID(SOURCE_UUID_TAG).equals(source.getUUID());
+    }
+
     private static void startCharm(LivingEntity target, EntityRedShoes source) {
+        clearJudgementData(target);
+
         CompoundTag data = target.getPersistentData();
         data.putBoolean(CHARMED_TAG, true);
         data.putUUID(SOURCE_UUID_TAG, source.getUUID());
@@ -325,6 +406,7 @@ public class EntityRedShoes extends AbstractAbnormality {
 
     private static void startBloodlust(LivingEntity target, EntityRedShoes source) {
         clearCharm(target, source);
+        clearJudgementData(target);
 
         CompoundTag data = target.getPersistentData();
         data.putBoolean(BLOODLUST_TAG, true);
@@ -486,7 +568,9 @@ public class EntityRedShoes extends AbstractAbnormality {
 
     public static boolean isRedShoesControlled(LivingEntity entity) {
         CompoundTag data = entity.getPersistentData();
-        return data.getBoolean(CHARMED_TAG) || data.getBoolean(BLOODLUST_TAG);
+        return data.getBoolean(JUDGEMENT_TAG)
+                || data.getBoolean(CHARMED_TAG)
+                || data.getBoolean(BLOODLUST_TAG);
     }
 
     private static EntityRedShoes findSource(LivingEntity entity) {
@@ -508,11 +592,47 @@ public class EntityRedShoes extends AbstractAbnormality {
             return;
         }
 
+        if (entity.getPersistentData().getBoolean(JUDGEMENT_TAG)) {
+            tickJudgement(entity);
+        }
         if (entity.getPersistentData().getBoolean(CHARMED_TAG)) {
             tickCharmed(entity);
         }
         if (entity.getPersistentData().getBoolean(BLOODLUST_TAG)) {
             tickBloodlust(entity);
+        }
+    }
+
+    private static void tickJudgement(LivingEntity entity) {
+        EntityRedShoes source = findSource(entity);
+        if (source == null) {
+            clearJudgement(entity, null);
+            return;
+        }
+
+        CompoundTag data = entity.getPersistentData();
+        int timer = data.getInt(JUDGEMENT_TIMER_TAG);
+        if (timer <= 0) {
+            triggerJudgementFailure(entity, source);
+            return;
+        }
+
+        if (!entity.hasEffect(MobEffects.GLOWING)) {
+            entity.addEffect(new MobEffectInstance(MobEffects.GLOWING,
+                    timer, 0, false, false, true));
+        }
+
+        if (entity.tickCount % 5 == 0) {
+            ParticleUtil.spawnParticles(entity,
+                    ParticleUtil.getDustParticle(0.58F, 0.0F, 0.85F, 1.4F),
+                    12,
+                    0.03D);
+        }
+
+        timer--;
+        data.putInt(JUDGEMENT_TIMER_TAG, timer);
+        if (timer <= 0) {
+            triggerJudgementFailure(entity, source);
         }
     }
 
@@ -676,10 +796,18 @@ public class EntityRedShoes extends AbstractAbnormality {
             return;
         }
         CompoundTag data = player.getPersistentData();
-        if (!data.getBoolean(CHARMED_TAG)) {
+        if (data.getBoolean(JUDGEMENT_TAG)) {
+            int clicks = data.getInt(CHARM_LEFT_CLICK_TAG) + 1;
+            data.putInt(CHARM_LEFT_CLICK_TAG, clicks);
+            if (clicks >= CHARM_CLEAR_LEFT_CLICKS) {
+                clearJudgement(player, findSource(player));
+            }
             return;
         }
 
+        if (!data.getBoolean(CHARMED_TAG)) {
+            return;
+        }
         int clicks = data.getInt(CHARM_LEFT_CLICK_TAG) + 1;
         data.putInt(CHARM_LEFT_CLICK_TAG, clicks);
         if (clicks >= CHARM_CLEAR_LEFT_CLICKS) {
@@ -690,8 +818,21 @@ public class EntityRedShoes extends AbstractAbnormality {
     @SubscribeEvent
     public static void onLivingHurt(LivingHurtEvent event) {
         LivingEntity entity = event.getEntity();
-        if (!entity.level().isClientSide && entity.getPersistentData().getBoolean(CHARMED_TAG)) {
-            CompoundTag data = entity.getPersistentData();
+        if (entity.level().isClientSide) {
+            return;
+        }
+
+        CompoundTag data = entity.getPersistentData();
+        if (data.getBoolean(JUDGEMENT_TAG)) {
+            int hurts = data.getInt(CHARM_HURT_COUNT_TAG) + 1;
+            data.putInt(CHARM_HURT_COUNT_TAG, hurts);
+            if (hurts >= CHARM_CLEAR_HURTS) {
+                clearJudgement(entity, findSource(entity));
+            }
+            return;
+        }
+
+        if (data.getBoolean(CHARMED_TAG)) {
             int hurts = data.getInt(CHARM_HURT_COUNT_TAG) + 1;
             data.putInt(CHARM_HURT_COUNT_TAG, hurts);
             if (hurts >= CHARM_CLEAR_HURTS) {
@@ -711,6 +852,9 @@ public class EntityRedShoes extends AbstractAbnormality {
 
         if (dead.getPersistentData().getBoolean(BLOODLUST_TAG)) {
             cleanupBloodlust(dead);
+        }
+        if (dead.getPersistentData().getBoolean(JUDGEMENT_TAG)) {
+            clearJudgement(dead, findSource(dead));
         }
         if (dead.getPersistentData().getBoolean(CHARMED_TAG)) {
             clearCharm(dead, findSource(dead));
