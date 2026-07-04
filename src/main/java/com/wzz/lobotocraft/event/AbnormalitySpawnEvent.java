@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.entity.abnormality.*;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.init.ModBlocks;
 import com.wzz.lobotocraft.init.ModEntities;
+import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.item.PEBoxItem;
 import com.wzz.lobotocraft.util.AbnormalitySpawnHelper;
 import net.minecraft.core.BlockPos;
@@ -12,10 +13,12 @@ import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -27,8 +30,10 @@ import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.monster.AbstractIllager;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.monster.Vindicator;
+import net.minecraft.world.entity.monster.warden.Warden;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.RecordItem;
@@ -48,13 +53,13 @@ import net.minecraftforge.fml.common.Mod;
 
 /**
  * 异想体获取/生成途径。
- * 仅在主世界生效;生成的异想体均持久化常驻;同类在局部范围内最多一只。
+ * 生成的异想体均持久化常驻;同类在局部范围内最多一只。
  */
 @Mod.EventBusSubscriber(modid = ModMain.MODID)
 public class AbnormalitySpawnEvent {
 
     // ============================================================
-    //  右键触发:棘刺公交 / 波迪 / 被遗弃的杀人魔 / 蜂后
+    //  右键触发:棘刺公交 / 波迪 / 被遗弃的杀人魔 / 深黯军团 / 老妇人 / 蕾蒂希娅 / 蜂后
     // ============================================================
 
     @SubscribeEvent
@@ -67,6 +72,7 @@ public class AbnormalitySpawnEvent {
 
         Entity target = event.getTarget();
         ServerLevel serverLevel = (ServerLevel) level;
+        ItemStack stack = player.getMainHandItem();
 
         // 6. 被遗弃的杀人魔:对卫道士使用任意异想体能源(消耗一个)
         if (target instanceof Vindicator vindicator) {
@@ -112,6 +118,34 @@ public class AbnormalitySpawnEvent {
 
         // 1. 棘刺公交:对站在仙人掌上(或仙人掌4x4范围内)的村民使用任意异想体能源(消耗一个)
         if (target instanceof Villager villager) {
+            if (villager.isBaby()) {
+                if (stack.is(Items.PINK_TULIP)) {
+                    if (trySpawnArmyInBlack(serverLevel, player)) {
+                        consumeHeldItem(player, stack);
+                        event.setCanceled(true);
+                        event.setCancellationResult(InteractionResult.SUCCESS);
+                    }
+                    return;
+                }
+                if (stack.is(Items.EMERALD)) {
+                    if (trySpawnLeticia(serverLevel, player)) {
+                        consumeHeldItem(player, stack);
+                        event.setCanceled(true);
+                        event.setCancellationResult(InteractionResult.SUCCESS);
+                    }
+                    return;
+                }
+            }
+
+            if (stack.is(Items.WRITABLE_BOOK)) {
+                if (trySpawnLadyFacingTheWall(serverLevel, player, villager)) {
+                    consumeHeldItem(player, stack);
+                    event.setCanceled(true);
+                    event.setCancellationResult(InteractionResult.SUCCESS);
+                }
+                return;
+            }
+
             if (AbnormalitySpawnHelper.hasAnyPEBox(player) && isNearCactus(level, villager.blockPosition())) {
                 BlockPos pos = villager.blockPosition();
                 if (AbnormalitySpawnHelper.existsNearby(serverLevel, pos,
@@ -128,6 +162,38 @@ public class AbnormalitySpawnEvent {
                     event.setCanceled(true);
                 }
             }
+        }
+    }
+
+    private static boolean trySpawnArmyInBlack(ServerLevel level, Player player) {
+        EntityArmyInBlack army = spawnNearbyIfAbsent(level, player, player.blockPosition(),
+                ModEntities.army_in_black.get(), EntityArmyInBlack.class, 2,
+                "§d粉色能融入人们的心");
+        return army != null;
+    }
+
+    private static boolean trySpawnLeticia(ServerLevel level, Player player) {
+        EntityLeticia leticia = spawnNearbyIfAbsent(level, player, player.blockPosition(),
+                ModEntities.leticia.get(), EntityLeticia.class, 2,
+                "§5她会与你分享她的朋友，还有她的礼物");
+        return leticia != null;
+    }
+
+    private static boolean trySpawnLadyFacingTheWall(ServerLevel level, Player player, Villager villager) {
+        BlockPos pos = villager.blockPosition();
+        EntityLadyFacingTheWall lady = spawnNearbyIfAbsent(level, player, pos,
+                ModEntities.the_lady_facing_the_wall.get(), EntityLadyFacingTheWall.class, 1,
+                "§f她只能不断地诉说着自己的孤独");
+        if (lady == null) {
+            return false;
+        }
+        villager.discard();
+        return true;
+    }
+
+    private static void consumeHeldItem(Player player, ItemStack stack) {
+        if (!player.isCreative()) {
+            stack.shrink(1);
         }
     }
 
@@ -194,6 +260,11 @@ public class AbnormalitySpawnEvent {
 
         if (!AbnormalitySpawnHelper.isOverworld(level)) return;
 
+        if (state.is(Blocks.NOTE_BLOCK) && hasNearbyWarden(serverLevel, pos)) {
+            trySpawnBlueStarFromNoteBlock(serverLevel, player, pos);
+            return;
+        }
+
         if (state.is(Blocks.NOTE_BLOCK) && serverLevel.isNight()) {
             trySpawnFragmentFromNoteBlock(serverLevel, player, pos);
             return;
@@ -203,6 +274,24 @@ public class AbnormalitySpawnEvent {
                 && isRiverOrOceanBiome(level, player.blockPosition())) {
             startSkadiSongTimer(player, pos);
         }
+    }
+
+    private static boolean hasNearbyWarden(ServerLevel level, BlockPos noteBlockPos) {
+        return !level.getEntitiesOfClass(Warden.class,
+                new net.minecraft.world.phys.AABB(noteBlockPos).inflate(10.0D, 6.0D, 10.0D),
+                Warden::isAlive).isEmpty();
+    }
+
+    private static void trySpawnBlueStarFromNoteBlock(ServerLevel level, Player player, BlockPos noteBlockPos) {
+        if (level.random.nextFloat() >= 0.05f) return;
+        EntityBlueStar blueStar = spawnNearbyIfAbsent(level, player, noteBlockPos,
+                ModEntities.blue_star.get(), EntityBlueStar.class, 3,
+                "§1许多人对它有近乎狂热的崇拜，没人知道为什么。");
+        if (blueStar == null) {
+            return;
+        }
+        level.playSound(null, noteBlockPos, ModSounds.BLUE_STAR_ATTACK.get(),
+                SoundSource.HOSTILE, 2.0F, 1.0F);
     }
 
     private static boolean isBeeHive(BlockState state) {
@@ -294,22 +383,30 @@ public class AbnormalitySpawnEvent {
     }
 
     // ============================================================
-    //  击杀触发:冰雪女皇 / 血肉偶像 / 焦化少女
+    //  击杀触发:红舞鞋 / 破裂盔甲 / 冰雪女皇 / 血肉偶像 / 焦化少女
     // ============================================================
+
+    private static final String CRUMBLING_ARMOR_KILLS_TAG = "lobotocraft_crumbling_armor_nether_kills";
+    private static final int CRUMBLING_ARMOR_REQUIRED_KILLS = 10;
 
     @SubscribeEvent
     public static void onLivingDeath(LivingDeathEvent event) {
         LivingEntity dead = event.getEntity();
         Level level = dead.level();
         if (level.isClientSide) return;
+        DamageSource source = event.getSource();
+        Entity killer = source != null ? source.getEntity() : null;
+        Player responsiblePlayer = getResponsiblePlayer(source);
+
+        if (responsiblePlayer != null && level.dimension() == Level.NETHER) {
+            handleCrumblingArmorKill((ServerLevel) level, responsiblePlayer, dead.blockPosition());
+        }
+
         boolean overworld = AbnormalitySpawnHelper.isOverworld(level);
         boolean company = AbnormalitySpawnHelper.isCompany(level);
         if (!overworld && !company) return;
         ServerLevel serverLevel = (ServerLevel) level;
         BlockPos pos = dead.blockPosition();
-        DamageSource source = event.getSource();
-        Entity killer = source != null ? source.getEntity() : null;
-        Player responsiblePlayer = getResponsiblePlayer(source);
 
         if (responsiblePlayer != null) {
             if (dead instanceof Pig) {
@@ -324,6 +421,17 @@ public class AbnormalitySpawnEvent {
         }
 
         if (!overworld) return;
+
+        // 红舞鞋:用斧头击杀一只带有生命恢复效果的小村民
+        if (dead instanceof Villager villager && villager.isBaby()
+                && dead.hasEffect(MobEffects.REGENERATION)
+                && killer instanceof Player player
+                && player.getMainHandItem().getItem() instanceof AxeItem) {
+            spawnNearbyIfAbsent(serverLevel, player, pos,
+                    ModEntities.red_shoes.get(), EntityRedShoes.class, 1,
+                    "§c你砍下了她的脚，取下了那双邪恶的红舞鞋");
+            return;
+        }
 
         // 3. 冰雪女皇:在冰原/冰刺地形,击杀一只带有近战武器的敌对生物
         if (dead instanceof Monster monster && isArmedMeleeMob(monster)
@@ -357,6 +465,36 @@ public class AbnormalitySpawnEvent {
                 announce(killer, "§4「血肉偶像」在祭坛旁显现……");
             }
         }
+    }
+
+    private static void handleCrumblingArmorKill(ServerLevel level, Player player, BlockPos killPos) {
+        CompoundTag data = player.getPersistentData();
+        if (!player.hasEffect(MobEffects.FIRE_RESISTANCE) || !hasEmptyArmorSlots(player)) {
+            data.remove(CRUMBLING_ARMOR_KILLS_TAG);
+            return;
+        }
+
+        int kills = data.getInt(CRUMBLING_ARMOR_KILLS_TAG) + 1;
+        if (kills < CRUMBLING_ARMOR_REQUIRED_KILLS) {
+            data.putInt(CRUMBLING_ARMOR_KILLS_TAG, kills);
+            player.displayClientMessage(Component.literal("§c不惧死亡的勇气正在凝结... (" + kills + "/"
+                    + CRUMBLING_ARMOR_REQUIRED_KILLS + ")"), true);
+            return;
+        }
+
+        data.remove(CRUMBLING_ARMOR_KILLS_TAG);
+        spawnNearbyIfAbsent(level, player, killPos,
+                ModEntities.crumbling_armor.get(), EntityCrumblingArmor.class, 3,
+                "§c不惧死亡的勇气将会得到它的祝福");
+    }
+
+    private static boolean hasEmptyArmorSlots(Player player) {
+        for (ItemStack armor : player.getArmorSlots()) {
+            if (!armor.isEmpty()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static Player getResponsiblePlayer(DamageSource source) {
