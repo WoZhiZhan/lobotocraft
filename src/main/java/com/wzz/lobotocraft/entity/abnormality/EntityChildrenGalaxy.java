@@ -105,12 +105,12 @@ public class EntityChildrenGalaxy extends AbstractAbnormality {
 
     @Override
     public float[] getWeaponRenderScale() {
-        return new float[] {0.5f, 1.0f, 1.0f};
+        return new float[] {0.8f, 0.8f, 1.0f};
     }
 
     @Override
     public float[] getWeaponRenderOffset() {
-        return new float[] {55.0f, 0.0f, 0.0f};
+        return new float[] {20.0f, 10.0f, 0.0f};
     }
 
     @Override
