@@ -39,6 +39,8 @@ public class CrimsonDawnEvent {
     private static final int CHANCE_STEP = 3;
     private static final int MAX_STAGE_TRIGGERS_PER_DAY = 3;
     private static final int MAX_BLOOD_DAWN_ENTITIES = 5;
+    private static final int OUTSIDE_COMPANY_SPAWN_CHANCE = 30;
+    private static final int OUTSIDE_COMPANY_SPAWN_RANGE = 48;
     private static final int LOCATION_NOTICE_INTERVAL_TICKS = 10 * 20;
     private static final int SEARCH_LIMIT = 30_000_000;
     private static long lastLocationNoticeGameTime = Long.MIN_VALUE;
@@ -199,6 +201,11 @@ public class CrimsonDawnEvent {
     }
 
     private static SpawnTarget chooseSpawnTarget(ServerLevel level, EntityBloodySmall clown) {
+        SpawnTarget outsideTarget = chooseOutsideCompanySpawnTarget(level, clown);
+        if (outsideTarget != null) {
+            return outsideTarget;
+        }
+
         List<AbstractAbnormality> candidates = new ArrayList<>(findCandidateAbnormalities(level));
         Collections.shuffle(candidates, new java.util.Random(level.getRandom().nextLong()));
         for (AbstractAbnormality candidate : candidates) {
@@ -220,6 +227,37 @@ public class CrimsonDawnEvent {
 
         BlockPos sharedSpawn = findBloodySmallSpawnPosition(level, clown, level.getSharedSpawnPos(), 8);
         return new SpawnTarget(sharedSpawn, null);
+    }
+
+    private static SpawnTarget chooseOutsideCompanySpawnTarget(ServerLevel level, EntityBloodySmall clown) {
+        if (level.getRandom().nextInt(100) >= OUTSIDE_COMPANY_SPAWN_CHANCE) {
+            return null;
+        }
+
+        List<ServerPlayer> players = new ArrayList<>(level.players());
+        Collections.shuffle(players, new java.util.Random(level.getRandom().nextLong()));
+        for (ServerPlayer player : players) {
+            if (!player.isAlive() || player.isSpectator()) continue;
+            BlockPos pos = findBloodySmallSpawnPositionOutsideCompany(level, clown, player.blockPosition());
+            if (pos != null) {
+                return new SpawnTarget(pos, null);
+            }
+        }
+
+        BlockPos pos = findBloodySmallSpawnPositionOutsideCompany(level, clown, level.getSharedSpawnPos());
+        return pos == null ? null : new SpawnTarget(pos, null);
+    }
+
+    private static BlockPos findBloodySmallSpawnPositionOutsideCompany(ServerLevel level, EntityBloodySmall clown,
+                                                                       BlockPos center) {
+        for (int attempt = 0; attempt < 8; attempt++) {
+            BlockPos candidate = EntityUtil.findSafeGroundPositionOutsideCompany(
+                    level, center, OUTSIDE_COMPANY_SPAWN_RANGE);
+            if (canPlaceBloodySmallOutsideCompany(level, clown, candidate)) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     public static BlockPos findBloodySmallSpawnPosition(ServerLevel level, EntityBloodySmall clown,
@@ -259,7 +297,16 @@ public class CrimsonDawnEvent {
     }
 
     private static boolean canPlaceBloodySmall(ServerLevel level, EntityBloodySmall clown, BlockPos pos) {
-        if (pos == null || !EntityUtil.isInCompany(level, pos)) {
+        return canPlaceBloodySmall(level, clown, pos, true);
+    }
+
+    private static boolean canPlaceBloodySmallOutsideCompany(ServerLevel level, EntityBloodySmall clown, BlockPos pos) {
+        return canPlaceBloodySmall(level, clown, pos, false);
+    }
+
+    private static boolean canPlaceBloodySmall(ServerLevel level, EntityBloodySmall clown, BlockPos pos,
+                                               boolean insideCompany) {
+        if (pos == null || EntityUtil.isInCompany(level, pos) != insideCompany) {
             return false;
         }
         if (pos.getY() <= level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight() - 1) {

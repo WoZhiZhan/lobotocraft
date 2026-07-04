@@ -44,6 +44,8 @@ public class BlueMiddayEvent {
     public static final int MAX_TRIGGERS_PER_DAY = 2;
     public static final String BLUE_MIDDAY_SPAWN_TAG = "lobotocraft_blue_midday_spawn";
     private static final String BLUE_MIDDAY_COUNTED_TAG = "lobotocraft_blue_midday_counted";
+    private static final int OUTSIDE_COMPANY_SPAWN_CHANCE = 30;
+    private static final int OUTSIDE_COMPANY_SPAWN_RANGE = 48;
 
     private static boolean trialActive = false;
 
@@ -92,7 +94,7 @@ public class BlueMiddayEvent {
         }
 
         List<BlockPos> escapeBlocks = new ArrayList<>(EscapeBlockEntity.getEscapeBlocks(level.dimension()));
-        if (escapeBlocks.isEmpty()) {
+        if (escapeBlocks.isEmpty() && !EntityUtil.hasGeneratedCompanyBounds(level)) {
             return false;
         }
 
@@ -105,7 +107,10 @@ public class BlueMiddayEvent {
         int spawned = 0;
         for (int i = 0; i < groupCount; i++) {
             ServerPlayer player = players.isEmpty() ? null : players.get(i % players.size());
-            BlockPos anchor = chooseEscapeBlockNearPlayer(level, escapeBlocks, player, i);
+            SpawnAnchor anchor = chooseSpawnAnchor(level, escapeBlocks, player, i);
+            if (anchor == null) {
+                continue;
+            }
             for (EntityType<? extends Mob> type : chooseSeabornTypes(level)) {
                 if (spawnSeaborn(level, type, anchor)) {
                     spawned++;
@@ -172,6 +177,26 @@ public class BlueMiddayEvent {
         return players;
     }
 
+    private static SpawnAnchor chooseSpawnAnchor(ServerLevel level, List<BlockPos> escapeBlocks,
+                                                 Player player, int index) {
+        BlockPos reference = player == null ? level.getSharedSpawnPos() : player.blockPosition();
+        BlockPos outside = chooseOutsideCompanySpawn(level, reference, escapeBlocks.isEmpty());
+        if (outside != null) {
+            return new SpawnAnchor(outside, true);
+        }
+        if (escapeBlocks.isEmpty()) {
+            return null;
+        }
+        return new SpawnAnchor(chooseEscapeBlockNearPlayer(level, escapeBlocks, player, index), false);
+    }
+
+    private static BlockPos chooseOutsideCompanySpawn(ServerLevel level, BlockPos reference, boolean force) {
+        if (!force && level.getRandom().nextInt(100) >= OUTSIDE_COMPANY_SPAWN_CHANCE) {
+            return null;
+        }
+        return EntityUtil.findSafeGroundPositionOutsideCompany(level, reference, OUTSIDE_COMPANY_SPAWN_RANGE);
+    }
+
     private static BlockPos chooseEscapeBlockNearPlayer(ServerLevel level, List<BlockPos> escapeBlocks,
                                                         Player player, int index) {
         if (player == null) {
@@ -202,8 +227,8 @@ public class BlueMiddayEvent {
         return selected;
     }
 
-    private static boolean spawnSeaborn(ServerLevel level, EntityType<? extends Mob> type, BlockPos anchor) {
-        if (anchor == null) {
+    private static boolean spawnSeaborn(ServerLevel level, EntityType<? extends Mob> type, SpawnAnchor anchor) {
+        if (anchor == null || anchor.pos() == null) {
             return false;
         }
 
@@ -231,26 +256,31 @@ public class BlueMiddayEvent {
         return level.addFreshEntity(mob);
     }
 
-    private static BlockPos findSpawnPosition(ServerLevel level, Mob mob, BlockPos anchor) {
-        BlockPos direct = EntityUtil.findSafeGroundPositionInCompany(level, anchor, 4);
-        if (canPlaceMob(level, mob, direct)) {
+    private static BlockPos findSpawnPosition(ServerLevel level, Mob mob, SpawnAnchor anchor) {
+        boolean insideCompany = !anchor.outsideCompany();
+        BlockPos direct = insideCompany
+                ? EntityUtil.findSafeGroundPositionInCompany(level, anchor.pos(), 4)
+                : EntityUtil.findSafeGroundPosition(level, anchor.pos(), 4);
+        if (canPlaceMob(level, mob, direct, insideCompany)) {
             return direct;
         }
 
         for (int attempt = 0; attempt < 48; attempt++) {
             int offsetX = level.getRandom().nextInt(9) - 4;
             int offsetZ = level.getRandom().nextInt(9) - 4;
-            BlockPos candidate = EntityUtil.findSafeGroundPositionInCompany(
-                    level, anchor.offset(offsetX, 0, offsetZ), 0);
-            if (canPlaceMob(level, mob, candidate)) {
+            BlockPos offsetAnchor = anchor.pos().offset(offsetX, 0, offsetZ);
+            BlockPos candidate = insideCompany
+                    ? EntityUtil.findSafeGroundPositionInCompany(level, offsetAnchor, 0)
+                    : EntityUtil.findSafeGroundPosition(level, offsetAnchor, 0);
+            if (canPlaceMob(level, mob, candidate, insideCompany)) {
                 return candidate;
             }
         }
         return null;
     }
 
-    private static boolean canPlaceMob(ServerLevel level, Mob mob, BlockPos pos) {
-        if (pos == null || !EntityUtil.isInCompany(level, pos)) {
+    private static boolean canPlaceMob(ServerLevel level, Mob mob, BlockPos pos, boolean insideCompany) {
+        if (pos == null || EntityUtil.isInCompany(level, pos) != insideCompany) {
             return false;
         }
         if (pos.getY() <= level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight() - 1) {
@@ -331,5 +361,8 @@ public class BlueMiddayEvent {
     }
 
     private BlueMiddayEvent() {
+    }
+
+    private record SpawnAnchor(BlockPos pos, boolean outsideCompany) {
     }
 }

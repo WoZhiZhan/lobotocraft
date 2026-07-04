@@ -34,6 +34,8 @@ import java.util.List;
 @Mod.EventBusSubscriber(modid = ModMain.MODID)
 public class GreenDawnEvent {
     private static final int MAX_NATURAL_GREEN_DAWNS_PER_DIMENSION = 10;
+    private static final int OUTSIDE_COMPANY_SPAWN_CHANCE = 30;
+    private static final int OUTSIDE_COMPANY_SPAWN_RANGE = 48;
     private static final int SEARCH_LIMIT = 30_000_000;
 
     public static void triggerGreenDawn(ServerLevel level) {
@@ -173,22 +175,39 @@ public class GreenDawnEvent {
     }
 
     private static BlockPos chooseSpawnPosition(ServerLevel level, List<SpawnPoint> spawnPoints, int index) {
+        ServerPlayer fallbackPlayer = level.players().isEmpty() ? null : level.players().get(0);
+        BlockPos fallback = fallbackPlayer == null ? level.getSharedSpawnPos() : fallbackPlayer.blockPosition();
+        BlockPos outside = chooseOutsideCompanySpawn(level, fallback);
+        if (outside != null) {
+            return outside;
+        }
+
         if (!spawnPoints.isEmpty()) {
             SpawnPoint point = spawnPoints.get(index % spawnPoints.size());
             return resolveSpawnPosition(level, point);
         }
 
-        ServerPlayer fallbackPlayer = level.players().isEmpty() ? null : level.players().get(0);
-        BlockPos fallback = fallbackPlayer == null ? level.getSharedSpawnPos() : fallbackPlayer.blockPosition();
         return EntityUtil.findSafeGroundPositionInCompany(level, fallback, 4);
     }
 
     private static BlockPos chooseRandomSpawnPosition(ServerLevel level, List<SpawnPoint> spawnPoints, BlockPos fallback) {
+        BlockPos outside = chooseOutsideCompanySpawn(level, fallback);
+        if (outside != null) {
+            return outside;
+        }
+
         if (!spawnPoints.isEmpty()) {
             SpawnPoint point = spawnPoints.get(level.getRandom().nextInt(spawnPoints.size()));
             return resolveSpawnPosition(level, point);
         }
         return EntityUtil.findSafeGroundPositionInCompany(level, fallback, 4);
+    }
+
+    private static BlockPos chooseOutsideCompanySpawn(ServerLevel level, BlockPos fallback) {
+        if (level.getRandom().nextInt(100) >= OUTSIDE_COMPANY_SPAWN_CHANCE) {
+            return null;
+        }
+        return EntityUtil.findSafeGroundPositionOutsideCompany(level, fallback, OUTSIDE_COMPANY_SPAWN_RANGE);
     }
 
     private static BlockPos resolveSpawnPosition(ServerLevel level, SpawnPoint point) {
