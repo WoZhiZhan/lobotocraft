@@ -547,7 +547,9 @@ public class EntityArmyInBlack extends AbstractAbnormality {
             reactorRepathTicks--;
             return;
         }
-        BlockPos walkPos = EntityUtil.findReactorSpawnPositionInCompany(level, targetReactorPos, 0);
+        BlockPos walkPos = EntityUtil.findReactorSpawnPositionInCompany(level, targetReactorPos, 128);
+        if (walkPos == null)
+            return;
         getNavigation().moveTo(walkPos.getX() + 0.5D, walkPos.getY(), walkPos.getZ() + 0.5D, ESCAPE_REACTOR_SPEED);
         reactorRepathTicks = 20;
     }
