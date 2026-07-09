@@ -4,15 +4,16 @@ import com.wzz.lobotocraft.api.NameProvider;
 import com.wzz.lobotocraft.block.EscapeBlock;
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
+import com.wzz.lobotocraft.entity.EntityRedShoesClerk;
 import com.wzz.lobotocraft.entity.ai.goal.MoveToBlackForestDoorGoal;
 import com.wzz.lobotocraft.entity.abnormality.EntityIsharmla;
-import com.wzz.lobotocraft.entity.abnormality.EntityLeticiaFriend;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.event.abnormality.AbnormalityEscapeEvent;
 import com.wzz.lobotocraft.event.abnormality.AbnormalityEscapeStopEvent;
 import com.wzz.lobotocraft.event.abnormality.QliphothCounterEvent;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
+import com.wzz.lobotocraft.util.AbnormalityCombatUtil;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.MethodHandleUtils;
@@ -303,6 +304,19 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         // 优先攻击异想体
         if (nearestAbnormality != null) {
             setTarget(nearestAbnormality);
+            return;
+        }
+
+        EntityRedShoesClerk nearestRedShoesClerk = this.level().getEntitiesOfClass(
+                        EntityRedShoesClerk.class,
+                        this.getBoundingBox().inflate(32.0),
+                        EntityRedShoesClerk::isAlive
+                ).stream()
+                .min(Comparator.comparingDouble(this::distanceToSqr))
+                .orElse(null);
+
+        if (nearestRedShoesClerk != null) {
+            setTarget(nearestRedShoesClerk);
             return;
         }
 
@@ -662,7 +676,7 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         }
         Entity entity = damageSource.getEntity();
         if (entity instanceof LivingEntity living && !living.getMainHandItem().getItem().getClass().getName().startsWith("com.wzz.lobotocraft")
-        && !(living instanceof AbstractAbnormality) && !(living instanceof EntityLeticiaFriend))
+        && !(living instanceof AbstractAbnormality) && !AbnormalityCombatUtil.isAbnormalitySuppressor(living))
             return false;
         boolean hurt = super.hurt(damageSource, f);
         if (hurt) {

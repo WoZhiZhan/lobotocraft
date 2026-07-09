@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.entity.abnormality;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.entity.EntityLightFollower;
 import com.wzz.lobotocraft.entity.ai.goal.MoveToBlackForestDoorGoal;
+import com.wzz.lobotocraft.entity.ai.goal.MoveToBlockPosWithElevatorGoal;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
@@ -152,11 +153,13 @@ public class EntityPunishingBird extends AbstractAbnormality {
     @Override
     protected void registerGoals() {
         super.registerGoals();
-        this.goalSelector.addGoal(0, new FloatGoal(this));
-        this.goalSelector.addGoal(1, new MeleeAttackGoal(this, 1.2D, true));
-        this.goalSelector.addGoal(2, new WaterAvoidingRandomStrollGoal(this, 0.8D));
-        this.goalSelector.addGoal(3, new LookAtPlayerGoal(this, Player.class, 16.0F));
-        this.goalSelector.addGoal(4, new RandomLookAroundGoal(this));
+        this.goalSelector.addGoal(0, new MoveToBlockPosWithElevatorGoal(
+                this, 1.2D, () -> nestPosition, this::isReturning, this::finishReturningToNest));
+        this.goalSelector.addGoal(1, new FloatGoal(this));
+        this.goalSelector.addGoal(2, new MeleeAttackGoal(this, 1.2D, true));
+        this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 0.8D));
+        this.goalSelector.addGoal(4, new LookAtPlayerGoal(this, Player.class, 16.0F));
+        this.goalSelector.addGoal(5, new RandomLookAroundGoal(this));
 
         this.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(this, LivingEntity.class, 10, true, false,
                 this::shouldAttackEntity));
@@ -172,8 +175,7 @@ public class EntityPunishingBird extends AbstractAbnormality {
         }
 
         if (entity instanceof Player player) {
-            boolean isPanic = MentalValueUtil.getMentalValue(player) <= 0;
-            return isPanic && !player.isCreative() && !player.isSpectator();
+            return !player.isCreative() && !player.isSpectator();
         }
 
         return false;
@@ -390,20 +392,7 @@ public class EntityPunishingBird extends AbstractAbnormality {
 
         handleNormalState();
 
-        // 出逃超过10秒且没有目标才开始计数
-        if (escapeTime > 200 && this.getTarget() == null && !doorSpawnedAndBirdInvolved) {
-            int notFoundTick = this.getPersistentData().getInt("NotFoundTick");
-            notFoundTick++;
-            this.getPersistentData().putInt("NotFoundTick", notFoundTick);
-
-            if (notFoundTick >= 300) {
-                this.getPersistentData().remove("NotFoundTick");
-                this.getPersistentData().remove("EscapeTime");
-                setReturning(true);
-            }
-        } else {
-            this.getPersistentData().remove("NotFoundTick");
-        }
+        this.getPersistentData().remove("NotFoundTick");
     }
 
     public void clearStateForDoor() {
@@ -440,7 +429,7 @@ public class EntityPunishingBird extends AbstractAbnormality {
         if (normalAttackCooldown == 0 && this.getTarget() instanceof Player t) {
             double distance = this.distanceTo(t);
 
-            if (distance <= 3.0D && MentalValueUtil.getMentalValue(t) <= 0) {
+            if (distance <= 3.0D) {
                 performNormalAttack(t);
                 normalAttackCooldown = 20;
             }
@@ -456,17 +445,19 @@ public class EntityPunishingBird extends AbstractAbnormality {
 
         target.hurt(DamageHelper.getDamage(this, "lobotocraft:red"), 0.1F);
 
-        float mentalRestore = 0.01F + random.nextFloat() * 0.02F;
-        target.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
-            float maxMental = mental.getEffectiveMaxMentalValue();
-            mental.addMentalValue(maxMental * mentalRestore);
+        boolean wasPanic = MentalValueUtil.getMentalValue(target) <= 0;
+        if (wasPanic) {
+            float mentalRestore = 0.01F + random.nextFloat() * 0.02F;
+            target.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
+                float maxMental = mental.getEffectiveMaxMentalValue();
+                mental.addMentalValue(maxMental * mentalRestore);
 
-            if (mental.getMentalValue() > 0 && currentHelpTarget != null &&
-                    currentHelpTarget.equals(target.getUUID())) {
-                target.sendSystemMessage(Component.literal("§a惩戒鸟帮助你恢复了精神！"));
-                startReturningToNest();
-            }
-        });
+                if (mental.getMentalValue() > 0 && currentHelpTarget != null &&
+                        currentHelpTarget.equals(target.getUUID())) {
+                    target.sendSystemMessage(Component.literal("§a惩戒鸟帮助你恢复了精神！"));
+                }
+            });
+        }
 
         if (currentHelpTarget == null) {
             currentHelpTarget = target.getUUID();
@@ -479,11 +470,6 @@ public class EntityPunishingBird extends AbstractAbnormality {
     private boolean shouldReturnToNest() {
         if (normalAttackCount >= 20) {
             return true;
-        }
-
-        if (this.getTarget() == null) {
-            List<Player> panicPlayers = findNearbyPanicPlayers(32.0D);
-            return panicPlayers.isEmpty();
         }
 
         return false;
@@ -550,29 +536,26 @@ public class EntityPunishingBird extends AbstractAbnormality {
             return;
         }
 
-        Vec3 nestVec = Vec3.atCenterOf(nestPosition);
-        Vec3 currentVec = this.position();
-        double distance = currentVec.distanceTo(nestVec);
-
-        if (distance < 1.5D) {
-            this.teleportTo(nestPosition.getX() + 0.5, nestPosition.getY(), nestPosition.getZ() + 0.5);
-            stopEscape();
-            return;
+        if (this.distanceToSqr(Vec3.atCenterOf(nestPosition)) <= 2.25D) {
+            finishReturningToNest();
         }
-
-        // ===== 飞行移动到巢穴 =====
-        Vec3 direction = nestVec.subtract(currentVec).normalize();
-        double speed = 0.4; // 飞行速度
-        this.setDeltaMovement(direction.x * speed, direction.y * speed, direction.z * speed);
         setCurrentAction("fly");
     }
 
     private void startReturningToNest() {
         setReturning(true);
-        noPhysics = true;
+        noPhysics = false;
         setTarget(null);
+        this.getNavigation().stop();
         setCurrentAction("fly");
         broadcastMessage("§e惩戒鸟正在返回收容室...");
+    }
+
+    private void finishReturningToNest() {
+        if (nestPosition != null) {
+            this.teleportTo(nestPosition.getX() + 0.5D, nestPosition.getY(), nestPosition.getZ() + 0.5D);
+        }
+        stopEscape();
     }
 
     private List<Player> findNearbyPanicPlayers(double range) {

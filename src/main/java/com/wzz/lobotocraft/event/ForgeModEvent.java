@@ -23,7 +23,6 @@ import com.wzz.lobotocraft.item.ego.children_galaxy.ChildrenGalaxyCurio;
 import com.wzz.lobotocraft.item.ego.thorn_bus.ThornBusWeapon;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
-import com.wzz.lobotocraft.network.packet.LargeBirdBorderPacket;
 import com.wzz.lobotocraft.network.packet.MentalValueSyncPacket;
 import com.wzz.lobotocraft.network.packet.OpenChatScreenPacket;
 import com.wzz.lobotocraft.network.packet.StopAmbientSoundPacket;
@@ -384,9 +383,7 @@ public class ForgeModEvent {
 	public static void onLivingDeath(LivingDeathEvent event) {
 		ThornBusWeapon.tryAwardKillTulip(event.getEntity(), event.getSource());
 		if (event.getEntity() instanceof Player player) {
-			if (PlayerControlLock.isLocked(player)) {
-				PlayerControlLock.unlock(player);
-			}
+			EntityLargeBird.clearLargeBirdCharm(player);
 			player.getPersistentData().putBoolean("isInWingBeat", false);
 			for (ItemStack itemStack : player.inventory.items) {
 				if (itemStack.getItem() instanceof PEBoxItem) {
@@ -469,6 +466,7 @@ public class ForgeModEvent {
 		if (event.getEntity() instanceof ServerPlayer player) {
 			stopLowHealthSound(player);
 			stopDeathSounds(player);
+			EntityLargeBird.clearLargeBirdCharm(player);
 		}
 	}
 
@@ -478,12 +476,7 @@ public class ForgeModEvent {
 			if (EgoArmorHelper.isFullEGO(player, "end_bird")
 					&& EgoArmorHelper.isHoldingWeapon(player, "end_bird")
 					&& CuriosUtil.hasCurios(player, ModItems.LARGEBIRD_CURIO.get())) {
-				if (player instanceof ServerPlayer serverPlayer) {
-					MessageLoader.getLoader().sendToPlayer(serverPlayer, new LargeBirdBorderPacket(0));
-				}
-				PlayerControlLock.unlock(player);
-				player.getPersistentData().remove("LeftCountLobocraft");
-				player.getPersistentData().remove("isLargeBirdCharm");
+				EntityLargeBird.clearLargeBirdCharm(player);
 				TimerEntry timerEntry = new TimerEntry() {
 					@Override
 					public void onStart(@NotNull LivingEntity living) {
@@ -507,9 +500,7 @@ public class ForgeModEvent {
 			}
 			if (player.getPersistentData().getInt("LeftCountLobocraft") >= 2) {
 				player.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP);
-				if (player instanceof ServerPlayer serverPlayer)
-					MessageLoader.getLoader().sendToPlayer(serverPlayer, new LargeBirdBorderPacket(0));
-				PlayerControlLock.unlock(player);
+				EntityLargeBird.clearLargeBirdCharm(player);
 				TimerEntry timerEntry = new TimerEntry() {
 					@Override
 					public void onStart(@NotNull LivingEntity living) {
@@ -522,8 +513,6 @@ public class ForgeModEvent {
 					}
 				};
 				timerEntry.addSkillTimer(player, 0, 20000, 1);
-				player.getPersistentData().remove("LeftCountLobocraft");
-				player.getPersistentData().remove("isLargeBirdCharm");
 				return;
 			}
 			int i = player.random.nextInt(101);

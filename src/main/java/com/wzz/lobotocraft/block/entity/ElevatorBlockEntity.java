@@ -1,18 +1,14 @@
 package com.wzz.lobotocraft.block.entity;
 
 import com.wzz.lobotocraft.init.ModBlockEntities;
-import com.wzz.lobotocraft.network.MessageLoader;
-import com.wzz.lobotocraft.network.packet.ElevatorTeleportPacket;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
 import software.bernie.geckolib.core.animation.AnimationState;
@@ -28,6 +24,8 @@ import java.util.stream.Collectors;
 
 public class ElevatorBlockEntity extends BaseGeoBlockEntity {
     private static final RawAnimation ACTIVE_ANIMATION = RawAnimation.begin().thenLoop("dt-3");
+    private static final double DETECTION_HORIZONTAL_RADIUS = 3.0D;
+    private static final int DESTINATION_HORIZONTAL_RADIUS = 3;
 
     private int teleportDistance = 10;
     private boolean teleportUp = true;
@@ -137,21 +135,17 @@ public class ElevatorBlockEntity extends BaseGeoBlockEntity {
                 detectionBox,
                 entity -> entity.isAlive() && hasEntityStayedLongEnough(entity, currentTick)
         );
+        BlockPos targetElevatorPos = findDestinationElevator(level);
         for (LivingEntity entity : entities) {
-            double targetY = teleportUp
-                    ? entity.getY() + teleportDistance
-                    : entity.getY() - teleportDistance;
-            if (entity instanceof ServerPlayer serverPlayer) {
-                Vec3 startPos = entity.position().add(0, 1, 0);
-                Vec3 endPos = new Vec3(entity.getX(), targetY + 1, entity.getZ());
-                MessageLoader.getLoader().sendToPlayer(
-                        serverPlayer,
-                        new ElevatorTeleportPacket(startPos, endPos, animationDuration)
-                );
-                serverPlayer.teleportTo(entity.getX(), targetY, entity.getZ());
-            } else {
-                entity.teleportTo(entity.getX(), targetY, entity.getZ());
+            if (targetElevatorPos == null) {
+                entitiesInRangeSince.remove(entity.getUUID());
+                continue;
             }
+            entity.teleportTo(
+                    targetElevatorPos.getX() + 0.5D,
+                    targetElevatorPos.getY() + 1.0D,
+                    targetElevatorPos.getZ() + 0.5D
+            );
             startTeleportCooldown(entity, currentTick);
             entitiesInRangeSince.remove(entity.getUUID());
         }
@@ -161,10 +155,37 @@ public class ElevatorBlockEntity extends BaseGeoBlockEntity {
         }
     }
 
+    public BlockPos findDestinationElevator(Level level) {
+        return findNearestElevatorInDirection(level, getBlockPos());
+    }
+
+    private BlockPos findNearestElevatorInDirection(Level level, BlockPos pos) {
+        int step = this.teleportUp ? 1 : -1;
+        BlockPos nearest = null;
+        double nearestDistance = Double.MAX_VALUE;
+        for (int y = pos.getY() + step; y >= level.getMinBuildHeight() && y < level.getMaxBuildHeight(); y += step) {
+            for (int dx = -DESTINATION_HORIZONTAL_RADIUS; dx <= DESTINATION_HORIZONTAL_RADIUS; dx++) {
+                for (int dz = -DESTINATION_HORIZONTAL_RADIUS; dz <= DESTINATION_HORIZONTAL_RADIUS; dz++) {
+                    BlockPos candidate = new BlockPos(pos.getX() + dx, y, pos.getZ() + dz);
+                    if (level.getBlockEntity(candidate) instanceof ElevatorBlockEntity) {
+                        double distance = candidate.distSqr(pos);
+                        if (distance < nearestDistance) {
+                            nearestDistance = distance;
+                            nearest = candidate;
+                        }
+                    }
+                }
+            }
+        }
+        return nearest;
+    }
+
     private AABB getDetectionBox(BlockPos pos) {
+        double centerX = pos.getX() + 0.5D;
+        double centerZ = pos.getZ() + 0.5D;
         return new AABB(
-                pos.getX() - 1.0D, pos.getY(), pos.getZ() - 1.0D,
-                pos.getX() + 2.0D, pos.getY() + 2.5D, pos.getZ() + 2.0D
+                centerX - DETECTION_HORIZONTAL_RADIUS, pos.getY(), centerZ - DETECTION_HORIZONTAL_RADIUS,
+                centerX + DETECTION_HORIZONTAL_RADIUS, pos.getY() + 2.5D, centerZ + DETECTION_HORIZONTAL_RADIUS
         );
     }
 

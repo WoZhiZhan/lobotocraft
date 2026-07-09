@@ -1,9 +1,9 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
-import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.BaseGeoEntity;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.util.AbnormalityCombatUtil;
 import com.wzz.lobotocraft.util.AnimationTimingUtil;
 import com.wzz.lobotocraft.util.DamageHelper;
 import net.minecraft.sounds.SoundEvent;
@@ -98,11 +98,15 @@ public class EntityLeticiaFriend extends BaseGeoEntity {
 
         this.targetSelector.addGoal(0, new HurtByTargetGoal(this));
         this.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(
-                this, AbstractAbnormality.class, true,
-                abnormality -> abnormality instanceof AbstractAbnormality ab && isValidAttackTarget(ab)));
-        this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(
-                this, Player.class, true,
-                player -> player instanceof Player target && isValidAttackTarget(target)));
+                this, LivingEntity.class, 10, true, false, this::isValidAttackTarget));
+    }
+
+    @Override
+    public void setTarget(LivingEntity target) {
+        if (target != null && !isValidAttackTarget(target)) {
+            target = null;
+        }
+        super.setTarget(target);
     }
 
     @Override
@@ -141,6 +145,9 @@ public class EntityLeticiaFriend extends BaseGeoEntity {
     @Override
     public boolean doHurtTarget(Entity target) {
         if (!(target instanceof LivingEntity living)) {
+            return false;
+        }
+        if (!isValidAttackTarget(living)) {
             return false;
         }
         if (isAttackAnimating()) {
@@ -196,10 +203,8 @@ public class EntityLeticiaFriend extends BaseGeoEntity {
         if (target == null || target == this || !target.isAlive()) {
             return false;
         }
-        if (target instanceof Player player) {
-            return !player.isCreative() && !player.isSpectator();
-        }
-        return target instanceof AbstractAbnormality abnormality && abnormality.hasEscape();
+        return !(target instanceof EntityLeticiaFriend)
+                && AbnormalityCombatUtil.isValidSuppressorTarget(this, target);
     }
 
     @Override

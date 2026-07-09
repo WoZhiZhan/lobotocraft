@@ -1,10 +1,10 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.effect.QueenBeeSporeEffect;
-import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.BaseGeoEntity;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.util.AbnormalityCombatUtil;
 import com.wzz.lobotocraft.util.DamageHelper;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
@@ -23,7 +23,6 @@ import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
-import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import software.bernie.geckolib.core.animation.AnimatableManager;
@@ -34,7 +33,12 @@ import software.bernie.geckolib.core.object.PlayState;
 
 public class EntityWorkerBee extends BaseGeoEntity {
     private static final int ATTACK_ANIMATION_TICKS = 16;
+    private static final int ATTACK_HIT_TICK = 10;
+    private static final double ATTACK_RANGE_SQR = 6.0D;
     private int attackAnimationTimer = 0;
+    private float pendingAttackDamage = 0.0F;
+    private boolean attackDamageApplied = false;
+    private LivingEntity pendingAttackTarget = null;
 
     public EntityWorkerBee(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -50,19 +54,30 @@ public class EntityWorkerBee extends BaseGeoEntity {
         this.goalSelector.addGoal(4, new RandomLookAroundGoal(this));
 
         this.targetSelector.addGoal(0, new HurtByTargetGoal(this));
-        this.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(this, EntityClerk.class, true));
-        this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Villager.class, true));
-        this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Player.class, true,
-                entity -> entity instanceof Player player && !player.isCreative() && !player.isSpectator()));
+        this.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(this, LivingEntity.class, 10, true, false,
+                this::isValidAttackTarget));
+    }
+
+    @Override
+    public void setTarget(LivingEntity target) {
+        if (target != null && !isValidAttackTarget(target)) {
+            target = null;
+        }
+        super.setTarget(target);
     }
 
     @Override
     public void tick() {
         super.tick();
         if (!this.level().isClientSide && attackAnimationTimer > 0) {
-            attackAnimationTimer--;
-            if (attackAnimationTimer == 0) {
-                setAnimation("idle");
+            if (!attackDamageApplied && attackAnimationTimer >= ATTACK_HIT_TICK) {
+                attackDamageApplied = true;
+                applyPendingAttack();
+            }
+            if (attackAnimationTimer >= ATTACK_ANIMATION_TICKS) {
+                clearAttackAnimation();
+            } else {
+                attackAnimationTimer++;
             }
         }
     }
@@ -72,15 +87,47 @@ public class EntityWorkerBee extends BaseGeoEntity {
         if (!(target instanceof LivingEntity living)) {
             return false;
         }
-        attackAnimationTimer = ATTACK_ANIMATION_TICKS;
-        setAnimation("attack");
-        float damage = 6.0F + this.random.nextFloat() * 4.0F;
-        boolean hurt = living.hurt(DamageHelper.getDamage(this, "lobotocraft:red"), damage);
-        playWorkerSound(ModSounds.WORKER_BEE_ATTACK.get());
-        if (hurt && !living.isAlive()) {
-            QueenBeeSporeEffect.spawnWorkerFromCorpse(living);
+        if (!isValidAttackTarget(living)) {
+            return false;
         }
-        return hurt;
+        if (attackAnimationTimer > 0) {
+            return true;
+        }
+        attackAnimationTimer = 1;
+        attackDamageApplied = false;
+        pendingAttackTarget = living;
+        pendingAttackDamage = 6.0F + this.random.nextFloat() * 4.0F;
+        setAnimation("attack");
+        return true;
+    }
+
+    private void applyPendingAttack() {
+        if (pendingAttackTarget != null
+                && pendingAttackTarget.isAlive()
+                && this.distanceToSqr(pendingAttackTarget) <= ATTACK_RANGE_SQR
+                && isValidAttackTarget(pendingAttackTarget)) {
+            boolean hurt = pendingAttackTarget.hurt(DamageHelper.getDamage(this, "lobotocraft:red"), pendingAttackDamage);
+            playWorkerSound(ModSounds.WORKER_BEE_ATTACK.get());
+            if (hurt && !pendingAttackTarget.isAlive()) {
+                QueenBeeSporeEffect.spawnWorkerFromCorpse(pendingAttackTarget);
+            }
+            return;
+        }
+        playWorkerSound(ModSounds.WORKER_BEE_ATTACK.get());
+    }
+
+    private void clearAttackAnimation() {
+        attackAnimationTimer = 0;
+        pendingAttackDamage = 0.0F;
+        attackDamageApplied = false;
+        pendingAttackTarget = null;
+        setAnimation("idle");
+    }
+
+    private boolean isValidAttackTarget(LivingEntity target) {
+        return !(target instanceof EntityWorkerBee)
+                && !(target instanceof EntityQueenBee)
+                && AbnormalityCombatUtil.isValidSuppressorTarget(this, target);
     }
 
     @Override

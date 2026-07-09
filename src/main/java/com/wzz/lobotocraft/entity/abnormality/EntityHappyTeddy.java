@@ -58,7 +58,6 @@ public class EntityHappyTeddy extends AbstractAbnormality {
     private int hugAnimationTimer = 0;
     private static final double IDLE_SOUND_RANGE = 8.0D;
     private static final int IDLE_SOUND_COOLDOWN_TICKS = 20 * 20;
-    private int idleSoundCooldown = 0;
 
     public EntityHappyTeddy(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -283,10 +282,6 @@ public class EntityHappyTeddy extends AbstractAbnormality {
     public void tick() {
         super.tick();
 
-        if (!this.level().isClientSide) {
-            tickIdleProximitySound((ServerLevel) this.level());
-        }
-
         // 处理拥抱死亡动画
         if (huggedPlayerUUID != null && !this.level().isClientSide) {
             ServerPlayer player = ((ServerLevel)this.level()).getServer()
@@ -343,26 +338,29 @@ public class EntityHappyTeddy extends AbstractAbnormality {
         }
     }
 
-    private void tickIdleProximitySound(ServerLevel level) {
-        if (idleSoundCooldown > 0) {
-            idleSoundCooldown--;
-        }
-        if (huggedPlayerUUID != null || idleSoundCooldown > 0) {
-            return;
-        }
+    @Override
+    public boolean hasAbnormalityAmbientSound() {
+        return true;
+    }
 
-        List<ServerPlayer> nearbyPlayers = level.getPlayers(player -> player.isAlive()
-                && !player.isCreative()
-                && !player.isSpectator()
-                && player.distanceToSqr(this) <= IDLE_SOUND_RANGE * IDLE_SOUND_RANGE);
-        if (nearbyPlayers.isEmpty()) {
-            return;
-        }
+    @Override
+    public net.minecraft.sounds.SoundEvent getAbnormalityAmbientSound() {
+        return ModSounds.HAPPY_TEDDY_IDLE.get();
+    }
 
-        for (ServerPlayer player : nearbyPlayers) {
-            player.playNotifySound(ModSounds.HAPPY_TEDDY_IDLE.get(), SoundSource.AMBIENT, 1.0F, 1.0F);
-        }
-        idleSoundCooldown = IDLE_SOUND_COOLDOWN_TICKS;
+    @Override
+    public int getAbnormalityAmbientSoundInterval() {
+        return IDLE_SOUND_COOLDOWN_TICKS;
+    }
+
+    @Override
+    public double getAbnormalityAmbientSoundRange() {
+        return IDLE_SOUND_RANGE;
+    }
+
+    @Override
+    public SoundSource getAbnormalityAmbientSoundSource() {
+        return SoundSource.AMBIENT;
     }
 
     // ==================== 工作结果奖励 ====================

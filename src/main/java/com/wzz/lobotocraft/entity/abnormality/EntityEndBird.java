@@ -336,8 +336,7 @@ public class EntityEndBird extends AbstractAbnormality {
 
                     AABB hitBox = getBoundingBox().inflate(NORMAL_ATTACK_RADIUS, 2.0, NORMAL_ATTACK_RADIUS);
                     int dmg = 23 + random.nextInt(21);
-                    level().getEntitiesOfClass(LivingEntity.class, hitBox,
-                                    e -> e != EntityEndBird.this && e.isAlive())
+                    level().getEntitiesOfClass(LivingEntity.class, hitBox, EntityEndBird.this::canEndBirdDamage)
                             .forEach(e -> e.hurt(DamageHelper.getDamage(EntityEndBird.this, "black"), dmg));
 
                     applyScreenShake(12.0);
@@ -435,7 +434,7 @@ public class EntityEndBird extends AbstractAbnormality {
     private void fireOrbsToTargets() {
         AABB area = new AABB(blockPosition()).inflate(ORB_ATTACK_RADIUS);
         List<LivingEntity> targets = level().getEntitiesOfClass(LivingEntity.class, area,
-                e -> e != this && e.isAlive()
+                e -> canEndBirdDamage(e)
                         && (e instanceof Player
                         || (e instanceof AbstractAbnormality ab && ab.hasEscape())));
 
@@ -511,8 +510,18 @@ public class EntityEndBird extends AbstractAbnormality {
         AABB area = new AABB(blockPosition()).inflate(10, 5, 10);
         int dmg = 50 + random.nextInt(66); // 50-115
         level().getEntitiesOfClass(LivingEntity.class, area,
-                        e -> e != this && e.isAlive() && isInFront(e, 45.0f, 10.0))
+                        e -> canEndBirdDamage(e) && isInFront(e, 45.0f, 10.0))
                 .forEach(e -> e.hurt(DamageHelper.getDamage(this, "red"), dmg));
+    }
+
+    private boolean canEndBirdDamage(LivingEntity target) {
+        return target != this && target.isAlive() && !isEndBirdEgg(target);
+    }
+
+    private boolean isEndBirdEgg(LivingEntity target) {
+        return target instanceof EntityEndBirdEggSmall
+                || target instanceof EntityEndBirdEggHigh
+                || target instanceof EntityEndBirdEggEye;
     }
 
     /**

@@ -295,6 +295,7 @@ public class EndBirdWeapon extends BaseEgoWeapon {
         if (useTime < CHARGE_ANIM_TICKS) {
             if (!level.isClientSide) {
                 player.displayClientMessage(Component.literal("§7蓄力不足……"), true);
+                resetIncompleteCharge(player, stack);
             }
             return;
         }
@@ -657,6 +658,17 @@ public class EndBirdWeapon extends BaseEgoWeapon {
     /** 演出结束:解除普攻/蓄力锁定 */
     private void endAnimation(ItemStack stack) {
         stack.getOrCreateTag().putBoolean(KEY_IS_ANIMATING, false);
+    }
+
+    /** 蓄力未完成就松开时,清掉阶段并停止 hold_on_last_frame 的蓄力动画。 */
+    private void resetIncompleteCharge(Player player, ItemStack stack) {
+        stack.getOrCreateTag().putInt(KEY_CHARGE_STAGE, STAGE_NONE);
+        stack.getOrCreateTag().putBoolean(KEY_CAN_CHARGE_UP, false);
+        stack.getOrCreateTag().putBoolean(KEY_IS_ANIMATING, false);
+        stack.getOrCreateTag().remove("AnimStartTick");
+        stopAnimation(player, stack, ANIM_CHARGE_1);
+        stopAnimation(player, stack, ANIM_CHARGE_2);
+        stopAnimation(player, stack, ANIM_CHARGE_3);
     }
 
     // =======================================================================

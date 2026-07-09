@@ -457,14 +457,12 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
         for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level, redHoodPos, 30)) {
             if (!(blockEntity instanceof ElevatorBlockEntity elevator)) continue;
             BlockPos elevatorPos = blockEntity.getBlockPos();
-            int destY;
-            if (needGoUp && elevator.isTeleportUp()) {
-                destY = currentY + elevator.getTeleportDistance();
-            } else if (!needGoUp && !elevator.isTeleportUp()) {
-                destY = currentY - elevator.getTeleportDistance();
-            } else {
+            if (needGoUp != elevator.isTeleportUp()) {
                 continue;
             }
+            BlockPos destinationElevator = elevator.findDestinationElevator(level);
+            if (destinationElevator == null) continue;
+            int destY = destinationElevator.getY() + 1;
 
             int currentDiff = Math.abs(targetY - currentY);
             int diffAfterRide = Math.abs(targetY - destY);

@@ -17,6 +17,7 @@ import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -71,6 +72,12 @@ public class EntityLargeBird extends AbstractAbnormality {
 
     // 随机数生成器
     private final Random random = new Random();
+    private static final String CHARM_TAG = "isLargeBirdCharm";
+    private static final String CHARM_START_TIME_TAG = "largeBirdCharmStartTime";
+    private static final String CHARM_TARGET_TAG = "largeBirdCharmTarget";
+    private static final String CHARM_ESCAPE_ATTEMPTS_TAG = "LeftCountLobocraft";
+    private static final String CHARM_IMMUNITY_TAG = "notLargeBirdCharm";
+    private static final int CHARM_BORDER_DURATION_MS = 999999;
 
     public EntityLargeBird(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -266,16 +273,7 @@ public class EntityLargeBird extends AbstractAbnormality {
         attackPending = false;
         setAnimation("model.5");
         if (!this.level().isClientSide) {
-            for (Player player : EntityUtil.findAllPlayerWithDimension(this, 256, ModDimensions.LOBOTO_KEY)) {
-                if (player.getPersistentData().getBoolean("isLargeBirdCharm")) {
-                    UUID targetUUID = player.getPersistentData().getUUID("largeBirdCharmTarget");
-                    if (targetUUID != null && targetUUID.equals(this.getUUID())) {
-                        player.getPersistentData().remove("isLargeBirdCharm");
-                        player.getPersistentData().remove("largeBirdCharmStartTime");
-                        player.getPersistentData().remove("largeBirdCharmTarget");
-                    }
-                }
-            }
+            clearCharmedPlayersForThisBird();
         }
     }
 
@@ -314,6 +312,9 @@ public class EntityLargeBird extends AbstractAbnormality {
     @Override
     public void die(DamageSource p_21809_) {
         setAnimation("model.4");
+        if (!this.level().isClientSide) {
+            clearCharmedPlayersForThisBird();
+        }
         super.die(p_21809_);
     }
 
@@ -344,6 +345,7 @@ public class EntityLargeBird extends AbstractAbnormality {
                 setTarget(null);
                 attackPending = false;
                 setAnimation("model.5");
+                clearCharmedPlayersForThisBird();
                 ensureDoorGoalExists();
                 return; // 跳过所有攻击/魅惑逻辑
             }
@@ -369,7 +371,11 @@ public class EntityLargeBird extends AbstractAbnormality {
                     this.playSound(ModSounds.LARGE_BIRD_KILLER_PLAYER.get());
                     this.target.hurt(level.damageSources().fellOutOfWorld(), Float.POSITIVE_INFINITY);
                     this.target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 100, 225));
-                    this.target.getPersistentData().remove("isLargeBirdCharm");
+                    if (this.target instanceof Player player) {
+                        clearLargeBirdCharm(player);
+                    } else {
+                        this.target.getPersistentData().remove(CHARM_TAG);
+                    }
                     boolean hasPlayer = false;
                     for (Player player : EntityUtil.findPlayersAround(this, 10, 32)) {
                         if (player != getTarget()) {
@@ -404,15 +410,16 @@ public class EntityLargeBird extends AbstractAbnormality {
                 setAnimation("model.3");
                 setDeltaMovement(0,0,0);
                 for (Player player : EntityUtil.findAllPlayerWithDimension(this, 256, ModDimensions.LOBOTO_KEY)) {
-                    if (!player.getPersistentData().getBoolean("notLargeBirdCharm") && !player.isCreative() && !player.isSpectator() && player == getTarget()) {
+                    if (!player.getPersistentData().getBoolean(CHARM_IMMUNITY_TAG) && !player.isCreative() && !player.isSpectator() && player == getTarget()) {
                         if (!canCharm(player)) {
                             PlayerControlLock.lock(player, this, 0.1d, 2.5d);
                             player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 100, 225));
                             player.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 100, 225));
-                            player.getPersistentData().putBoolean("isLargeBirdCharm", true);
-                            if (player instanceof ServerPlayer serverPlayer)
-                                MessageLoader.getLoader().sendToPlayer(serverPlayer, new LargeBirdBorderPacket(999999));
+                            startLargeBirdCharm(player);
                         } else {
+                            if (player.getPersistentData().getBoolean(CHARM_TAG)) {
+                                clearLargeBirdCharm(player);
+                            }
                             ParticleUtil.spawnParticlesAroundEntity(player, ModParticleTypes.BLUE_GLINT.get(), 30, 0.1d);
                             player.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP);
                         }
@@ -430,6 +437,49 @@ public class EntityLargeBird extends AbstractAbnormality {
             return true;
         }
         return EgoArmorHelper.isFullEGO(player, "end_bird") && CuriosUtil.hasCurios(player, ModItems.LARGEBIRD_CURIO.get());
+    }
+
+    private void startLargeBirdCharm(Player player) {
+        CompoundTag data = player.getPersistentData();
+        boolean alreadyCharmedByThisBird = isCharmFromThisBird(data);
+        data.putBoolean(CHARM_TAG, true);
+        data.putUUID(CHARM_TARGET_TAG, this.getUUID());
+        if (!alreadyCharmedByThisBird || !data.contains(CHARM_START_TIME_TAG, Tag.TAG_LONG)) {
+            data.putLong(CHARM_START_TIME_TAG, player.level().getGameTime());
+        }
+        if (!alreadyCharmedByThisBird && player instanceof ServerPlayer serverPlayer) {
+            MessageLoader.getLoader().sendToPlayer(serverPlayer, new LargeBirdBorderPacket(CHARM_BORDER_DURATION_MS));
+        }
+    }
+
+    public static void clearLargeBirdCharm(Player player) {
+        PlayerControlLock.unlock(player);
+        CompoundTag data = player.getPersistentData();
+        data.remove(CHARM_TAG);
+        data.remove(CHARM_START_TIME_TAG);
+        data.remove(CHARM_TARGET_TAG);
+        data.remove(CHARM_ESCAPE_ATTEMPTS_TAG);
+        if (player instanceof ServerPlayer serverPlayer) {
+            MessageLoader.getLoader().sendToPlayer(serverPlayer, new LargeBirdBorderPacket(0));
+        }
+    }
+
+    private void clearCharmedPlayersForThisBird() {
+        for (Player player : EntityUtil.findAllPlayerWithDimension(this, 256, ModDimensions.LOBOTO_KEY)) {
+            CompoundTag data = player.getPersistentData();
+            if (!data.getBoolean(CHARM_TAG)) {
+                continue;
+            }
+            if (!data.hasUUID(CHARM_TARGET_TAG) || data.getUUID(CHARM_TARGET_TAG).equals(this.getUUID())) {
+                clearLargeBirdCharm(player);
+            }
+        }
+    }
+
+    private boolean isCharmFromThisBird(CompoundTag data) {
+        return data.getBoolean(CHARM_TAG)
+                && data.hasUUID(CHARM_TARGET_TAG)
+                && data.getUUID(CHARM_TARGET_TAG).equals(this.getUUID());
     }
 
     private boolean doorGoalAdded = false;
@@ -453,28 +503,35 @@ public class EntityLargeBird extends AbstractAbnormality {
         if (this.level().isClientSide) return;
         for (Player player : EntityUtil.findAllPlayerWithDimension(this, 256, ModDimensions.LOBOTO_KEY)) {
             CompoundTag data = player.getPersistentData();
-            if (!data.contains("isLargeBirdCharm", net.minecraft.nbt.Tag.TAG_BYTE)) {
+            if (!data.getBoolean(CHARM_TAG)) {
                 continue;
             }
-            if (data.getBoolean("isLargeBirdCharm") && !player.isCreative() && !player.isSpectator()) {
-                if (!data.contains("largeBirdCharmTarget", net.minecraft.nbt.Tag.TAG_INT_ARRAY)) {
+
+            if (player.isCreative() || player.isSpectator()) {
+                clearLargeBirdCharm(player);
+                continue;
+            }
+
+            if (!data.hasUUID(CHARM_TARGET_TAG)) {
+                clearLargeBirdCharm(player);
+                continue;
+            }
+
+            UUID targetUUID = data.getUUID(CHARM_TARGET_TAG);
+            if (targetUUID.equals(this.getUUID())) {
+                if (!data.contains(CHARM_START_TIME_TAG, Tag.TAG_LONG)) {
+                    data.putLong(CHARM_START_TIME_TAG, player.level().getGameTime());
                     continue;
                 }
-                UUID targetUUID = data.getUUID("largeBirdCharmTarget");
-                if (targetUUID != null && targetUUID.equals(this.getUUID())) {
-                    if (!data.contains("largeBirdCharmStartTime", net.minecraft.nbt.Tag.TAG_LONG)) {
-                        continue;
-                    }
-                    long charmStartTime = data.getLong("largeBirdCharmStartTime");
-                    long currentTime = player.level().getGameTime();
-                    long elapsedTicks = currentTime - charmStartTime;
-                    if (elapsedTicks >= 600) {
-                        double distance = EntityUtil.getDistanceBetweenEntities(this, player);
+                long charmStartTime = data.getLong(CHARM_START_TIME_TAG);
+                long currentTime = player.level().getGameTime();
+                long elapsedTicks = currentTime - charmStartTime;
+                if (elapsedTicks >= 600) {
+                    double distance = EntityUtil.getDistanceBetweenEntities(this, player);
 
-                        if (distance > 3.0D) {
-                            teleportPlayerNearBird(player);
-                            data.putLong("largeBirdCharmStartTime", currentTime);
-                        }
+                    if (distance > 3.0D) {
+                        teleportPlayerNearBird(player);
+                        data.putLong(CHARM_START_TIME_TAG, currentTime);
                     }
                 }
             }

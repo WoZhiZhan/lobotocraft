@@ -41,12 +41,12 @@ import java.util.Map;
 
 /**
  * 新星之声 武器(ALEPH)。
- * 攻击力 8-12 白(精神)伤害,攻击冷却1.5秒,射程25格。
+ * 攻击力 12/18/24 白(精神)伤害,攻击冷却1.5秒,射程25格。
  * 右键:从身旁漂浮的"新星之声"处朝准心射出最多3段白色光束(25格射线),
- *   段数/额外伤害仅与当前精神值占最大精神的百分比有关:
- *     <30%   : 1段,8-12
- *     30~60% : 2段,额外1段15-18
- *     >60%   : 3段,再额外1段20-22
+ *   段数/伤害仅与当前精神值占最大精神的百分比有关:
+ *     <30%   : 1段,每段12
+ *     30~60% : 2段,每段18
+ *     >60%   : 3段,每段24
  * Shift右键(120秒CD):特殊攻击,播放碧蓝新星攻击音效+屏幕扭曲,
  *   对全图敌对生物造成等同玩家精神值的白伤,解除该维度恐慌员工并回10%精神,
  *   并使该维度未出逃且计数器未满的异想体计数器+1。
@@ -131,25 +131,25 @@ public class BlueStarWeapon extends BaseEgoWeapon {
         float max = MentalValueUtil.getEffectiveMaxMentalValue(player);
         float ratio = max > 0 ? cur / max : 0f;
 
-        boolean fullSetMaxBonus = isBlueStarSet(player) && ratio >= 1.0f;
-        float mult = fullSetMaxBonus ? 1.25f : 1.0f;
-
         int orbCount = 1;
         if (ratio > 0.60f) orbCount = 3;
-        else if (ratio > 0.30f) orbCount = 2;
+        else if (ratio >= 0.30f) orbCount = 2;
+
+        float beamDamage = switch (orbCount) {
+            case 3 -> 24.0F;
+            case 2 -> 18.0F;
+            default -> 12.0F;
+        };
 
         // 第 1 段（总是存在）
-        shootSingleBeam(player, getOrbPosition(player, 0, orbCount),
-                (8 + player.getRandom().nextInt(5)) * mult);
+        shootSingleBeam(player, getOrbPosition(player, 0, orbCount), beamDamage);
         // 第 2 段
         if (orbCount >= 2) {
-            shootSingleBeam(player, getOrbPosition(player, 1, orbCount),
-                    (15 + player.getRandom().nextInt(4)) * mult);
+            shootSingleBeam(player, getOrbPosition(player, 1, orbCount), beamDamage);
         }
         // 第 3 段
         if (orbCount >= 3) {
-            shootSingleBeam(player, getOrbPosition(player, 2, orbCount),
-                    (20 + player.getRandom().nextInt(3)) * mult);
+            shootSingleBeam(player, getOrbPosition(player, 2, orbCount), beamDamage);
         }
 
         player.level().playSound(null, player.blockPosition(),
@@ -232,6 +232,7 @@ public class BlueStarWeapon extends BaseEgoWeapon {
         drawBeamParticles(level, origin, hitPoint);
 
         if (target != null) {
+            EntityUtil.clearHurtTime(target);
             target.hurt(DamageHelper.getDamage(player, "white"), damage);
             if (target instanceof ServerPlayer sp) {
                 MentalValueUtil.reduceMentalValue(sp, damage);
@@ -340,7 +341,7 @@ public class BlueStarWeapon extends BaseEgoWeapon {
             float ratio = max > 0 ? cur / max : 0f;
             int orbCount = 1;
             if (ratio > 0.60f) orbCount = 3;
-            else if (ratio > 0.30f) orbCount = 2;
+            else if (ratio >= 0.30f) orbCount = 2;
 
             for (int i = 0; i < orbCount; i++) {
                 Vec3 pos = getOrbPosition(player, i, orbCount);
@@ -372,9 +373,11 @@ public class BlueStarWeapon extends BaseEgoWeapon {
             components.add(Component.literal("§b特殊攻击冷却：" + (scd / 20) + " 秒"));
         }
         if (ClientInputUtil.isShiftPressed()) {
-            components.add(Component.literal("§6※攻击时，持有者的精神值越高，就会生成额外的“新星之声”以造成更高的伤害。"));
+            components.add(Component.literal("§6※右键攻击会根据持有者当前精神值生成“新星之声”光束。"));
             components.add(Component.literal("§7右键从身旁射出最多三段白色光束(射程25格)。"));
-            components.add(Component.literal("§7精神<30%：1段8-12；30~60%：2段(+15-18)；>60%：3段(再+20-22)。"));
+            components.add(Component.literal("§7精神<30%：1段，每段12白伤。"));
+            components.add(Component.literal("§7精神30%~60%：2段，每段18白伤。"));
+            components.add(Component.literal("§7精神>60%：3段，每段24白伤。"));
             components.add(Component.literal("§7Shift右键(120秒)：对全图敌对生物造成等同精神值的白伤，"));
             components.add(Component.literal("§7解除该维度恐慌员工并回10%精神，未出逃异想体计数器+1。"));
             return;

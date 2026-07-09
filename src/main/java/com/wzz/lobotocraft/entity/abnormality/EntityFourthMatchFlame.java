@@ -593,15 +593,14 @@ public class EntityFourthMatchFlame extends AbstractAbnormality {
             for (BlockEntity blockEntity : nearbyBlockEntities) {
                 if (blockEntity instanceof ElevatorBlockEntity elevator) {
                     BlockPos elevatorPos = blockEntity.getBlockPos();
-                    int elevatorDistance = elevator.getTeleportDistance();
-                    int destY;
-                    if (needGoUp && elevator.isTeleportUp()) {
-                        destY = currentY + elevatorDistance;
-                    } else if (!needGoUp && !elevator.isTeleportUp()) {
-                        destY = currentY - elevatorDistance;
-                    } else {
+                    if (needGoUp != elevator.isTeleportUp()) {
                         continue;
                     }
+                    BlockPos destinationElevator = elevator.findDestinationElevator(entity.level());
+                    if (destinationElevator == null) {
+                        continue;
+                    }
+                    int destY = destinationElevator.getY() + 1;
 
                     int diffAfterRide = Math.abs(targetY - destY);
                     int currentDiff = Math.abs(targetY - currentY);

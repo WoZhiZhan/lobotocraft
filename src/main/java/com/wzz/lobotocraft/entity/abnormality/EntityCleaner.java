@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.entity.base.BaseGeoEntity;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.util.AbnormalityCombatUtil;
 import com.wzz.lobotocraft.util.DamageHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -125,10 +126,16 @@ public class EntityCleaner extends BaseGeoEntity {
     }
 
     private boolean isValidCleanerTarget(LivingEntity living) {
-        return living != this
-                && living.isAlive()
-                && !(living instanceof EntityCleaner)
-                && (living instanceof Player || living instanceof Mob);
+        return !(living instanceof EntityCleaner)
+                && AbnormalityCombatUtil.isValidSuppressorTarget(this, living);
+    }
+
+    @Override
+    public void setTarget(LivingEntity target) {
+        if (target != null && !isValidCleanerTarget(target)) {
+            target = null;
+        }
+        super.setTarget(target);
     }
 
     // ==================== 抗性 红1.0/白1.2/黑0.5/蓝0.8 ====================
@@ -154,6 +161,7 @@ public class EntityCleaner extends BaseGeoEntity {
     @Override
     public boolean doHurtTarget(Entity target) {
         if (!(target instanceof LivingEntity living)) return false;
+        if (!isValidCleanerTarget(living)) return false;
         if (skillCombo > 0 || normalAttackTarget != null) return true;
 
         // 30%触发特殊攻击(skill1连播5次,每次7黑伤),否则普通攻击(3黑伤)

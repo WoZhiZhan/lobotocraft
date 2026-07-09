@@ -179,18 +179,17 @@ public class MoveToBlackForestDoorGoal extends Goal {
         for (BlockEntity blockEntity : nearbyBlockEntities) {
             if (blockEntity instanceof ElevatorBlockEntity elevator) {
                 BlockPos elevatorPos = blockEntity.getBlockPos();
-                int elevatorDistance = elevator.getTeleportDistance();
-
-                // 计算乘坐电梯后能到达的高度
-                int destY;
-                if (needGoUp && elevator.isTeleportUp()) {
-                    destY = currentY + elevatorDistance;
-                } else if (!needGoUp && !elevator.isTeleportUp()) {
-                    destY = currentY - elevatorDistance;
-                } else {
+                if (needGoUp != elevator.isTeleportUp()) {
                     // 方向不匹配，跳过
                     continue;
                 }
+                BlockPos destinationElevator = elevator.findDestinationElevator(bird.level());
+                if (destinationElevator == null) {
+                    continue;
+                }
+
+                // 计算乘坐电梯后能到达的高度
+                int destY = destinationElevator.getY() + 1;
 
                 // 计算乘坐后距离目标楼层的差距
                 int diffAfterRide = Math.abs(targetY - destY);

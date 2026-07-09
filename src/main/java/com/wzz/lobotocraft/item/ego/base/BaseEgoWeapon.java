@@ -86,6 +86,15 @@ public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnima
     }
 
     /**
+     * 停止自定义触发动画
+     */
+    protected void stopAnimation(net.minecraft.world.entity.player.Player player, ItemStack stack, String name) {
+        if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer && hasAnimatable()) {
+            stopTriggeredAnim(player, GeoItem.getOrAssignId(stack, serverPlayer.serverLevel()), "controller", name);
+        }
+    }
+
+    /**
      * 子类可以重写此方法来注册额外的可触发动画
      * @param controller 动画控制器
      */

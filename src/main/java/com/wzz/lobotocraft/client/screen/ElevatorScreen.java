@@ -4,7 +4,6 @@ import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.SetElevatorPacket;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -14,7 +13,6 @@ public class ElevatorScreen extends Screen {
     private static final int GUI_WIDTH = 176;
     private static final int GUI_HEIGHT = 166;
 
-    private EditBox distanceInput;
     private Button upButton;
     private Button downButton;
     private int leftPos;
@@ -22,9 +20,8 @@ public class ElevatorScreen extends Screen {
 
     // 当前选择的方向：true=上，false=下
     private boolean isUp;
-    // 来自BlockEntity的初始值
+    // 保留旧距离值，仅用于兼容现有网络包；实际传送不再使用距离。
     private final int defaultDistance;
-    private final boolean defaultIsUp;
     // 方块坐标
     private final BlockPos blockPos;
 
@@ -32,7 +29,6 @@ public class ElevatorScreen extends Screen {
         super(Component.translatable("gui.lobotocraft.elevator.title"));
         this.blockPos = blockPos;
         this.defaultDistance = savedDistance;
-        this.defaultIsUp = savedIsUp;
         this.isUp = savedIsUp;
     }
 
@@ -43,20 +39,6 @@ public class ElevatorScreen extends Screen {
         this.leftPos = (this.width - GUI_WIDTH) / 2;
         this.topPos = (this.height - GUI_HEIGHT) / 2;
 
-        // 距离输入框
-        this.distanceInput = new EditBox(
-                this.font,
-                this.leftPos + 38,
-                this.topPos + 45,
-                100,
-                20,
-                Component.translatable("gui.lobotocraft.elevator.distance")
-        );
-        this.distanceInput.setValue(String.valueOf(defaultDistance));
-        this.distanceInput.setMaxLength(4);
-        this.distanceInput.setFilter(s -> s.matches("\\d*"));
-        this.addWidget(this.distanceInput);
-
         // 向上按钮（切换选择）
         this.upButton = Button.builder(
                         Component.translatable("gui.lobotocraft.elevator.up"),
@@ -65,7 +47,7 @@ public class ElevatorScreen extends Screen {
                             refreshButtonStyles();
                         }
                 )
-                .bounds(this.leftPos + 20, this.topPos + 85, 60, 40)
+                .bounds(this.leftPos + 20, this.topPos + 70, 60, 40)
                 .build();
         this.addRenderableWidget(this.upButton);
 
@@ -77,7 +59,7 @@ public class ElevatorScreen extends Screen {
                             refreshButtonStyles();
                         }
                 )
-                .bounds(this.leftPos + 96, this.topPos + 85, 60, 40)
+                .bounds(this.leftPos + 96, this.topPos + 70, 60, 40)
                 .build();
         this.addRenderableWidget(this.downButton);
 
@@ -86,7 +68,7 @@ public class ElevatorScreen extends Screen {
                         Component.translatable("gui.lobotocraft.elevator.confirm"),
                         button -> onConfirm()
                 )
-                .bounds(this.leftPos + 38, this.topPos + 138, 100, 20)
+                .bounds(this.leftPos + 38, this.topPos + 128, 100, 20)
                 .build();
         this.addRenderableWidget(confirmButton);
 
@@ -111,23 +93,10 @@ public class ElevatorScreen extends Screen {
         guiGraphics.fill(this.leftPos + 10, this.topPos + 22,
                 this.leftPos + GUI_WIDTH - 10, this.topPos + 23, 0xFF4A90E2);
 
-        // "传送距离" 标签
-        guiGraphics.drawString(this.font,
-                Component.translatable("gui.lobotocraft.elevator.distance_label"),
-                this.leftPos + 38, this.topPos + 32, 0xFFFFFF);
-
-        // 单位标签
-        guiGraphics.drawString(this.font,
-                Component.translatable("gui.lobotocraft.elevator.blocks"),
-                this.leftPos + 143, this.topPos + 50, 0xAAAAAA);
-
         // "传送方向" 标签
         guiGraphics.drawString(this.font,
                 Component.translatable("gui.lobotocraft.elevator.direction_label"),
-                this.leftPos + 38, this.topPos + 72, 0xFFFFFF);
-
-        // 输入框
-        this.distanceInput.render(guiGraphics, mouseX, mouseY, partialTick);
+                this.leftPos + 38, this.topPos + 48, 0xFFFFFF);
 
         // 渲染按钮（super会渲染所有RenderableWidget）
         super.render(guiGraphics, mouseX, mouseY, partialTick);
@@ -151,9 +120,9 @@ public class ElevatorScreen extends Screen {
 
     private void renderDirectionButtons(GuiGraphics guiGraphics) {
         int upX = this.leftPos + 20;
-        int upY = this.topPos + 85;
+        int upY = this.topPos + 70;
         int downX = this.leftPos + 96;
-        int downY = this.topPos + 85;
+        int downY = this.topPos + 70;
         int btnW = 60;
         int btnH = 40;
 
@@ -194,53 +163,16 @@ public class ElevatorScreen extends Screen {
         }
     }
 
-    @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (this.distanceInput.mouseClicked(mouseX, mouseY, button)) {
-            this.setFocused(this.distanceInput);
-            return true;
-        }
-        return super.mouseClicked(mouseX, mouseY, button);
-    }
-
-    @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (this.distanceInput.isFocused()) {
-            return this.distanceInput.keyPressed(keyCode, scanCode, modifiers);
-        }
-        return super.keyPressed(keyCode, scanCode, modifiers);
-    }
-
-    @Override
-    public boolean charTyped(char codePoint, int modifiers) {
-        if (this.distanceInput.isFocused()) {
-            return this.distanceInput.charTyped(codePoint, modifiers);
-        }
-        return super.charTyped(codePoint, modifiers);
-    }
-
-    private int getDistance() {
-        try {
-            String value = this.distanceInput.getValue();
-            if (value.isEmpty()) return 10;
-            int distance = Integer.parseInt(value);
-            return Math.max(1, Math.min(distance, 1000));
-        } catch (NumberFormatException e) {
-            return 10;
-        }
-    }
-
     /**
      * 点击确认 → 发送网络包到服务端保存设置
      */
     private void onConfirm() {
-        int distance = getDistance();
         if (minecraft != null && minecraft.player != null) {
             minecraft.player.sendSystemMessage(Component.literal(
-                    "已设置电梯的传送方向为：" + (this.isUp ? "上" : "下") + " 距离：" + distance
+                    "已设置电梯的传送方向为：" + (this.isUp ? "上" : "下")
             ));
         }
-        MessageLoader.getLoader().sendToServer(new SetElevatorPacket(this.blockPos, distance, this.isUp));
+        MessageLoader.getLoader().sendToServer(new SetElevatorPacket(this.blockPos, this.defaultDistance, this.isUp));
         this.onClose();
     }
 
