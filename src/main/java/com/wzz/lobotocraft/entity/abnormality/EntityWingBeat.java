@@ -98,6 +98,7 @@ public class EntityWingBeat extends AbstractAbnormality {
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
+        tag.putBoolean("IsSmall", this.isSmall());
         if (this.player != null) {
             tag.putInt("PlayerID", this.playerID);
             tag.putInt("Tick", this.tick);
@@ -112,6 +113,9 @@ public class EntityWingBeat extends AbstractAbnormality {
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        if (tag.contains("IsSmall")) {
+            this.setSmall(tag.getBoolean("IsSmall"));
+        }
         int savedPlayerID = tag.getInt("PlayerID");
         if (savedPlayerID != 0) {
             this.playerID = savedPlayerID;
@@ -229,6 +233,7 @@ public class EntityWingBeat extends AbstractAbnormality {
             );
             wingBeat.setSmall(true);
             wingBeat.setPlayer(player);
+            wingBeat.setNoGravity(true);
             wingBeat.orbitAngle = i * 120.0F;
             wingBeat.orbitRadius = 1.0F + this.random.nextFloat() * 0.5F;
             wingBeat.orbitHeight = 0.3F + this.random.nextFloat() * 0.4F;
@@ -274,34 +279,34 @@ public class EntityWingBeat extends AbstractAbnormality {
     @Override
     public void tick() {
         super.tick();
+        boolean canRun = false;
         if (!this.level.isClientSide && this.player != null) {
             if (this.player.isDeadOrDying()) {
                 this.player.getPersistentData().putBoolean("isInWingBeat", false);
+                if (!this.isSmall()) {
+                    clearAllWingBeats();
+                    this.player.sendSystemMessage(Component.literal("§a精灵的舞会结束了..."));
+                }
                 setPlayer(null);
-                for (Entity entity : EntityUtil.findAllEntities(this, 100)) {
-                    if (entity instanceof EntityWingBeat wingBeat && wingBeat.isSmall() && wingBeat.player != null) {
-                        wingBeat.discard();
-                    }
+                if (this.isSmall()) {
+                    this.discard();
                 }
                 return;
             }
-            // 玩家离开了盛宴所在维度,或距离过远(例如出了公司),立即结束舞会,
-            // 避免舞会因实体停止tick而无法结束、留下残留特效、回来后误触机制杀
             if (this.player.level() != this.level || this.player.distanceToSqr(this) > 64 * 64) {
                 this.player.getPersistentData().putBoolean("isInWingBeat", false);
-                Player leaving = this.player;
-                setPlayer(null);
-                for (Entity entity : EntityUtil.findAllEntities(this, 100)) {
-                    if (entity instanceof EntityWingBeat wingBeat && wingBeat.isSmall()) {
-                        wingBeat.discard();
-                    }
+                if (!this.isSmall()) {
+                    clearAllWingBeats();
+                    this.player.sendSystemMessage(Component.literal("§a精灵的舞会结束了..."));
+                    setPlayer(null);
+                } else {
+                    this.discard();
                 }
-                this.discard();
                 return;
             }
             this.tick++;
-
             if (this.isSmall()) {
+                canRun = true;
                 performOrbit();
                 if (this.tickCount % 20 == 0) {
                     this.player.heal(this.player.getMaxHealth() * 0.1f);
@@ -315,17 +320,31 @@ public class EntityWingBeat extends AbstractAbnormality {
                     this.player.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 10, 255));
                 }
                 if (this.tick >= 160) {
-                    this.tick = 0;
+                    clearAllWingBeats();
                     this.player.sendSystemMessage(Component.literal("§a精灵的舞会结束了..."));
                     this.player.getPersistentData().putBoolean("isInWingBeat", false);
+                    this.tick = 0;
                     setPlayer(null);
                 }
             }
         }
-        if (this.level.isClientSide && this.player != null && this.isSmall() && this.isLeader()) {
-            if (this.tickCount % 20 == 0) {
+        if (this.level.isClientSide && this.player != null && this.isSmall()) {
+            if (canRun)
+                performOrbit();
+            if (this.tickCount % 20 == 0 && this.isLeader()) {
                 this.player.playSound(ModSounds.WINGBEAT_HEAL_HEALTH.get());
                 ParticleUtil.spawnParticlesAroundEntity(this.player, ParticleTypes.HEART, 5, 0.1D);
+            }
+        }
+    }
+
+    /**
+     * 清除所有小精灵
+     */
+    private void clearAllWingBeats() {
+        for (Entity entity : EntityUtil.findAllEntities(this, 100)) {
+            if (entity instanceof EntityWingBeat wingBeat && wingBeat.isSmall()) {
+                wingBeat.discard();
             }
         }
     }
@@ -352,18 +371,28 @@ public class EntityWingBeat extends AbstractAbnormality {
         double targetY = this.player.getY() + offsetY;
         double targetZ = this.player.getZ() + offsetZ;
 
-        double dx = targetX - this.getX();
-        double dy = targetY - this.getY();
-        double dz = targetZ - this.getZ();
+        // 直接设置位置
+        this.setPos(targetX, targetY, targetZ);
 
-        double speed = 0.3D;
-        this.setDeltaMovement(dx * speed, dy * speed, dz * speed);
+        // 手动计算并设置朝向，而不是用 setLookAt
+        double dx = this.player.getX() - this.getX();
+        double dy = this.player.getY() + this.player.getEyeHeight() - this.getEyeY();
+        double dz = this.player.getZ() - this.getZ();
+        double horizontalDist = Math.sqrt(dx * dx + dz * dz);
 
-        this.getLookControl().setLookAt(this.player, 30.0F, 30.0F);
-        this.moveTo(targetX, targetY, targetZ, this.getYRot(), this.getXRot());
+        float targetYaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0F);
+        float targetPitch = (float) (-Math.toDegrees(Math.atan2(dy, horizontalDist)));
 
-        if (this.distanceToSqr(this.player) > 16.0D) {
-            this.teleportTo(this.player.getX(), this.player.getY(), this.player.getZ());
+        this.setYRot(targetYaw);
+        this.yRotO = targetYaw;
+        this.setXRot(targetPitch);
+        this.xRotO = targetPitch;
+        this.yHeadRot = targetYaw;
+        this.yHeadRotO = targetYaw;
+
+        // 传送保护，阈值放大
+        if (this.distanceToSqr(this.player) > 400.0D) {  // 20格
+            this.teleportTo(this.player.getX(), this.player.getY() + this.orbitHeight, this.player.getZ());
         }
     }
 

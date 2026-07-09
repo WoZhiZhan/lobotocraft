@@ -575,7 +575,7 @@ public class ForgeModEvent {
 				event.getEntity().setHealth(event.getEntity().getHealth() - (count * 4));
 				MentalValueUtil.setMentalValue(event.getEntity(), MentalValueUtil.getMentalValue(event.getEntity()) - (count * 4));
 				int childrenAffected = 0;
-				for (EntityChildrenGalaxy entityChildrenGalaxy : EntityUtil.findEntitiesAround(event.getEntity(), 16, 64, EntityChildrenGalaxy.class)) {
+				for (EntityChildrenGalaxy entityChildrenGalaxy : EntityUtil.findAllEntities(event.getEntity(), 400, EntityChildrenGalaxy.class)) {
 					entityChildrenGalaxy.decreaseQliphothCounter(1);
 					childrenAffected++;
 				}

@@ -139,21 +139,22 @@ public class EntityUtil {
         return convertToInteger(target.getMaxHealth() * percentage) / 4 - 1;
     }
 
-    public static LivingEntity[] findAllEntities(Entity source, double radius) {
-        final Vec3 vec3 = new Vec3(source.getX(), source.getY(), source.getZ());
-        AABB boundingBox = new AABB(vec3.x - radius, vec3.y - radius, vec3.z - radius,
-                vec3.x + radius, vec3.y + radius, vec3.z + radius);
-        List<LivingEntity> entities;
-        try {
-            entities = source.level.getEntitiesOfClass(LivingEntity.class, boundingBox, e -> true);
-        } catch (ConcurrentModificationException e) {
-            return new LivingEntity[0];
+    public static List<LivingEntity> findAllEntities(Entity source, double radius) {
+        if (source.level == null) {
+            return Collections.emptyList();
         }
-        List<LivingEntity> list = entities.stream()
-                .filter(entity -> entity != source)
-                .sorted(Comparator.comparingDouble(entity -> entity.distanceToSqr(vec3)))
-                .toList();
-        return list.toArray(new LivingEntity[0]);
+        final Vec3 center = source.position();
+        AABB boundingBox = new AABB(
+                center.x - radius, center.y - radius, center.z - radius,
+                center.x + radius, center.y + radius, center.z + radius
+        );
+        List<LivingEntity> entities = source.level.getEntitiesOfClass(
+                LivingEntity.class,
+                boundingBox,
+                e -> e != source && e.isAlive()
+        );
+        entities.sort(Comparator.comparingDouble(e -> e.distanceToSqr(center)));
+        return entities;
     }
 
     /**
@@ -172,6 +173,17 @@ public class EntityUtil {
                 entity.getY() + yOffset,
                 entity.getZ() + offsetZ
         );
+    }
+
+    public static <T extends LivingEntity> List<T> findAllEntities(Entity source, double radius, Class<T> entityClass) {
+        final Vec3 center = source.position();
+        AABB boundingBox = new AABB(
+                center.x - radius, center.y - radius, center.z - radius,
+                center.x + radius, center.y + radius, center.z + radius
+        );
+        List<T> entities = source.level.getEntitiesOfClass(entityClass, boundingBox, e -> e != source && e.isAlive());
+        entities.sort(Comparator.comparingDouble(e -> e.distanceToSqr(center)));
+        return entities;
     }
 
     /**

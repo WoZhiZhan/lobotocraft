@@ -20,7 +20,8 @@ import java.util.function.Predicate;
 public abstract class MixinInventory {
     @Shadow public abstract ItemStack getItem(int p_35991_);
 
-    @Shadow @Final private List<NonNullList<ItemStack>> compartments;
+    @Shadow @Final
+    public List<NonNullList<ItemStack>> compartments;
 
     @Shadow @Final public Player player;
 
@@ -36,18 +37,6 @@ public abstract class MixinInventory {
             }
             return original.test(stack);
         };
-    }
-
-    @Inject(method = "setItem", at = @At("HEAD"), cancellable = true)
-    private void setItem(int slot, ItemStack stack, CallbackInfo ci) {
-        if (!this.player.isCreative()) {
-            ItemStack currentStack = this.getItem(slot);
-            if (currentStack.getItem() instanceof IProhibitDiscarding) {
-                if (!stack.isEmpty() && !(stack.getItem() instanceof IProhibitDiscarding)) {
-                    ci.cancel();
-                }
-            }
-        }
     }
 
     @Inject(method = "dropAll", at = @At("HEAD"), cancellable = true)
