@@ -3,3 +3,4 @@ build/
 run/
 .idea/
 structures/
+/src/main/java/com/wzz/lobotocraft/StructureNBTOptimizer.java
