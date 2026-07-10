@@ -17,6 +17,7 @@ import com.wzz.lobotocraft.item.ego.crumbling_armor.*;
 import com.wzz.lobotocraft.item.ego.end_bird.*;
 import com.wzz.lobotocraft.item.ego.fourth_match_flame.*;
 import com.wzz.lobotocraft.item.ego.largebird.*;
+import com.wzz.lobotocraft.item.ego.ppodae.*;
 import com.wzz.lobotocraft.item.ego.punishing_bird.*;
 import com.wzz.lobotocraft.item.ego.repentance.*;
 import com.wzz.lobotocraft.item.ego.thorn_bus.*;
@@ -259,4 +260,9 @@ public class ModItems {
     public static final RegistryObject<Item> END_BIRD_CURIO = REGISTRY.register("end_bird_curio", EndBirdCurio::new);
     public static final RegistryObject<Item> STOP_ESCAPE = REGISTRY.register("stop_escape", StopEscapeItem::new);
     public static final RegistryObject<Item> CAPTURE_UNIT = REGISTRY.register("capture_unit", CaptureUnitItem::new);
+    public static final RegistryObject<Item> PPODAE_CHESTPLATE = REGISTRY.register("ppodae_chestplate", PpodaeChestplate::new);
+    public static final RegistryObject<Item> PPODAE_LEGGINGS = REGISTRY.register("ppodae_leggings", PpodaeLeggings::new);
+    public static final RegistryObject<Item> PPODAE_BOOTS = REGISTRY.register("ppodae_boots", PpodaeBoots::new);
+    public static final RegistryObject<Item> PPODAE_WEAPON = REGISTRY.register("ppodae_weapon", PpodaeWeapon::new);
+    public static final RegistryObject<Item> PPODAE_CURIO = REGISTRY.register("ppodae_curio", PpodaeCurio::new);
 }

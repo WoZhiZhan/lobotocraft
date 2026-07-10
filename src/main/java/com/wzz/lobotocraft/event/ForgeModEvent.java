@@ -595,6 +595,18 @@ public class ForgeModEvent {
 		if (!event.isForcedEnd() && event.getWorkType() == WorkType.REPRESSION) {
 			EntityCrumblingArmor.recordRepressionWork(event.getEntity());
 		}
+		if (!event.isForcedEnd() && event.getWorkType() == WorkType.INSIGHT) {
+			if (EgoArmorHelper.isFullEGO(event.getEntity(), "ppodae")) {
+				event.getEntity().heal(event.getEntity().getMaxHealth() * 0.1f);
+				event.getEntity().playNotifySound(
+						SoundEvents.PLAYER_LEVELUP,
+						SoundSource.PLAYERS,
+						1,
+						1
+				);
+				ParticleUtil.spawnParticlesAroundEntity(event.getEntity(), ParticleTypes.HEART, 10, 0.5f);
+			}
+		}
 	}
 
 	@SubscribeEvent

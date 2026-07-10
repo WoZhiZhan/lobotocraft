@@ -4,11 +4,11 @@ import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModSounds;
-import com.wzz.lobotocraft.util.DamageHelper;
-import com.wzz.lobotocraft.util.ResourceUtil;
+import com.wzz.lobotocraft.util.*;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -319,6 +319,13 @@ public class EntityPpodae extends AbstractAbnormality {
         AABB newBoundingBox = AABB.ofSize(centerPos, newWidth, newHeight, newDepth);
         this.setBoundingBox(newBoundingBox);
         this.refreshDimensions();
+        if (!this.level.isClientSide) {
+            for (ServerPlayer player : EntityUtil.findAllPlayer(this)) {
+                if (EgoArmorHelper.isFullEGO(player, "ppodae")) {
+                    ParticleUtil.spawnParticlesAroundEntity(player, ParticleTypes.HEART, 15, 0.1D);
+                }
+            }
+        }
     }
 
     @Override
@@ -365,12 +372,12 @@ public class EntityPpodae extends AbstractAbnormality {
 
     @Override
     public int getWeaponDevelopmentCost() {
-        return 15;
+        return 25;
     }
 
     @Override
     public int getArmorDevelopmentCost() {
-        return 10;
+        return 20;
     }
 
     @Override
@@ -395,6 +402,7 @@ public class EntityPpodae extends AbstractAbnormality {
 
     @Override
     public void attackPlayerOnFailure(Player player, WorkType workType) {
+        if (EgoArmorHelper.isWearingFullSet(player, "ppodae")) return;
         float baseDamage = 2 + this.random.nextInt(2) + 1;
         player.hurt(DamageHelper.getDamage(this, "lobotocraft:" + this.damageType.toLowerCase()), baseDamage);
     }
@@ -428,11 +436,13 @@ public class EntityPpodae extends AbstractAbnormality {
     public EGOEquipmentData.GiftData getEGOGiftData() {
         return new EGOEquipmentData.GiftData(
                 ResourceUtil.createInstance("textures/item/ppodae_curio.png"),
-                "翅振",
+                "超特么可爱！！！",
                 "手套",
                 "ppodae_curio",
-                "成功率+2",
-                "工作速度+2"
+                """
+                        最大生命值+4
+                        成功率+2
+                        工作速度+2"""
         );
     }
 
@@ -440,12 +450,12 @@ public class EntityPpodae extends AbstractAbnormality {
     public EGOEquipmentData.WeaponData getEGOWeaponData() {
         return new EGOEquipmentData.WeaponData(
                 ResourceUtil.createInstance("textures/gui/ego/ppodae_weapon.png"),
-                "翅振",
+                "超特么可爱！！！",
                 getRiskLevel(),
                 "RED",
                 "5-7",
-                "2s",
-                "近",
+                "1.0",
+                "2格",
                 getWeaponDevelopmentMaxCount(),
                 "ppodae_weapon"
         );
@@ -455,11 +465,11 @@ public class EntityPpodae extends AbstractAbnormality {
     public EGOEquipmentData.ArmorData getEGOArmorData() {
         return new EGOEquipmentData.ArmorData(
                 ResourceUtil.createInstance("textures/gui/ego/ppodae_armor.png"),
-                "翅振",
+                "超特么可爱！！！",
                 getRiskLevel(),
                 0.8f,
+                1.5f,
                 0.8f,
-                1.0f,
                 2.0f,
                 getArmorDevelopmentMaxCount(),
                 "ppodae"

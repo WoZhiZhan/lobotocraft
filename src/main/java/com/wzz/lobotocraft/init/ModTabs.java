@@ -131,6 +131,11 @@ public class ModTabs {
 						tabData.accept(ModItems.END_BIRD_BOOTS.get());
 						tabData.accept(ModItems.END_BIRD_WEAPON.get());
 						tabData.accept(ModItems.END_BIRD_CURIO.get());
+						tabData.accept(ModItems.PPODAE_CHESTPLATE.get());
+						tabData.accept(ModItems.PPODAE_LEGGINGS.get());
+						tabData.accept(ModItems.PPODAE_BOOTS.get());
+						tabData.accept(ModItems.PPODAE_WEAPON.get());
+						tabData.accept(ModItems.PPODAE_CURIO.get());
 					})
 					.build());
 

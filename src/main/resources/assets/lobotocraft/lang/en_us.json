@@ -192,5 +192,10 @@
   "item.lobotocraft.blue_star_weapon": "Voice of Nova",
   "item.lobotocraft.blue_star_curio": "Voice of Nova",
   "advancements.lobotocraft.ordeal.title": "Ordeal",
-  "advancements.lobotocraft.ordeal.description": "Reach the third day"
+  "advancements.lobotocraft.ordeal.description": "Reach the third day",
+  "item.lobotocraft.ppodae_chestplate": "Ppodae Chestplate",
+  "item.lobotocraft.ppodae_leggings": "Ppodae Leggings",
+  "item.lobotocraft.ppodae_boots": "Ppodae Boots",
+  "item.lobotocraft.ppodae_weapon": "Ppodae",
+  "item.lobotocraft.ppodae_curio": "Ppodae"
 }
