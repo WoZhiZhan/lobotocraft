@@ -8,13 +8,7 @@ import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.world.data.OrdealData;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -27,6 +21,8 @@ import net.minecraftforge.fml.common.Mod;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import static com.wzz.lobotocraft.event.CrimsonDawnEvent.*;
 
 /**
  * 绿色的黎明考验。
@@ -255,16 +251,7 @@ public class GreenDawnEvent {
     }
 
     private static void showGreenDawnTitle(MinecraftServer server, String top, String middle, String bottom) {
-        if (server == null) return;
-        Component topLine = Component.literal(top).withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD);
-        Component title = Component.literal(middle).withStyle(ChatFormatting.DARK_GREEN, ChatFormatting.BOLD);
-        Component subtitle = Component.literal(bottom).withStyle(ChatFormatting.GREEN);
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 80, 20));
-            player.connection.send(new ClientboundSetActionBarTextPacket(topLine));
-            player.connection.send(new ClientboundSetTitleTextPacket(title));
-            player.connection.send(new ClientboundSetSubtitleTextPacket(subtitle));
-        }
+        sendOrdealTitle(server, top, middle, bottom, GREEN_DAWN_COLOR);
     }
 
     private static void playGlobalSound(MinecraftServer server, SoundEvent sound) {

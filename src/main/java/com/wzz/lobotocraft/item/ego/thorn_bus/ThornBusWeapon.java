@@ -15,7 +15,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -27,6 +26,13 @@ public class ThornBusWeapon extends BaseEgoWeapon {
     private static final String LAST_ATTACKER_TAG = "lobotocraft_thorn_bus_last_attacker";
     private static final String LAST_ATTACK_TIME_TAG = "lobotocraft_thorn_bus_last_attack_time";
     private static final long KILL_CREDIT_TICKS = 5 * 20L + 20L;
+
+    /** 精神(白色)DOT：每秒2点，持续5秒，不叠层 */
+    private static final float DOT_DAMAGE = 2.0f;
+    private static final int DOT_INTERVAL_TICKS = 20;
+    private static final int DOT_DURATION_TICKS = 5 * 20;
+    private static final int DOT_MAX_STACKS = 1;
+
     private static final Item[] TULIPS = {
             Items.RED_TULIP,
             Items.ORANGE_TULIP,
@@ -36,10 +42,10 @@ public class ThornBusWeapon extends BaseEgoWeapon {
 
     public ThornBusWeapon() {
         super(
-            new Tier(),
-            3,
-            -2.4f,  // 攻击速度修正（基础4 + (-2) = 2.0）
-            new Properties().stacksTo(1).fireResistant()
+                new Tier(),
+                3,
+                -2.4f,  // 攻击速度修正（基础4 + (-2) = 2.0）
+                new Properties().stacksTo(1).fireResistant()
         );
     }
 
@@ -79,15 +85,8 @@ public class ThornBusWeapon extends BaseEgoWeapon {
             player.playSound(ModSounds.THORN_BUS_WEAPON.get());
             triggerAttackAnimation(player, stack);
             if (!player.level.isClientSide) {
-                player.getServer().execute(() -> {
-                    TimerEntry<LivingEntity> timerEntry = new TimerEntry<>() {
-                        @Override
-                        public void onRunning(@NotNull LivingEntity living) {
-                            living.hurt(DamageHelper.getDamage(player, "white"), 2);
-                        }
-                    };
-                    timerEntry.addSkillTimer(target, 0, 5000, 1, true);
-                });
+                DotHelper.applyDot(DotHelper.THORN_BUS_DOT, player, target,
+                        DOT_DAMAGE, "white", DOT_INTERVAL_TICKS, DOT_DURATION_TICKS, DOT_MAX_STACKS);
             }
         }
         return true;

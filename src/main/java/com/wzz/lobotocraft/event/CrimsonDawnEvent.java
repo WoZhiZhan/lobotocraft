@@ -9,15 +9,14 @@ import com.wzz.lobotocraft.entity.ordeal.EntityBloodySmall;
 import com.wzz.lobotocraft.event.work.WorkCompleteEvent;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.network.MessageLoader;
+import com.wzz.lobotocraft.network.packet.OrdealTitlePacket;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.world.data.OrdealData;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -33,6 +32,12 @@ import java.util.List;
 
 /**
  * 血色的黎明考验。
+ *
+ * 标题不再用原版 title，统一走 {@link OrdealTitlePacket} -> OrdealTitleOverlay：
+ * 半透明黑色横幅 + 左右斜纹警戒条 + 顶部小字 / 中间大标题 / 底部小字，带淡入淡出。
+ * 其它考验（绿色/紫罗兰的黎明、深蓝色的正午）直接调
+ * {@link #sendOrdealTitle(MinecraftServer, String, String, String, int)} 即可，
+ * 传入自己的主题色。
  */
 @Mod.EventBusSubscriber(modid = ModMain.MODID)
 public class CrimsonDawnEvent {
@@ -44,6 +49,17 @@ public class CrimsonDawnEvent {
     private static final int LOCATION_NOTICE_INTERVAL_TICKS = 10 * 20;
     private static final int SEARCH_LIMIT = 30_000_000;
     private static long lastLocationNoticeGameTime = Long.MIN_VALUE;
+
+    /* ===== 各考验的主题色（横幅描边、斜纹、大标题都用这个颜色） ===== */
+    public static final int BLOOD_DAWN_COLOR = 0xFF3B3B;   // 血色的黎明
+    public static final int GREEN_DAWN_COLOR = 0x6BFF8E;   // 绿色的黎明
+    public static final int VIOLET_DAWN_COLOR = 0xC77DFF;  // 紫罗兰的黎明
+    public static final int BLUE_MIDDAY_COLOR = 0x5AB4FF;  // 深蓝色的正午
+
+    /* ===== 标题动画时长（tick）：淡入 / 停留 / 淡出 ===== */
+    public static final int TITLE_FADE_IN = 10;
+    public static final int TITLE_STAY = 80;
+    public static final int TITLE_FADE_OUT = 20;
 
     @SubscribeEvent
     public static void onWorkComplete(WorkCompleteEvent event) {
@@ -338,7 +354,7 @@ public class CrimsonDawnEvent {
         }
     }
 
-    private static String getDawnLabel(int dawnType) {
+    public static String getDawnLabel(int dawnType) {
         return switch (dawnType) {
             case OrdealData.GREEN_DAWN_TYPE -> "绿色的黎明";
             case OrdealData.VIOLET_DAWN_TYPE -> "紫罗兰的黎明";
@@ -363,15 +379,24 @@ public class CrimsonDawnEvent {
     }
 
     private static void showBloodDawnTitle(MinecraftServer server, String top, String middle, String bottom) {
+        sendOrdealTitle(server, top, middle, bottom, BLOOD_DAWN_COLOR);
+    }
+
+    /**
+     * 发送自定义考验标题（替代原版 title）。
+     *
+     * @param top        顶部小字（例："血色的黎明"、"紫罗兰的黎明 90%"）
+     * @param title      中间大标题（例："开始欢呼吧！"）
+     * @param subtitle   底部小字（例：那句台词）
+     * @param themeColor 主题色，横幅描边、左右斜纹、大标题都用它
+     */
+    public static void sendOrdealTitle(MinecraftServer server, String top, String title, String subtitle,
+                                       int themeColor) {
         if (server == null) return;
-        Component topLine = Component.literal(top).withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD);
-        Component title = Component.literal(middle).withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD);
-        Component subtitle = Component.literal(bottom).withStyle(ChatFormatting.RED);
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 80, 20));
-            player.connection.send(new ClientboundSetActionBarTextPacket(topLine));
-            player.connection.send(new ClientboundSetTitleTextPacket(title));
-            player.connection.send(new ClientboundSetSubtitleTextPacket(subtitle));
+            MessageLoader.getLoader().sendToPlayer(player,
+                    new OrdealTitlePacket(top, title, subtitle, themeColor,
+                            TITLE_FADE_IN, TITLE_STAY, TITLE_FADE_OUT));
         }
     }
 
