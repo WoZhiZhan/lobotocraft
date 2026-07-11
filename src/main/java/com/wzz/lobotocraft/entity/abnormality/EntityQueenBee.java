@@ -201,7 +201,7 @@ public class EntityQueenBee extends AbstractAbnormality {
     @Override
     public EGOEquipmentData.GiftData getEGOGiftData() {
         return new EGOEquipmentData.GiftData(
-                ResourceUtil.createInstance("textures/curio/queen_bee_curio.png"),
+                ResourceUtil.createInstance("textures/item/queen_bee_curio.png"),
                 "黄蜂",
                 "特殊",
                 "queen_bee_curio",
