@@ -24,7 +24,7 @@ public class WorkProgressHUD {
     private static final int ICON_HEIGHT = 40;
     
     // 显示位置
-    private static final int HUD_X = 10;  // 距离屏幕左边的距离
+    private static final int HUD_X = 12;  // 距离屏幕左边的距离
     private static final int HUD_Y = 10;  // 距离屏幕顶部的距离
 
     @SubscribeEvent

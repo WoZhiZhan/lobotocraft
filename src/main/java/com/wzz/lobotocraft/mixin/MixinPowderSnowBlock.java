@@ -14,7 +14,7 @@ public class MixinPowderSnowBlock {
 
     @Inject(method = "canEntityWalkOnPowderSnow", at = @At("HEAD"), cancellable = true)
     private static void onCanEntityWalkOnPowderSnow(Entity entity, CallbackInfoReturnable<Boolean> cir) {
-        if (entity instanceof Player player && EgoArmorHelper.isFullEGO(player, "snowqueen")) {
+        if (entity instanceof Player player && EgoArmorHelper.isWearingFullSet(player, "snowqueen")) {
             cir.setReturnValue(true);
         }
     }
