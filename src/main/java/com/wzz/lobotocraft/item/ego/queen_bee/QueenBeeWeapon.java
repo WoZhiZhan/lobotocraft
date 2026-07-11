@@ -105,7 +105,7 @@ public class QueenBeeWeapon extends BaseEgoWeapon {
                     }
                 }
                 if (!otherHas) {
-                    target.addEffect(new MobEffectInstance(ModEffects.MENACE.get(), 400, 1));
+                    target.addEffect(new MobEffectInstance(ModEffects.MENACE.get(), 400, 0));
                 }
             }
         }
@@ -125,7 +125,7 @@ public class QueenBeeWeapon extends BaseEgoWeapon {
             p_41423_.add(Component.literal("§7它射出的子弹可以击中目不所及的敌人，甚至连历史都能够跨越。"));
             p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
         } else {
-            p_41423_.add(Component.literal("§6※攻击命中目标时，为其施加”威胁“效果（身边有黄色粒子特效环绕），一个维度内最多存在一个“威胁”。其他玩家对“威胁”造成伤害提高10%。“威胁”受到dot造成的伤害提高500%（除开这把武器目前会造成dot的仅有“因乐颠狂”）"));
+            p_41423_.add(Component.literal("§6※攻击命中目标时，为其施加”威胁“效果，一个维度内最多存在一个“威胁”。其他玩家对“威胁”造成伤害提高10%。“威胁”受到dot造成的伤害提高500%"));
         }
     }
 

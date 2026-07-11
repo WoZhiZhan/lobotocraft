@@ -25,7 +25,7 @@ public class SuppressorCounterHud {
             ResourceUtil.createInstance("textures/item/portable_suppressor.png");
 
     // 放在"工作次数"显示(WorkProgressHUD: x=10, y=20)的右边
-    private static final int HUD_X = 10 + 40;
+    private static final int HUD_X = 10 + 60;
     private static final int HUD_Y = 10;       // 与工作次数(y+10=20)同行对齐(图标比文字高,上移4px居中)
     private static final int ICON_SIZE = 16;
 

@@ -41,7 +41,7 @@ public class RedShoesCurio extends BaseEgoCurio {
         tooltip.add(Component.literal("  • 最大生命值 + 4").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal(""));
         tooltip.add(Component.literal("套装效果（装备+武器+饰品）：").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("  • 玩家每次造成伤害会额外造成3点红色伤害的dot，最多叠加5层）").withStyle(ChatFormatting.LIGHT_PURPLE));
+        tooltip.add(Component.literal("  • 玩家每次造成伤害会额外造成3点红色伤害的dot，最多叠加5层").withStyle(ChatFormatting.LIGHT_PURPLE));
         tooltip.add(Component.literal("  • 玩家每有1级自律等级额外提高“血之渴望”1点伤害。玩家击杀生物后回复5%的生命值和精神值").withStyle(ChatFormatting.LIGHT_PURPLE));
         super.appendHoverText(stack, level, tooltip, flag);
     }

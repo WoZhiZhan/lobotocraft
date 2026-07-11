@@ -42,8 +42,7 @@ public class DotHelper {
     /** 本次 DOT 是否无视颜色抗性（蜂后套装） */
     private static final String TAG_DOT_IGNORE_RES = "LobotocraftDotIgnoreResistance";
 
-    /** 【威胁】每层使受到的 DOT 伤害提高 500% */
-    public static final float MENACE_DOT_BONUS = 5.0f;
+    public static final float MENACE_DOT_BONUS = 4.0f;
 
     /** 该实体此刻是否正在承受 DOT 伤害 */
     public static boolean isDotDamage(LivingEntity target) {
