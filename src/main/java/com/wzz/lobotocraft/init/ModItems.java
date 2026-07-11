@@ -21,6 +21,7 @@ import com.wzz.lobotocraft.item.ego.largebird.*;
 import com.wzz.lobotocraft.item.ego.ppodae.*;
 import com.wzz.lobotocraft.item.ego.punishing_bird.*;
 import com.wzz.lobotocraft.item.ego.repentance.*;
+import com.wzz.lobotocraft.item.ego.snowqueen.*;
 import com.wzz.lobotocraft.item.ego.thorn_bus.*;
 import com.wzz.lobotocraft.item.ego.wingbeat.*;
 import com.wzz.lobotocraft.item.linkage.StrangeBadgeItem;
@@ -271,4 +272,9 @@ public class ModItems {
     public static final RegistryObject<Item> FRAGMENT_OF_THE_UNIVERSE_BOOTS = REGISTRY.register("fragment_of_the_universe_boots", FragmentUniverseBoots::new);
     public static final RegistryObject<Item> FRAGMENT_OF_THE_UNIVERSE_WEAPON = REGISTRY.register("fragment_of_the_universe_weapon", FragmentUniverseWeapon::new);
     public static final RegistryObject<Item> FRAGMENT_OF_THE_UNIVERSE_CURIO = REGISTRY.register("fragment_of_the_universe_curio", FragmentUniverseCurio::new);
+    public static final RegistryObject<Item> SNOWQUEEN_CHESTPLATE = REGISTRY.register("snowqueen_chestplate", SnowQueenChestplate::new);
+    public static final RegistryObject<Item> SNOWQUEEN_LEGGINGS = REGISTRY.register("snowqueen_leggings", SnowQueenLeggings::new);
+    public static final RegistryObject<Item> SNOWQUEEN_BOOTS = REGISTRY.register("snowqueen_boots", SnowQueenBoots::new);
+    public static final RegistryObject<Item> SNOWQUEEN_WEAPON = REGISTRY.register("snowqueen_weapon", SnowQueenWeapon::new);
+    public static final RegistryObject<Item> SNOWQUEEN_CURIO = REGISTRY.register("snowqueen_curio", SnowQueenCurio::new);
 }

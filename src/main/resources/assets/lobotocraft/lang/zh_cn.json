@@ -203,5 +203,11 @@
   "item.lobotocraft.fragment_of_the_universe_boots": "彼方的裂片",
   "item.lobotocraft.fragment_of_the_universe_weapon": "彼方的裂片",
   "item.lobotocraft.fragment_of_the_universe_curio": "彼方的裂片",
-  "curios.identifier.chest": "胸部"
+  "curios.identifier.chest": "胸部",
+  "item.lobotocraft.snowqueen_chestplate": "霜之碎片",
+  "item.lobotocraft.snowqueen_leggings": "霜之碎片",
+  "item.lobotocraft.snowqueen_boots": "霜之碎片",
+  "item.lobotocraft.snowqueen_weapon": "霜之碎片",
+  "item.lobotocraft.snowqueen_curio": "霜之碎片",
+  "curios.identifier.cheek": "脸颊"
 }

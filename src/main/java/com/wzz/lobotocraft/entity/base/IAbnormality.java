@@ -780,4 +780,9 @@ public interface IAbnormality {
         if (level < 1 || level > 4) return new ObservationLevelBonus(0, 0);
         return getObservationBonuses()[level - 1];
     }
+
+    // 在异想体图鉴渲染饰品
+    default boolean renderCurio() {
+        return true;
+    }
 }

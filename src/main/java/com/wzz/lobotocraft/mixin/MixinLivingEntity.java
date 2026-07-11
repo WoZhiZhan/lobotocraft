@@ -1,7 +1,9 @@
 package com.wzz.lobotocraft.mixin;
 
 import com.wzz.lobotocraft.event.living.LivingSwingEvent;
+import com.wzz.lobotocraft.init.ModEffects;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
@@ -24,6 +26,15 @@ public class MixinLivingEntity {
         LivingEntity self = (LivingEntity) (Object) this;
         if (self.getPersistentData().getBoolean("NotMove"))
             ci.cancel();
+        if (!(self instanceof Player)) {
+            MobEffectInstance kissEffect = self.getEffect(ModEffects.KISS.get());
+            if (kissEffect != null && kissEffect.getAmplifier() >= 2) {
+                self.attackAnim = 0;
+                self.walkAnimation.setSpeed(0);
+                self.walkAnimation.position(self.walkAnimation.position());
+                ci.cancel();
+            }
+        }
     }
 
     @Inject(method = "travel", at = @At("HEAD"), cancellable = true)

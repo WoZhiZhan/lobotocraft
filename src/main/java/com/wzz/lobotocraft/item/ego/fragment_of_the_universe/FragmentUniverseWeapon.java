@@ -80,7 +80,7 @@ public class FragmentUniverseWeapon extends BaseEgoWeapon {
         if (player instanceof ServerPlayer serverPlayer) {
             MentalValueUtil.addMentalValue(serverPlayer, 5f);
         }
-        SoundUtil.playSound(player.level, player, ModSounds.FOURTH_MATCH_FLAME_WEAPON.get());
+        SoundUtil.playSound(player.level, player, ModSounds.FRAGMENT_OF_THE_UNIVERSE_WEAPON.get());
         if (target instanceof ServerPlayer serverPlayer && MentalValueUtil.isPanic(serverPlayer)) {
             MentalValueUtil.addMentalValue(serverPlayer, 3f);
             return true;

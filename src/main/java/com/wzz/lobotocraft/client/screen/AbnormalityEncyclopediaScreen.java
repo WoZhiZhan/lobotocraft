@@ -43,6 +43,9 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
     private static final ResourceLocation DAMAGE_PALE =
             ResourceUtil.createInstance("textures/particle/blue.png");
 
+    private static final ResourceLocation QUESTION_MARK =
+            ResourceUtil.createInstance("textures/gui/question_mark.png");
+
     private ResourceLocation abnormalityImage;
 
     private final int abnormalityId;
@@ -557,8 +560,10 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         graphics.fill(x, y, x + 70, y + 70, 0xFF3A3A3A);
 
         ResourceLocation resourceLocation = giftData.iconTexture();
+        if (!abnormality.renderCurio()) {
+            resourceLocation = QUESTION_MARK;
+        }
         if (resourceLocation != null && ResourceUtil.exists(resourceLocation)) {
-            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             graphics.pose().pushPose();
             graphics.pose().translate(x + abnormality.getGiftRenderOffset()[0], y + abnormality.getGiftRenderOffset()[1], abnormality.getGiftRenderOffset()[2]);
             graphics.pose().scale(abnormality.getGiftRenderScale()[0], abnormality.getGiftRenderScale()[1], abnormality.getGiftRenderScale()[2]);
@@ -1006,10 +1011,17 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
             if (giftUnlocked) {
                 // 已解锁：显示饰品和获取率
                 float giftProb = abnormality.getGiftProbability() * 100;
-                graphics.drawString(this.font,
-                        String.format("E.G.O饰品（获得率%.1f%%）", giftProb),
-                        x, y,
-                        EncyclopediaGUIConfig.Colors.THEME_ORANGE);
+                if (giftProb != -1f) {
+                    graphics.drawString(this.font,
+                            String.format("E.G.O饰品（获得率%.1f%%）", giftProb),
+                            x, y,
+                            EncyclopediaGUIConfig.Colors.THEME_ORANGE);
+                } else {
+                    graphics.drawString(this.font,
+                            String.format("E.G.O饰品（获得率未知）", giftProb),
+                            x, y,
+                            EncyclopediaGUIConfig.Colors.THEME_ORANGE);
+                }
                 y += EncyclopediaGUIConfig.Layout.CenterColumn.TITLE_SPACING;
                 renderEGOGift(graphics, x, y, abnormality);
                 y += 85;

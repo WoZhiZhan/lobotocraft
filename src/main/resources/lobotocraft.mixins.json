@@ -12,6 +12,7 @@
     "MixinLevel",
     "MixinLevelChunk",
     "MixinLivingEntity",
+    "MixinPowderSnowBlock",
     "MixinRangedAttribute",
     "MixinServerPlayer",
     "MixinSlot"
@@ -19,10 +20,10 @@
   "client": [
     "ChannelAccessor",
     "ChannelHandleAccessor",
+    "MixinDimensionType",
     "MixinInventoryScreen",
     "MixinLocalPlayer",
-    "MixinMultiPlayerGameMode",
-    "MixinDimensionType"
+    "MixinMultiPlayerGameMode"
   ],
   "injectors": {
     "defaultRequire": 1

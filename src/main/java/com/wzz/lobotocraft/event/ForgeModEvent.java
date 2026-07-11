@@ -47,6 +47,7 @@ import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -106,7 +107,7 @@ public class ForgeModEvent {
 			}
 		}
 		if (event.getEntity() instanceof Player player) {
-			if (EgoArmorHelper.isFullEGO(player, "fourth_match_flame")) {
+			if (EgoArmorHelper.isFullEGO(player, "fourth_match_flame") || EgoArmorHelper.isFullEGO(player, "snowqueen")) {
 				if (DamageHelper.getDamage().isAllFire(event.getSource())) {
 					event.setCanceled(true);
 				}
@@ -137,6 +138,14 @@ public class ForgeModEvent {
 		boolean isWhiteDamage = DamageHelper.isWhiteDamage(src);
 		boolean isBlackDamage = DamageHelper.isBlackDamage(src);
 		boolean isBlueDamage = DamageHelper.isBlueDamage(src);
+		if (target.hasEffect(ModEffects.KISS.get())) {
+			MobEffectInstance effect = target.getEffect(ModEffects.KISS.get());
+            if (effect != null && effect.getAmplifier() >= 2 && isRedDamage) {
+				SoundUtil.playSound(target.level(), target, ModSounds.SNOWQUEEN_WEAPON_ICE_BREAK.get());
+				event.setAmount(event.getAmount() * 2f + target.getMaxHealth() * 0.02f);
+				target.removeEffect(effect.getEffect());
+            }
+        }
 		if (src.getEntity() instanceof Player player) {
 			// 补充4第2条:正义裁决者武器命中刷新攻速移速buff
 			com.wzz.lobotocraft.event.WeaponBuffEvent.triggerJusticeBuff(player);

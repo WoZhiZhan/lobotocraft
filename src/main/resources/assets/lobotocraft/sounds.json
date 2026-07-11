@@ -1178,5 +1178,21 @@
         "stream": false
       }
     ]
+  },
+  "snowqueen_weapon_icebound": {
+    "sounds": [
+      {
+        "name": "lobotocraft:snowqueen_weapon_icebound",
+        "stream": false
+      }
+    ]
+  },
+  "snowqueen_weapon_ice_break": {
+    "sounds": [
+      {
+        "name": "lobotocraft:snowqueen_weapon_ice_break",
+        "stream": false
+      }
+    ]
   }
 }

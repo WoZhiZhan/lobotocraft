@@ -1,4 +1,4 @@
 {
   "entities": ["minecraft:player"],
-  "slots": ["head", "headwear", "neck", "eyes", "mouth", "hands", "mask", "right_boby", "chest"]
+  "slots": ["head", "headwear", "neck", "eyes", "mouth", "hands", "mask", "right_boby", "chest", "cheek"]
 }

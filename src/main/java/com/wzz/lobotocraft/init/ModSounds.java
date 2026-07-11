@@ -178,4 +178,6 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> HELPER_HIT = register("helper_hit");
 
 	public static final RegistryObject<SoundEvent> FRAGMENT_OF_THE_UNIVERSE_WEAPON = register("fragment_of_the_universe_weapon");
+	public static final RegistryObject<SoundEvent> SNOWQUEEN_WEAPON_ICEBOUND = register("snowqueen_weapon_icebound");
+	public static final RegistryObject<SoundEvent> SNOWQUEEN_WEAPON_ICE_BREAK = register("snowqueen_weapon_ice_break");
 }

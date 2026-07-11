@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
+import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.*;
 import com.wzz.lobotocraft.work.WorkResult;
@@ -22,7 +23,6 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SnowLayerBlock;
@@ -86,14 +86,43 @@ public class EntitySnowQueen extends AbstractAbnormality {
     }
 
     @Override
+    public int getWeaponDevelopmentMaxCount() {
+        return 3;
+    }
+
+    @Override
+    public float[] getArmorRenderScale() {
+        return new float[] {1.5f, 1.0f, 1.5f};
+    }
+
+    @Override
+    public float[] getArmorRenderOffset() {
+        return new float[] {-20.0f, 1.0f, 1.0f};
+    }
+
+    @Override
+    public float[] getWeaponRenderOffset() {
+        return new float[] {5.0f, 1.0f, 1f};
+    }
+
+    @Override
+    public boolean renderCurio() {
+        return false;
+    }
+
+    @Override
+    public float getGiftProbability() {
+        return -1f;
+    }
+
+    @Override
     public EGOEquipmentData.GiftData getEGOGiftData() {
         return new EGOEquipmentData.GiftData(
                 ResourceUtil.createInstance("textures/item/snowqueen_curio.png"),
-                "翅振",
-                "手套",
+                "???",
+                "脸颊",
                 "snowqueen_curio",
-                "成功率+2",
-                "工作速度+2"
+                "???"
         );
     }
 
@@ -101,12 +130,12 @@ public class EntitySnowQueen extends AbstractAbnormality {
     public EGOEquipmentData.WeaponData getEGOWeaponData() {
         return new EGOEquipmentData.WeaponData(
                 ResourceUtil.createInstance("textures/gui/ego/snowqueen_weapon.png"),
-                "翅振",
+                "霜之碎片",
                 getRiskLevel(),
-                "RED",           // 伤害类型
-                "5-7",             // 攻击力
-                "2s",            // 攻击速度
-                "近",              // 攻击距离
+                "WHITE",           // 伤害类型
+                "6-12",             // 攻击力
+                "1.2",            // 攻击速度
+                "1.2格",              // 攻击距离
                 getWeaponDevelopmentMaxCount(),                  // 研发总数
                 "snowqueen_weapon"
         );
@@ -116,12 +145,12 @@ public class EntitySnowQueen extends AbstractAbnormality {
     public EGOEquipmentData.ArmorData getEGOArmorData() {
         return new EGOEquipmentData.ArmorData(
                 ResourceUtil.createInstance("textures/gui/ego/snowqueen_armor.png"),
-                "翅振",
+                "霜之碎片",
                 getRiskLevel(),
-                0.8f,    // RED抗性
-                0.8f,    // WHITE抗性
-                1.0f,    // BLACK抗性
-                2.0f,    // PALE抗性
+                1.3f,    // RED抗性
+                0.6f,    // WHITE抗性
+                0.8f,    // BLACK抗性
+                1.5f,    // PALE抗性
                 getArmorDevelopmentMaxCount(),        // 研发总数
                 "snowqueen"
         );
@@ -158,13 +187,18 @@ public class EntitySnowQueen extends AbstractAbnormality {
     }
 
     @Override
+    public int getArmorDevelopmentMaxCount() {
+        return 2;
+    }
+
+    @Override
     public int getWeaponDevelopmentCost() {
-        return 15;
+        return 35;
     }
 
     @Override
     public int getArmorDevelopmentCost() {
-        return 10;
+        return 35;
     }
 
     @Override
@@ -213,11 +247,11 @@ public class EntitySnowQueen extends AbstractAbnormality {
                         p.displayClientMessage(Component.literal("§a你的队友在与冰雪女皇的决斗中获得了胜利！"), false);
                         p.setTicksFrozen(0);
                         SoundUtil.playSound(p.level, p, ModSounds.SNOW_QUEEN_DUEL_SUCCESS.get());
-                        ItemUtil.addItem(p, new ItemStack(Items.DIAMOND));
+                        ItemUtil.addItem(p, new ItemStack(ModItems.SNOWQUEEN_CURIO.get()));
                         break;
                     }
                 }
-                ItemUtil.addItem(player, new ItemStack(Items.DIAMOND));
+                ItemUtil.addItem(player, new ItemStack(ModItems.SNOWQUEEN_CURIO.get()));
             } else {
                 player.displayClientMessage(Component.literal("§c很遗憾，你在与冰雪女皇的决斗中失败了"), false);
                 for (Player p : EntityUtil.findPlayersAround(player, 4, 8)) {
@@ -318,7 +352,7 @@ public class EntitySnowQueen extends AbstractAbnormality {
     @Override
     public ObservationLevelBonus[] getObservationBonuses() {
         return new ObservationLevelBonus[] {
-                new ObservationLevelBonus(0.04f, 0),
+                new ObservationLevelBonus(0.04f, 0, true, false, false),
                 new ObservationLevelBonus(0.0f, 4),
                 new ObservationLevelBonus(0.04f, 0, false, true, false),
                 new ObservationLevelBonus(0.0f, 4, false, false, true)
