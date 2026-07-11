@@ -20,6 +20,7 @@ import com.wzz.lobotocraft.item.CaptureUnitItem;
 import com.wzz.lobotocraft.item.PEBoxItem;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.item.ego.children_galaxy.ChildrenGalaxyCurio;
+import com.wzz.lobotocraft.item.ego.red_shoes.RedShoesWeapon;
 import com.wzz.lobotocraft.item.ego.thorn_bus.ThornBusWeapon;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
@@ -204,7 +205,7 @@ public class ForgeModEvent {
 			// 血之渴望(红鞋)套装：每次造成伤害为目标叠加一层流血
 			// 流血：每秒造成 3点红色伤害/层，最多5层，持续10秒（命中会刷新持续时间）
 			if (EgoArmorHelper.isFullEGO(attacker, "red_shoes")
-					&& !DotHelper.isDotDamage(target)) {
+					&& !DotHelper.isDotDamage(target) && attacker.getMainHandItem().getItem() instanceof RedShoesWeapon) {
 				RedShoesBleedHandler.applyBleed(attacker, target);
 			}
 			if (event.getEntity().hasEffect(ModEffects.MENACE.get())) {
