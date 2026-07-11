@@ -562,7 +562,12 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
             graphics.pose().pushPose();
             graphics.pose().translate(x + abnormality.getGiftRenderOffset()[0], y + abnormality.getGiftRenderOffset()[1], abnormality.getGiftRenderOffset()[2]);
             graphics.pose().scale(abnormality.getGiftRenderScale()[0], abnormality.getGiftRenderScale()[1], abnormality.getGiftRenderScale()[2]);
+            RenderSystem.enableBlend();
+            RenderSystem.defaultBlendFunc();
+            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             graphics.blit(resourceLocation, 0, 0, 0, 0, 70, 70, 70, 70);
+            RenderSystem.disableBlend();
+            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             graphics.pose().popPose();
         } else graphics.fill(x, y, x + 70, y + 70, 0xFF664422);
 
@@ -614,10 +619,14 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
             graphics.pose().scale(2.0f, 1.0f, 1.0f);
             graphics.pose().scale(abnormality.getWeaponRenderScale()[0], abnormality.getWeaponRenderScale()[1], abnormality.getWeaponRenderScale()[2]);
             graphics.pose().translate(abnormality.getWeaponRenderOffset()[0], abnormality.getWeaponRenderOffset()[1], abnormality.getWeaponRenderOffset()[2]);
+            RenderSystem.enableBlend();
+            RenderSystem.defaultBlendFunc();
             RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             graphics.blit(resourceLocation, 0, 0, 0, 0,
                     iconSize, iconSize,   // 渲染尺寸
                     iconSize, iconSize);  // 纹理尺寸
+            RenderSystem.disableBlend();
+            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             graphics.pose().popPose();
         } else {
             graphics.fill(iconX, iconY, iconX + iconSize, iconY + iconSize, 0xFF664422);
@@ -724,12 +733,16 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
         ResourceLocation resourceLocation = armorData.iconTexture();
         if (resourceLocation != null && ResourceUtil.exists(resourceLocation)) {
-            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             graphics.pose().pushPose();
             graphics.pose().translate(iconX + abnormality.getArmorRenderOffset()[0], iconY + abnormality.getArmorRenderOffset()[1], abnormality.getArmorRenderOffset()[2]);
             graphics.pose().scale(abnormality.getArmorRenderScale()[0], abnormality.getArmorRenderScale()[1], abnormality.getArmorRenderScale()[2]);
+            RenderSystem.enableBlend();
+            RenderSystem.defaultBlendFunc();
+            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             graphics.blit(resourceLocation, 0, 0, 0, 0,
                     iconSize, iconSize, iconSize, iconSize);
+            RenderSystem.disableBlend();
+            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             graphics.pose().popPose();
         } else {
             graphics.fill(iconX, iconY, iconX + iconSize, iconY + iconSize, 0xFF664422);

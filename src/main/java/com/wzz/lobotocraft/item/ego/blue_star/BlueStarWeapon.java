@@ -77,13 +77,13 @@ public class BlueStarWeapon extends BaseEgoWeapon {
     }
 
     @Override public boolean hasAnimatable() { return true; }
-    @Override protected String getAttackName() { return "animation.blue_star_weapon.idle"; }
+    @Override protected String getAttackName() { return "idle"; }
     @Override protected boolean hasIdle() { return true; }
 
     @Override
     protected void registerAdditionalAnimations(AnimationController<BaseEgoWeapon> controller) {
         controller.triggerableAnim("special_attack",
-                RawAnimation.begin().thenPlay("animation.blue_star_weapon.special_attack"));
+                RawAnimation.begin().thenPlay("special_attack"));
     }
 
     // 左键不进行普通近战(本武器以右键光束为主),保留基类满蓄力判定即可

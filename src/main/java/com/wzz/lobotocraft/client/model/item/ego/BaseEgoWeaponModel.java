@@ -26,9 +26,6 @@ public class BaseEgoWeaponModel extends GeoModel<BaseEgoWeapon> {
 
     @Override
     public ResourceLocation getTextureResource(BaseEgoWeapon animatable) {
-        if ("children_galaxy".equals(weaponName)) {
-            return ResourceUtil.createInstance(ModMain.MODID, "textures/item/children_galaxy_weapon.png");
-        }
         return ResourceUtil.createInstance(ModMain.MODID, "textures/weapon/" + weaponName + "_weapon.png");
     }
 

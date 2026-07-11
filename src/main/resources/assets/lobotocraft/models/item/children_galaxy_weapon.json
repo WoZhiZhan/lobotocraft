@@ -40,8 +40,5 @@
         0.87
       ]
     }
-  },
-  "textures": {
-    "particle": "lobotocraft:weapon/children_galaxy_weapon"
   }
 }

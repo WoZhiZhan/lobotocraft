@@ -433,6 +433,21 @@ public class EntityPpodae extends AbstractAbnormality {
     }
 
     @Override
+    public float[] getArmorRenderScale() {
+        return new float[] {1.5f, 1.0f, 1.5f};
+    }
+
+    @Override
+    public float[] getArmorRenderOffset() {
+        return new float[] {-20.0f, 1.0f, 1.0f};
+    }
+
+    @Override
+    public float[] getWeaponRenderOffset() {
+        return new float[] {5.0f, 1.0f, 1f};
+    }
+
+    @Override
     public EGOEquipmentData.GiftData getEGOGiftData() {
         return new EGOEquipmentData.GiftData(
                 ResourceUtil.createInstance("textures/item/ppodae_curio.png"),
