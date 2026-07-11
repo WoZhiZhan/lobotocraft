@@ -6,6 +6,7 @@ import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleType;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
@@ -136,6 +137,85 @@ public class ParticleUtil {
                 double y = playerPos.y + viewVector.y * factor;
                 double z = playerPos.z + viewVector.z * factor;
                 serverLevel.sendParticles(particleType, x, y, z, 1, 0, 0, 0, speed);
+            }
+        }
+    }
+
+    /**
+     * 在实体前方生成一条线状粒子（可控制向外扩散）
+     * @param world 世界
+     * @param living 实体
+     * @param particleType 粒子类型
+     * @param particleCount 粒子数量
+     * @param speed 粒子速度
+     * @param distance 粒子线的总长度
+     * @param spreadRadius 向外扩散半径（0=直线，值越大越向外扩散）
+     */
+    public static void spawnLineParticles(Level world, LivingEntity living, SimpleParticleType particleType,
+                                          int particleCount, double speed, double distance, double spreadRadius) {
+        if (world instanceof ServerLevel serverLevel) {
+            Vec3 viewVector = living.getLookAngle().normalize();
+            Vec3 playerPos = living.position().add(0, living.getEyeHeight(), 0);
+
+            // 计算垂直于视线方向的向量（用于向外扩散）
+            Vec3 rightVector = new Vec3(-viewVector.z, 0, viewVector.x).normalize();
+            Vec3 upVector = viewVector.cross(rightVector).normalize();
+
+            for (int i = 0; i <= particleCount; i++) {
+                double factor = (double) i / (double) particleCount * distance;
+
+                // 基础位置（沿视线方向）
+                double baseX = playerPos.x + viewVector.x * factor;
+                double baseY = playerPos.y + viewVector.y * factor;
+                double baseZ = playerPos.z + viewVector.z * factor;
+
+                // 向外扩散的偏移
+                double spreadFactor = spreadRadius * factor; // 越远扩散越大
+                double angle = (2 * Math.PI * i) / particleCount; // 环绕角度
+                double offsetX = (Math.cos(angle) * rightVector.x + Math.sin(angle) * upVector.x) * spreadFactor;
+                double offsetY = (Math.cos(angle) * rightVector.y + Math.sin(angle) * upVector.y) * spreadFactor;
+                double offsetZ = (Math.cos(angle) * rightVector.z + Math.sin(angle) * upVector.z) * spreadFactor;
+
+                serverLevel.sendParticles(particleType,
+                        baseX + offsetX, baseY + offsetY, baseZ + offsetZ,
+                        1, 0, 0, 0, speed);
+            }
+        }
+    }
+
+    /**
+     * 在实体前方生成粒子线（随机向外扩散）
+     * @param spreadStrength 扩散强度（0=直线，1=轻微扩散，3=强扩散）
+     */
+    public static void spawnLineParticlesSpread(Level world, LivingEntity living, SimpleParticleType particleType,
+                                                int particleCount, double speed, double distance, double spreadStrength) {
+        if (world instanceof ServerLevel serverLevel) {
+            Vec3 viewVector = living.getLookAngle().normalize();
+            Vec3 playerPos = living.position().add(0, living.getEyeHeight(), 0);
+            RandomSource random = living.getRandom();
+
+            // 垂直和水平扩散方向
+            Vec3 right = new Vec3(-viewVector.z, 0, viewVector.x).normalize();
+            Vec3 up = right.cross(viewVector).normalize();
+
+            for (int i = 0; i <= particleCount; i++) {
+                double factor = (double) i / (double) particleCount * distance;
+
+                // 基础位置
+                Vec3 basePos = playerPos.add(viewVector.scale(factor));
+
+                // 随机向外扩散（越远扩散越大）
+                double spread = factor * spreadStrength;
+                double randomRight = (random.nextDouble() - 0.5) * 2 * spread;
+                double randomUp = (random.nextDouble() - 0.5) * 2 * spread;
+
+                Vec3 finalPos = basePos
+                        .add(right.scale(randomRight))
+                        .add(up.scale(randomUp));
+
+                serverLevel.sendParticles(particleType,
+                        finalPos.x, finalPos.y, finalPos.z,
+                        1, 0, 0, 0, speed);
             }
         }
     }

@@ -52,9 +52,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.npc.Villager;
-import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameRules;
 import net.minecraftforge.event.TickEvent;
@@ -71,7 +69,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
-import static com.wzz.lobotocraft.item.CaptureUnitItem.*;
 import static com.wzz.lobotocraft.util.DamageHelper.*;
 
 @Mod.EventBusSubscriber
@@ -146,50 +143,77 @@ public class ForgeModEvent {
 				target.removeEffect(effect.getEffect());
             }
         }
-		if (src.getEntity() instanceof Player player) {
+		if (src.getEntity() instanceof Player attacker) {
 			// 补充4第2条:正义裁决者武器命中刷新攻速移速buff
-			com.wzz.lobotocraft.event.WeaponBuffEvent.triggerJusticeBuff(player);
+			com.wzz.lobotocraft.event.WeaponBuffEvent.triggerJusticeBuff(attacker);
 			// 悔恨武器命中刷新减速buff,且buff期间造成的红色伤害+10%
-			com.wzz.lobotocraft.event.WeaponBuffEvent.triggerAbandonedMurdererBuff(player);
-			if (com.wzz.lobotocraft.event.WeaponBuffEvent.isAbandonedMurdererBuffActive(player)
-					&& EgoArmorHelper.isHoldingWeapon(player, "abandoned_murderer") && isRedDamage(src)) {
+			com.wzz.lobotocraft.event.WeaponBuffEvent.triggerAbandonedMurdererBuff(attacker);
+			if (com.wzz.lobotocraft.event.WeaponBuffEvent.isAbandonedMurdererBuffActive(attacker)
+					&& EgoArmorHelper.isHoldingWeapon(attacker, "abandoned_murderer") && isRedDamage(src)) {
 				event.setAmount(event.getAmount() * 1.1f);
 			}
-			if (EgoArmorHelper.isFullEGO(player, "punishing_bird")
-					&& EgoArmorHelper.isHoldingWeapon(player, "punishing_bird")
-					&& player.random.nextFloat() <= 0.1f) {
+			if (EgoArmorHelper.isFullEGO(attacker, "punishing_bird")
+					&& EgoArmorHelper.isHoldingWeapon(attacker, "punishing_bird")
+					&& attacker.random.nextFloat() <= 0.1f) {
 				event.setAmount(event.getAmount() * 2f);
 			}
-			if (EgoArmorHelper.isFullEGO(player, "fourth_match_flame") && target.isOnFire()) {
+			if (EgoArmorHelper.isFullEGO(attacker, "fourth_match_flame") && target.isOnFire()) {
 				event.setAmount(event.getAmount() * 1.2f);
 			}
-			if (EgoArmorHelper.isFullEGO(player, "wingbeat") && EgoArmorHelper.isHoldingWeapon(player, "wingbeat")) {
-				player.heal(event.getAmount());
+			if (EgoArmorHelper.isFullEGO(attacker, "wingbeat") && EgoArmorHelper.isHoldingWeapon(attacker, "wingbeat")) {
+				attacker.heal(event.getAmount());
 			}
-			if (EgoArmorHelper.isFullEGO(player, "end_bird")
-					&& EgoArmorHelper.isHoldingWeapon(player, "end_bird")
-					&& CuriosUtil.hasCurios(player, ModItems.PUNISHING_BIRD_CURIO.get())
-					&& !com.wzz.lobotocraft.item.ego.end_bird.EndBirdWeapon.isThinDuskSpecialDamage(player)) {
-				player.heal(event.getAmount() * 0.1f);
+			if (EgoArmorHelper.isFullEGO(attacker, "end_bird")
+					&& EgoArmorHelper.isHoldingWeapon(attacker, "end_bird")
+					&& CuriosUtil.hasCurios(attacker, ModItems.PUNISHING_BIRD_CURIO.get())
+					&& !com.wzz.lobotocraft.item.ego.end_bird.EndBirdWeapon.isThinDuskSpecialDamage(attacker)) {
+				attacker.heal(event.getAmount() * 0.1f);
 			}
-			com.wzz.lobotocraft.event.WeaponBuffEvent.triggerThinDuskApprovalBuff(player);
-			if ((EgoArmorHelper.isFullEGO(player, "end_bird") && EgoArmorHelper.isHoldingWeapon(player, "end_bird")) ||
-					EgoArmorHelper.hasEquipmentCombination(player, "end_bird", true, false, true)) {
-				float multiplier = EntityUtil.getDamageMultiplierByLostHealth(player, 2.0f, 1.0f);
+			com.wzz.lobotocraft.event.WeaponBuffEvent.triggerThinDuskApprovalBuff(attacker);
+			if ((EgoArmorHelper.isFullEGO(attacker, "end_bird") && EgoArmorHelper.isHoldingWeapon(attacker, "end_bird")) ||
+					EgoArmorHelper.hasEquipmentCombination(attacker, "end_bird", true, false, true)) {
+				float multiplier = EntityUtil.getDamageMultiplierByLostHealth(attacker, 2.0f, 1.0f);
 				event.setAmount(event.getAmount() * multiplier);
 			}
-			if (CuriosUtil.hasCurios(player, ModItems.ABANDONED_MURDERER_CURIO.get())) {
+			if (CuriosUtil.hasCurios(attacker, ModItems.ABANDONED_MURDERER_CURIO.get())) {
 				event.setAmount(event.getAmount() + 1f);
 			}
-			if (CuriosUtil.hasCurios(player, ModItems.END_BIRD_CURIO.get())) {
+			if (CuriosUtil.hasCurios(attacker, ModItems.END_BIRD_CURIO.get())) {
 				event.setAmount(event.getAmount() * 1.1f);
 			}
-			if (EgoArmorHelper.isFullEGO(player, "fragment_of_the_universe") && !player.level.isClientSide) {
-				for (ServerPlayer serverPlayer : EntityUtil.findAllPlayer(player)) {
+			if (EgoArmorHelper.isFullEGO(attacker, "fragment_of_the_universe") && !attacker.level.isClientSide) {
+				for (ServerPlayer serverPlayer : EntityUtil.findAllPlayer(attacker)) {
 					if (!MentalValueUtil.isPanic(serverPlayer)) {
 						MentalValueUtil.addMentalValue(serverPlayer, 3f);
 					}
 				}
+			}
+			if (EgoArmorHelper.isFullEGO(attacker, "crumbling_armor")) {
+				boolean hasPlayer = false;
+				for (ServerPlayer serverPlayer : EntityUtil.findAllPlayer(attacker, 8D)) {
+					if (serverPlayer.isAlive()) {
+						hasPlayer = true;
+						break;
+					}
+				}
+				if (!hasPlayer) {
+					event.setAmount(event.getAmount() * 1.35f);
+				}
+			}
+			if (EgoArmorHelper.isFullEGO(attacker, "red_shoes")) {
+				event.getEntity().getPersistentData().putInt("RedShoesDot",
+						event.getEntity().getPersistentData().getInt("RedShoesDot") + 1);
+				if (event.getEntity().getPersistentData().getInt("RedShoesDot") > 5) {
+					event.getEntity().getPersistentData().putInt("RedShoesDot", 5);
+				}
+				TimerEntry<LivingEntity> timerEntry = new TimerEntry<>() {
+                    @Override
+                    public void onEnd(@NotNull LivingEntity entity) {
+                        entity.getPersistentData().remove("RedShoesDot");
+                    }
+                };
+				timerEntry.addSkillTimer(event.getEntity(), 0, 1000, 1, true);
+				event.setAmount(event.getAmount() + event.getEntity().getPersistentData().getInt("RedShoesDot") * 3);
 			}
 		}
 		if (target instanceof ServerPlayer player) {
@@ -237,6 +261,22 @@ public class ForgeModEvent {
 				if (isBlackDamage) {
 					MentalValueUtil.addMentalValue(player, 5f);
 				}
+			}
+			if (EgoArmorHelper.isFullEGO(player, "crumbling_armor")) {
+				boolean hasPlayer = false;
+				for (ServerPlayer serverPlayer : EntityUtil.findAllPlayer(player, 8D)) {
+					if (serverPlayer.isAlive()) {
+						hasPlayer = true;
+						break;
+					}
+				}
+				if (!hasPlayer) {
+					event.setAmount(event.getAmount() * 0.9f);
+				}
+			}
+			if (EgoArmorHelper.isWearingFullSet(player, "red_shoes")) {
+				float damage = EntityUtil.getDamageMultiplierByLostHealth(player, 0.02f, 0);
+				event.setAmount(event.getAmount() - event.getAmount() * damage);
 			}
 		}
 
@@ -455,6 +495,12 @@ public class ForgeModEvent {
 				if (isClerkOrVillagerDeath && entity instanceof EntityArmyInBlack armyInBlack) {
 					armyInBlack.addClerkOrVillagerDeathCount(1);
 				}
+			}
+		}
+		if (event.getSource() != null && event.getSource().getEntity() instanceof ServerPlayer player) {
+			if (EgoArmorHelper.isFullEGO(player, "red_shoes")) {
+				player.heal(player.getMaxHealth() * 0.05f);
+				MentalValueUtil.addMentalValue(player, MentalValueUtil.getEffectiveMaxMentalValue(player) * 0.05f);
 			}
 		}
 	}

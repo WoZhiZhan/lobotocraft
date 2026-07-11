@@ -131,6 +131,71 @@ public class EntityCrumblingArmor extends AbstractAbnormality {
     }
 
     @Override
+    public EGOEquipmentData.WeaponData getEGOWeaponData() {
+        return new EGOEquipmentData.WeaponData(
+                ResourceUtil.createInstance("textures/gui/ego/crumbling_armor_weapon.png"),
+                "彼方的裂片",
+                RiskLevel.HE,
+                "BLUE",
+                "8",
+                "1.0",
+                "4格",
+                getWeaponDevelopmentMaxCount(),
+                "crumbling_armor_weapon"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.ArmorData getEGOArmorData() {
+        return new EGOEquipmentData.ArmorData(
+                ResourceUtil.createInstance("textures/gui/ego/crumbling_armor_armor.png"),
+                "彼方的裂片",
+                getRiskLevel(),
+                0.6f,
+                0.9f,
+                0.9f,
+                2.0f,
+                getArmorDevelopmentMaxCount(),
+                "crumbling_armor"
+        );
+    }
+
+    @Override
+    public float[] getArmorRenderScale() {
+        return new float[] {1.5f, 1.0f, 1.5f};
+    }
+
+    @Override
+    public float[] getArmorRenderOffset() {
+        return new float[] {-20.0f, 1.0f, 1.0f};
+    }
+
+    @Override
+    public float[] getWeaponRenderOffset() {
+        return new float[] {5.0f, 1.0f, 1f};
+    }
+
+    @Override
+    public int getWeaponDevelopmentCost() {
+        return 35;
+    }
+
+    @Override
+    public int getArmorDevelopmentCost() {
+        return 30;
+    }
+
+    @Override
+    public int getArmorDevelopmentMaxCount() {
+        return 1;
+    }
+
+    @Override
+    public int getWeaponDevelopmentMaxCount() {
+        return 1;
+    }
+
+    @Override
     public float getGiftProbability() {
         return 0.0f;
     }

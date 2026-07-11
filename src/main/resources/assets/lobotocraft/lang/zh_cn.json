@@ -209,5 +209,16 @@
   "item.lobotocraft.snowqueen_boots": "霜之碎片",
   "item.lobotocraft.snowqueen_weapon": "霜之碎片",
   "item.lobotocraft.snowqueen_curio": "霜之碎片",
-  "curios.identifier.cheek": "脸颊"
+  "curios.identifier.cheek": "脸颊",
+  "item.lobotocraft.crumbling_armor_chestplate": "决死之心",
+  "item.lobotocraft.crumbling_armor_leggings": "决死之心",
+  "item.lobotocraft.crumbling_armor_boots": "决死之心",
+  "item.lobotocraft.crumbling_armor_weapon": "决死之心",
+  "item.lobotocraft.red_shoes_spawn_egg": "红舞鞋 刷怪蛋",
+  "entity.lobotocraft.red_shoes": "红舞鞋",
+  "item.lobotocraft.red_shoes_chestplate": "血之渴望",
+  "item.lobotocraft.red_shoes_leggings": "血之渴望",
+  "item.lobotocraft.red_shoes_boots": "血之渴望",
+  "item.lobotocraft.red_shoes_weapon": "血之渴望",
+  "item.lobotocraft.red_shoes_curio": "血之渴望"
 }

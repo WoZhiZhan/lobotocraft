@@ -78,7 +78,6 @@ public class KissEffect extends MobEffect {
         living.setYRot(living.yRotO); // 锁定转向（保持上一tick的旋转角度）
         living.yBodyRot = living.yBodyRotO;
         living.yHeadRot = living.yHeadRotO;
-
         // 禁止跳跃
         living.setOnGround(true);
 
@@ -92,10 +91,14 @@ public class KissEffect extends MobEffect {
             // 移除AI（如果适用）
             if (living instanceof net.minecraft.world.entity.Mob mob) {
                 mob.setNoAi(true);
-                // 6秒后恢复AI（通过调度任务）
+                mob.setTarget(null);
+                mob.getPersistentData().putBoolean("isFreezeKiss", true);
                 serverLevel.getServer().tell(new net.minecraft.server.TickTask(
-                        serverLevel.getServer().getTickCount() + 120, // 6秒 = 120 ticks
-                        () -> mob.setNoAi(false)
+                        serverLevel.getServer().getTickCount() + 120,
+                        () ->  {
+                            mob.setNoAi(false);
+                            mob.getPersistentData().putBoolean("isFreezeKiss", false);
+                        }
                 ));
             }
         }

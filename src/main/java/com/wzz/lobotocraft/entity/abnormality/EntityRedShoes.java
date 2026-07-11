@@ -7,6 +7,7 @@ import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.EntityRedShoesClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.event.PlayerControlLock;
 import com.wzz.lobotocraft.event.living.LivingSwingEvent;
@@ -17,6 +18,7 @@ import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.ParticleUtil;
+import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.core.BlockPos;
@@ -206,6 +208,89 @@ public class EntityRedShoes extends AbstractAbnormality {
             }
         }
         return true;
+    }
+
+    @Override
+    public EGOEquipmentData.GiftData getEGOGiftData() {
+        return new EGOEquipmentData.GiftData(
+                ResourceUtil.createInstance("textures/curio/inner_courage_curio.png"),
+                "血之渴望",
+                "特殊",
+                "inner_courage_curio",
+                "压迫工作完成后获得「内在的勇气」。",
+                "持有「内在的勇气」完成三次压迫工作后转化为「匹夫之勇」。",
+                "携带者进行沟通工作时会被处决。"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.WeaponData getEGOWeaponData() {
+        return new EGOEquipmentData.WeaponData(
+                ResourceUtil.createInstance("textures/gui/ego/crumbling_armor_weapon.png"),
+                "血之渴望",
+                RiskLevel.HE,
+                "BLUE",
+                "8",
+                "1.0",
+                "4格",
+                getWeaponDevelopmentMaxCount(),
+                "crumbling_armor_weapon"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.ArmorData getEGOArmorData() {
+        return new EGOEquipmentData.ArmorData(
+                ResourceUtil.createInstance("textures/gui/ego/red_shoes_armor.png"),
+                "血之渴望",
+                getRiskLevel(),
+                0.6f,
+                0.9f,
+                0.9f,
+                2.0f,
+                getArmorDevelopmentMaxCount(),
+                "red_shoes_armor"
+        );
+    }
+
+    @Override
+    public float getGiftProbability() {
+        return 0.04f;
+    }
+
+    @Override
+    public float[] getArmorRenderScale() {
+        return new float[] {1.5f, 1.0f, 1.5f};
+    }
+
+    @Override
+    public float[] getArmorRenderOffset() {
+        return new float[] {-20.0f, 1.0f, 1.0f};
+    }
+
+    @Override
+    public float[] getWeaponRenderOffset() {
+        return new float[] {5.0f, 1.0f, 1f};
+    }
+
+    @Override
+    public int getWeaponDevelopmentCost() {
+        return 40;
+    }
+
+    @Override
+    public int getArmorDevelopmentCost() {
+        return 50;
+    }
+
+    @Override
+    public int getArmorDevelopmentMaxCount() {
+        return 1;
+    }
+
+    @Override
+    public int getWeaponDevelopmentMaxCount() {
+        return 1;
     }
 
     @Override

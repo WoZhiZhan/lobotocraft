@@ -531,39 +531,17 @@ public class EntityUtil {
     }
 
     /**
-     * 让实体高速飞向目标实体，到达后执行回调
-     * @param entity 飞行的实体
-     * @param target 目标实体
-     * @param speed 每 tick 移动距离（格数）
-     * @param onReach 到达后的回调
+     * 查找范围内所有其他玩家
+     * @param source 源实体
+     * @param range 范围（方块数）
      */
-    public static void flyToEntityWithCallback(LivingEntity entity, Entity target, double speed, Runnable onReach) {
-        if (entity == null || target == null) return;
-        TimerEntry<LivingEntity> flyTimer = new TimerEntry<>() {
-            @Override
-            public void onRunning(@NotNull LivingEntity living) {
-                double dx = target.getX() - living.getX();
-                double dy = target.getY() + target.getBbHeight() / 2 - living.getY();
-                double dz = target.getZ() - living.getZ();
-                double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-                if (distance < 0.6) {
-                    if (onReach != null) onReach.run();
-                    this.removeTimer(living.getUUID());
-                    return;
-                }
-                double vx = dx / distance * speed;
-                double vy = dy / distance * speed;
-                double vz = dz / distance * speed;
-                living.setPos(
-                        living.getX() + vx,
-                        living.getY() + vy,
-                        living.getZ() + vz
-                );
-                float yaw = (float) Math.toDegrees(Math.atan2(dz, dx));
-                living.setYRot(yaw);
-            }
-        };
-        flyTimer.addSkillTimer(entity, 0, 10000, 20);
+    public static ServerPlayer[] findAllPlayer(Entity source, double range) {
+        if (source == null || source.level().isClientSide()) return new ServerPlayer[0];
+        List<ServerPlayer> array = source.level().getServer().getPlayerList().getPlayers().stream()
+                .filter(player -> player != source)
+                .filter(player -> player.distanceTo(source) <= range)
+                .toList();
+        return array.toArray(new ServerPlayer[0]);
     }
 
     /**
@@ -594,6 +572,20 @@ public class EntityUtil {
 
         // 默认返回目标位置上方1格
         return targetPos.above();
+    }
+
+    /**
+     * 让实体向前冲刺一段距离
+     * @param entity 要冲刺的实体
+     * @param distance 冲刺距离（方块数）
+     */
+    public static void dashForward(Entity entity, double distance) {
+        Vec3 lookVec = entity.getLookAngle();
+        Vec3 dashVec = lookVec.scale(distance);
+        entity.setDeltaMovement(dashVec.x, dashVec.y * 0.2, dashVec.z);
+        if (!entity.level().isClientSide()) {
+            entity.hasImpulse = true;
+        }
     }
 
     /**

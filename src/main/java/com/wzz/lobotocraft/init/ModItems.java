@@ -20,6 +20,7 @@ import com.wzz.lobotocraft.item.ego.fragment_of_the_universe.*;
 import com.wzz.lobotocraft.item.ego.largebird.*;
 import com.wzz.lobotocraft.item.ego.ppodae.*;
 import com.wzz.lobotocraft.item.ego.punishing_bird.*;
+import com.wzz.lobotocraft.item.ego.red_shoes.*;
 import com.wzz.lobotocraft.item.ego.repentance.*;
 import com.wzz.lobotocraft.item.ego.snowqueen.*;
 import com.wzz.lobotocraft.item.ego.thorn_bus.*;
@@ -151,8 +152,7 @@ public class ModItems {
     public static final RegistryObject<Item> LETICIA_SPAWN_EGG = REGISTRY.register("leticia_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.leticia, 0x5a2f67, 0xe7d7f0, new Item.Properties(),
                     "§c所以，她想出了这个绝妙的主意！"));
-    public static final RegistryObject<Item> INNER_COURAGE_CURIO = REGISTRY.register("inner_courage_curio", InnerCourageCurio::new);
-    public static final RegistryObject<Item> FOOLHARDY_COURAGE_CURIO = REGISTRY.register("foolhardy_courage_curio", FoolhardyCourageCurio::new);
+
     public static final RegistryObject<Item> SHELL_SEA_RUNNER_SPAWN_EGG = REGISTRY.register("shell_sea_runner_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.shell_sea_runner, 0x2e5a6b, 0x9ed0d8, new Item.Properties(),
                     "§c长出四肢的恐鱼。"));
@@ -277,4 +277,15 @@ public class ModItems {
     public static final RegistryObject<Item> SNOWQUEEN_BOOTS = REGISTRY.register("snowqueen_boots", SnowQueenBoots::new);
     public static final RegistryObject<Item> SNOWQUEEN_WEAPON = REGISTRY.register("snowqueen_weapon", SnowQueenWeapon::new);
     public static final RegistryObject<Item> SNOWQUEEN_CURIO = REGISTRY.register("snowqueen_curio", SnowQueenCurio::new);
+    public static final RegistryObject<Item> INNER_COURAGE_CURIO = REGISTRY.register("inner_courage_curio", InnerCourageCurio::new);
+    public static final RegistryObject<Item> FOOLHARDY_COURAGE_CURIO = REGISTRY.register("foolhardy_courage_curio", FoolhardyCourageCurio::new);
+    public static final RegistryObject<Item> CRUMBLING_ARMOR_CHESTPLATE = REGISTRY.register("crumbling_armor_chestplate", CrumblingArmorChestplate::new);
+    public static final RegistryObject<Item> CRUMBLING_ARMOR_LEGGINGS = REGISTRY.register("crumbling_armor_leggings", CrumblingArmorLeggings::new);
+    public static final RegistryObject<Item> CRUMBLING_ARMOR_BOOTS = REGISTRY.register("crumbling_armor_boots", CrumblingArmorBoots::new);
+    public static final RegistryObject<Item> CRUMBLING_ARMOR_WEAPON = REGISTRY.register("crumbling_armor_weapon", CrumblingArmorWeapon::new);
+    public static final RegistryObject<Item> RED_SHOES_CHESTPLATE = REGISTRY.register("red_shoes_chestplate", RedShoesChestplate::new);
+    public static final RegistryObject<Item> RED_SHOES_LEGGINGS = REGISTRY.register("red_shoes_leggings", RedShoesLeggings::new);
+    public static final RegistryObject<Item> RED_SHOES_BOOTS = REGISTRY.register("red_shoes_boots", RedShoesBoots::new);
+    public static final RegistryObject<Item> RED_SHOES_WEAPON = REGISTRY.register("red_shoes_weapon", RedShoesWeapon::new);
+    public static final RegistryObject<Item> RED_SHOES_CURIO = REGISTRY.register("red_shoes_curio", RedShoesCurio::new);
 }

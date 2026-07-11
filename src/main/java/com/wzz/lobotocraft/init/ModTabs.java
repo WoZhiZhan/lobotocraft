@@ -75,7 +75,7 @@ public class ModTabs {
 					.build());
 
 	public static final RegistryObject<CreativeModeTab> TAB_LOBOTOCRAFT_SUIT = REGISTRY.register("tablobotocraft_suit",
-			() -> CreativeModeTab.builder().title(Component.translatable("itemGroup.lobotocraft_suit")).icon(() -> new ItemStack(ModItems.ICON.get())).displayItems((parameters, tabData) -> {
+			() -> CreativeModeTab.builder().title(Component.translatable("itemGroup.lobotocraft_suit")).icon(() -> new ItemStack(ModItems.REPENTANCE_CHESTPLATE.get())).displayItems((parameters, tabData) -> {
 						tabData.accept(ModItems.REPENTANCE_CHESTPLATE.get());
 						tabData.accept(ModItems.REPENTANCE_LEGGINGS.get());
 						tabData.accept(ModItems.REPENTANCE_BOOTS.get());
@@ -146,6 +146,17 @@ public class ModTabs {
 						tabData.accept(ModItems.SNOWQUEEN_BOOTS.get());
 						tabData.accept(ModItems.SNOWQUEEN_WEAPON.get());
 						tabData.accept(ModItems.SNOWQUEEN_CURIO.get());
+						tabData.accept(ModItems.CRUMBLING_ARMOR_CHESTPLATE.get());
+						tabData.accept(ModItems.CRUMBLING_ARMOR_LEGGINGS.get());
+						tabData.accept(ModItems.CRUMBLING_ARMOR_BOOTS.get());
+						tabData.accept(ModItems.CRUMBLING_ARMOR_WEAPON.get());
+						tabData.accept(ModItems.FOOLHARDY_COURAGE_CURIO.get());
+						tabData.accept(ModItems.INNER_COURAGE_CURIO.get());
+						tabData.accept(ModItems.RED_SHOES_CHESTPLATE.get());
+						tabData.accept(ModItems.RED_SHOES_LEGGINGS.get());
+						tabData.accept(ModItems.RED_SHOES_BOOTS.get());
+						tabData.accept(ModItems.RED_SHOES_WEAPON.get());
+						tabData.accept(ModItems.RED_SHOES_CURIO.get());
 					})
 					.build());
 

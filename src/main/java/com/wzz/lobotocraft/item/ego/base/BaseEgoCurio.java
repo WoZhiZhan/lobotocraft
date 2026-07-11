@@ -159,7 +159,7 @@ public abstract class BaseEgoCurio extends Item implements ICurioItem, GeoItem, 
     }
 
     private void applyAttributeModifiers(LivingEntity entity) {
-        List<AttributeEntry> entries = getAttributeEntries();
+        List<AttributeEntry> entries = getAttributeEntries(entity);
         if (entries.isEmpty()) return;
 
         for (AttributeEntry entry : entries) {
@@ -199,7 +199,7 @@ public abstract class BaseEgoCurio extends Item implements ICurioItem, GeoItem, 
     public void onUnequip(SlotContext slotContext, ItemStack newStack, ItemStack stack) {
         ICurioItem.super.onUnequip(slotContext, newStack, stack);
         LivingEntity entity = slotContext.entity();
-        List<AttributeEntry> entries = getAttributeEntries();
+        List<AttributeEntry> entries = getAttributeEntries(entity);
         boolean hasMaxHealth = false;
 
         for (AttributeEntry entry : entries) {

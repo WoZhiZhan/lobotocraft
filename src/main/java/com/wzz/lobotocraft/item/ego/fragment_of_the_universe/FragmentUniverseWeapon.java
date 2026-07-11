@@ -93,7 +93,14 @@ public class FragmentUniverseWeapon extends BaseEgoWeapon {
     public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
         if (player.isShiftKeyDown()) {
             player.getCooldowns().addCooldown(this, 200);
-            player.playSound(ModSounds.FRAGMENT_ATTACK.get(), 1.0f, 1.0f);
+            player.level().playSound(
+                    null,
+                    player.blockPosition(),
+                    ModSounds.FRAGMENT_SING.get(),
+                    net.minecraft.sounds.SoundSource.PLAYERS,
+                    1.0f,
+                    1.0f
+            );
             for (LivingEntity living : EntityUtil.findAllEntities(player, 20)) {
                 if (living instanceof Warden warden) {
                     TimerEntry<Warden> timerEntry = new TimerEntry<>() {

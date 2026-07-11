@@ -1,7 +1,9 @@
 package com.wzz.lobotocraft.item.ego.base;
 
 import com.wzz.lobotocraft.item.AttributeEntry;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.List;
@@ -19,17 +21,21 @@ public interface IAttributeItem {
      * @return 属性条目列表
      */
     default List<AttributeEntry> getAttributeEntries() {
+        return getAttributeEntries(null);
+    }
+
+    default List<AttributeEntry> getAttributeEntries(@Nullable LivingEntity living) {
         // 默认实现：使用旧的单属性方法构建单个条目
         if (!hasAttribute() || getAttribute() == null || getAttributeUUID() == null) {
             return Collections.emptyList();
         }
-        
+
         AttributeEntry entry = new AttributeEntry(
-            getAttributeUUID(),
-            getAttributeName(),
-            getAttribute(),
-            getAttributeBonus(),
-            getAttributeMode()
+                getAttributeUUID(),
+                getAttributeName(),
+                getAttribute(),
+                getAttributeBonus(),
+                getAttributeMode()
         );
         return Collections.singletonList(entry);
     }
