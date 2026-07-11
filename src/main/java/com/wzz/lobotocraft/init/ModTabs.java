@@ -157,6 +157,11 @@ public class ModTabs {
 						tabData.accept(ModItems.RED_SHOES_BOOTS.get());
 						tabData.accept(ModItems.RED_SHOES_WEAPON.get());
 						tabData.accept(ModItems.RED_SHOES_CURIO.get());
+						tabData.accept(ModItems.QUEEN_BEE_CHESTPLATE.get());
+						tabData.accept(ModItems.QUEEN_BEE_LEGGINGS.get());
+						tabData.accept(ModItems.QUEEN_BEE_BOOTS.get());
+						tabData.accept(ModItems.QUEEN_BEE_WEAPON.get());
+						tabData.accept(ModItems.QUEEN_BEE_CURIO.get());
 					})
 					.build());
 

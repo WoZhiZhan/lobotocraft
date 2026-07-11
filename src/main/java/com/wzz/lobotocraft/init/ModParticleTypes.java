@@ -17,4 +17,5 @@ public class ModParticleTypes {
 	public static final RegistryObject<ParticleType<?>> BUTTERFLY = REGISTRY.register("butterfly", () -> new SimpleParticleType(true));
 	public static final RegistryObject<ParticleType<?>> RED_LIGHT = REGISTRY.register("red_light", () -> new SimpleParticleType(true));
 	public static final RegistryObject<ParticleType<?>> BLUE_LIGHT = REGISTRY.register("blue_light", () -> new SimpleParticleType(true));
+	public static final RegistryObject<ParticleType<?>> GOLD_LIGHT = REGISTRY.register("gold_light", () -> new SimpleParticleType(true));
 }

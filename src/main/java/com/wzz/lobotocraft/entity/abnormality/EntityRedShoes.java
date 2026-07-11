@@ -213,10 +213,10 @@ public class EntityRedShoes extends AbstractAbnormality {
     @Override
     public EGOEquipmentData.GiftData getEGOGiftData() {
         return new EGOEquipmentData.GiftData(
-                ResourceUtil.createInstance("textures/curio/inner_courage_curio.png"),
+                ResourceUtil.createInstance("textures/curio/red_shoes_curio.png"),
                 "血之渴望",
                 "特殊",
-                "inner_courage_curio",
+                "red_shoes_curio",
                 "压迫工作完成后获得「内在的勇气」。",
                 "持有「内在的勇气」完成三次压迫工作后转化为「匹夫之勇」。",
                 "携带者进行沟通工作时会被处决。"
@@ -226,7 +226,7 @@ public class EntityRedShoes extends AbstractAbnormality {
     @Override
     public EGOEquipmentData.WeaponData getEGOWeaponData() {
         return new EGOEquipmentData.WeaponData(
-                ResourceUtil.createInstance("textures/gui/ego/crumbling_armor_weapon.png"),
+                ResourceUtil.createInstance("textures/gui/ego/red_shoes_weapon.png"),
                 "血之渴望",
                 RiskLevel.HE,
                 "BLUE",
@@ -234,7 +234,7 @@ public class EntityRedShoes extends AbstractAbnormality {
                 "1.0",
                 "4格",
                 getWeaponDevelopmentMaxCount(),
-                "crumbling_armor_weapon"
+                "red_shoes_weapon"
         );
     }
 

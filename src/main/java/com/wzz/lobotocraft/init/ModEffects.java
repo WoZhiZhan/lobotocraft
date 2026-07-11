@@ -1,14 +1,7 @@
 package com.wzz.lobotocraft.init;
 
 import com.wzz.lobotocraft.ModMain;
-import com.wzz.lobotocraft.effect.FriendshipProofEffect;
-import com.wzz.lobotocraft.effect.KissEffect;
-import com.wzz.lobotocraft.effect.LeticiaBrokenGiftEffect;
-import com.wzz.lobotocraft.effect.LeticiaGiftEffect;
-import com.wzz.lobotocraft.effect.QueenBeeSporeEffect;
-import com.wzz.lobotocraft.effect.RedShoesBloodlustEffect;
-import com.wzz.lobotocraft.effect.WishWithoutLightEffect;
-import com.wzz.lobotocraft.effect.ButterflyShroudEffect;
+import com.wzz.lobotocraft.effect.*;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -54,4 +47,7 @@ public class ModEffects {
     // 蕾蒂希雅的破碎礼物
     public static final RegistryObject<MobEffect> LETICIA_BROKEN_GIFT =
             EFFECTS.register("leticia_broken_gift", LeticiaBrokenGiftEffect::new);
+
+    public static final RegistryObject<MobEffect> MENACE = EFFECTS.register("menace", MenaceEffect::new);
+    public static final RegistryObject<MobEffect> SPORE = EFFECTS.register("spore", SporeEffect::new);
 }

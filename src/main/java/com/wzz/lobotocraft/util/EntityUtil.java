@@ -511,6 +511,26 @@ public class EntityUtil {
         return _entfound.toArray(new LivingEntity[0]);
     }
 
+    /**
+     * 查找指定维度的所有生物（不限范围）
+     * @param source 源实体
+     * @param levelResourceKey 目标维度
+     */
+    public static LivingEntity[] findAllEntitiesWithDimension(Entity source, ResourceKey<Level> levelResourceKey) {
+        if (source == null || source.level().isClientSide()) return new LivingEntity[0];
+        final Vec3 center = source.position();
+        Level targetLevel = source.level().getServer().getLevel(levelResourceKey);
+        if (targetLevel == null) return new LivingEntity[0];
+        List<LivingEntity> entities = targetLevel.getEntitiesOfClass(LivingEntity.class,
+                        new AABB(Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY,
+                                Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY),
+                        e -> e != source)
+                .stream()
+                .sorted(Comparator.comparingDouble(entity -> entity.distanceToSqr(center)))
+                .toList();
+        return entities.toArray(new LivingEntity[0]);
+    }
+
     public static Player[] findAllPlayerWithDimension(Entity source, double range, ResourceKey<Level> levelResourceKey) {
         final Vec3 center = new Vec3(source.getX(), source.getY(), source.getZ());
         AABB boundingBox = new AABB(center.x - range, center.y - range, center.z - range,
@@ -638,6 +658,18 @@ public class EntityUtil {
             bonus = maxBonusPercent;
         }
         return 1 + bonus;
+    }
+
+    /**
+     * 根据已损失血量计算免伤率
+     * @param player 玩家
+     * @param reductionPer10Percent 每损失10%血量增加的免伤率（如0.02表示2%）
+     * @param maxReduction 最大免伤率（如0.6表示60%）
+     */
+    public static float getDamageReductionByLostHealth(Player player, float reductionPer10Percent, float maxReduction) {
+        float healthLostPercent = 1 - (player.getHealth() / player.getMaxHealth());
+        float reduction = (healthLostPercent / 0.1f) * reductionPer10Percent;
+        return Math.min(reduction, maxReduction);
     }
 
     /**

@@ -1194,5 +1194,13 @@
         "stream": false
       }
     ]
+  },
+  "queen_bee_weapon": {
+    "sounds": [
+      {
+        "name": "lobotocraft:queen_bee_weapon",
+        "stream": false
+      }
+    ]
   }
 }

@@ -20,6 +20,7 @@ import com.wzz.lobotocraft.item.ego.fragment_of_the_universe.*;
 import com.wzz.lobotocraft.item.ego.largebird.*;
 import com.wzz.lobotocraft.item.ego.ppodae.*;
 import com.wzz.lobotocraft.item.ego.punishing_bird.*;
+import com.wzz.lobotocraft.item.ego.queen_bee.*;
 import com.wzz.lobotocraft.item.ego.red_shoes.*;
 import com.wzz.lobotocraft.item.ego.repentance.*;
 import com.wzz.lobotocraft.item.ego.snowqueen.*;
@@ -288,4 +289,9 @@ public class ModItems {
     public static final RegistryObject<Item> RED_SHOES_BOOTS = REGISTRY.register("red_shoes_boots", RedShoesBoots::new);
     public static final RegistryObject<Item> RED_SHOES_WEAPON = REGISTRY.register("red_shoes_weapon", RedShoesWeapon::new);
     public static final RegistryObject<Item> RED_SHOES_CURIO = REGISTRY.register("red_shoes_curio", RedShoesCurio::new);
+    public static final RegistryObject<Item> QUEEN_BEE_CHESTPLATE = REGISTRY.register("queen_bee_chestplate", QueenBeeChestplate::new);
+    public static final RegistryObject<Item> QUEEN_BEE_LEGGINGS = REGISTRY.register("queen_bee_leggings", QueenBeeLeggings::new);
+    public static final RegistryObject<Item> QUEEN_BEE_BOOTS = REGISTRY.register("queen_bee_boots", QueenBeeBoots::new);
+    public static final RegistryObject<Item> QUEEN_BEE_WEAPON = REGISTRY.register("queen_bee_weapon", QueenBeeWeapon::new);
+    public static final RegistryObject<Item> QUEEN_BEE_CURIO = REGISTRY.register("queen_bee_curio", QueenBeeCurio::new);
 }

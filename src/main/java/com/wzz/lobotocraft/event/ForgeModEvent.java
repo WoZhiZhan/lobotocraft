@@ -135,15 +135,16 @@ public class ForgeModEvent {
 		boolean isWhiteDamage = DamageHelper.isWhiteDamage(src);
 		boolean isBlackDamage = DamageHelper.isBlackDamage(src);
 		boolean isBlueDamage = DamageHelper.isBlueDamage(src);
-		if (target.hasEffect(ModEffects.KISS.get())) {
+		boolean isDot = DotHelper.isDotDamage(target);
+		if (!isDot && target.hasEffect(ModEffects.KISS.get())) {
 			MobEffectInstance effect = target.getEffect(ModEffects.KISS.get());
-            if (effect != null && effect.getAmplifier() >= 2 && isRedDamage) {
+			if (effect != null && effect.getAmplifier() >= 2 && isRedDamage) {
 				SoundUtil.playSound(target.level(), target, ModSounds.SNOWQUEEN_WEAPON_ICE_BREAK.get());
 				event.setAmount(event.getAmount() * 2f + target.getMaxHealth() * 0.02f);
 				target.removeEffect(effect.getEffect());
-            }
-        }
-		if (src.getEntity() instanceof Player attacker) {
+			}
+		}
+		if (!isDot && src.getEntity() instanceof Player attacker) {
 			// 补充4第2条:正义裁决者武器命中刷新攻速移速buff
 			com.wzz.lobotocraft.event.WeaponBuffEvent.triggerJusticeBuff(attacker);
 			// 悔恨武器命中刷新减速buff,且buff期间造成的红色伤害+10%
@@ -200,23 +201,17 @@ public class ForgeModEvent {
 					event.setAmount(event.getAmount() * 1.35f);
 				}
 			}
-			if (EgoArmorHelper.isFullEGO(attacker, "red_shoes")) {
-				event.getEntity().getPersistentData().putInt("RedShoesDot",
-						event.getEntity().getPersistentData().getInt("RedShoesDot") + 1);
-				if (event.getEntity().getPersistentData().getInt("RedShoesDot") > 5) {
-					event.getEntity().getPersistentData().putInt("RedShoesDot", 5);
-				}
-				TimerEntry<LivingEntity> timerEntry = new TimerEntry<>() {
-                    @Override
-                    public void onEnd(@NotNull LivingEntity entity) {
-                        entity.getPersistentData().remove("RedShoesDot");
-                    }
-                };
-				timerEntry.addSkillTimer(event.getEntity(), 0, 1000, 1, true);
-				event.setAmount(event.getAmount() + event.getEntity().getPersistentData().getInt("RedShoesDot") * 3);
+			// 血之渴望(红鞋)套装：每次造成伤害为目标叠加一层流血
+			// 流血：每秒造成 3点红色伤害/层，最多5层，持续10秒（命中会刷新持续时间）
+			if (EgoArmorHelper.isFullEGO(attacker, "red_shoes")
+					&& !DotHelper.isDotDamage(target)) {
+				RedShoesBleedHandler.applyBleed(attacker, target);
+			}
+			if (event.getEntity().hasEffect(ModEffects.MENACE.get())) {
+				event.setAmount(event.getAmount() * 1.1f);
 			}
 		}
-		if (target instanceof ServerPlayer player) {
+		if (!isDot && target instanceof ServerPlayer player) {
 			if (EntityArmyInBlack.hasActiveProtection(player) && !DamageHelper.isExecution(src)) {
 				event.setAmount(event.getAmount() * 0.8f);
 			}
@@ -275,8 +270,8 @@ public class ForgeModEvent {
 				}
 			}
 			if (EgoArmorHelper.isWearingFullSet(player, "red_shoes")) {
-				float damage = EntityUtil.getDamageMultiplierByLostHealth(player, 0.02f, 0);
-				event.setAmount(event.getAmount() - event.getAmount() * damage);
+				float reduction = EntityUtil.getDamageReductionByLostHealth(player, 0.02f, 0.6f);
+				event.setAmount(event.getAmount() * (1 - reduction));
 			}
 		}
 
@@ -428,6 +423,7 @@ public class ForgeModEvent {
 
 	@SubscribeEvent
 	public static void onLivingDeath(LivingDeathEvent event) {
+		RedShoesBleedHandler.clearBleed(event.getEntity());
 		ThornBusWeapon.tryAwardKillTulip(event.getEntity(), event.getSource());
 		if (event.getEntity() instanceof Player player) {
 			EntityLargeBird.clearLargeBirdCharm(player);

@@ -24,5 +24,6 @@ public class ModParticles {
 				(spriteSet -> new ColorLightParticle.Provider(spriteSet, 1.0F, 0.1F, 0.1F, 0.6F, 0.0F, 0.0F)));
 		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.BLUE_LIGHT.get(),
 				(spriteSet -> new ColorLightParticle.Provider(spriteSet, 0.2F, 0.3F, 1.0F, 0.0F, 0.0F, 0.7F)));
+		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.GOLD_LIGHT.get(), ColorLightParticle.Provider::new);
 	}
 }

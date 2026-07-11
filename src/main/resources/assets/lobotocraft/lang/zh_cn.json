@@ -220,5 +220,12 @@
   "item.lobotocraft.red_shoes_leggings": "血之渴望",
   "item.lobotocraft.red_shoes_boots": "血之渴望",
   "item.lobotocraft.red_shoes_weapon": "血之渴望",
-  "item.lobotocraft.red_shoes_curio": "血之渴望"
+  "item.lobotocraft.red_shoes_curio": "血之渴望",
+  "item.lobotocraft.queen_bee_chestplate": "黄蜂",
+  "item.lobotocraft.queen_bee_leggings": "黄蜂",
+  "item.lobotocraft.queen_bee_boots": "黄蜂",
+  "item.lobotocraft.queen_bee_weapon": "黄蜂",
+  "item.lobotocraft.queen_bee_curio": "黄蜂",
+  "effect.lobotocraft.spore": "狍子",
+  "effect.lobotocraft.menace": "威胁"
 }

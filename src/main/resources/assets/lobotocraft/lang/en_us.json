@@ -220,5 +220,12 @@
   "item.lobotocraft.red_shoes_leggings": "Red Shoes Leggings",
   "item.lobotocraft.red_shoes_boots": "Red Shoes Boots",
   "item.lobotocraft.red_shoes_weapon": "Red Shoes",
-  "item.lobotocraft.red_shoes_curio": "Red Shoes"
+  "item.lobotocraft.red_shoes_curio": "Red Shoes",
+  "item.lobotocraft.queen_bee_chestplate": "Queen Bee Chestplate",
+  "item.lobotocraft.queen_bee_leggings": "Queen Bee Leggings",
+  "item.lobotocraft.queen_bee_boots": "Queen Bee Boots",
+  "item.lobotocraft.queen_bee_weapon": "Queen Bee",
+  "item.lobotocraft.queen_bee_curio": "Queen Bee",
+  "effect.lobotocraft.spore": "Spore",
+  "effect.lobotocraft.menace": "Menace"
 }

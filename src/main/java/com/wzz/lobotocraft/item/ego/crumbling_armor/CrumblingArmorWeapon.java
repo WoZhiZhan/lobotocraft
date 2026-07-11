@@ -120,17 +120,6 @@ public class CrumblingArmorWeapon extends BaseEgoWeapon {
     }
 
     @Override
-    public void onUseTick(Level world, LivingEntity entity, ItemStack stack, int remainingTicks) {
-        if (!(entity instanceof Player player)) return;
-        if (world.isClientSide()) return;
-        CompoundTag tag = stack.getTag();
-        if (tag == null || !tag.getBoolean(TAG_CHARGING)) return;
-        if (player.getUseItem() != stack) {
-            cancelCharge(stack);
-        }
-    }
-
-    @Override
     public void releaseUsing(ItemStack stack, Level world, LivingEntity entity, int remainingTicks) {
         if (!(entity instanceof Player player)) return;
         if (world.isClientSide()) return;
@@ -138,6 +127,7 @@ public class CrumblingArmorWeapon extends BaseEgoWeapon {
         CompoundTag tag = stack.getTag();
         if (tag == null) {
             player.stopUsingItem();
+            cancelCharge(player, stack);
             return;
         }
 
@@ -147,26 +137,55 @@ public class CrumblingArmorWeapon extends BaseEgoWeapon {
         clearChargeTag(stack);
         player.stopUsingItem();
 
-        if (!wasCharging) return;
+        if (!wasCharging) {
+            // 没在蓄力也保证动画回到手持状态
+            cancelCharge(player, stack);
+            return;
+        }
 
         long chargeTicks = world.getGameTime() - startTick;
-        long requiredTicks = CHARGE_DURATION / 50;
+        long requiredTicks = CHARGE_DURATION / 50; // 1250ms = 25 ticks
 
         if (chargeTicks >= requiredTicks) {
             executeIaiSlash(world, player, stack);
         } else {
+            // 蓄力不足1.25秒：直接打断，武器回到手持(默认)状态，不停留在蓄力动画
             player.playSound(SoundEvents.FIRE_EXTINGUISH, 0.5F, 1.0F);
+            cancelCharge(player, stack);
         }
     }
 
     /**
-     * 取消蓄力
+     * 蓄力被打断时（切换物品、丢弃、打开背包、死亡等）也要还原动画，
+     * 否则 t1 会一直停在最后一帧。
      */
-    private void cancelCharge(ItemStack stack) {
+    @Override
+    public void inventoryTick(ItemStack stack, Level world, Entity entity, int slot, boolean selected) {
+        super.inventoryTick(stack, world, entity, slot, selected);
+        if (world.isClientSide()) return;
+        if (!(entity instanceof Player player)) return;
+
         CompoundTag tag = stack.getTag();
-        if (tag != null) {
-            clearChargeTag(stack);
+        if (tag == null || !tag.getBoolean(TAG_CHARGING)) return;
+
+        boolean stillCharging = player.isUsingItem() && player.getUseItem() == stack && selected;
+        if (!stillCharging) {
+            player.stopUsingItem();
+            cancelCharge(player, stack);
         }
+    }
+
+    /**
+     * 取消蓄力，重置动画到默认（手持）状态
+     * 注意：必须用 stopTriggeredAnim（BaseEgoWeapon#stopAnimation(player, stack, name)），
+     * 它会把“停止动画”同步给客户端；只在服务端 forceAnimationReset 是无效的，
+     * 客户端会一直保持在 t1 的最后一帧。
+     */
+    private void cancelCharge(Player player, ItemStack stack) {
+        clearChargeTag(stack);
+        stopAnimation(player, stack, "t1");
+        stopAnimation(player, stack, "t2");
+        stopAnimation(player, stack);
     }
 
     /**
@@ -185,9 +204,7 @@ public class CrumblingArmorWeapon extends BaseEgoWeapon {
 
     @Override
     public boolean shouldCauseReequipAnimation(ItemStack oldStack, ItemStack newStack, boolean slotChanged) {
-        // 防止蓄力时切换物品导致动画重置
         if (slotChanged) return true;
-
         boolean oldCharging = oldStack.hasTag() && oldStack.getTag().getBoolean(TAG_CHARGING);
         boolean newCharging = newStack.hasTag() && newStack.getTag().getBoolean(TAG_CHARGING);
         return oldCharging != newCharging;

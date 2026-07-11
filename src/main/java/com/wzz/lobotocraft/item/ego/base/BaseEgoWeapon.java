@@ -94,6 +94,14 @@ public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnima
         }
     }
 
+    public void stopAnimation(Player player, ItemStack stack) {
+        if (player.level().isClientSide()) return;
+        var item = (GeoItem) stack.getItem();
+        item.getAnimatableInstanceCache().getManagerForId(
+                GeoItem.getId(stack)
+        ).getAnimationControllers().forEach((name, controller) -> controller.forceAnimationReset());
+    }
+
     /**
      * 子类可以重写此方法来注册额外的可触发动画
      * @param controller 动画控制器

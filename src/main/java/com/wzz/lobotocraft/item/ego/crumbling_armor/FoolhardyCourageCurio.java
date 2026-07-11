@@ -61,18 +61,28 @@ public class FoolhardyCourageCurio extends BaseEgoCurio {
         poseStack.scale(0.7F, 0.7F, 0.7F);
     }
 
+    /**
+     * 套装（装备+武器+饰品）是否生效。
+     * 只有套装生效时才免除“匹夫之勇”的 -20 最大生命值惩罚。
+     *
+     * 如果希望必须【手持决死之心】才免除惩罚，把下面改成：
+     *   return EgoArmorHelper.isFullEGO(player, "crumbling_armor")
+     *           && EgoArmorHelper.isHoldingWeapon(player, "crumbling_armor");
+     * 如果希望套装也照样扣血（永远 -20），直接 return false; 即可。
+     */
+    private static boolean isFullSetActive(LivingEntity living) {
+        return living instanceof Player player
+                && EgoArmorHelper.isFullEGO(player, "crumbling_armor");
+    }
+
     @Override
     public List<AttributeEntry> getAttributeEntries(LivingEntity living) {
         List<AttributeEntry> entries = new ArrayList<>();
-        boolean hasFullSuit = living instanceof Player player
-                && EgoArmorHelper.isFullEGO(player, "crumbling_armor");
+        boolean hasFullSuit = isFullSetActive(living);
 
-        // 生命值：套装激活时不减
-        if (!hasFullSuit) {
-            entries.add(new AttributeEntry(HEALTH_PENALTY_UUID,
-                    this.getCurrentClassName() + " Max Health Penalty",
-                    Attributes.MAX_HEALTH, -20.0D));
-        }
+        entries.add(new AttributeEntry(HEALTH_PENALTY_UUID,
+                this.getCurrentClassName() + " Max Health Penalty",
+                Attributes.MAX_HEALTH, hasFullSuit ? 0.0D : -20.0D));
 
         // 移动速度：基础20%，套装额外5%
         double speedBonus = hasFullSuit ? 0.25D : 0.20D;
@@ -95,6 +105,12 @@ public class FoolhardyCourageCurio extends BaseEgoCurio {
     public void curioTick(SlotContext slotContext, ItemStack stack) {
         super.curioTick(slotContext, stack);
         if (slotContext.entity() instanceof Player player) {
+            if (!player.level().isClientSide) {
+                // 上限降低时把当前血量夹回上限，避免出现“血量 > 上限”的显示
+                if (player.getHealth() > player.getMaxHealth()) {
+                    player.setHealth(player.getMaxHealth());
+                }
+            }
             if (player.tickCount % 60 == 0) {
                 ParticleUtil.spawnParticlesAroundEntity(player, ModParticleTypes.RED_LIGHT.get(), 20, 0.1D);
             }

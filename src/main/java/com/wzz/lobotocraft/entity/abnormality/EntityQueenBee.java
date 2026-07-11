@@ -3,11 +3,13 @@ package com.wzz.lobotocraft.entity.abnormality;
 import com.wzz.lobotocraft.effect.QueenBeeSporeEffect;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModEffects;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.ParticleUtil;
+import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.nbt.CompoundTag;
@@ -194,6 +196,89 @@ public class EntityQueenBee extends AbstractAbnormality {
             return targets.subList(0, 6);
         }
         return targets;
+    }
+
+    @Override
+    public EGOEquipmentData.GiftData getEGOGiftData() {
+        return new EGOEquipmentData.GiftData(
+                ResourceUtil.createInstance("textures/curio/queen_bee_curio.png"),
+                "黄蜂",
+                "特殊",
+                "queen_bee_curio",
+                "压迫工作完成后获得「内在的勇气」。",
+                "持有「内在的勇气」完成三次压迫工作后转化为「匹夫之勇」。",
+                "携带者进行沟通工作时会被处决。"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.WeaponData getEGOWeaponData() {
+        return new EGOEquipmentData.WeaponData(
+                ResourceUtil.createInstance("textures/gui/ego/queen_bee_weapon.png"),
+                "黄蜂",
+                getRiskLevel(),
+                "BLUE",
+                "8",
+                "1.0",
+                "4格",
+                getWeaponDevelopmentMaxCount(),
+                "queen_bee_weapon"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.ArmorData getEGOArmorData() {
+        return new EGOEquipmentData.ArmorData(
+                ResourceUtil.createInstance("textures/gui/ego/queen_bee_armor.png"),
+                "黄蜂",
+                getRiskLevel(),
+                0.7f,
+                0.7f,
+                0.7f,
+                1.5f,
+                getArmorDevelopmentMaxCount(),
+                "queen_bee_armor"
+        );
+    }
+
+    @Override
+    public float getGiftProbability() {
+        return 0.03f;
+    }
+
+    @Override
+    public float[] getArmorRenderScale() {
+        return new float[] {1.5f, 1.0f, 1.5f};
+    }
+
+    @Override
+    public float[] getArmorRenderOffset() {
+        return new float[] {-20.0f, 1.0f, 1.0f};
+    }
+
+    @Override
+    public float[] getWeaponRenderOffset() {
+        return new float[] {5.0f, 1.0f, 1f};
+    }
+
+    @Override
+    public int getWeaponDevelopmentCost() {
+        return 60;
+    }
+
+    @Override
+    public int getArmorDevelopmentCost() {
+        return 50;
+    }
+
+    @Override
+    public int getArmorDevelopmentMaxCount() {
+        return 1;
+    }
+
+    @Override
+    public int getWeaponDevelopmentMaxCount() {
+        return 2;
     }
 
     @Override
