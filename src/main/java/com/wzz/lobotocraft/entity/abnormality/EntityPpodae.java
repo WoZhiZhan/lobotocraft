@@ -452,7 +452,7 @@ public class EntityPpodae extends AbstractAbnormality {
         return new EGOEquipmentData.GiftData(
                 ResourceUtil.createInstance("textures/item/ppodae_curio.png"),
                 "超特么可爱！！！",
-                "手套",
+                "头饰",
                 "ppodae_curio",
                 """
                         最大生命值+4

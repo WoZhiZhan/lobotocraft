@@ -176,4 +176,6 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> HELPER_BOOT = register("helper_boot");
 	public static final RegistryObject<SoundEvent> HELPER_SPIN = register("helper_spin");
 	public static final RegistryObject<SoundEvent> HELPER_HIT = register("helper_hit");
+
+	public static final RegistryObject<SoundEvent> FRAGMENT_OF_THE_UNIVERSE_WEAPON = register("fragment_of_the_universe_weapon");
 }

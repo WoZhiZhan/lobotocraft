@@ -127,12 +127,16 @@ public class ForgeModEvent {
 	@SubscribeEvent
 	public static void onLivingHurt(LivingHurtEvent event) {
 		DamageSource src = event.getSource();
-		LivingEntity entity = event.getEntity();
+		LivingEntity target = event.getEntity();
 		Holder<DamageType> holder = src.typeHolder();
 		Optional<ResourceKey<DamageType>> optionalKey = holder.unwrapKey();
-		if (optionalKey.isEmpty() || entity == null) {
+		if (optionalKey.isEmpty() || target == null) {
 			return;
 		}
+		boolean isRedDamage = DamageHelper.isRedDamage(src);
+		boolean isWhiteDamage = DamageHelper.isWhiteDamage(src);
+		boolean isBlackDamage = DamageHelper.isBlackDamage(src);
+		boolean isBlueDamage = DamageHelper.isBlueDamage(src);
 		if (src.getEntity() instanceof Player player) {
 			// 补充4第2条:正义裁决者武器命中刷新攻速移速buff
 			com.wzz.lobotocraft.event.WeaponBuffEvent.triggerJusticeBuff(player);
@@ -147,7 +151,7 @@ public class ForgeModEvent {
 					&& player.random.nextFloat() <= 0.1f) {
 				event.setAmount(event.getAmount() * 2f);
 			}
-			if (EgoArmorHelper.isFullEGO(player, "fourth_match_flame") && entity.isOnFire()) {
+			if (EgoArmorHelper.isFullEGO(player, "fourth_match_flame") && target.isOnFire()) {
 				event.setAmount(event.getAmount() * 1.2f);
 			}
 			if (EgoArmorHelper.isFullEGO(player, "wingbeat") && EgoArmorHelper.isHoldingWeapon(player, "wingbeat")) {
@@ -171,8 +175,15 @@ public class ForgeModEvent {
 			if (CuriosUtil.hasCurios(player, ModItems.END_BIRD_CURIO.get())) {
 				event.setAmount(event.getAmount() * 1.1f);
 			}
+			if (EgoArmorHelper.isFullEGO(player, "fragment_of_the_universe") && !player.level.isClientSide) {
+				for (ServerPlayer serverPlayer : EntityUtil.findAllPlayer(player)) {
+					if (!MentalValueUtil.isPanic(serverPlayer)) {
+						MentalValueUtil.addMentalValue(serverPlayer, 3f);
+					}
+				}
+			}
 		}
-		if (entity instanceof ServerPlayer player) {
+		if (target instanceof ServerPlayer player) {
 			if (EntityArmyInBlack.hasActiveProtection(player) && !DamageHelper.isExecution(src)) {
 				event.setAmount(event.getAmount() * 0.8f);
 			}
@@ -213,25 +224,24 @@ public class ForgeModEvent {
 					event.setAmount(EgoArmorHelper.applyRiskLevelSuppression(event.getAmount(), riskLevel, abnormality.getRiskLevel()));
 				}
 			}
+			if (EgoArmorHelper.isFullEGO(player, "fragment_of_the_universe")) {
+				if (isBlackDamage) {
+					MentalValueUtil.addMentalValue(player, 5f);
+				}
+			}
 		}
 
-		// 判断伤害类型
-		boolean isRedDamage = DamageHelper.isRedDamage(src);
-		boolean isWhiteDamage = DamageHelper.isWhiteDamage(src);
-		boolean isBlackDamage = DamageHelper.isBlackDamage(src);
-		boolean isBlueDamage = DamageHelper.isBlueDamage(src);
-
 		// 处理非玩家的颜色伤害抗性
-		if (!(entity instanceof Player) && (isRedDamage || isWhiteDamage || isBlackDamage || isBlueDamage)) {
+		if (!(target instanceof Player) && (isRedDamage || isWhiteDamage || isBlackDamage || isBlueDamage)) {
 			AttributeInstance resistanceAttr;
 			if (isRedDamage) {
-				resistanceAttr = entity.getAttribute(ModAttributes.RED_DAMAGE_RESISTANCE.get());
+				resistanceAttr = target.getAttribute(ModAttributes.RED_DAMAGE_RESISTANCE.get());
 			} else if (isWhiteDamage) {
-				resistanceAttr = entity.getAttribute(ModAttributes.WHITE_DAMAGE_RESISTANCE.get());
+				resistanceAttr = target.getAttribute(ModAttributes.WHITE_DAMAGE_RESISTANCE.get());
 			} else if (isBlackDamage) {
-				resistanceAttr = entity.getAttribute(ModAttributes.BLACK_DAMAGE_RESISTANCE.get());
+				resistanceAttr = target.getAttribute(ModAttributes.BLACK_DAMAGE_RESISTANCE.get());
 			} else {
-				resistanceAttr = entity.getAttribute(ModAttributes.BLUE_DAMAGE_RESISTANCE.get());
+				resistanceAttr = target.getAttribute(ModAttributes.BLUE_DAMAGE_RESISTANCE.get());
 			}
 
 			if (resistanceAttr != null) {
@@ -246,20 +256,20 @@ public class ForgeModEvent {
 		// 粒子效果处理（所有实体）
 		ResourceKey<DamageType> key = optionalKey.get();
 		if (isRedDamage) {
-			ParticleUtil.spawnParticlesAroundEntity(entity, ModParticleTypes.RED.get(), 1, 0);
+			ParticleUtil.spawnParticlesAroundEntity(target, ModParticleTypes.RED.get(), 1, 0);
 		} else if (isWhiteDamage) {
-			ParticleUtil.spawnParticlesAroundEntity(entity, ModParticleTypes.WHITE.get(), 1, 0);
+			ParticleUtil.spawnParticlesAroundEntity(target, ModParticleTypes.WHITE.get(), 1, 0);
 		} else if (isBlackDamage) {
-			ParticleUtil.spawnParticlesAroundEntity(entity, ModParticleTypes.BLACK.get(), 1, 0);
-			if (entity.getPersistentData().getBoolean("isLargeBirdWeaponBlackDamage")) {
+			ParticleUtil.spawnParticlesAroundEntity(target, ModParticleTypes.BLACK.get(), 1, 0);
+			if (target.getPersistentData().getBoolean("isLargeBirdWeaponBlackDamage")) {
 				event.setAmount(event.getAmount() * 1.5f);
 			}
 		} else if (isBlueDamage) {
-			ParticleUtil.spawnParticlesAroundEntity(entity, ModParticleTypes.BLUE.get(), 1, 0);
+			ParticleUtil.spawnParticlesAroundEntity(target, ModParticleTypes.BLUE.get(), 1, 0);
 		} else if (isVanillaDamage(key)) {
-			ParticleUtil.spawnParticlesAroundEntity(entity, ModParticleTypes.RED.get(), 1, 0);
+			ParticleUtil.spawnParticlesAroundEntity(target, ModParticleTypes.RED.get(), 1, 0);
 		}
-        if (entity instanceof Player && DamageHelper.isExecution(event.getSource())) {
+        if (target instanceof Player && DamageHelper.isExecution(event.getSource())) {
 			return;
 		}
 		if (!isRedDamage && !isWhiteDamage && !isBlackDamage && !isBlueDamage) {
@@ -267,18 +277,18 @@ public class ForgeModEvent {
 		}
 		AttributeInstance resistanceAttr = null;
 		if (isRedDamage) {
-			resistanceAttr = entity.getAttribute(ModAttributes.RED_DAMAGE_RESISTANCE.get());
+			resistanceAttr = target.getAttribute(ModAttributes.RED_DAMAGE_RESISTANCE.get());
 		} else if (isWhiteDamage) {
-			resistanceAttr = entity.getAttribute(ModAttributes.WHITE_DAMAGE_RESISTANCE.get());
+			resistanceAttr = target.getAttribute(ModAttributes.WHITE_DAMAGE_RESISTANCE.get());
 		} else if (isBlackDamage) {
-			resistanceAttr = entity.getAttribute(ModAttributes.BLACK_DAMAGE_RESISTANCE.get());
+			resistanceAttr = target.getAttribute(ModAttributes.BLACK_DAMAGE_RESISTANCE.get());
 		} else {
-			resistanceAttr = entity.getAttribute(ModAttributes.BLUE_DAMAGE_RESISTANCE.get());
+			resistanceAttr = target.getAttribute(ModAttributes.BLUE_DAMAGE_RESISTANCE.get());
 		}
 		if (resistanceAttr == null) return;
 		double resistance = resistanceAttr.getValue();
 
-		if (!(entity instanceof Player player)) {
+		if (!(target instanceof Player player)) {
 			return;
 		}
 		if (resistance < 0) {
@@ -286,7 +296,7 @@ public class ForgeModEvent {
 			float healAmount = event.getAmount() * (float) Math.abs(resistance);
 			if (healAmount <= 0) return;
 			if (isRedDamage || isBlueDamage) {
-				entity.heal(healAmount);
+				target.heal(healAmount);
 			} else if (isWhiteDamage) {
 				player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mentalValue -> {
 					int currentMental = (int) mentalValue.getMentalValue();
@@ -300,7 +310,7 @@ public class ForgeModEvent {
 					}
 				});
 			} else {
-				entity.heal(healAmount);
+				target.heal(healAmount);
 				player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mentalValue -> {
 					int currentMental = (int) mentalValue.getMentalValue();
 					int maxMental = (int) mentalValue.getEffectiveMaxMentalValue();
@@ -345,18 +355,6 @@ public class ForgeModEvent {
 				event.setCanceled(true);
 			}
 		}
-	}
-
-	@SubscribeEvent
-	public static void onPlayerClone(PlayerEvent.Clone event) {
-		if (!event.isWasDeath()) return;
-
-		Player oldPlayer = event.getOriginal();
-		Player newPlayer = event.getEntity();
-		if (newPlayer.level.getGameRules().getBoolean(GameRules.RULE_KEEPINVENTORY)) return;
-		Inventory oldInv = oldPlayer.getInventory();
-		Inventory newInv = newPlayer.getInventory();
-
 	}
 
 	@SubscribeEvent
@@ -477,14 +475,14 @@ public class ForgeModEvent {
 					&& EgoArmorHelper.isHoldingWeapon(player, "end_bird")
 					&& CuriosUtil.hasCurios(player, ModItems.LARGEBIRD_CURIO.get())) {
 				EntityLargeBird.clearLargeBirdCharm(player);
-				TimerEntry timerEntry = new TimerEntry() {
+				TimerEntry<Player> timerEntry = new TimerEntry<>() {
 					@Override
-					public void onStart(@NotNull LivingEntity living) {
+					public void onStart(@NotNull Player living) {
 						living.getPersistentData().putBoolean("notLargeBirdCharm", true);
 					}
 
 					@Override
-					public void onEnd(@NotNull LivingEntity living) {
+					public void onEnd(@NotNull Player living) {
 						living.getPersistentData().putBoolean("notLargeBirdCharm", false);
 					}
 				};
@@ -501,14 +499,14 @@ public class ForgeModEvent {
 			if (player.getPersistentData().getInt("LeftCountLobocraft") >= 2) {
 				player.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP);
 				EntityLargeBird.clearLargeBirdCharm(player);
-				TimerEntry timerEntry = new TimerEntry() {
+				TimerEntry<Player> timerEntry = new TimerEntry<>() {
 					@Override
-					public void onStart(@NotNull LivingEntity living) {
+					public void onStart(@NotNull Player living) {
 						living.getPersistentData().putBoolean("notLargeBirdCharm", true);
 					}
 
 					@Override
-					public void onEnd(@NotNull LivingEntity living) {
+					public void onEnd(@NotNull Player living) {
 						living.getPersistentData().putBoolean("notLargeBirdCharm", false);
 					}
 				};

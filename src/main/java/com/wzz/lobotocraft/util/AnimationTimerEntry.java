@@ -5,7 +5,7 @@ import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import net.minecraft.world.entity.LivingEntity;
 import org.jetbrains.annotations.NotNull;
 
-public class AnimationTimerEntry extends TimerEntry {
+public class AnimationTimerEntry extends TimerEntry<AbstractAbnormality> {
     private final AbstractAbnormality abnormality;
     private final String startAnimationName;
     private final String endAnimationName;
@@ -26,12 +26,12 @@ public class AnimationTimerEntry extends TimerEntry {
     }
 
     @Override
-    public void onStart(@NotNull LivingEntity living) {
+    public void onStart(@NotNull AbstractAbnormality living) {
         abnormality.setAnimation(this.startAnimationName);
     }
 
     @Override
-    public void onEnd(@NotNull LivingEntity living) {
+    public void onEnd(@NotNull AbstractAbnormality living) {
         if (runnable != null) {
             if (runnable.run()) {
                 abnormality.setAnimation(runnable.newAnimation());

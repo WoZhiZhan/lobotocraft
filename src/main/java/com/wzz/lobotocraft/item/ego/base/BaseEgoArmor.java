@@ -63,6 +63,7 @@ public abstract class BaseEgoArmor extends ArmorItem implements IEgoArmor, GeoIt
         return true;
     }
 
+    // 分离模型
     public boolean useSeparateModel() {
         return true;
     }

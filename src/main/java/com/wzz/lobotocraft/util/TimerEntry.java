@@ -11,8 +11,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
 
-public abstract class TimerEntry {
-    private static final Map<Class<? extends TimerEntry>, Map<UUID, TimerEntry>> globalEntityEntryMap = new ConcurrentHashMap<>();
+public abstract class TimerEntry<T extends LivingEntity> {
+    private static final Map<Class<? extends TimerEntry<?>>, Map<UUID, TimerEntry<?>>> globalEntityEntryMap = new ConcurrentHashMap<>();
     private static final Map<Class<?>, Map<UUID, Boolean>> GLOBAL_CLASS_ENTITY_LOCK = new ConcurrentHashMap<>();
     private static volatile ScheduledExecutorService scheduler = createScheduler();
 
@@ -49,25 +49,21 @@ public abstract class TimerEntry {
         return requireMainThread;
     }
 
-    public boolean addSkillTimer(LivingEntity living, int delay, int duration, int executionsPerSecond, boolean refresh) {
-        if (living == null) {
-            return false;
-        }
-        UUID uuid = living.getUUID();
+    public boolean addSkillTimer(T entity, int delay, int duration, int executionsPerSecond, boolean refresh) {
+        if (entity == null) return false;
+        UUID uuid = entity.getUUID();
         if (refresh && timerMap.containsKey(uuid)) {
             removeTimer(uuid);
-            if (timerMap.containsKey(uuid)) {
-                return false;
-            }
+            if (timerMap.containsKey(uuid)) return false;
         }
-        return this.addSkillTimer(living, delay, duration, executionsPerSecond);
+        return this.addSkillTimer(entity, delay, duration, executionsPerSecond);
     }
 
-    public boolean addSkillTimer(LivingEntity living, int delay, int duration, int executionsPerSecond) {
-        if (living == null) {
+    public boolean addSkillTimer(T entity, int delay, int duration, int executionsPerSecond) {
+        if (entity == null) {
             return false;
         }
-        UUID uuid = living.getUUID();
+        UUID uuid = entity.getUUID();
         Class<?> timerClass = this.getClass();
         Map<UUID, Boolean> classLock = GLOBAL_CLASS_ENTITY_LOCK
                 .computeIfAbsent(timerClass, k -> new ConcurrentHashMap<>());
@@ -85,26 +81,27 @@ public abstract class TimerEntry {
             return false;
         }
         ScheduledExecutorService currentScheduler = getScheduler();
-        Class<? extends TimerEntry> entryClass = this.getClass();
+        @SuppressWarnings("unchecked")
+        Class<? extends TimerEntry<?>> entryClass = (Class<? extends TimerEntry<?>>) this.getClass();
         globalEntityEntryMap.computeIfAbsent(entryClass, k -> new ConcurrentHashMap<>());
-        Map<UUID, TimerEntry> entryMap = globalEntityEntryMap.get(entryClass);
+        Map<UUID, TimerEntry<?>> entryMap = globalEntityEntryMap.get(entryClass);
         synchronized (this) {
             if (entryMap.containsKey(uuid) || timerMap.containsKey(uuid)) {
                 return false;
             }
             entryMap.put(uuid, this);
         }
-        onStart(living);
+        onStart(entity);
         try {
             long period = Math.max(1, 1000L / executionsPerSecond);
             ScheduledFuture<?> skillTask = currentScheduler.scheduleAtFixedRate(
-                    () -> executeTaskSafely(living, uuid),
+                    () -> executeTaskSafely(entity, uuid),
                     delay,
                     period,
                     TimeUnit.MILLISECONDS
             );
             currentScheduler.schedule(
-                    () -> stopTimerSafely(living, uuid),
+                    () -> stopTimerSafely(entity, uuid),
                     delay + duration,
                     TimeUnit.MILLISECONDS
             );
@@ -154,21 +151,21 @@ public abstract class TimerEntry {
         return remaining <= milliseconds;
     }
 
-    private void executeTaskSafely(LivingEntity living, UUID entityId) {
+    private void executeTaskSafely(T entity, UUID entityId) {
         try {
-            if (isEntityValid(living)) {
+            if (isEntityValid(entity)) {
                 this.executions++;
                 if (requireMainThread) {
-                    ThreadExecutor.executeOnMainThread(living, () -> {
+                    ThreadExecutor.executeOnMainThread(entity, () -> {
                         try {
-                            onRunning(living);
+                            onRunning(entity);
                         } catch (Exception e) {
                             ModLogger.getLogger().error("Skill task error on main thread", e);
                             removeTimer(entityId);
                         }
                     });
                 } else {
-                    onRunning(living);
+                    onRunning(entity);
                 }
             } else {
                 removeTimer(entityId);
@@ -179,24 +176,24 @@ public abstract class TimerEntry {
         }
     }
 
-    private void stopTimerSafely(LivingEntity living, UUID entityId) {
+    private void stopTimerSafely(T entity, UUID entityId) {
         Runnable stopTask = () -> {
             try {
-                if (isEntityValid(living)) {
-                    onEnd(living);
+                if (isEntityValid(entity)) {
+                    onEnd(entity);
                 }
             } finally {
                 removeTimer(entityId);
             }
         };
-        if (requireMainThread && living != null) {
-            ThreadExecutor.executeOnMainThread(living, stopTask);
+        if (requireMainThread && entity != null) {
+            ThreadExecutor.executeOnMainThread(entity, stopTask);
         } else {
             stopTask.run();
         }
     }
 
-    private boolean isEntityValid(@Nullable LivingEntity entity) {
+    private boolean isEntityValid(@Nullable T entity) {
         return entity != null && entity.isAlive() && !entity.isRemoved();
     }
 
@@ -205,7 +202,7 @@ public abstract class TimerEntry {
         if (task != null) {
             task.cancel(false);
         }
-        Map<UUID, TimerEntry> entryMap = globalEntityEntryMap.get(this.getClass());
+        Map<UUID, TimerEntry<?>> entryMap = globalEntityEntryMap.get(this.getClass());
         if (entryMap != null) {
             entryMap.remove(livingId);
             GLOBAL_CLASS_ENTITY_LOCK.getOrDefault(this.getClass(), Collections.emptyMap())
@@ -219,10 +216,10 @@ public abstract class TimerEntry {
             return;
         }
         UUID uuid = living.getUUID();
-        for (Map<UUID, TimerEntry> timers : globalEntityEntryMap.values()) {
-            TimerEntry timer = timers.get(uuid);
+        for (Map<UUID, TimerEntry<?>> timers : globalEntityEntryMap.values()) {
+            TimerEntry<?> timer = timers.get(uuid);
             if (timer != null) {
-                timer.stopTimerSafely(living, uuid);
+                timer.removeTimer(uuid);
             }
         }
     }
@@ -244,8 +241,8 @@ public abstract class TimerEntry {
                     Thread.currentThread().interrupt();
                 }
             }
-            for (Map<UUID, TimerEntry> timers : globalEntityEntryMap.values()) {
-                for (TimerEntry timer : timers.values()) {
+            for (Map<UUID, TimerEntry<?>> timers : globalEntityEntryMap.values()) {
+                for (TimerEntry<?> timer : timers.values()) {
                     for (UUID uuid : new ArrayList<>(timer.timerMap.keySet())) {
                         timer.removeTimer(uuid);
                     }
@@ -269,7 +266,7 @@ public abstract class TimerEntry {
     }
 
     public static boolean isEntityBound(Class<? extends TimerEntry> entryClass, UUID uuid) {
-        Map<UUID, TimerEntry> map = globalEntityEntryMap.get(entryClass);
+        Map<UUID, TimerEntry<?>> map = globalEntityEntryMap.get(entryClass);
         return map != null && map.containsKey(uuid);
     }
 
@@ -280,7 +277,7 @@ public abstract class TimerEntry {
                 clazz.getSimpleName();
     }
 
-    public void onStart(@NotNull LivingEntity living) {}
-    public void onRunning(@NotNull LivingEntity living) {}
-    public void onEnd(@NotNull LivingEntity living) {}
+    public void onStart(@NotNull T entity) {}
+    public void onRunning(@NotNull T entity) {}
+    public void onEnd(@NotNull T entity) {}
 }

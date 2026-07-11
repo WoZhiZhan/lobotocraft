@@ -136,6 +136,11 @@ public class ModTabs {
 						tabData.accept(ModItems.PPODAE_BOOTS.get());
 						tabData.accept(ModItems.PPODAE_WEAPON.get());
 						tabData.accept(ModItems.PPODAE_CURIO.get());
+						tabData.accept(ModItems.FRAGMENT_OF_THE_UNIVERSE_CHESTPLATE.get());
+						tabData.accept(ModItems.FRAGMENT_OF_THE_UNIVERSE_LEGGINGS.get());
+						tabData.accept(ModItems.FRAGMENT_OF_THE_UNIVERSE_BOOTS.get());
+						tabData.accept(ModItems.FRAGMENT_OF_THE_UNIVERSE_WEAPON.get());
+						tabData.accept(ModItems.FRAGMENT_OF_THE_UNIVERSE_CURIO.get());
 					})
 					.build());
 

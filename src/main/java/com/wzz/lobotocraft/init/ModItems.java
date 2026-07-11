@@ -16,6 +16,7 @@ import com.wzz.lobotocraft.item.ego.children_galaxy.*;
 import com.wzz.lobotocraft.item.ego.crumbling_armor.*;
 import com.wzz.lobotocraft.item.ego.end_bird.*;
 import com.wzz.lobotocraft.item.ego.fourth_match_flame.*;
+import com.wzz.lobotocraft.item.ego.fragment_of_the_universe.*;
 import com.wzz.lobotocraft.item.ego.largebird.*;
 import com.wzz.lobotocraft.item.ego.ppodae.*;
 import com.wzz.lobotocraft.item.ego.punishing_bird.*;
@@ -265,4 +266,9 @@ public class ModItems {
     public static final RegistryObject<Item> PPODAE_BOOTS = REGISTRY.register("ppodae_boots", PpodaeBoots::new);
     public static final RegistryObject<Item> PPODAE_WEAPON = REGISTRY.register("ppodae_weapon", PpodaeWeapon::new);
     public static final RegistryObject<Item> PPODAE_CURIO = REGISTRY.register("ppodae_curio", PpodaeCurio::new);
+    public static final RegistryObject<Item> FRAGMENT_OF_THE_UNIVERSE_CHESTPLATE = REGISTRY.register("fragment_of_the_universe_chestplate", FragmentUniverseChestplate::new);
+    public static final RegistryObject<Item> FRAGMENT_OF_THE_UNIVERSE_LEGGINGS = REGISTRY.register("fragment_of_the_universe_leggings", FragmentUniverseLeggings::new);
+    public static final RegistryObject<Item> FRAGMENT_OF_THE_UNIVERSE_BOOTS = REGISTRY.register("fragment_of_the_universe_boots", FragmentUniverseBoots::new);
+    public static final RegistryObject<Item> FRAGMENT_OF_THE_UNIVERSE_WEAPON = REGISTRY.register("fragment_of_the_universe_weapon", FragmentUniverseWeapon::new);
+    public static final RegistryObject<Item> FRAGMENT_OF_THE_UNIVERSE_CURIO = REGISTRY.register("fragment_of_the_universe_curio", FragmentUniverseCurio::new);
 }

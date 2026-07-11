@@ -107,9 +107,9 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
         if (birdsEntered >= 3 && !endBirdSpawned) {
             endBirdSpawned = true; // 立即置标志，防止重入
 
-            TimerEntry timerEntry = new TimerEntry() {
+            TimerEntry<BaseGeoEntity> timerEntry = new TimerEntry<>() {
                 @Override
-                public void onEnd(@NotNull LivingEntity living) {
+                public void onEnd(@NotNull BaseGeoEntity living) {
                     List<ServerPlayer> allPlayers = java.util.Arrays.asList(EntityUtil.findAllPlayer(EntityBlackForestDoor.this));
                     if (!allPlayers.isEmpty()) {
                         FullScreenRenderMessage msg = FullScreenRenderMessage.builder()

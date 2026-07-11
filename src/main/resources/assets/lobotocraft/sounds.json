@@ -1170,5 +1170,13 @@
         "stream": false
       }
     ]
+  },
+  "fragment_of_the_universe_weapon": {
+    "sounds": [
+      {
+        "name": "lobotocraft:fragment_of_the_universe_weapon",
+        "stream": false
+      }
+    ]
   }
 }

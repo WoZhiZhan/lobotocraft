@@ -357,13 +357,12 @@ public class EndBirdWeapon extends BaseEgoWeapon {
         triggerAnimation(player, stack, ANIM_STAGE1_ATK);
         tryGrantLargeBirdShield(player);
 
-        TimerEntry timer = new TimerEntry() {
+        TimerEntry<Player> timer = new TimerEntry<>() {
             private int t = 0;
             private List<LivingEntity> targets;
 
             @Override
-            public void onRunning(@NotNull LivingEntity living) {
-                if (!(living instanceof Player p)) return;
+            public void onRunning(@NotNull Player p) {
                 t++;
 
                 if (t == 1) {
@@ -400,15 +399,14 @@ public class EndBirdWeapon extends BaseEgoWeapon {
         tryGrantLargeBirdShield(player);
         LivingEntity capturedTarget = getNearestEntityInFront(player, 20.0, 3.0);
 
-        TimerEntry timer = new TimerEntry() {
+        TimerEntry<Player> timer = new TimerEntry<>() {
             private int t = 0;
             private final LivingEntity target = capturedTarget;
             private Vec3 frozenPos = null;
             private float lockedYaw, lockedPitch;
 
             @Override
-            public void onRunning(@NotNull LivingEntity living) {
-                if (!(living instanceof Player p)) return;
+            public void onRunning(@NotNull Player p) {
                 t++;
 
                 if (t == 1) {
@@ -480,13 +478,12 @@ public class EndBirdWeapon extends BaseEgoWeapon {
         triggerAnimation(player, stack, ANIM_STAGE3_ATK);
         tryGrantLargeBirdShield(player);
 
-        TimerEntry timer = new TimerEntry() {
+        TimerEntry<Player> timer = new TimerEntry<>() {
             private int t = 0;
             private List<LivingEntity> targets;
 
             @Override
-            public void onRunning(@NotNull LivingEntity living) {
-                if (!(living instanceof Player p)) return;
+            public void onRunning(@NotNull Player p) {
                 t++;
 
                 if (t == 1)  { targets = getEntitiesInFront(p, 5.0, 2.5); playSpecialSound(p, 1); }
@@ -594,9 +591,9 @@ public class EndBirdWeapon extends BaseEgoWeapon {
         player.setAbsorptionAmount(targetAbsorption);
         player.getPersistentData().putLong(THIN_DUSK_SHIELD_COOLDOWN, now + THIN_DUSK_SHIELD_COOLDOWN_TICKS);
 
-        TimerEntry timer = new TimerEntry() {
+        TimerEntry<Player> timer = new TimerEntry<>() {
             @Override
-            public void onEnd(@NotNull LivingEntity living) {
+            public void onEnd(@NotNull Player living) {
                 float current = living.getAbsorptionAmount();
                 if (current > before) {
                     living.setAbsorptionAmount(Math.max(before, current - granted));

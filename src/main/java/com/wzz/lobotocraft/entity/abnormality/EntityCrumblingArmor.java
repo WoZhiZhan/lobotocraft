@@ -291,23 +291,19 @@ public class EntityCrumblingArmor extends AbstractAbnormality {
     public static void executeWorker(ServerPlayer player, String message) {
         player.displayClientMessage(Component.literal(message), false);
         player.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 60, 0, false, false, true));
-        TimerEntry timerEntry = new TimerEntry() {
+        TimerEntry<ServerPlayer> timerEntry = new TimerEntry<>() {
             @Override
-            public void onRunning(@org.jetbrains.annotations.NotNull LivingEntity living) {
+            public void onRunning(@org.jetbrains.annotations.NotNull ServerPlayer serverPlayer) {
                 if (getExecutions() <= WORK_EXECUTION_SWIM_DELAY_MS / (1000 / WORK_EXECUTION_RATE)) {
                     return;
                 }
-                if (living instanceof ServerPlayer serverPlayer) {
-                    serverPlayer.setPose(Pose.SWIMMING);
-                    serverPlayer.setSwimming(true);
-                }
+                serverPlayer.setPose(Pose.SWIMMING);
+                serverPlayer.setSwimming(true);
             }
 
             @Override
-            public void onEnd(@org.jetbrains.annotations.NotNull LivingEntity living) {
-                if (living instanceof ServerPlayer serverPlayer) {
-                    killExecutedWorker(serverPlayer);
-                }
+            public void onEnd(@org.jetbrains.annotations.NotNull ServerPlayer serverPlayer) {
+                killExecutedWorker(serverPlayer);
             }
         };
         int duration = WORK_EXECUTION_SWIM_DELAY_MS + WORK_EXECUTION_DEATH_DELAY_MS;

@@ -203,7 +203,7 @@ public class EntityBlueStar extends AbstractAbnormality {
 
     private void killMob(LivingEntity living, boolean remove) {
         setAnimation("animation.blue_star.attack");
-        TimerEntry timerEntry = new TimerEntry() {
+        TimerEntry<LivingEntity> timerEntry = new TimerEntry<>() {
             @Override
             public void onStart(@NotNull LivingEntity living) {
                 if (!living.isAlive() || living.isRemoved()) return;
@@ -291,15 +291,7 @@ public class EntityBlueStar extends AbstractAbnormality {
                                     );
                                     player.teleportTo(this.getX(), this.getY(), this.getZ());
                                     // 过渡动画结束后再击杀(40 tick ≈ 2000 毫秒)
-                                    TimerEntry killTimer = new TimerEntry() {
-                                        @Override
-                                        public void onEnd(@NotNull LivingEntity living) {
-                                            if (living.isAlive() && !living.isRemoved()) {
-                                                living.kill();
-                                            }
-                                        }
-                                    };
-                                    killTimer.setRequireMainThread(true);
+                                    TimerEntry<ServerPlayer> killTimer = getPlayerTimerEntry();
                                     killTimer.addSkillTimer(player, 0, animDuration * 50, 1);
                                 }
                             }
@@ -312,44 +304,62 @@ public class EntityBlueStar extends AbstractAbnormality {
             setAnimation("animation.blue_star.attack");
             for (Entity entity : EntityUtil.findAllEntities(this, 400)) {
                 if (entity instanceof LivingEntity living && !(living instanceof EntityBlueStar)) {
-                    TimerEntry timerEntry = new TimerEntry() {
-                        @Override
-                        public void onRunning(@NotNull LivingEntity living) {
-                            if (!living.isAlive() || living.isRemoved()) return;
-                            float damage = 15 + random.nextInt(6);
-                            if (this.getExecutions() == 2) {
-                                playAttackSound();
-                                if (!(living instanceof ServerPlayer player)) {
-                                    if (living instanceof Villager villager && random.nextInt(101) <= 20) {
-                                        killMob(villager, true);
-                                    } else {
-                                        if (living instanceof EntityClerk clerk && damage >= clerk.getHealth()) {
-                                            EntityClerk.markNoTombstone(clerk);
-                                        }
-                                        living.hurt(DamageHelper.getDamage().getDamageSources().fellOutOfWorld(), damage);
-                                    }
-                                } else {
-                                    MessageLoader.getLoader().sendToPlayer(player, new ScreenDistortionEffectPacket(0.3f, 10));
-                                    player.playSound(SoundEvents.PLAYER_HURT);
-                                    player.hurt(DamageHelper.getDamage(EntityBlueStar.this, "white"), damage);
-                                    MessageLoader.getLoader().sendToPlayer(player, new ShockwaveEffectPacket(
-                                            getX(), getY(), getZ(), 60f,
-                                            0x88CCFF
-                                    ));
-                                }
-                            }
-                        }
-
-                        @Override
-                        public void onEnd(@NotNull LivingEntity living) {
-                            setAnimation("animation.blue_star.idle");
-                        }
-                    };
-                    timerEntry.setRequireMainThread(true);
+                    TimerEntry<LivingEntity> timerEntry = getEntityTimerEntry();
                     timerEntry.addSkillTimer(living, 0, 1800, 1);
                 }
             }
         }
+    }
+
+    private static @NotNull TimerEntry<ServerPlayer> getPlayerTimerEntry() {
+        TimerEntry<ServerPlayer> killTimer = new TimerEntry<>() {
+            @Override
+            public void onEnd(@NotNull ServerPlayer living) {
+                if (living.isAlive() && !living.isRemoved()) {
+                    living.kill();
+                }
+            }
+        };
+        killTimer.setRequireMainThread(true);
+        return killTimer;
+    }
+
+    private @NotNull TimerEntry<LivingEntity> getEntityTimerEntry() {
+        TimerEntry<LivingEntity> timerEntry = new TimerEntry<>() {
+            @Override
+            public void onRunning(@NotNull LivingEntity living) {
+                if (!living.isAlive() || living.isRemoved()) return;
+                float damage = 15 + random.nextInt(6);
+                if (this.getExecutions() == 2) {
+                    playAttackSound();
+                    if (!(living instanceof ServerPlayer player)) {
+                        if (living instanceof Villager villager && random.nextInt(101) <= 20) {
+                            killMob(villager, true);
+                        } else {
+                            if (living instanceof EntityClerk clerk && damage >= clerk.getHealth()) {
+                                EntityClerk.markNoTombstone(clerk);
+                            }
+                            living.hurt(DamageHelper.getDamage().getDamageSources().fellOutOfWorld(), damage);
+                        }
+                    } else {
+                        MessageLoader.getLoader().sendToPlayer(player, new ScreenDistortionEffectPacket(0.3f, 10));
+                        player.playSound(SoundEvents.PLAYER_HURT);
+                        player.hurt(DamageHelper.getDamage(EntityBlueStar.this, "white"), damage);
+                        MessageLoader.getLoader().sendToPlayer(player, new ShockwaveEffectPacket(
+                                getX(), getY(), getZ(), 60f,
+                                0x88CCFF
+                        ));
+                    }
+                }
+            }
+
+            @Override
+            public void onEnd(@NotNull LivingEntity living) {
+                setAnimation("animation.blue_star.idle");
+            }
+        };
+        timerEntry.setRequireMainThread(true);
+        return timerEntry;
     }
 
     @Override

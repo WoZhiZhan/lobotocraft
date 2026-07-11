@@ -80,7 +80,7 @@ public class ThornBusWeapon extends BaseEgoWeapon {
             triggerAttackAnimation(player, stack);
             if (!player.level.isClientSide) {
                 player.getServer().execute(() -> {
-                    TimerEntry timerEntry = new TimerEntry() {
+                    TimerEntry<LivingEntity> timerEntry = new TimerEntry<>() {
                         @Override
                         public void onRunning(@NotNull LivingEntity living) {
                             living.hurt(DamageHelper.getDamage(player, "white"), 2);

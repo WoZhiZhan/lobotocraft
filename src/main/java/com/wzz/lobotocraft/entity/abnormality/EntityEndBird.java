@@ -323,9 +323,9 @@ public class EntityEndBird extends AbstractAbnormality {
                 ModSounds.END_BIRD_WILL_ATTACK_2.get(), SoundSource.HOSTILE, 1.0f, 1.0f);
         setAnimation(anim);
 
-        TimerEntry timer = new TimerEntry() {
+        TimerEntry<AbstractAbnormality> timer = new TimerEntry<>() {
             @Override
-            public void onRunning(@NotNull LivingEntity living) {
+            public void onRunning(@NotNull AbstractAbnormality living) {
                 int exec = getExecutions();
 
                 if (exec == 20) {
@@ -351,7 +351,7 @@ public class EntityEndBird extends AbstractAbnormality {
             }
 
             @Override
-            public void onEnd(@NotNull LivingEntity living) {
+            public void onEnd(@NotNull AbstractAbnormality living) {
                 // 兜底：万一 timer 提前结束，确保 isBusy 复位
                 if (isBusy) {
                     setAnimation("idle");
@@ -392,9 +392,9 @@ public class EntityEndBird extends AbstractAbnormality {
                 ModSounds.END_BIRD_WILL_SKILL_3.get(), SoundSource.HOSTILE, 1.0f, 1.0f);
         setAnimation("skilla1");
 
-        TimerEntry timer = new TimerEntry() {
+        TimerEntry<AbstractAbnormality> timer = new TimerEntry<>() {
             @Override
-            public void onRunning(@NotNull LivingEntity living) {
+            public void onRunning(@NotNull AbstractAbnormality living) {
                 int exec = getExecutions();
 
                 if (exec == 20) {
@@ -415,7 +415,7 @@ public class EntityEndBird extends AbstractAbnormality {
             }
 
             @Override
-            public void onEnd(@NotNull LivingEntity living) {
+            public void onEnd(@NotNull AbstractAbnormality living) {
                 if (isBusy) {
                     setAnimation("idle");
                     isBusy = false;
@@ -477,9 +477,9 @@ public class EntityEndBird extends AbstractAbnormality {
         level().playSound(null, getX(), getY(), getZ(),
                 ModSounds.END_BIRD_SKILL_1.get(), SoundSource.HOSTILE, 1.0f, 1.0f);
 
-        TimerEntry timer = new TimerEntry() {
+        TimerEntry<AbstractAbnormality> timer = new TimerEntry<>() {
             @Override
-            public void onRunning(@NotNull LivingEntity living) {
+            public void onRunning(@NotNull AbstractAbnormality living) {
                 int exec = getExecutions();
                 if (exec == 49) {
                     if (level() instanceof ServerLevel serverLevel) {
@@ -494,7 +494,7 @@ public class EntityEndBird extends AbstractAbnormality {
             }
 
             @Override
-            public void onEnd(@NotNull LivingEntity living) {
+            public void onEnd(@NotNull AbstractAbnormality living) {
                 if (isBusy) {
                     setAnimation("idle");
                     isBusy = false;
@@ -563,9 +563,9 @@ public class EntityEndBird extends AbstractAbnormality {
                 ModSounds.END_BIRD_WILL_SKILL_2.get(), SoundSource.HOSTILE, 1.0f, 1.0f);
         setAnimation("skill2");
 
-        TimerEntry timer = new TimerEntry() {
+        TimerEntry<AbstractAbnormality> timer = new TimerEntry<>() {
             @Override
-            public void onRunning(@NotNull LivingEntity living) {
+            public void onRunning(@NotNull AbstractAbnormality living) {
                 if (getExecutions() == 30) {
                     level().playSound(null, getX(), getY(), getZ(),
                             ModSounds.END_BIRD_SKILL_2.get(), SoundSource.HOSTILE, 1.0f, 1.0f);
@@ -578,7 +578,7 @@ public class EntityEndBird extends AbstractAbnormality {
             }
 
             @Override
-            public void onEnd(@NotNull LivingEntity living) {
+            public void onEnd(@NotNull AbstractAbnormality living) {
                 if (isBusy) {
                     setAnimation("idle");
                     isBusy = false;
@@ -839,9 +839,9 @@ public class EntityEndBird extends AbstractAbnormality {
         level().playSound(null, getX(), getY(), getZ(),
                 ModSounds.END_BIRD_TRANSFER.get(), SoundSource.HOSTILE, 1.0f, 1.0f);
 
-        TimerEntry timer = new TimerEntry() {
+        TimerEntry<AbstractAbnormality> timer = new TimerEntry<>() {
             @Override
-            public void onRunning(@NotNull LivingEntity living) {
+            public void onRunning(@NotNull AbstractAbnormality living) {
                 if (getExecutions() == 20) {
                     doTeleport();
                     justTeleported = true;
@@ -852,7 +852,7 @@ public class EntityEndBird extends AbstractAbnormality {
             }
 
             @Override
-            public void onEnd(@NotNull LivingEntity living) {
+            public void onEnd(@NotNull AbstractAbnormality living) {
                 if (isBusy) {
                     doTeleport();
                     justTeleported = true;

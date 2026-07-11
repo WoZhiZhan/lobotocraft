@@ -4,7 +4,6 @@ import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
-import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.*;
 import com.wzz.lobotocraft.work.WorkResult;
@@ -28,7 +27,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SnowLayerBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.Heightmap;
 import org.jetbrains.annotations.NotNull;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
@@ -354,11 +352,11 @@ public class EntitySnowQueen extends AbstractAbnormality {
                 .add(Attributes.FOLLOW_RANGE, 32.0D);
     }
 
-    static class SnowQueenTimerEntry extends TimerEntry {
+    static class SnowQueenTimerEntry extends TimerEntry<Player> {
         @Override
-        public void onRunning(@NotNull LivingEntity living) {
+        public void onRunning(@NotNull Player living) {
             if (getExecutions() == 1) {
-                if (!com.wzz.lobotocraft.util.BuffUtil.hasKiss((Player) living)) {
+                if (!com.wzz.lobotocraft.util.BuffUtil.hasKiss(living)) {
                     if (!living.getPersistentData().getBoolean("isSnowQueenDuel")) {
                         SoundUtil.playSound(living.level, living, ModSounds.SNOW_QUEEN_KISS.get());
                     }
@@ -369,20 +367,20 @@ public class EntitySnowQueen extends AbstractAbnormality {
         }
 
         @Override
-        public void onEnd(@NotNull LivingEntity living) {
-            if (!com.wzz.lobotocraft.util.BuffUtil.hasKiss((Player) living)) {
+        public void onEnd(@NotNull Player living) {
+            if (!com.wzz.lobotocraft.util.BuffUtil.hasKiss(living)) {
                 if (!living.getPersistentData().getBoolean("isSnowQueenDuel")) {
-                    com.wzz.lobotocraft.util.BuffUtil.giveKiss((Player) living);
+                    com.wzz.lobotocraft.util.BuffUtil.giveKiss(living);
                 }
             } else {
                 for (Entity entity : EntityUtil.findAllEntities(living, 4)) {
                     if (entity instanceof Villager villager) {
                         villager.getPersistentData().putBoolean("isSnowQueen", true);
-                        ((Player) living).displayClientMessage(Component.literal("§c有人被冰雪女皇困住了！"), false);
+                        living.displayClientMessage(Component.literal("§c有人被冰雪女皇困住了！"), false);
                         return;
                     }
                 }
-                ((Player) living).displayClientMessage(Component.literal("§c你被冰雪女皇困住了！"), false);
+                living.displayClientMessage(Component.literal("§c你被冰雪女皇困住了！"), false);
                 living.getPersistentData().putBoolean("isSnowQueen", true);
                 boolean hasPlayer = false;
                 for (ServerPlayer player : EntityUtil.findAllPlayer(living)) {
@@ -392,7 +390,7 @@ public class EntitySnowQueen extends AbstractAbnormality {
                     }
                 }
                 if (!hasPlayer) {
-                    ((Player) living).displayClientMessage(Component.literal("§c你所在的存档没有其他玩家存在，你被彻底冰封了"), false);
+                    living.displayClientMessage(Component.literal("§c你所在的存档没有其他玩家存在，你被彻底冰封了"), false);
                     // 移除冰封标记,否则 kill() 的伤害会被 isSnowQueen 判定拦截,导致单人玩家不会死亡
                     living.getPersistentData().remove("isSnowQueen");
                     living.kill();
@@ -400,7 +398,7 @@ public class EntitySnowQueen extends AbstractAbnormality {
             }
         }
 
-        public static void add(LivingEntity living, AbstractAbnormality abnormality) {
+        public static void add(Player living, AbstractAbnormality abnormality) {
             new AnimationTimerEntry(abnormality, "animation.snowqueen.special", "animation.snowqueen.idle", 1250);
             new SnowQueenTimerEntry().addSkillTimer(living, 0, 2000, 1, true);
         }

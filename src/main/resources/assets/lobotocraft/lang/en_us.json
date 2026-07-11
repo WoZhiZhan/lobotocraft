@@ -65,6 +65,7 @@
   "curios.identifier.mouth": "Mouth",
   "curios.identifier.mask": "Mask",
   "curios.identifier.right_boby": "Right Boby",
+  "curios.identifier.chest": "Chest",
   "item.lobotocraft.punishing_bird_chestplate": "Punishing Bird Chestplate",
   "item.lobotocraft.punishing_bird_leggings": "Punishing Bird Leggings",
   "item.lobotocraft.punishing_bird_boots": "Punishing Bird Boots",
@@ -197,5 +198,10 @@
   "item.lobotocraft.ppodae_leggings": "Ppodae Leggings",
   "item.lobotocraft.ppodae_boots": "Ppodae Boots",
   "item.lobotocraft.ppodae_weapon": "Ppodae",
-  "item.lobotocraft.ppodae_curio": "Ppodae"
+  "item.lobotocraft.ppodae_curio": "Ppodae",
+  "item.lobotocraft.fragment_of_the_universe_chestplate": "Fragment Of The Universe Chestplate",
+  "item.lobotocraft.fragment_of_the_universe_leggings": "Fragment Of The Universe Leggings",
+  "item.lobotocraft.fragment_of_the_universe_boots": "Fragment Of The Universe Boots",
+  "item.lobotocraft.fragment_of_the_universe_weapon": "Fragment Of The Universe",
+  "item.lobotocraft.fragment_of_the_universe_curio": "Fragment Of The Universe"
 }

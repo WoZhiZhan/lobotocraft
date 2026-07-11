@@ -531,41 +531,6 @@ public class EntityUtil {
     }
 
     /**
-     * 让实体高速飞向目标实体
-     * @param entity 飞行的实体
-     * @param target 目标实体
-     * @param speed 飞行速度（每 tick 移动的格数，建议 0.5 - 2.0）
-     * @param duration 持续时间（毫秒）
-     */
-    public static void flyToEntity(LivingEntity entity, Entity target, double speed, int duration) {
-        if (entity == null || target == null) return;
-        TimerEntry flyTimer = new TimerEntry() {
-            @Override
-            public void onRunning(@NotNull LivingEntity living) {
-                double dx = target.getX() - living.getX();
-                double dy = target.getY() + target.getBbHeight() / 2 - living.getY();
-                double dz = target.getZ() - living.getZ();
-                double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-                if (distance < 0.6) {
-                    this.removeTimer(living.getUUID());
-                    return;
-                }
-                double vx = dx / distance * speed;
-                double vy = dy / distance * speed;
-                double vz = dz / distance * speed;
-                living.setPos(
-                        living.getX() + vx,
-                        living.getY() + vy,
-                        living.getZ() + vz
-                );
-                float yaw = (float) Math.toDegrees(Math.atan2(dz, dx));
-                living.setYRot(yaw);
-            }
-        };
-        flyTimer.addSkillTimer(entity, 0, duration, 20);
-    }
-
-    /**
      * 让实体高速飞向目标实体，到达后执行回调
      * @param entity 飞行的实体
      * @param target 目标实体
@@ -574,7 +539,7 @@ public class EntityUtil {
      */
     public static void flyToEntityWithCallback(LivingEntity entity, Entity target, double speed, Runnable onReach) {
         if (entity == null || target == null) return;
-        TimerEntry flyTimer = new TimerEntry() {
+        TimerEntry<LivingEntity> flyTimer = new TimerEntry<>() {
             @Override
             public void onRunning(@NotNull LivingEntity living) {
                 double dx = target.getX() - living.getX();

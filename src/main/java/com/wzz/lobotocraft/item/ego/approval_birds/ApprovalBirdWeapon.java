@@ -83,9 +83,9 @@ public class ApprovalBirdWeapon extends BaseEgoWeapon {
                         player.playSound(SoundEvents.PLAYER_LEVELUP);
                         stack.getOrCreateTag().putInt("UseTick", 0);
                     }
-                    TimerEntry timerEntry = new TimerEntry() {
+                    TimerEntry<Player> timerEntry = new TimerEntry<>() {
                         @Override
-                        public void onEnd(@NotNull LivingEntity living) {
+                        public void onEnd(@NotNull Player living) {
                             EntityUtil.clearHurtTime(livingEntity, () -> {
                                 livingEntity.hurt(DamageHelper.getDamage(player, "blue"), 1 + player.random.nextInt(2) + 1 + EntityUtil.addMaxHealthPercentageDamage(livingEntity, 0.02f, 0.03f, 3f));
                                 EntityUtil.clearHurtTime(livingEntity, () -> {
@@ -125,9 +125,9 @@ public class ApprovalBirdWeapon extends BaseEgoWeapon {
             triggerAttackAnimation(player, stack);
             if (!level.isClientSide) {
                 player.getServer().execute(() -> {
-                    TimerEntry timerEntry = new TimerEntry() {
+                    TimerEntry<Player> timerEntry = new TimerEntry<>() {
                         @Override
-                        public void onRunning(@NotNull LivingEntity living) {
+                        public void onRunning(@NotNull Player living) {
                             int tick = this.getExecutions();
                             if (tick == 26) {
                                 SoundUtil.playSound(living.level, living, ModSounds.APPROVAL_BIRD_WEAPON_SPECIAL_1.get());
@@ -179,7 +179,7 @@ public class ApprovalBirdWeapon extends BaseEgoWeapon {
                         }
 
                         @Override
-                        public void onEnd(@NotNull LivingEntity living) {
+                        public void onEnd(@NotNull Player living) {
                             stack.getOrCreateTag().putBoolean("isInAnimatable", false);
 
                         }

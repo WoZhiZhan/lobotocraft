@@ -7,6 +7,8 @@ import com.wzz.lobotocraft.network.packet.MentalValueSyncPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public class MentalValueUtil {
     
     /**
@@ -28,6 +30,13 @@ public class MentalValueUtil {
             MessageLoader.getLoader().sendToPlayer(player,
                     new MentalValueSyncPacket(mental.getMentalValue(), mental.getMaxMentalValue()));
         });
+    }
+
+    // 检测恐慌状态
+    public static boolean isPanic(ServerPlayer player) {
+        AtomicBoolean panic = new AtomicBoolean(false);
+        player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> panic.set(mental.isMentalValueEmpty()));
+        return panic.get();
     }
 
     public static void reduceMentalValue(ServerPlayer player, float amount) {

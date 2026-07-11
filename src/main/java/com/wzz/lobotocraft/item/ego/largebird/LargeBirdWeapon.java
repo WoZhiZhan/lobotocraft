@@ -68,7 +68,7 @@ public class LargeBirdWeapon extends BaseEgoWeapon {
             v = 50;
         }
         if (i <= v) {
-            TimerEntry timerEntry = new TimerEntry() {
+            TimerEntry<LivingEntity> timerEntry = new TimerEntry<>() {
                 @Override
                 public void onStart(@NotNull LivingEntity living) {
                     living.getPersistentData().putBoolean("isLargeBirdWeaponBlackDamage", true);

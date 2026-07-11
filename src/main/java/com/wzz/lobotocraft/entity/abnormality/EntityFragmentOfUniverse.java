@@ -1,10 +1,12 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.MentalValueUtil;
+import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.core.particles.ParticleTypes;
@@ -139,6 +141,85 @@ public class EntityFragmentOfUniverse extends AbstractAbnormality {
             transformed = false;
             setAnimation("transform");
         }
+    }
+
+    @Override
+    public int getWeaponDevelopmentCost() {
+        return 25;
+    }
+
+    @Override
+    public int getArmorDevelopmentCost() {
+        return 25;
+    }
+
+    @Override
+    public int getArmorDevelopmentMaxCount() {
+        return 2;
+    }
+
+    @Override
+    public int getWeaponDevelopmentMaxCount() {
+        return 3;
+    }
+
+    @Override
+    public float[] getArmorRenderScale() {
+        return new float[] {1.5f, 1.0f, 1.5f};
+    }
+
+    @Override
+    public float[] getArmorRenderOffset() {
+        return new float[] {-20.0f, 1.0f, 1.0f};
+    }
+
+    @Override
+    public float[] getWeaponRenderOffset() {
+        return new float[] {5.0f, 1.0f, 1f};
+    }
+
+    @Override
+    public EGOEquipmentData.GiftData getEGOGiftData() {
+        return new EGOEquipmentData.GiftData(
+                ResourceUtil.createInstance("textures/item/fragment_of_the_universe_curio.png"),
+                "彼方的裂片",
+                "胸部",
+                "fragment_of_the_universe_curio",
+                """
+                        最大生命值+4
+                        成功率+2
+                        工作速度+2"""
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.WeaponData getEGOWeaponData() {
+        return new EGOEquipmentData.WeaponData(
+                ResourceUtil.createInstance("textures/gui/ego/fragment_of_the_universe_weapon.png"),
+                "彼方的裂片",
+                getRiskLevel(),
+                "RED",
+                "5-9",
+                "1.7",
+                "4格",
+                getWeaponDevelopmentMaxCount(),
+                "fragment_of_the_universe_weapon"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.ArmorData getEGOArmorData() {
+        return new EGOEquipmentData.ArmorData(
+                ResourceUtil.createInstance("textures/gui/ego/fragment_of_the_universe_armor.png"),
+                "彼方的裂片",
+                getRiskLevel(),
+                1.0f,
+                1.2f,
+                0.6f,
+                2.0f,
+                getArmorDevelopmentMaxCount(),
+                "fragment_of_the_universe"
+        );
     }
 
     // ==================== 出逃抗性:红1.0 白1.5 黑1.0 蓝2.0 ====================

@@ -2,13 +2,11 @@ package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
-import com.wzz.lobotocraft.entity.base.AnimationRunnable;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.*;
-import com.wzz.lobotocraft.work.WorkManager;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -192,7 +190,7 @@ public class EntityThornBus extends AbstractAbnormality {
         playSound(ModSounds.THORN_BUS_PUT_TO_DEATH_ATTACK.get());
         living.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 10000, 255));
         living.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 10000, 255));
-        TimerEntry timerEntry = new TimerEntry() {
+        TimerEntry<LivingEntity> timerEntry = new TimerEntry<>() {
             @Override
             public void onEnd(@NotNull LivingEntity living) {
                 if (EntityUtil.getDistanceBetweenEntities(EntityThornBus.this, living) <= 3D) {
@@ -220,7 +218,7 @@ public class EntityThornBus extends AbstractAbnormality {
         if (random.nextInt(2) == 0) {
             playSound(ModSounds.THORN_BUS_FACE_ATTACK_1.get());
         } else playSound(ModSounds.THORN_BUS_FACE_ATTACK_2.get());
-        TimerEntry timerEntry = new TimerEntry() {
+        TimerEntry<LivingEntity> timerEntry = new TimerEntry<>() {
             @Override
             public void onRunning(@NotNull LivingEntity living) {
                 if (getExecutions() == 8) {

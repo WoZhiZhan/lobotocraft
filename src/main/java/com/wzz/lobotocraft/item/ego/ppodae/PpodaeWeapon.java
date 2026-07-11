@@ -98,9 +98,9 @@ public class PpodaeWeapon extends BaseEgoWeapon {
             p_41423_.add(Component.literal("§7咳咳，如果你过度依赖这把武器，你会意识到寄托其中的残暴野性正在你的体内慢慢苏醒。"));
             p_41423_.add(Component.literal(""));
             p_41423_.add(Component.literal("§7但是但是...这些果冻状的爪爪垫摸起来真是让人欲罢不能啊，简直爽到~"));
+            p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
         } else {
             p_41423_.add(Component.literal("§6※这把武器在攻击时会造成两段伤害。"));
-            p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
         }
     }
 
