@@ -16,6 +16,11 @@ public class DisplayItemActivationPacket implements IMessage {
     }
 
     @Override
+    public boolean sendToClient() {
+        return true;
+    }
+
+    @Override
     public void fromBytes(FriendlyByteBuf buf) {
         this.itemStack = buf.readItem();
     }
