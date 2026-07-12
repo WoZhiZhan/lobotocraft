@@ -14,7 +14,7 @@ import java.util.List;
 public abstract class RedShoesBaseArmor extends BaseEgoArmor {
 
     public RedShoesBaseArmor(Type type) {
-        super(ModArmorMaterial.REPENTANCE, type, new Properties().stacksTo(1).fireResistant());
+        super(ModArmorMaterial.ARMOR_MATERIAL, type, new Properties().stacksTo(1).fireResistant());
     }
 
     @Override

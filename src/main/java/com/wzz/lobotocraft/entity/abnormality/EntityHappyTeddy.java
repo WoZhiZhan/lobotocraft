@@ -1,9 +1,11 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.MentalValueUtil;
+import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -276,6 +278,88 @@ public class EntityHappyTeddy extends AbstractAbnormality {
         player.setNoGravity(true);
         player.setDeltaMovement(0, 0, 0);
         player.setShiftKeyDown(true); // 让玩家坐下（蹲下姿势）
+    }
+
+    @Override
+    public float[] getArmorRenderScale() {
+        return new float[] {1.5f, 1.0f, 1.5f};
+    }
+
+    @Override
+    public float[] getArmorRenderOffset() {
+        return new float[] {-20.0f, 1.0f, 1.0f};
+    }
+
+    @Override
+    public float[] getWeaponRenderOffset() {
+        return new float[] {5.0f, 1.0f, 1f};
+    }
+
+    @Override
+    public int getWeaponDevelopmentCost() {
+        return 40;
+    }
+
+    @Override
+    public int getArmorDevelopmentCost() {
+        return 30;
+    }
+
+    @Override
+    public int getArmorDevelopmentMaxCount() {
+        return 1;
+    }
+
+    @Override
+    public int getWeaponDevelopmentMaxCount() {
+        return 2;
+    }
+
+    @Override
+    public float getGiftProbability() {
+        return 0.04f;
+    }
+
+    @Override
+    public EGOEquipmentData.GiftData getEGOGiftData() {
+        return new EGOEquipmentData.GiftData(
+                ResourceUtil.createInstance("textures/item/happy_teddy_curio.png"),
+                "熊熊抱",
+                "眼部",
+                "happy_teddy_curio",
+                "最大精神值+4",
+                "沟通工作的成功率+3%"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.WeaponData getEGOWeaponData() {
+        return new EGOEquipmentData.WeaponData(
+                ResourceUtil.createInstance("textures/gui/ego/happy_teddy_weapon.png"),
+                "熊熊抱",
+                getRiskLevel(),
+                "WHITE",
+                "2-3",
+                "0.6",
+                "10格",
+                getWeaponDevelopmentMaxCount(),
+                "happy_teddy_weapon"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.ArmorData getEGOArmorData() {
+        return new EGOEquipmentData.ArmorData(
+                ResourceUtil.createInstance("textures/gui/ego/happy_teddy_armor.png"),
+                "熊熊抱",
+                getRiskLevel(),
+                0.8f,
+                1.0f,
+                1.0f,
+                1.5f,
+                getArmorDevelopmentMaxCount(),
+                "happy_teddy_armor"
+        );
     }
 
     @Override

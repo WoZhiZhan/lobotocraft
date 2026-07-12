@@ -5,8 +5,8 @@
     16
   ],
   "textures": {
-    "fire": "lobotocraft:curio/foolhardy_courage_curio",
-    "particle": "lobotocraft:curio/foolhardy_courage_curio"
+    "fire": "lobotocraft:item/foolhardy_courage_curio",
+    "particle": "lobotocraft:item/foolhardy_courage_curio"
   },
   "elements": [
     {

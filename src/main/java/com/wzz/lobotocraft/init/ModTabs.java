@@ -163,6 +163,21 @@ public class ModTabs {
 						tabData.accept(ModItems.QUEEN_BEE_BOOTS.get());
 						tabData.accept(ModItems.QUEEN_BEE_WEAPON.get());
 						tabData.accept(ModItems.QUEEN_BEE_CURIO.get());
+						tabData.accept(ModItems.THE_LADY_FACING_THE_WALL_CHESTPLATE.get());
+						tabData.accept(ModItems.THE_LADY_FACING_THE_WALL_LEGGINGS.get());
+						tabData.accept(ModItems.THE_LADY_FACING_THE_WALL_BOOTS.get());
+						tabData.accept(ModItems.THE_LADY_FACING_THE_WALL_WEAPON.get());
+						tabData.accept(ModItems.THE_LADY_FACING_THE_WALL_CURIO.get());
+						tabData.accept(ModItems.HAPPY_TEDDY_CHESTPLATE.get());
+						tabData.accept(ModItems.HAPPY_TEDDY_LEGGINGS.get());
+						tabData.accept(ModItems.HAPPY_TEDDY_BOOTS.get());
+						tabData.accept(ModItems.HAPPY_TEDDY_WEAPON.get());
+						tabData.accept(ModItems.HAPPY_TEDDY_CURIO.get());
+						tabData.accept(ModItems.LETICIA_CHESTPLATE.get());
+						tabData.accept(ModItems.LETICIA_LEGGINGS.get());
+						tabData.accept(ModItems.LETICIA_BOOTS.get());
+						tabData.accept(ModItems.LETICIA_WEAPON.get());
+						tabData.accept(ModItems.LETICIA_CURIO.get());
 					})
 					.build());
 

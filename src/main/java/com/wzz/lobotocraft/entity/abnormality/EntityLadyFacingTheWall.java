@@ -2,12 +2,14 @@ package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.event.work.WorkCompleteEvent;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.LockInputPacket;
 import com.wzz.lobotocraft.util.DamageHelper;
+import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.WorkManager;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
@@ -125,6 +127,88 @@ public class EntityLadyFacingTheWall extends AbstractAbnormality {
                 "<员工名称>陪伴老妇人坐在沉默之中。",
                 "老妇人依旧面对着墙，没有回头。",
                 "收容单元里只剩下压抑的寂静。"
+        );
+    }
+
+    @Override
+    public float[] getArmorRenderScale() {
+        return new float[] {1.5f, 1.0f, 1.5f};
+    }
+
+    @Override
+    public float[] getArmorRenderOffset() {
+        return new float[] {-20.0f, 1.0f, 1.0f};
+    }
+
+    @Override
+    public float[] getWeaponRenderOffset() {
+        return new float[] {5.0f, 1.0f, 1f};
+    }
+
+    @Override
+    public int getWeaponDevelopmentCost() {
+        return 30;
+    }
+
+    @Override
+    public int getArmorDevelopmentCost() {
+        return 20;
+    }
+
+    @Override
+    public int getArmorDevelopmentMaxCount() {
+        return 3;
+    }
+
+    @Override
+    public int getWeaponDevelopmentMaxCount() {
+        return 2;
+    }
+
+    @Override
+    public float getGiftProbability() {
+        return 0.08f;
+    }
+
+    @Override
+    public EGOEquipmentData.GiftData getEGOGiftData() {
+        return new EGOEquipmentData.GiftData(
+                ResourceUtil.createInstance("textures/item/the_lady_facing_the_wall_curio.png"),
+                "孤独",
+                "眼部",
+                "the_lady_facing_the_wall_curio",
+                "成功率+3",
+                "工作速度+3"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.WeaponData getEGOWeaponData() {
+        return new EGOEquipmentData.WeaponData(
+                ResourceUtil.createInstance("textures/gui/ego/the_lady_facing_the_wall_weapon.png"),
+                "孤独",
+                getRiskLevel(),
+                "WHITE",
+                "2-3",
+                "0.6",
+                "10格",
+                getWeaponDevelopmentMaxCount(),
+                "the_lady_facing_the_wall_weapon"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.ArmorData getEGOArmorData() {
+        return new EGOEquipmentData.ArmorData(
+                ResourceUtil.createInstance("textures/gui/ego/the_lady_facing_the_wall_armor.png"),
+                "孤独",
+                getRiskLevel(),
+                1.5f,
+                0.8f,
+                0.8f,
+                2.0f,
+                getArmorDevelopmentMaxCount(),
+                "the_lady_facing_the_wall_armor"
         );
     }
 

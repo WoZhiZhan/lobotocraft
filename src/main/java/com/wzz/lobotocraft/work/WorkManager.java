@@ -756,6 +756,11 @@ public class WorkManager {
                 }
             }
         });
+        for (ItemStack armorStack : player.getArmorSlots()) {
+            if (armorStack.getItem() instanceof IWorkBonusItem bonusItem) {
+                totalBonus.addAndGet(bonusItem.getWorkSpeedBonus(player, workType));
+            }
+        }
         return totalBonus.get();
     }
 
@@ -771,6 +776,12 @@ public class WorkManager {
                 }
             }
         });
+        for (ItemStack armorStack : player.getArmorSlots()) {
+            if (armorStack.getItem() instanceof IWorkBonusItem bonusItem) {
+                totalBonus.updateAndGet(v -> v + bonusItem.getWorkSuccessBonus(player, workType));
+                totalBonus.updateAndGet(v -> v + bonusItem.getRiskSpecificBonus(abnormality.getRiskLevel().name()));
+            }
+        }
         return totalBonus.get();
     }
 

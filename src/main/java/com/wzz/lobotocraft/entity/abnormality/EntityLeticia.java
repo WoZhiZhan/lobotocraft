@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
 import com.wzz.lobotocraft.init.ModAttributes;
@@ -10,6 +11,7 @@ import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.ParticleUtil;
+import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.nbt.CompoundTag;
@@ -167,6 +169,88 @@ public class EntityLeticia extends AbstractAbnormality {
             player.removeEffect(ModEffects.LETICIA_GIFT.get());
             player.removeEffect(ModEffects.LETICIA_BROKEN_GIFT.get());
         }
+    }
+
+    @Override
+    public float[] getArmorRenderScale() {
+        return new float[] {1.5f, 1.0f, 1.5f};
+    }
+
+    @Override
+    public float[] getArmorRenderOffset() {
+        return new float[] {-20.0f, 1.0f, 1.0f};
+    }
+
+    @Override
+    public float[] getWeaponRenderOffset() {
+        return new float[] {5.0f, 1.0f, 1f};
+    }
+
+    @Override
+    public int getWeaponDevelopmentCost() {
+        return 40;
+    }
+
+    @Override
+    public int getArmorDevelopmentCost() {
+        return 45;
+    }
+
+    @Override
+    public int getArmorDevelopmentMaxCount() {
+        return 1;
+    }
+
+    @Override
+    public int getWeaponDevelopmentMaxCount() {
+        return 2;
+    }
+
+    @Override
+    public float getGiftProbability() {
+        return 0.04f;
+    }
+
+    @Override
+    public EGOEquipmentData.GiftData getEGOGiftData() {
+        return new EGOEquipmentData.GiftData(
+                ResourceUtil.createInstance("textures/item/leticia_curio.png"),
+                "蕾蒂希娅",
+                "头饰",
+                "leticia_curio",
+                "最大精神值+4",
+                "沟通工作失误时有25%概率不受到伤害惩罚"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.WeaponData getEGOWeaponData() {
+        return new EGOEquipmentData.WeaponData(
+                ResourceUtil.createInstance("textures/gui/ego/leticia_weapon.png"),
+                "蕾蒂希娅",
+                getRiskLevel(),
+                "BLACK",
+                "6",
+                "1s",
+                "25格",
+                getWeaponDevelopmentMaxCount(),
+                "leticia_weapon"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.ArmorData getEGOArmorData() {
+        return new EGOEquipmentData.ArmorData(
+                ResourceUtil.createInstance("textures/gui/ego/leticia_armor.png"),
+                "蕾蒂希娅",
+                getRiskLevel(),
+                0.7f,
+                0.7f,
+                0.7f,
+                1.5f,
+                getArmorDevelopmentMaxCount(),
+                "leticia_armor"
+        );
     }
 
     @Override

@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.event;
 
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.client.model.block.GenericGeoBlockModel;
+import com.wzz.lobotocraft.client.model.item.FlatCurioModel;
 import com.wzz.lobotocraft.client.renderer.entity.EntityClerkRenderer;
 import com.wzz.lobotocraft.client.renderer.entity.EntityLightOrbRenderer;
 import com.wzz.lobotocraft.client.renderer.entity.abnormality.BlackForestDoorRenderer;
@@ -17,15 +18,21 @@ import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.init.ModShaders;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
+import com.wzz.lobotocraft.util.ResourceUtil;
 import net.minecraft.client.renderer.entity.ItemEntityRenderer;
+import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.client.resources.model.ModelResourceLocation;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
+import net.minecraftforge.client.event.ModelEvent;
 import net.minecraftforge.client.event.RegisterShadersEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
+import net.minecraftforge.registries.ForgeRegistries;
 import top.theillusivec4.curios.api.client.CuriosRendererRegistry;
 
 @Mod.EventBusSubscriber(modid = ModMain.MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
@@ -40,6 +47,21 @@ public class ModClientEvent {
                         () -> new BaseEgoCurioRenderer(curio.curioName()));
             }
         }));
+    }
+
+    @SubscribeEvent
+    public static void onModifyBakingResult(ModelEvent.ModifyBakingResult event) {
+        for (Item item : ForgeRegistries.ITEMS) {
+            if (!(item instanceof BaseEgoCurio curio) || !curio.render2D()) continue;
+            ResourceLocation itemId = ForgeRegistries.ITEMS.getKey(item);
+            if (itemId == null) continue;
+            ModelResourceLocation mrl = new ModelResourceLocation(itemId, "inventory");
+            BakedModel original = event.getModels().get(mrl);
+            if (original == null) continue;
+            ResourceLocation tex = ResourceUtil.createInstance(itemId.getNamespace(),
+                    "item/" + curio.curioName() + "_curio");
+            event.getModels().put(mrl, new FlatCurioModel(original, tex));
+        }
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)

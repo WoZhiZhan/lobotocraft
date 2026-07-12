@@ -136,11 +136,15 @@ public class EmployeeStatsScreen extends Screen {
     private void calculateWorkBonuses() {
         temperanceWorkSpeedBonus = 0;
         temperanceSuccessBonus = 0;
-
         if (minecraft.player == null) return;
-
         for (ItemStack stack : CuriosUtil.getCuriosItems(minecraft.player)) {
             if (stack.getItem() instanceof IWorkBonusItem workBonusItem) {
+                temperanceWorkSpeedBonus += workBonusItem.getWorkSpeedBonus(minecraft.player, null);
+                temperanceSuccessBonus += workBonusItem.getWorkSuccessBonus(minecraft.player, null);
+            }
+        }
+        for (ItemStack armorStack : minecraft.player.getArmorSlots()) {
+            if (armorStack.getItem() instanceof IWorkBonusItem workBonusItem) {
                 temperanceWorkSpeedBonus += workBonusItem.getWorkSpeedBonus(minecraft.player, null);
                 temperanceSuccessBonus += workBonusItem.getWorkSuccessBonus(minecraft.player, null);
             }

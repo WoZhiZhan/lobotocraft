@@ -1,0 +1,6 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "lobotocraft:item/the_lady_facing_the_wall_boots"
+  }
+}

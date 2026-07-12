@@ -10,7 +10,6 @@ import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EgoArmorHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.player.Player;
@@ -26,7 +25,7 @@ import java.util.Map;
 public abstract class EndBirdBaseArmor extends BaseEgoArmor {
 
     public EndBirdBaseArmor(Type type) {
-        super(ModArmorMaterial.REPENTANCE, type, new Properties().stacksTo(1).fireResistant());
+        super(ModArmorMaterial.ARMOR_MATERIAL, type, new Properties().stacksTo(1).fireResistant());
     }
 
     @Override

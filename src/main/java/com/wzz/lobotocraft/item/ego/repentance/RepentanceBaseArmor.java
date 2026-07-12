@@ -23,7 +23,7 @@ import java.util.List;
 public abstract class RepentanceBaseArmor extends BaseEgoArmor {
 
     public RepentanceBaseArmor(Type type) {
-        super(ModArmorMaterial.REPENTANCE, type, new Properties().stacksTo(1).fireResistant());
+        super(ModArmorMaterial.ARMOR_MATERIAL, type, new Properties().stacksTo(1).fireResistant());
     }
 
     @Override

@@ -229,5 +229,22 @@
   "item.lobotocraft.queen_bee_weapon": "黄蜂",
   "item.lobotocraft.queen_bee_curio": "黄蜂",
   "effect.lobotocraft.spore": "狍子",
-  "effect.lobotocraft.menace": "威胁"
+  "effect.lobotocraft.menace": "威胁",
+  "item.lobotocraft.the_lady_facing_the_wall_chestplate": "孤独",
+  "item.lobotocraft.the_lady_facing_the_wall_leggings": "孤独",
+  "item.lobotocraft.the_lady_facing_the_wall_boots": "孤独",
+  "item.lobotocraft.the_lady_facing_the_wall_weapon": "孤独",
+  "item.lobotocraft.the_lady_facing_the_wall_curio": "孤独",
+  "effect.lobotocraft.loneliness": "孤独",
+  "item.lobotocraft.happy_teddy_chestplate": "熊熊抱",
+  "item.lobotocraft.happy_teddy_leggings": "熊熊抱",
+  "item.lobotocraft.happy_teddy_boots": "熊熊抱",
+  "item.lobotocraft.happy_teddy_weapon": "熊熊抱",
+  "item.lobotocraft.happy_teddy_curio": "熊熊抱",
+  "curios.identifier.boxing": "拳套",
+  "item.lobotocraft.leticia_chestplate": "蕾蒂希娅",
+  "item.lobotocraft.leticia_leggings": "蕾蒂希娅",
+  "item.lobotocraft.leticia_boots": "蕾蒂希娅",
+  "item.lobotocraft.leticia_weapon": "蕾蒂希娅",
+  "item.lobotocraft.leticia_curio": "蕾蒂希娅"
 }

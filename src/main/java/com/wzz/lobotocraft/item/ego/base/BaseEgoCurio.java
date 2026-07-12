@@ -8,7 +8,6 @@ import com.wzz.lobotocraft.item.base.IBodyPartRenderer;
 import com.wzz.lobotocraft.util.EntityUtil;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -18,7 +17,6 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.client.extensions.common.IClientItemExtensions;
 import software.bernie.geckolib.animatable.GeoItem;
-import software.bernie.geckolib.constant.DataTickets;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
@@ -55,6 +53,10 @@ public abstract class BaseEgoCurio extends Item implements ICurioItem, GeoItem, 
     public abstract boolean hasAnimatable();
 
     public boolean rendersOnWearer() {
+        return true;
+    }
+
+    public boolean render2D() {
         return true;
     }
 

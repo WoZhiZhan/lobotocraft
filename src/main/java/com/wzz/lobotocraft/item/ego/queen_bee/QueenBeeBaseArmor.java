@@ -16,7 +16,7 @@ import java.util.Map;
 public abstract class QueenBeeBaseArmor extends BaseEgoArmor {
 
     public QueenBeeBaseArmor(Type type) {
-        super(ModArmorMaterial.REPENTANCE, type, new Properties().stacksTo(1).fireResistant());
+        super(ModArmorMaterial.ARMOR_MATERIAL, type, new Properties().stacksTo(1).fireResistant());
     }
 
     @Override

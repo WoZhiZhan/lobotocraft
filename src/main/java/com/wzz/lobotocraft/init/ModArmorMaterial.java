@@ -14,14 +14,14 @@ import net.minecraft.world.item.crafting.Ingredient;
 import org.jetbrains.annotations.NotNull;
 
 public class ModArmorMaterial {
-    public static final ArmorMaterial REPENTANCE;
+    public static final ArmorMaterial ARMOR_MATERIAL;
     public static final ArmorMaterial BLUE_STAR;
 
     public ModArmorMaterial() {
     }
 
     static {
-        REPENTANCE = new SimpleArmorMaterial("repentance", 3000, SoundEvents.ARMOR_EQUIP_DIAMOND, 0f, Ingredient::of);
+        ARMOR_MATERIAL = new SimpleArmorMaterial("repentance", 3000, SoundEvents.ARMOR_EQUIP_DIAMOND, 0f, Ingredient::of);
         BLUE_STAR = new SimpleArmorMaterial("blue_star", 4000, SoundEvents.ARMOR_EQUIP_NETHERITE, 0f, Ingredient::of);
     }
 

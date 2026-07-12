@@ -37,7 +37,7 @@ import java.util.function.Consumer;
  * 所有E.G.O装备都继承这个类，避免重复代码
  * 子类只需要实现抗性值和特殊效果即可
  */
-public abstract class BaseEgoArmor extends ArmorItem implements IEgoArmor, GeoItem, IEgoLevelItem {
+public abstract class BaseEgoArmor extends ArmorItem implements IEgoArmor, GeoItem, IEgoLevelItem, IWorkBonusItem {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private static final RawAnimation IDLE_ANIMATION = RawAnimation.begin().thenLoop("idle");

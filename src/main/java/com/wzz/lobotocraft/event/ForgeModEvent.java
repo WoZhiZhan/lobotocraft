@@ -23,10 +23,7 @@ import com.wzz.lobotocraft.item.ego.children_galaxy.ChildrenGalaxyCurio;
 import com.wzz.lobotocraft.item.ego.red_shoes.RedShoesWeapon;
 import com.wzz.lobotocraft.item.ego.thorn_bus.ThornBusWeapon;
 import com.wzz.lobotocraft.network.MessageLoader;
-import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
-import com.wzz.lobotocraft.network.packet.MentalValueSyncPacket;
-import com.wzz.lobotocraft.network.packet.OpenChatScreenPacket;
-import com.wzz.lobotocraft.network.packet.StopAmbientSoundPacket;
+import com.wzz.lobotocraft.network.packet.*;
 import com.wzz.lobotocraft.util.*;
 import com.wzz.lobotocraft.work.WorkManager;
 import com.wzz.lobotocraft.work.WorkType;
@@ -208,8 +205,16 @@ public class ForgeModEvent {
 					&& !DotHelper.isDotDamage(target) && attacker.getMainHandItem().getItem() instanceof RedShoesWeapon) {
 				RedShoesBleedHandler.applyBleed(attacker, target);
 			}
-			if (event.getEntity().hasEffect(ModEffects.MENACE.get())) {
+			if (target.hasEffect(ModEffects.MENACE.get())) {
 				event.setAmount(event.getAmount() * 1.1f);
+			}
+			if (EgoArmorHelper.isFullEGO(attacker, "the_lady_facing_the_wall")) {
+				int currentAmplifier = 0;
+				if (target.hasEffect(ModEffects.LONELINESS.get())) {
+					currentAmplifier = target.getEffect(ModEffects.LONELINESS.get()).getAmplifier() + 1;
+				}
+				int newAmplifier = Math.min(currentAmplifier, 9);
+				target.addEffect(new MobEffectInstance(ModEffects.LONELINESS.get(), 200, newAmplifier));
 			}
 		}
 		if (!isDot && target instanceof ServerPlayer player) {
@@ -273,6 +278,14 @@ public class ForgeModEvent {
 			if (EgoArmorHelper.isWearingFullSet(player, "red_shoes")) {
 				float reduction = EntityUtil.getDamageReductionByLostHealth(player, 0.02f, 0.6f);
 				event.setAmount(event.getAmount() * (1 - reduction));
+			}
+			boolean hasBuff = player.hasEffect(ModEffects.LETICIA_BROKEN_GIFT.get()) || player.hasEffect(ModEffects.LETICIA_GIFT.get());
+			if (EgoArmorHelper.isWearingFullSet(player, "leticia")) {
+				if (hasBuff) {
+					event.setAmount(event.getAmount() * 0.7f);
+				} else {
+					event.setAmount(event.getAmount() * 1.3f);
+				}
 			}
 		}
 
@@ -813,9 +826,39 @@ public class ForgeModEvent {
 	}
 
 	@SubscribeEvent
+	public static void onLivingDamage(LivingDamageEvent event) {
+		if (event.getEntity() instanceof ServerPlayer player) {
+			boolean hasBuff = player.hasEffect(ModEffects.LETICIA_BROKEN_GIFT.get()) || player.hasEffect(ModEffects.LETICIA_GIFT.get());
+			if (EgoArmorHelper.isWearingFullSet(player, "leticia")) {
+				if (!hasBuff) {
+					event.setAmount(event.getAmount() * 0.7f);
+				} else {
+					event.setAmount(event.getAmount() * 1.3f);
+				}
+			}
+			if (hasBuff) {
+				if (EgoArmorHelper.isFullEGO(player, "leticia") && event.getAmount() >= player.getHealth()) {
+					event.setAmount(0f);
+					event.setCanceled(true);
+					player.playSound(SoundEvents.TOTEM_USE);
+					MessageLoader.getLoader().sendToPlayer(player, new DisplayItemActivationPacket(new ItemStack(ModItems.LETICIA_CURIO.get())));
+					player.removeEffect(ModEffects.LETICIA_BROKEN_GIFT.get());
+					player.removeEffect(ModEffects.LETICIA_GIFT.get());
+				}
+			}
+		}
+	}
+
+	@SubscribeEvent
 	public static void onWorkDamage(WorkDamageEvent event) {
 		if (event.getWorkType() == WorkType.REPRESSION && EgoArmorHelper.isFullSetWithCurioLocked(event.getPlayer(), "approval_bird")) {
 			event.setCanceled(true);
+		}
+		if (event.getWorkType() == WorkType.ATTACHMENT && CuriosUtil.hasCurios(event.getPlayer(), ModItems.LETICIA_CURIO.get())) {
+			int i = new Random().nextInt(101);
+			if (i <= 25) {
+				event.setCanceled(true);
+			}
 		}
 	}
 

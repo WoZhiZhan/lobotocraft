@@ -120,7 +120,7 @@ public class EntityCrumblingArmor extends AbstractAbnormality {
     @Override
     public EGOEquipmentData.GiftData getEGOGiftData() {
         return new EGOEquipmentData.GiftData(
-                ResourceUtil.createInstance("textures/curio/inner_courage_curio.png"),
+                ResourceUtil.createInstance("textures/item/inner_courage_curio.png"),
                 "内在的勇气 / 匹夫之勇",
                 "特殊",
                 "inner_courage_curio",

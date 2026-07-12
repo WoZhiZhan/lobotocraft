@@ -5,8 +5,8 @@
     16
   ],
   "textures": {
-    "fire": "lobotocraft:curio/inner_courage_curio",
-    "particle": "lobotocraft:curio/inner_courage_curio"
+    "fire": "lobotocraft:item/inner_courage_curio",
+    "particle": "lobotocraft:item/inner_courage_curio"
   },
   "elements": [
     {

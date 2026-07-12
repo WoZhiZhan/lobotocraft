@@ -1,15 +1,18 @@
 package com.wzz.lobotocraft.client.renderer.item;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.wzz.lobotocraft.client.model.item.FlatCurioModel;
 import com.wzz.lobotocraft.client.model.item.ego.BaseEgoCurioModel;
 import com.wzz.lobotocraft.item.base.IBodyPartRenderer;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.HumanoidModel;
-import net.minecraft.client.renderer.ItemInHandRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.block.model.ItemTransforms;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
@@ -18,8 +21,6 @@ import top.theillusivec4.curios.api.SlotContext;
 import top.theillusivec4.curios.api.client.ICurioRenderer;
 
 public class BaseEgoCurioRenderer extends GeoItemRenderer<BaseEgoCurio> implements ICurioRenderer {
-    private final ItemInHandRenderer itemRenderer = Minecraft.getInstance()
-            .getEntityRenderDispatcher().getItemInHandRenderer();
 
     public BaseEgoCurioRenderer(String curioName) {
         super(new BaseEgoCurioModel(curioName));
@@ -38,23 +39,37 @@ public class BaseEgoCurioRenderer extends GeoItemRenderer<BaseEgoCurio> implemen
         if (!curio.rendersOnWearer()) return;
 
         LivingEntity wearer = slotContext.entity();
+        if (wearer == null) return;
 
-        if (wearer != null && wearer.level.isClientSide) {
+        if (wearer.level.isClientSide) {
             boolean isMoving = Math.abs(wearer.zza) > 0.01 || Math.abs(wearer.xxa) > 0.01;
             BaseEgoCurio.WEARER_MOVING.put(wearer.getId(), isMoving);
             BaseEgoCurio.currentRenderEntityId = wearer.getId();
-            BaseEgoCurio.isRenderingAsCurio = true;
         }
 
+        // 取 json 里的 display（被替换过的模型要拿原始的那份）
+        BakedModel model = Minecraft.getInstance().getItemRenderer().getModel(stack, null, null, 0);
+        ItemTransforms transforms = (model instanceof FlatCurioModel f)
+                ? f.getWearTransforms()
+                : model.getTransforms();
+
         IBodyPartRenderer.BodyPartType partType = curio.getBodyPartType();
+        ItemDisplayContext ctx = getDisplayContext(partType);
+
         poseStack.pushPose();
         curio.applyTransform(poseStack, humanoid, partType);
-        if (wearer != null) {
-            itemRenderer.renderItem(wearer, stack, getDisplayContext(partType),
-                    false, poseStack, buffer, light);
+
+        // 复现 ItemRenderer.render 的两步：套 display + 居中
+        transforms.getTransform(ctx).apply(false, poseStack);
+        poseStack.translate(-0.5F, -0.5F, -0.5F);
+
+        BaseEgoCurio.isRenderingAsCurio = true;
+        try {
+            super.renderByItem(stack, ctx, poseStack, buffer, light, OverlayTexture.NO_OVERLAY);
+        } finally {
+            BaseEgoCurio.isRenderingAsCurio = false;
         }
         poseStack.popPose();
-        BaseEgoCurio.isRenderingAsCurio = false;
     }
 
     private ItemDisplayContext getDisplayContext(IBodyPartRenderer.BodyPartType partType) {

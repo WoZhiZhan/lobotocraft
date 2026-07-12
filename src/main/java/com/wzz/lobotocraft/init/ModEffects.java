@@ -50,4 +50,5 @@ public class ModEffects {
 
     public static final RegistryObject<MobEffect> MENACE = EFFECTS.register("menace", MenaceEffect::new);
     public static final RegistryObject<MobEffect> SPORE = EFFECTS.register("spore", SporeEffect::new);
+    public static final RegistryObject<MobEffect> LONELINESS = EFFECTS.register("loneliness", LonelinessEffect::new);
 }
