@@ -287,6 +287,14 @@ public class ForgeModEvent {
 				float reduction = EntityUtil.getDamageReductionByLostHealth(player, 0.02f, 0.6f);
 				event.setAmount(event.getAmount() * (1 - reduction));
 			}
+			boolean hasBuff = player.hasEffect(ModEffects.LETICIA_BROKEN_GIFT.get()) || player.hasEffect(ModEffects.LETICIA_GIFT.get());
+			if (EgoArmorHelper.isWearingFullSet(player, "leticia")) {
+				if (hasBuff) {
+					event.setAmount(event.getAmount() * 0.7f);
+				} else {
+					event.setAmount(event.getAmount() * 1.3f);
+				}
+			}
 		}
 
 		// 处理非玩家的颜色伤害抗性
@@ -829,13 +837,6 @@ public class ForgeModEvent {
 	public static void onLivingDamage(LivingDamageEvent event) {
 		if (event.getEntity() instanceof ServerPlayer player) {
 			boolean hasBuff = player.hasEffect(ModEffects.LETICIA_BROKEN_GIFT.get()) || player.hasEffect(ModEffects.LETICIA_GIFT.get());
-			if (EgoArmorHelper.isWearingFullSet(player, "leticia")) {
-				if (hasBuff) {
-					event.setAmount(event.getAmount() * 0.7f);
-				} else {
-					event.setAmount(event.getAmount() * 1.3f);
-				}
-			}
 			if (hasBuff) {
 				if (EgoArmorHelper.isFullEGO(player, "leticia") && event.getAmount() >= player.getHealth()) {
 					event.setAmount(0f);
