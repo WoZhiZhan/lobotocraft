@@ -12,6 +12,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import software.bernie.geckolib.cache.object.BakedGeoModel;
+import software.bernie.geckolib.model.GeoModel;
 import software.bernie.geckolib.renderer.GeoEntityRenderer;
 import software.bernie.geckolib.renderer.GeoRenderer;
 
@@ -21,6 +22,13 @@ public class AbnormalityRenderer<T extends AbstractAbnormality> extends GeoEntit
     private final float width;
     public AbnormalityRenderer(EntityRendererProvider.Context renderManager) {
         this(renderManager, 0.65f);
+    }
+
+    public AbnormalityRenderer(EntityRendererProvider.Context renderManager, GeoModel<T> model) {
+        super(renderManager, model);
+        this.shadowRadius = 0.65F;
+        this.height = 1.0f;
+        this.width = 1.0f;
     }
 
     public AbnormalityRenderer(EntityRendererProvider.Context renderManager, float scale) {

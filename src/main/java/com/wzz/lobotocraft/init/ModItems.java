@@ -174,7 +174,7 @@ public class ModItems {
                     "§c发出尖锐声响的恐鱼。"));
     public static final RegistryObject<Item> NOTHING_THERE_SPAWN_EGG = REGISTRY.register("nothing_there_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.nothing_there, 0x8B0000, 0xCD5C5C, new Item.Properties(),
-                    "§c我是你，却又不是你。"));
+                    "§c主管！主管！主管！主管！主管！主管！主管！主管！主管！主管！"));
 
     public static final RegistryObject<Item> PE_BOX = REGISTRY.register("pe_box", PEBoxItem::new);
     public static final RegistryObject<Item> STRANGE_BADGE = REGISTRY.register("strange_badge", StrangeBadgeItem::new);

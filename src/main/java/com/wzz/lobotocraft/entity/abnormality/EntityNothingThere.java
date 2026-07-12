@@ -853,7 +853,7 @@ public class EntityNothingThere extends AbstractAbnormality {
 
     @Override
     public void onBadWork(net.minecraft.server.level.ServerPlayer player) {
-
+        escapeImmediately();
     }
 
     @Override
