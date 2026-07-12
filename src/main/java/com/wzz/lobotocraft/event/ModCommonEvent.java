@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.EntityGallows;
 import com.wzz.lobotocraft.entity.EntityRedShoesClerk;
 import com.wzz.lobotocraft.entity.abnormality.*;
+import com.wzz.lobotocraft.entity.ordeal.EntityAmberDawn;
 import com.wzz.lobotocraft.entity.ordeal.EntityBloodySmall;
 import com.wzz.lobotocraft.entity.ordeal.EntityGreenDawn;
 import com.wzz.lobotocraft.entity.ordeal.EntityVioletDawn;
@@ -38,6 +39,7 @@ public class ModCommonEvent {
 		event.put(ModEntities.bloody_small.get(), EntityBloodySmall.createAttributes().build());
 		event.put(ModEntities.green_dawn.get(), EntityGreenDawn.createAttributes().build());
 		event.put(ModEntities.violet_dawn.get(), EntityVioletDawn.createAttributes().build());
+		event.put(ModEntities.amber_dawn.get(), EntityAmberDawn.createAttributes().build());
 		event.put(ModEntities.butterfly_funeral.get(), EntityButterflyFuneral.createAttributes().build());
 		event.put(ModEntities.fragment_of_the_universe.get(), EntityFragmentOfUniverse.createAttributes().build());
 		event.put(ModEntities.bigbadwolf.get(), EntityBigBadWolf.createAttributes().build());

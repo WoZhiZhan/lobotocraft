@@ -119,6 +119,38 @@
       }
     ]
   },
+  "amber_dawn_start": {
+    "sounds": [
+      {
+        "name": "lobotocraft:amber_dawn_start",
+        "stream": true
+      }
+    ]
+  },
+  "amber_dawn_end": {
+    "sounds": [
+      {
+        "name": "lobotocraft:amber_dawn_end",
+        "stream": true
+      }
+    ]
+  },
+  "amber_dawn_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:amber_dawn_attack",
+        "stream": false
+      }
+    ]
+  },
+  "amber_dawn_dig": {
+    "sounds": [
+      {
+        "name": "lobotocraft:amber_dawn_dig",
+        "stream": false
+      }
+    ]
+  },
   "iron_maiden_closing": {
     "sounds": [
       {

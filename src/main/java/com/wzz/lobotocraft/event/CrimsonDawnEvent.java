@@ -91,6 +91,7 @@ public class CrimsonDawnEvent {
             switch (nextDawnType) {
                 case OrdealData.GREEN_DAWN_TYPE -> GreenDawnEvent.triggerGreenDawn(level);
                 case OrdealData.VIOLET_DAWN_TYPE -> VioletDawnEvent.triggerVioletDawn(level);
+                case OrdealData.AMBER_DAWN_TYPE -> AmberDawnEvent.triggerAmberDawn(level);
                 default -> triggerBloodDawn(level);
             }
         }
@@ -358,6 +359,7 @@ public class CrimsonDawnEvent {
         return switch (dawnType) {
             case OrdealData.GREEN_DAWN_TYPE -> "绿色的黎明";
             case OrdealData.VIOLET_DAWN_TYPE -> "紫罗兰的黎明";
+            case OrdealData.AMBER_DAWN_TYPE -> "琥珀色的黎明";
             default -> "血色的黎明";
         };
     }
@@ -366,6 +368,7 @@ public class CrimsonDawnEvent {
         return switch (dawnType) {
             case OrdealData.GREEN_DAWN_TYPE -> ChatFormatting.GREEN;
             case OrdealData.VIOLET_DAWN_TYPE -> ChatFormatting.DARK_PURPLE;
+            case OrdealData.AMBER_DAWN_TYPE -> ChatFormatting.GOLD;
             default -> ChatFormatting.DARK_RED;
         };
     }
@@ -374,6 +377,7 @@ public class CrimsonDawnEvent {
         return switch (dawnType) {
             case OrdealData.GREEN_DAWN_TYPE -> ChatFormatting.GREEN;
             case OrdealData.VIOLET_DAWN_TYPE -> ChatFormatting.LIGHT_PURPLE;
+            case OrdealData.AMBER_DAWN_TYPE -> ChatFormatting.YELLOW;
             default -> ChatFormatting.RED;
         };
     }

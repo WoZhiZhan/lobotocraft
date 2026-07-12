@@ -14,6 +14,7 @@ public class OrdealData extends SavedData {
     public static final int BLOOD_DAWN_TYPE = 1;
     public static final int GREEN_DAWN_TYPE = 2;
     public static final int VIOLET_DAWN_TYPE = 3;
+    public static final int AMBER_DAWN_TYPE = 4;
 
     private int trackedDay = 0;
     private int dawnChance = 0;
@@ -25,6 +26,8 @@ public class OrdealData extends SavedData {
     private int greenDawnRemaining = 0;
     private boolean violetDawnActive = false;
     private int violetDawnRemaining = 0;
+    private boolean amberDawnActive = false;
+    private int amberDawnRemaining = 0;
     private int middayTriggersToday = 0;
     private boolean blueMiddayActive = false;
     private int blueMiddayRemaining = 0;
@@ -55,6 +58,8 @@ public class OrdealData extends SavedData {
             greenDawnRemaining = 0;
             violetDawnActive = false;
             violetDawnRemaining = 0;
+            amberDawnActive = false;
+            amberDawnRemaining = 0;
             middayTriggersToday = 0;
             blueMiddayActive = false;
             blueMiddayRemaining = 0;
@@ -113,7 +118,7 @@ public class OrdealData extends SavedData {
     }
 
     public void setNextDawnType(int dawnType) {
-        if (dawnType < BLOOD_DAWN_TYPE || dawnType > VIOLET_DAWN_TYPE) {
+        if (dawnType < BLOOD_DAWN_TYPE || dawnType > AMBER_DAWN_TYPE) {
             nextDawnType = NO_DAWN_TYPE;
         } else {
             nextDawnType = dawnType;
@@ -122,7 +127,7 @@ public class OrdealData extends SavedData {
     }
 
     public void setRandomNextDawnType(RandomSource random) {
-        setNextDawnType(BLOOD_DAWN_TYPE + random.nextInt(VIOLET_DAWN_TYPE));
+        setNextDawnType(BLOOD_DAWN_TYPE + random.nextInt(AMBER_DAWN_TYPE));
     }
 
     public boolean isBloodDawnActive() {
@@ -198,7 +203,31 @@ public class OrdealData extends SavedData {
     }
 
     public boolean hasActiveDawn() {
-        return bloodDawnActive || greenDawnActive || violetDawnActive;
+        return bloodDawnActive || greenDawnActive || violetDawnActive || amberDawnActive;
+    }
+
+    public boolean isAmberDawnActive() {
+        return amberDawnActive;
+    }
+
+    public void startAmberDawn(int entityCount) {
+        amberDawnActive = true;
+        amberDawnRemaining = Math.max(0, entityCount);
+        setDirty();
+    }
+
+    public int decrementAmberDawnRemaining() {
+        if (amberDawnRemaining > 0) {
+            amberDawnRemaining--;
+            setDirty();
+        }
+        return amberDawnRemaining;
+    }
+
+    public void finishAmberDawn() {
+        amberDawnActive = false;
+        amberDawnRemaining = 0;
+        setDirty();
     }
 
     public int getMiddayTriggersToday() {
@@ -260,6 +289,8 @@ public class OrdealData extends SavedData {
         tag.putInt("GreenDawnRemaining", greenDawnRemaining);
         tag.putBoolean("VioletDawnActive", violetDawnActive);
         tag.putInt("VioletDawnRemaining", violetDawnRemaining);
+        tag.putBoolean("AmberDawnActive", amberDawnActive);
+        tag.putInt("AmberDawnRemaining", amberDawnRemaining);
         tag.putInt("MiddayTriggersToday", middayTriggersToday);
         tag.putBoolean("BlueMiddayActive", blueMiddayActive);
         tag.putInt("BlueMiddayRemaining", blueMiddayRemaining);
@@ -278,6 +309,8 @@ public class OrdealData extends SavedData {
         data.greenDawnRemaining = tag.getInt("GreenDawnRemaining");
         data.violetDawnActive = tag.getBoolean("VioletDawnActive");
         data.violetDawnRemaining = tag.getInt("VioletDawnRemaining");
+        data.amberDawnActive = tag.getBoolean("AmberDawnActive");
+        data.amberDawnRemaining = tag.getInt("AmberDawnRemaining");
         data.middayTriggersToday = tag.getInt("MiddayTriggersToday");
         data.blueMiddayActive = tag.getBoolean("BlueMiddayActive");
         data.blueMiddayRemaining = tag.getInt("BlueMiddayRemaining");

@@ -10,6 +10,7 @@ import com.wzz.lobotocraft.entity.EntityGallows;
 import com.wzz.lobotocraft.entity.EntityImmortalItem;
 import com.wzz.lobotocraft.entity.EntityLightFollower;
 import com.wzz.lobotocraft.entity.abnormality.*;
+import com.wzz.lobotocraft.entity.ordeal.EntityAmberDawn;
 import com.wzz.lobotocraft.entity.ordeal.EntityBloodySmall;
 import com.wzz.lobotocraft.entity.ordeal.EntityGreenDawn;
 import com.wzz.lobotocraft.entity.ordeal.EntityVioletDawn;
@@ -190,6 +191,14 @@ public class ModEntities {
                             .clientTrackingRange(8)
                             .updateInterval(3)
                             .build("violet_dawn"));
+
+    public static final RegistryObject<EntityType<EntityAmberDawn>> amber_dawn =
+            ENTITIES.register("amber_dawn",
+                    () -> EntityType.Builder.of(EntityAmberDawn::new, MobCategory.MONSTER)
+                            .sized(0.8F, 0.6F)
+                            .clientTrackingRange(8)
+                            .updateInterval(3)
+                            .build("amber_dawn"));
 
     // ============ 海嗣(深蓝色正午——大群的意志) ============
     public static final RegistryObject<EntityType<com.wzz.lobotocraft.entity.seaborn.EntityShellSeaRunner>> shell_sea_runner =

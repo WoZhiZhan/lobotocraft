@@ -111,6 +111,10 @@ public class ModItems {
             () -> new TextSpawnEggItem(ModEntities.end_bird, ExtendedColor.DARK.getRGB(), ExtendedColor.BLOOD_RED.getRGB(), new Item.Properties(),
                     "§c待世界充满了罪孽，这只众生畏惧着的怪鸟就会降临..."));
 
+    public static final RegistryObject<Item> AMBER_DAWN_SPAWN_EGG = REGISTRY.register("amber_dawn_spawn_egg",
+            () -> new TextSpawnEggItem(ModEntities.amber_dawn, 0x6B3F1D, 0xE0A43A, new Item.Properties(),
+                    "§c食物-新鲜。替代品-很好。"));
+
     public static final RegistryObject<Item> ISHARMLA_SPAWN_EGG = REGISTRY.register("isharmla_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.isharmla, 0x3a1a4a, 0x7fd8ff, new Item.Properties(),
                     "§c深海的歌声将一切引向沉眠……"));

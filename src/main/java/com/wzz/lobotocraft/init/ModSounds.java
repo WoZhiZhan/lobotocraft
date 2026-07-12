@@ -29,6 +29,10 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> VIOLET_DAWN_ATTACK = register("violet_dawn_attack");
 	public static final RegistryObject<SoundEvent> VIOLET_DAWN_DEATH = register("violet_dawn_death");
 	public static final RegistryObject<SoundEvent> VIOLET_DAWN_END = register("violet_dawn_end");
+	public static final RegistryObject<SoundEvent> AMBER_DAWN_START = register("amber_dawn_start");
+	public static final RegistryObject<SoundEvent> AMBER_DAWN_END = register("amber_dawn_end");
+	public static final RegistryObject<SoundEvent> AMBER_DAWN_ATTACK = register("amber_dawn_attack");
+	public static final RegistryObject<SoundEvent> AMBER_DAWN_DIG = register("amber_dawn_dig");
 	public static final RegistryObject<SoundEvent> IRON_MAIDEN_CLOSING = register("iron_maiden_closing");
 	public static final RegistryObject<SoundEvent> IRON_MAIDEN_DAMAGE = register("iron_maiden_damage");
 	public static final RegistryObject<SoundEvent> IRON_MAIDEN_OPENING = register("iron_maiden_opening");
