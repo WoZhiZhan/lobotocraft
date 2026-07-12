@@ -50,6 +50,7 @@ public class ModTabs {
 						tabData.accept(ModItems.PRIMALSEA_PIERCER_SPAWN_EGG.get());
 						tabData.accept(ModItems.NUCLEIC_MALEFICENT_SPAWN_EGG.get());
 						tabData.accept(ModItems.BASINSEA_REAPER_SPAWN_EGG.get());
+						tabData.accept(ModItems.NOTHING_THERE_SPAWN_EGG.get());
 					})
 					.build());
 

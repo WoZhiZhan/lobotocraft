@@ -1202,5 +1202,77 @@
         "stream": false
       }
     ]
+  },
+  "nothing_there_idle": {
+    "sounds": [
+      {
+        "name": "lobotocraft:nothing_there_idle",
+        "stream": false
+      }
+    ]
+  },
+  "nothing_there_phase1_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:nothing_there_phase1_attack",
+        "stream": false
+      }
+    ]
+  },
+  "nothing_there_phase23_ambient": {
+    "sounds": [
+      {
+        "name": "lobotocraft:nothing_there_phase23_ambient",
+        "stream": true
+      }
+    ]
+  },
+  "nothing_there_escape": {
+    "sounds": [
+      {
+        "name": "lobotocraft:nothing_there_escape",
+        "stream": false
+      }
+    ]
+  },
+  "nothing_there_hammer": {
+    "sounds": [
+      {
+        "name": "lobotocraft:nothing_there_hammer",
+        "stream": false
+      }
+    ]
+  },
+  "nothing_there_blade1": {
+    "sounds": [
+      {
+        "name": "lobotocraft:nothing_there_blade1",
+        "stream": false
+      }
+    ]
+  },
+  "nothing_there_blade2": {
+    "sounds": [
+      {
+        "name": "lobotocraft:nothing_there_blade2",
+        "stream": false
+      }
+    ]
+  },
+  "nothing_there_cannon1": {
+    "sounds": [
+      {
+        "name": "lobotocraft:nothing_there_cannon1",
+        "stream": false
+      }
+    ]
+  },
+  "nothing_there_cannon2": {
+    "sounds": [
+      {
+        "name": "lobotocraft:nothing_there_cannon2",
+        "stream": false
+      }
+    ]
   }
 }

@@ -172,6 +172,9 @@ public class ModItems {
     public static final RegistryObject<Item> BASINSEA_REAPER_SPAWN_EGG = REGISTRY.register("basinsea_reaper_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.basinsea_reaper, 0x4a2a3a, 0xd89eb8, new Item.Properties(),
                     "§c发出尖锐声响的恐鱼。"));
+    public static final RegistryObject<Item> NOTHING_THERE_SPAWN_EGG = REGISTRY.register("nothing_there_spawn_egg",
+            () -> new TextSpawnEggItem(ModEntities.nothing_there, 0x8B0000, 0xCD5C5C, new Item.Properties(),
+                    "§c我是你，却又不是你。"));
 
     public static final RegistryObject<Item> PE_BOX = REGISTRY.register("pe_box", PEBoxItem::new);
     public static final RegistryObject<Item> STRANGE_BADGE = REGISTRY.register("strange_badge", StrangeBadgeItem::new);

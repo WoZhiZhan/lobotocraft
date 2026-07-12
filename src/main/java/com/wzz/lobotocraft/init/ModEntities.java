@@ -430,4 +430,12 @@ public class ModEntities {
                             .clientTrackingRange(64)
                             .updateInterval(1)
                             .build("light_orb"));
+
+    public static final RegistryObject<EntityType<EntityNothingThere>> nothing_there =
+            ENTITIES.register("nothing_there",
+                    () -> EntityType.Builder.of(EntityNothingThere::new, MobCategory.CREATURE)
+                            .sized(1.2F, 2.5F)
+                            .clientTrackingRange(10)
+                            .updateInterval(3)
+                            .build("nothing_there"));
 }
