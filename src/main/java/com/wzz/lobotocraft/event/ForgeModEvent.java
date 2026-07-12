@@ -216,6 +216,14 @@ public class ForgeModEvent {
 				int newAmplifier = Math.min(currentAmplifier, 9);
 				target.addEffect(new MobEffectInstance(ModEffects.LONELINESS.get(), 200, newAmplifier));
 			}
+			boolean hasBuff = attacker.hasEffect(ModEffects.LETICIA_BROKEN_GIFT.get()) || attacker.hasEffect(ModEffects.LETICIA_GIFT.get());
+			if (EgoArmorHelper.isWearingFullSet(attacker, "leticia")) {
+				if (!hasBuff) {
+					event.setAmount(event.getAmount() * 0.7f);
+				} else {
+					event.setAmount(event.getAmount() * 1.3f);
+				}
+			}
 		}
 		if (!isDot && target instanceof ServerPlayer player) {
 			if (EntityArmyInBlack.hasActiveProtection(player) && !DamageHelper.isExecution(src)) {
@@ -278,14 +286,6 @@ public class ForgeModEvent {
 			if (EgoArmorHelper.isWearingFullSet(player, "red_shoes")) {
 				float reduction = EntityUtil.getDamageReductionByLostHealth(player, 0.02f, 0.6f);
 				event.setAmount(event.getAmount() * (1 - reduction));
-			}
-			boolean hasBuff = player.hasEffect(ModEffects.LETICIA_BROKEN_GIFT.get()) || player.hasEffect(ModEffects.LETICIA_GIFT.get());
-			if (EgoArmorHelper.isWearingFullSet(player, "leticia")) {
-				if (hasBuff) {
-					event.setAmount(event.getAmount() * 0.7f);
-				} else {
-					event.setAmount(event.getAmount() * 1.3f);
-				}
 			}
 		}
 
@@ -830,7 +830,7 @@ public class ForgeModEvent {
 		if (event.getEntity() instanceof ServerPlayer player) {
 			boolean hasBuff = player.hasEffect(ModEffects.LETICIA_BROKEN_GIFT.get()) || player.hasEffect(ModEffects.LETICIA_GIFT.get());
 			if (EgoArmorHelper.isWearingFullSet(player, "leticia")) {
-				if (!hasBuff) {
+				if (hasBuff) {
 					event.setAmount(event.getAmount() * 0.7f);
 				} else {
 					event.setAmount(event.getAmount() * 1.3f);

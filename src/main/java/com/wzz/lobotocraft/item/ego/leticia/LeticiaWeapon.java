@@ -68,7 +68,7 @@ public class LeticiaWeapon extends BaseEgoWeapon {
                 float damage = 6f;
                 boolean hasCurio = CuriosUtil.hasCurios(player, ModItems.LETICIA_CURIO.get());
                 double blackResistance = target.getAttribute(ModAttributes.BLACK_DAMAGE_RESISTANCE.get()).getValue();
-                if (blackResistance <= 1.0D) {
+                if (blackResistance < 1.0D) {
                     damage = 12f;
                     if (hasCurio) {
                         // 提高自己10%移动速度（持续10秒，刷新持续时间）
