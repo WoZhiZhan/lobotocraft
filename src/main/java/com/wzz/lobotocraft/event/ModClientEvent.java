@@ -119,5 +119,7 @@ public class ModClientEvent {
         event.registerEntityRenderer(ModEntities.end_bird.get(), (r) -> new AbnormalityRenderer<>(r, 3f, 3f));
         event.registerEntityRenderer(ModEntities.light_orb.get(), EntityLightOrbRenderer::new);
         event.registerEntityRenderer(ModEntities.water_spit.get(), EmptyEntityRenderer::new);
+        event.registerEntityRenderer(ModEntities.nothing_there.get(),
+                (r) -> new EntityNothingThereRenderer(r, 0.9f));
     }
 }

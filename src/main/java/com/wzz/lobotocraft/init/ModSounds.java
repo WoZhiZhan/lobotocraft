@@ -185,4 +185,15 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> SNOWQUEEN_WEAPON_ICEBOUND = register("snowqueen_weapon_icebound");
 	public static final RegistryObject<SoundEvent> SNOWQUEEN_WEAPON_ICE_BREAK = register("snowqueen_weapon_ice_break");
 	public static final RegistryObject<SoundEvent> QUEEN_BEE_WEAPON = register("queen_bee_weapon");
+
+	// 一无所有 (O-06-20)
+	public static final RegistryObject<SoundEvent> NOTHING_THERE_IDLE = register("nothing_there_idle");
+	public static final RegistryObject<SoundEvent> NOTHING_THERE_PHASE1_ATTACK = register("nothing_there_phase1_attack");
+	public static final RegistryObject<SoundEvent> NOTHING_THERE_PHASE23_AMBIENT = register("nothing_there_phase23_ambient");
+	public static final RegistryObject<SoundEvent> NOTHING_THERE_ESCAPE = register("nothing_there_escape");
+	public static final RegistryObject<SoundEvent> NOTHING_THERE_HAMMER = register("nothing_there_hammer");
+	public static final RegistryObject<SoundEvent> NOTHING_THERE_BLADE1 = register("nothing_there_blade1");
+	public static final RegistryObject<SoundEvent> NOTHING_THERE_BLADE2 = register("nothing_there_blade2");
+	public static final RegistryObject<SoundEvent> NOTHING_THERE_CANNON1 = register("nothing_there_cannon1");
+	public static final RegistryObject<SoundEvent> NOTHING_THERE_CANNON2 = register("nothing_there_cannon2");
 }
