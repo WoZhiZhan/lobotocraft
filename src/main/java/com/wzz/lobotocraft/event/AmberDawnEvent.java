@@ -25,7 +25,9 @@ import net.minecraftforge.fml.common.Mod;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 琥珀色的黎明考验。
@@ -99,8 +101,14 @@ public class AmberDawnEvent {
 
     public static BlockPos findAmberSpawnPosition(ServerLevel level, EntityAmberDawn amberDawn,
                                                   BlockPos center, int horizontalRange) {
+        return findAmberSpawnPosition(level, amberDawn, center, horizontalRange, Collections.emptySet());
+    }
+
+    private static BlockPos findAmberSpawnPosition(ServerLevel level, EntityAmberDawn amberDawn,
+                                                   BlockPos center, int horizontalRange,
+                                                   Set<BlockPos> reservedPositions) {
         BlockPos direct = EntityUtil.findSafeGroundPositionInCompany(level, center, horizontalRange);
-        if (canPlaceAmberDawn(level, amberDawn, direct)) {
+        if (canPlaceAmberDawn(level, amberDawn, direct, reservedPositions)) {
             return direct;
         }
 
@@ -110,35 +118,77 @@ public class AmberDawnEvent {
             int offsetZ = level.random.nextInt(radius * 2 + 1) - radius;
             BlockPos candidate = EntityUtil.findSafeGroundPositionInCompany(
                     level, center.offset(offsetX, 0, offsetZ), 0);
-            if (canPlaceAmberDawn(level, amberDawn, candidate)) {
+            if (canPlaceAmberDawn(level, amberDawn, candidate, reservedPositions)) {
                 return candidate;
+            }
+        }
+        for (int offsetX = -radius; offsetX <= radius; offsetX++) {
+            for (int offsetZ = -radius; offsetZ <= radius; offsetZ++) {
+                BlockPos candidate = EntityUtil.findSafeGroundPositionInCompany(
+                        level, center.offset(offsetX, 0, offsetZ), 0);
+                if (canPlaceAmberDawn(level, amberDawn, candidate, reservedPositions)) {
+                    return candidate;
+                }
             }
         }
         return null;
     }
 
     private static int spawnAmberDawns(ServerLevel level, List<BlockPos> escapeBlocks, int count) {
+        BlockPos bestEscapeBlock = null;
+        List<BlockPos> bestSpawnPositions = Collections.emptyList();
+
+        for (BlockPos escapeBlock : escapeBlocks) {
+            List<BlockPos> spawnPositions = collectAmberSpawnPositions(level, escapeBlock, count);
+            if (spawnPositions.size() == count) {
+                return spawnAmberDawnsAt(level, escapeBlock, spawnPositions);
+            }
+            if (spawnPositions.size() > bestSpawnPositions.size()) {
+                bestEscapeBlock = escapeBlock;
+                bestSpawnPositions = spawnPositions;
+            }
+        }
+
+        return bestEscapeBlock == null
+                ? 0
+                : spawnAmberDawnsAt(level, bestEscapeBlock, bestSpawnPositions);
+    }
+
+    private static List<BlockPos> collectAmberSpawnPositions(ServerLevel level, BlockPos escapeBlock, int count) {
+        EntityAmberDawn amberDawn = ModEntities.amber_dawn.get().create(level);
+        if (amberDawn == null) {
+            return Collections.emptyList();
+        }
+
+        Set<BlockPos> reservedPositions = new HashSet<>();
+        List<BlockPos> spawnPositions = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            BlockPos spawnPos = findAmberSpawnPosition(level, amberDawn, escapeBlock, 3, reservedPositions);
+            if (spawnPos == null) {
+                break;
+            }
+            BlockPos immutableSpawnPos = spawnPos.immutable();
+            reservedPositions.add(immutableSpawnPos);
+            spawnPositions.add(immutableSpawnPos);
+        }
+        return spawnPositions;
+    }
+
+    private static int spawnAmberDawnsAt(ServerLevel level, BlockPos escapeBlock, List<BlockPos> spawnPositions) {
         int spawned = 0;
-        int attempts = Math.max(count * Math.max(1, escapeBlocks.size()), count);
-        for (int i = 0; spawned < count && i < attempts; i++) {
-            BlockPos escapeBlock = escapeBlocks.get(i % escapeBlocks.size());
-            if (spawnAmberDawnAt(level, escapeBlock)) {
+        for (BlockPos spawnPos : spawnPositions) {
+            if (spawnAmberDawnAt(level, escapeBlock, spawnPos)) {
                 spawned++;
             }
         }
         return spawned;
     }
 
-    private static boolean spawnAmberDawnAt(ServerLevel level, BlockPos escapeBlock) {
+    private static boolean spawnAmberDawnAt(ServerLevel level, BlockPos escapeBlock, BlockPos spawnPos) {
         EntityAmberDawn amberDawn = ModEntities.amber_dawn.get().create(level);
         if (amberDawn == null) {
             return false;
         }
-        BlockPos spawnPos = findAmberSpawnPosition(level, amberDawn, escapeBlock, 3);
-        if (spawnPos == null) {
-            return false;
-        }
-
         amberDawn.moveTo(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D,
                 level.getRandom().nextFloat() * 360.0F, 0.0F);
         amberDawn.setHomePos(escapeBlock);
@@ -165,8 +215,12 @@ public class AmberDawnEvent {
         return players;
     }
 
-    private static boolean canPlaceAmberDawn(ServerLevel level, EntityAmberDawn amberDawn, BlockPos pos) {
+    private static boolean canPlaceAmberDawn(ServerLevel level, EntityAmberDawn amberDawn, BlockPos pos,
+                                             Set<BlockPos> reservedPositions) {
         if (pos == null || !EntityUtil.isInCompany(level, pos)) {
+            return false;
+        }
+        if (reservedPositions.contains(pos)) {
             return false;
         }
         if (pos.getY() <= level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight() - 1) {
