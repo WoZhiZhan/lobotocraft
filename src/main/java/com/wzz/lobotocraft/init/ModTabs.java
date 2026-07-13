@@ -187,9 +187,9 @@ public class ModTabs {
 						tabData.accept(ModItems.BUTTERFLY_FUNERAL_CHESTPLATE.get());
 						tabData.accept(ModItems.BUTTERFLY_FUNERAL_LEGGINGS.get());
 						tabData.accept(ModItems.BUTTERFLY_FUNERAL_BOOTS.get());
-						tabData.accept(ModItems.BUTTERFLY_FUNERAL_WEAPON.get());
-						tabData.accept(ButterflyFuneralWeapon.createWhiteWeapon(ModItems.BUTTERFLY_FUNERAL_CURIO.get()));
-						tabData.accept(ButterflyFuneralWeapon.createBlackWeapon(ModItems.BUTTERFLY_FUNERAL_CURIO.get()));
+						tabData.accept(ButterflyFuneralWeapon.createWhiteWeapon(ModItems.BUTTERFLY_FUNERAL_WEAPON.get()));
+						tabData.accept(ButterflyFuneralWeapon.createBlackWeapon(ModItems.BUTTERFLY_FUNERAL_WEAPON.get()));
+						tabData.accept(ModItems.BUTTERFLY_FUNERAL_CURIO.get());
 					})
 					.build());
 

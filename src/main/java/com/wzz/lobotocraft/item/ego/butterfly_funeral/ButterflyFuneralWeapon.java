@@ -107,10 +107,16 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
     /** 玩家 persistentData：宣判状态（服务端逻辑判定用） */
     public static final String PLAYER_TAG_JUDGING = "BFJudgement";
 
-    /* ======================= 动画 ======================= */
-    /** 宣判持枪待机：a-1 是纯持枪姿势，需要常驻循环。
-     *  如果美术给的 a-1 不是循环 idle 而是一次性的举枪动作，把 thenLoop 换成 thenPlayAndHold。*/
-    private static final RawAnimation JUDGE_POSE = RawAnimation.begin().thenLoop("a-1");
+    /** 宣判：持枪姿势（按 R 后常驻，定格在最后一帧） */
+    private static final String ANIM_JUDGE_POSE = "a-1";
+    /** 宣判：开火 */
+    private static final String ANIM_JUDGE_FIRE = "a-2";
+
+    /**
+     * 持枪姿势必须用 thenPlayAndHold：播一遍然后【定格在最后一帧】，那一帧就是架枪姿势。
+     * 用 thenLoop 会每播完一遍就重头再来，看起来就是两把枪一直抽搐。
+     */
+    private static final RawAnimation JUDGE_POSE = RawAnimation.begin().thenPlayAndHold(ANIM_JUDGE_POSE);
 
     public ButterflyFuneralWeapon() {
         super(
@@ -225,7 +231,7 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
         }
         if (!canJudge(player)) {
             player.displayClientMessage(
-                    Component.literal("§7需要集齐 E.G.O 套装，并右手白枪、左手黑枪。"), true);
+                    Component.literal("§7需要集齐 E.G.O 套装，并左手白枪、右手黑枪。"), true);
             return;
         }
         player.getPersistentData().putBoolean(PLAYER_TAG_JUDGING, true);
@@ -238,7 +244,6 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
         main.getOrCreateTag().putBoolean(TAG_JUDGING, true);
         off.getOrCreateTag().putBoolean(TAG_JUDGING, true);
 
-        SoundUtil.playSound(player.level(), player, ModSounds.BUTTERFLY_FUNERAL_WEAPON.get());
         player.displayClientMessage(Component.literal("§f▶ 宣判"), true);
     }
 
@@ -299,12 +304,12 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
 
     /**
      * 开火动画。黑白两把枪播的完全一样：
-     * 宣判状态   -> "a-2"（两把枪都是）
+     * 宣判状态   -> ANIM_JUDGE_FIRE（默认 "a-2"）
      * 正常 单发  -> "1"
      * 正常 三连发 -> "2"
      */
     private static String getFireAnimation(boolean judging, boolean burst) {
-        if (judging) return "a-2";
+        if (judging) return ANIM_JUDGE_FIRE;
         return burst ? "2" : "1";
     }
 
@@ -411,24 +416,36 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         AnimationController<BaseEgoWeapon> controller =
                 new AnimationController<>(this, "controller", 0, state -> {
-                    // 宣判状态：常驻持枪姿势 a-1。
+                    AnimationController<BaseEgoWeapon> ctrl = state.getController();
+
+                    // 宣判状态：常驻持枪姿势（播一遍后定格在最后一帧）。
                     // ButterflyRenderContext.CURRENT 由渲染器在 renderByItem 里设置，
                     // 保证这里拿到的就是"当前正在渲染的那一把枪"。
                     if (isJudgingStack(ButterflyRenderContext.CURRENT)) {
-                        state.getController().setAnimation(JUDGE_POSE);
+                        ctrl.setAnimation(JUDGE_POSE);
                         return PlayState.CONTINUE;
                     }
-                    // 正常状态：没有待机动画，开火动画走 triggerableAnim。
-                    // triggerableAnim 的优先级高于这里，所以返回 STOP 不影响 "1"/"2"/"a-2" 播放，
-                    // 而且它们播完能自动归位。
+
+                    // 退出宣判：thenPlayAndHold 把骨骼钉死在最后一帧了，
+                    // 只返回 STOP 不会让 GeckoLib 把骨骼插值回默认姿势，必须显式把控制器打断。
+                    // setAnimation(null) 内部会调 stop()，配合 forceAnimationReset() 清掉定格状态。
+                    // 加 STOPPED 判断是为了让这段只在"刚退出"的那一帧跑一次，之后不再重复。
+                    if (ctrl.getAnimationState() != AnimationController.State.STOPPED) {
+                        ctrl.forceAnimationReset();
+                        ctrl.setAnimation(null);
+                    }
+
+                    // 正常状态没有待机动画，开火动画走 triggerableAnim。
+                    // triggerableAnim 优先级高于 predicate，所以返回 STOP 不影响它们播放，
+                    // 而且播的是 thenPlay（不是 hold），播完能自动归位。
                     return PlayState.STOP;
                 });
 
         controller.triggerableAnim("1", RawAnimation.begin().thenPlay("1"));
         controller.triggerableAnim("2", RawAnimation.begin().thenPlay("2"));
-        controller.triggerableAnim("a-2", RawAnimation.begin().thenPlay("a-2"));
-        // a-1 不注册成 triggerableAnim：它由上面的 predicate 常驻托管，
-        // 再被 trigger 一次会把常驻状态打断重播。
+        controller.triggerableAnim(ANIM_JUDGE_FIRE, RawAnimation.begin().thenPlay(ANIM_JUDGE_FIRE));
+        // ANIM_JUDGE_POSE 不注册成 triggerableAnim：它由上面的 predicate 常驻托管，
+        // 再被 trigger 一次会把定格状态打断重播。
 
         controllers.add(controller);
     }
