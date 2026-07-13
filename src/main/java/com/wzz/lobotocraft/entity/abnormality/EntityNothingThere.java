@@ -305,6 +305,10 @@ public class EntityNothingThere extends AbstractAbnormality {
     }
     @Override
     public boolean hurt(net.minecraft.world.damagesource.DamageSource source, float amount) {
+        // 二三阶段检测到红色伤害直接取消受击判定
+        if ((currentPhase == PHASE_2 || currentPhase == PHASE_3) && DamageHelper.isRedDamage(source)) {
+            return false;
+        }
         boolean result = super.hurt(source, amount);
         if (result) {
             lastDamagedTick = this.tickCount;
