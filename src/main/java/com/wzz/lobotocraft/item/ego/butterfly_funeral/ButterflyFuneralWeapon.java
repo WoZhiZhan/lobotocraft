@@ -26,8 +26,11 @@ import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.client.extensions.common.IClientItemExtensions;
 import org.jetbrains.annotations.Nullable;
+import software.bernie.geckolib.animatable.GeoItem;
+import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
 import software.bernie.geckolib.core.animation.RawAnimation;
+import software.bernie.geckolib.core.object.PlayState;
 
 import java.util.HashMap;
 import java.util.List;
@@ -37,16 +40,18 @@ import java.util.function.Consumer;
 /**
  * E.G.O 「圣宣 · 蝶之葬礼」
  * <p>
- * 同一个物品类，用 NBT {@link #TAG_BLACK} 区分黑/白两把手枪：
+ * 同一个物品类，用 NBT {@link #TAG_BLACK} 区分黑/白两把手枪。
+ * 黑白只影响【贴图】和【伤害类型】，不影响动画：
  * 白枪 -> white 伤害 + butterfly_funeral_weapon.png
  * 黑枪 -> black 伤害 + butterfly_funeral_weapon_black.png
  * <p>
- * 动画（四个都是开火动画，没有待机/姿势动画）：
- * 白枪  "1"   单发
- * 白枪  "2"   三连发
- * 黑枪  "a-1" 单发
- * 黑枪  "a-2" 三连发
- * 宣判状态常驻三连发 -> 白枪播 "2"、黑枪播 "a-2"
+ * 动画（两把枪播的完全一样，只取决于是否宣判 / 是否连发）：
+ * "1"   正常状态 单发开火
+ * "2"   正常状态 三连发开火
+ * "a-1" 宣判状态 持枪待机姿势（常驻，不开火）
+ * "a-2" 宣判状态 开火
+ * <p>
+ * 宣判持枪要求：右手(主手)白枪 + 左手(副手)黑枪。
  */
 public class ButterflyFuneralWeapon extends BaseEgoWeapon {
 
@@ -97,8 +102,15 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
     public static final String TAG_BURST = "BFBurst";
     /** 物品 NBT：三连发下一发的倒计时 */
     public static final String TAG_BURST_DELAY = "BFBurstDelay";
-    /** 玩家 persistentData：宣判状态 */
+    /** 物品 NBT：宣判状态。写在物品上是为了自动同步给客户端做动画判定 */
+    public static final String TAG_JUDGING = "BFJudging";
+    /** 玩家 persistentData：宣判状态（服务端逻辑判定用） */
     public static final String PLAYER_TAG_JUDGING = "BFJudgement";
+
+    /* ======================= 动画 ======================= */
+    /** 宣判持枪待机：a-1 是纯持枪姿势，需要常驻循环。
+     *  如果美术给的 a-1 不是循环 idle 而是一次性的举枪动作，把 thenLoop 换成 thenPlayAndHold。*/
+    private static final RawAnimation JUDGE_POSE = RawAnimation.begin().thenLoop("a-1");
 
     public ButterflyFuneralWeapon() {
         super(
@@ -174,9 +186,16 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
                 ModMobEffects.REDEMPTION.get(), REDEMPTION_DURATION, next - 1, false, true, true));
     }
 
-    /** 玩家是否处于宣判状态 */
+    /** 玩家是否处于宣判状态（服务端逻辑判定） */
     public static boolean isJudging(Player player) {
         return player != null && player.getPersistentData().getBoolean(PLAYER_TAG_JUDGING);
+    }
+
+    /** 这把枪是否处于宣判状态（客户端动画判定，NBT 会自动同步） */
+    public static boolean isJudgingStack(ItemStack stack) {
+        return stack != null && !stack.isEmpty()
+                && stack.getItem() instanceof ButterflyFuneralWeapon
+                && stack.getOrCreateTag().getBoolean(TAG_JUDGING);
     }
 
     /** 主手或副手是否拿着圣宣 */
@@ -185,13 +204,15 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
                 || player.getOffhandItem().getItem() instanceof ButterflyFuneralWeapon;
     }
 
-    /** 宣判条件：满 E.G.O 套装 + 右手(主手)黑枪 + 左手(副手)白枪 */
+    /** 宣判条件：满 E.G.O 套装 + 右手(主手)白枪 + 左手(副手)黑枪 */
     public static boolean canJudge(Player player) {
         if (!EgoArmorHelper.isFullEGO(player, EGO_SET_NAME)) return false;
         ItemStack main = player.getMainHandItem();
         ItemStack off = player.getOffhandItem();
-        if (!(main.getItem() instanceof ButterflyFuneralWeapon) || !isBlack(main)) return false;
-        return off.getItem() instanceof ButterflyFuneralWeapon && !isBlack(off);
+        // 主手必须是白枪
+        if (!(main.getItem() instanceof ButterflyFuneralWeapon) || isBlack(main)) return false;
+        // 副手必须是黑枪
+        return off.getItem() instanceof ButterflyFuneralWeapon && isBlack(off);
     }
 
     /** R 键切换宣判状态（由 ToggleJudgementPacket 在服务端调用） */
@@ -204,11 +225,20 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
         }
         if (!canJudge(player)) {
             player.displayClientMessage(
-                    Component.literal("§7需要集齐 E.G.O 套装，并左手白枪、右手黑枪。"), true);
+                    Component.literal("§7需要集齐 E.G.O 套装，并右手白枪、左手黑枪。"), true);
             return;
         }
         player.getPersistentData().putBoolean(PLAYER_TAG_JUDGING, true);
-        SoundUtil.playSound(player.level(), player, ModSounds.BUTTERFLY_FUNERAL_WEAPON.get(), 0.7f);
+
+        ItemStack main = player.getMainHandItem();
+        ItemStack off = player.getOffhandItem();
+        // 给两把枪各自分配独立的 GeckoLib 实例 id，否则双手会共用同一套动画状态
+        GeoItem.getOrAssignId(main, player.serverLevel());
+        GeoItem.getOrAssignId(off, player.serverLevel());
+        main.getOrCreateTag().putBoolean(TAG_JUDGING, true);
+        off.getOrCreateTag().putBoolean(TAG_JUDGING, true);
+
+        SoundUtil.playSound(player.level(), player, ModSounds.BUTTERFLY_FUNERAL_WEAPON.get());
         player.displayClientMessage(Component.literal("§f▶ 宣判"), true);
     }
 
@@ -216,6 +246,17 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
     public static void exitJudgement(Player player) {
         if (player == null) return;
         player.getPersistentData().putBoolean(PLAYER_TAG_JUDGING, false);
+        // 把背包里所有圣宣的宣判标记都清掉，避免掉在地上/丢进箱子的枪还保持架枪姿势
+        for (ItemStack stack : player.getInventory().items) clearJudgingTag(stack);
+        for (ItemStack stack : player.getInventory().offhand) clearJudgingTag(stack);
+        clearJudgingTag(player.getMainHandItem());
+        clearJudgingTag(player.getOffhandItem());
+    }
+
+    private static void clearJudgingTag(ItemStack stack) {
+        if (stack.getItem() instanceof ButterflyFuneralWeapon && stack.hasTag()) {
+            stack.getOrCreateTag().putBoolean(TAG_JUDGING, false);
+        }
     }
 
     /* =========================================================
@@ -234,19 +275,18 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
         if (tag.getInt(TAG_COOLDOWN) > 0) {
             return InteractionResultHolder.pass(stack);
         }
-        if (hand == InteractionHand.OFF_HAND && !player.getMainHandItem().isEmpty() && !(player.getMainHandItem().getItem() instanceof ButterflyFuneralWeapon)) {
-            return InteractionResultHolder.pass(stack);
-        }
+
+        boolean judging = isJudging(player);
         int layers = getButterflyLayers(player);
         // 宣判常驻三连发；否则有蝶引才解锁三连发
-        boolean burst = isJudging(player) || layers > 0;
+        boolean burst = judging || layers > 0;
 
         int cooldown = Math.max(MIN_COOLDOWN, BASE_COOLDOWN - layers * COOLDOWN_PER_BUTTERFLY);
         tag.putInt(TAG_COOLDOWN, cooldown);
 
         if (!level.isClientSide) {
-            SoundUtil.playSound(level, player, ModSounds.BUTTERFLY_FUNERAL_WEAPON.get(), 0.7f);
-            triggerAnimation(player, stack, getFireAnimation(stack, burst));
+            SoundUtil.playSound(level, player, ModSounds.BUTTERFLY_FUNERAL_WEAPON.get());
+            triggerAnimation(player, stack, getFireAnimation(judging, burst));
             performShot(level, player, stack);
             if (burst) {
                 tag.putInt(TAG_BURST, BURST_SHOTS - 1);
@@ -258,15 +298,13 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
     }
 
     /**
-     * 开火动画 = f(黑白, 单发/连发)
-     * 白枪 单发 "1"  / 连发 "2"
-     * 黑枪 单发 "a-1" / 连发 "a-2"
-     * 宣判恒为连发，所以白枪 "2"、黑枪 "a-2"
+     * 开火动画。黑白两把枪播的完全一样：
+     * 宣判状态   -> "a-2"（两把枪都是）
+     * 正常 单发  -> "1"
+     * 正常 三连发 -> "2"
      */
-    private static String getFireAnimation(ItemStack stack, boolean burst) {
-        if (isBlack(stack)) {
-            return burst ? "a-2" : "a-1";
-        }
+    private static String getFireAnimation(boolean judging, boolean burst) {
+        if (judging) return "a-2";
         return burst ? "2" : "1";
     }
 
@@ -359,7 +397,7 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
             tag.putInt(TAG_BURST_DELAY, delay - 1);
             return;
         }
-        SoundUtil.playSound(level, player, ModSounds.BUTTERFLY_FUNERAL_WEAPON.get(), 0.7f);
+        SoundUtil.playSound(level, player, ModSounds.BUTTERFLY_FUNERAL_WEAPON.get());
         performShot(level, player, stack);
         tag.putInt(TAG_BURST, burst - 1);
         tag.putInt(TAG_BURST_DELAY, BURST_INTERVAL);
@@ -369,16 +407,30 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
      *  动画
      * ========================================================= */
 
-    /**
-     * 四个动画全部是一次性开火动画，没有待机/姿势动画，
-     * 所以只注册 triggerableAnim，常驻动画一个都不要（hasIdle() = false）。
-     */
     @Override
-    protected void registerAdditionalAnimations(AnimationController<BaseEgoWeapon> controller) {
+    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        AnimationController<BaseEgoWeapon> controller =
+                new AnimationController<>(this, "controller", 0, state -> {
+                    // 宣判状态：常驻持枪姿势 a-1。
+                    // ButterflyRenderContext.CURRENT 由渲染器在 renderByItem 里设置，
+                    // 保证这里拿到的就是"当前正在渲染的那一把枪"。
+                    if (isJudgingStack(ButterflyRenderContext.CURRENT)) {
+                        state.getController().setAnimation(JUDGE_POSE);
+                        return PlayState.CONTINUE;
+                    }
+                    // 正常状态：没有待机动画，开火动画走 triggerableAnim。
+                    // triggerableAnim 的优先级高于这里，所以返回 STOP 不影响 "1"/"2"/"a-2" 播放，
+                    // 而且它们播完能自动归位。
+                    return PlayState.STOP;
+                });
+
         controller.triggerableAnim("1", RawAnimation.begin().thenPlay("1"));
         controller.triggerableAnim("2", RawAnimation.begin().thenPlay("2"));
-        controller.triggerableAnim("a-1", RawAnimation.begin().thenPlay("a-1"));
         controller.triggerableAnim("a-2", RawAnimation.begin().thenPlay("a-2"));
+        // a-1 不注册成 triggerableAnim：它由上面的 predicate 常驻托管，
+        // 再被 trigger 一次会把常驻状态打断重播。
+
+        controllers.add(controller);
     }
 
     @Override
@@ -430,7 +482,7 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
         tooltip.add(Component.literal("§6※累计一定攻击次数后，武器的威力会变强。"));
         tooltip.add(Component.literal(""));
         tooltip.add(Component.literal("§b[E.G.O 套装效果]"));
-        tooltip.add(Component.literal("§7左手白枪、右手黑枪时按 §fR §7键进入宣判状态。"));
+        tooltip.add(Component.literal("§7右手白枪、左手黑枪时按 §fR §7键进入宣判状态。"));
         tooltip.add(Component.literal("§7宣判状态下常驻三连发，且造成的所有伤害无视无敌帧。"));
         tooltip.add(Component.literal("§7每次造成伤害为目标叠加一层「救赎」，每层使其受到本武器持有者的伤害提高 1%（最多 50 层，25 秒）。"));
         tooltip.add(Component.literal("§7每命中 10 次为自身叠加一层「蝶引」，每层减少 0.5 秒开火间隔（最多 5 层，50 秒）。"));
