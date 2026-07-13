@@ -1,7 +1,7 @@
 package com.wzz.lobotocraft.event;
 
 import com.wzz.lobotocraft.ModMain;
-import com.wzz.lobotocraft.init.ModEffects;
+import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModParticleTypes;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.network.chat.Component;
@@ -25,7 +25,7 @@ public class ButterflyFuneralEvent {
     @SubscribeEvent
     public static void onEffectExpired(MobEffectEvent.Expired event) {
         if (event.getEffectInstance() == null) return;
-        if (event.getEffectInstance().getEffect() != ModEffects.BUTTERFLY_SHROUD.get()) return;
+        if (event.getEffectInstance().getEffect() != ModMobEffects.BUTTERFLY_SHROUD.get()) return;
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         if (player.level().isClientSide) return;
 
@@ -50,7 +50,7 @@ public class ButterflyFuneralEvent {
         if (event.phase != TickEvent.Phase.END) return;
         Player player = event.player;
         if (player.level().isClientSide) return;
-        if (!player.hasEffect(ModEffects.BUTTERFLY_SHROUD.get())) return;
+        if (!player.hasEffect(ModMobEffects.BUTTERFLY_SHROUD.get())) return;
         if (player.tickCount % 5 != 0) return;
         if (player.level() instanceof ServerLevel level) {
             level.sendParticles((SimpleParticleType) ModParticleTypes.BUTTERFLY.get(),

@@ -1,6 +1,6 @@
 package com.wzz.lobotocraft.effect;
 
-import com.wzz.lobotocraft.init.ModEffects;
+import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.DotHelper;
@@ -61,7 +61,7 @@ public class SporeEffect extends MobEffect {
         if (data.getInt(TAG_INTERVAL) <= 0) {
             data.putInt(TAG_INTERVAL, INTERVAL_TICKS);
         }
-        target.addEffect(new MobEffectInstance(ModEffects.SPORE.get(),
+        target.addEffect(new MobEffectInstance(ModMobEffects.SPORE.get(),
                 DURATION_TICKS, 0, false, true, true));
     }
 

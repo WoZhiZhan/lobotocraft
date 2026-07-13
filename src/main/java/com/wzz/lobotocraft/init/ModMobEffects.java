@@ -12,7 +12,7 @@ import net.minecraftforge.registries.RegistryObject;
  * FRIENDSHIP_PROOF "友谊之证" —— 由原"鹅卵石"物品改造而来,持续回血与回精神值。
  * KISS "亲吻" —— 由原"冰雪女皇的冰片"物品改造而来,作为冰雪女皇决斗流程的标记。
  */
-public class ModEffects {
+public class ModMobEffects {
     public static final DeferredRegister<MobEffect> EFFECTS =
             DeferredRegister.create(ForgeRegistries.MOB_EFFECTS, ModMain.MODID);
 
@@ -51,4 +51,6 @@ public class ModEffects {
     public static final RegistryObject<MobEffect> MENACE = EFFECTS.register("menace", MenaceEffect::new);
     public static final RegistryObject<MobEffect> SPORE = EFFECTS.register("spore", SporeEffect::new);
     public static final RegistryObject<MobEffect> LONELINESS = EFFECTS.register("loneliness", LonelinessEffect::new);
+    public static final RegistryObject<MobEffect> BUTTERFLY_FLIES = EFFECTS.register("butterfly_flies", ButterflyFliesEffect::new);
+    public static final RegistryObject<MobEffect> REDEMPTION = EFFECTS.register("redemption", RedemptionEffect::new);
 }

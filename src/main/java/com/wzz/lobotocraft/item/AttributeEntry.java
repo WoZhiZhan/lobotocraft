@@ -35,10 +35,15 @@ public class AttributeEntry {
      * 便捷构造方法 - 使用旧的Mode枚举
      */
     public AttributeEntry(UUID uuid, String name, Attribute attribute, double value, IAttributeItem.Mode mode) {
-        this(uuid, name, attribute, value, 
-            mode == IAttributeItem.Mode.MULTIPLY_BASE 
-                ? AttributeModifier.Operation.MULTIPLY_BASE 
-                : AttributeModifier.Operation.ADDITION);
+        this(uuid, name, attribute, value, getOperation(mode));
+    }
+
+    private static AttributeModifier.Operation getOperation(IAttributeItem.Mode mode) {
+        return switch (mode) {
+            case ADDITION -> AttributeModifier.Operation.ADDITION;
+            case MULTIPLY_BASE -> AttributeModifier.Operation.MULTIPLY_BASE;
+            case MULTIPLY_TOTAL -> AttributeModifier.Operation.MULTIPLY_TOTAL;
+        };
     }
 
     public UUID getUuid() {

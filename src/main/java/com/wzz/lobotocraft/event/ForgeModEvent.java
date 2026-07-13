@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.event;
 
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
+import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.abnormality.*;
@@ -66,6 +67,7 @@ import net.minecraftforge.fml.common.Mod;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.wzz.lobotocraft.util.DamageHelper.*;
 
@@ -134,8 +136,8 @@ public class ForgeModEvent {
 		boolean isBlackDamage = DamageHelper.isBlackDamage(src);
 		boolean isBlueDamage = DamageHelper.isBlueDamage(src);
 		boolean isDot = DotHelper.isDotDamage(target);
-		if (!isDot && target.hasEffect(ModEffects.KISS.get())) {
-			MobEffectInstance effect = target.getEffect(ModEffects.KISS.get());
+		if (!isDot && target.hasEffect(ModMobEffects.KISS.get())) {
+			MobEffectInstance effect = target.getEffect(ModMobEffects.KISS.get());
 			if (effect != null && effect.getAmplifier() >= 2 && isRedDamage) {
 				SoundUtil.playSound(target.level(), target, ModSounds.SNOWQUEEN_WEAPON_ICE_BREAK.get());
 				event.setAmount(event.getAmount() * 2f + target.getMaxHealth() * 0.02f);
@@ -205,18 +207,18 @@ public class ForgeModEvent {
 					&& !DotHelper.isDotDamage(target) && attacker.getMainHandItem().getItem() instanceof RedShoesWeapon) {
 				RedShoesBleedHandler.applyBleed(attacker, target);
 			}
-			if (target.hasEffect(ModEffects.MENACE.get())) {
+			if (target.hasEffect(ModMobEffects.MENACE.get())) {
 				event.setAmount(event.getAmount() * 1.1f);
 			}
 			if (EgoArmorHelper.isFullEGO(attacker, "the_lady_facing_the_wall")) {
 				int currentAmplifier = 0;
-				if (target.hasEffect(ModEffects.LONELINESS.get())) {
-					currentAmplifier = target.getEffect(ModEffects.LONELINESS.get()).getAmplifier() + 1;
+				if (target.hasEffect(ModMobEffects.LONELINESS.get())) {
+					currentAmplifier = target.getEffect(ModMobEffects.LONELINESS.get()).getAmplifier() + 1;
 				}
 				int newAmplifier = Math.min(currentAmplifier, 9);
-				target.addEffect(new MobEffectInstance(ModEffects.LONELINESS.get(), 200, newAmplifier));
+				target.addEffect(new MobEffectInstance(ModMobEffects.LONELINESS.get(), 200, newAmplifier));
 			}
-			boolean hasBuff = attacker.hasEffect(ModEffects.LETICIA_BROKEN_GIFT.get()) || attacker.hasEffect(ModEffects.LETICIA_GIFT.get());
+			boolean hasBuff = attacker.hasEffect(ModMobEffects.LETICIA_BROKEN_GIFT.get()) || attacker.hasEffect(ModMobEffects.LETICIA_GIFT.get());
 			if (EgoArmorHelper.isWearingFullSet(attacker, "leticia")) {
 				if (!hasBuff) {
 					event.setAmount(event.getAmount() * 0.7f);
@@ -287,12 +289,21 @@ public class ForgeModEvent {
 				float reduction = EntityUtil.getDamageReductionByLostHealth(player, 0.02f, 0.6f);
 				event.setAmount(event.getAmount() * (1 - reduction));
 			}
-			boolean hasBuff = player.hasEffect(ModEffects.LETICIA_BROKEN_GIFT.get()) || player.hasEffect(ModEffects.LETICIA_GIFT.get());
+			boolean hasBuff = player.hasEffect(ModMobEffects.LETICIA_BROKEN_GIFT.get()) || player.hasEffect(ModMobEffects.LETICIA_GIFT.get());
 			if (EgoArmorHelper.isWearingFullSet(player, "leticia")) {
 				if (hasBuff) {
 					event.setAmount(event.getAmount() * 0.7f);
 				} else {
 					event.setAmount(event.getAmount() * 1.3f);
+				}
+			}
+			if (EgoArmorHelper.isFullEGO(player, "butterfly_funeral")) {
+				AtomicInteger level = new AtomicInteger();
+				player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(data -> {
+					level.set(data.getJusticeLevel());
+				});
+				if (level.get() > 0) {
+					event.setAmount(event.getAmount() - level.get());
 				}
 			}
 		}
@@ -836,15 +847,15 @@ public class ForgeModEvent {
 	@SubscribeEvent
 	public static void onLivingDamage(LivingDamageEvent event) {
 		if (event.getEntity() instanceof ServerPlayer player) {
-			boolean hasBuff = player.hasEffect(ModEffects.LETICIA_BROKEN_GIFT.get()) || player.hasEffect(ModEffects.LETICIA_GIFT.get());
+			boolean hasBuff = player.hasEffect(ModMobEffects.LETICIA_BROKEN_GIFT.get()) || player.hasEffect(ModMobEffects.LETICIA_GIFT.get());
 			if (hasBuff) {
 				if (EgoArmorHelper.isFullEGO(player, "leticia") && event.getAmount() >= player.getHealth()) {
 					event.setAmount(0f);
 					event.setCanceled(true);
 					player.playSound(SoundEvents.TOTEM_USE);
 					MessageLoader.getLoader().sendToPlayer(player, new DisplayItemActivationPacket(new ItemStack(ModItems.LETICIA_CURIO.get())));
-					player.removeEffect(ModEffects.LETICIA_BROKEN_GIFT.get());
-					player.removeEffect(ModEffects.LETICIA_GIFT.get());
+					player.removeEffect(ModMobEffects.LETICIA_BROKEN_GIFT.get());
+					player.removeEffect(ModMobEffects.LETICIA_GIFT.get());
 				}
 			}
 		}

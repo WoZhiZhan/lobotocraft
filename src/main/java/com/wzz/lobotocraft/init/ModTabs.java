@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.init;
 
 import com.wzz.lobotocraft.ModMain;
+import com.wzz.lobotocraft.item.ego.butterfly_funeral.ButterflyFuneralWeapon;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
@@ -178,6 +179,17 @@ public class ModTabs {
 						tabData.accept(ModItems.LETICIA_BOOTS.get());
 						tabData.accept(ModItems.LETICIA_WEAPON.get());
 						tabData.accept(ModItems.LETICIA_CURIO.get());
+						tabData.accept(ModItems.HELPER_CHESTPLATE.get());
+						tabData.accept(ModItems.HELPER_LEGGINGS.get());
+						tabData.accept(ModItems.HELPER_BOOTS.get());
+						tabData.accept(ModItems.HELPER_WEAPON.get());
+						tabData.accept(ModItems.HELPER_CURIO.get());
+						tabData.accept(ModItems.BUTTERFLY_FUNERAL_CHESTPLATE.get());
+						tabData.accept(ModItems.BUTTERFLY_FUNERAL_LEGGINGS.get());
+						tabData.accept(ModItems.BUTTERFLY_FUNERAL_BOOTS.get());
+						tabData.accept(ModItems.BUTTERFLY_FUNERAL_WEAPON.get());
+						tabData.accept(ButterflyFuneralWeapon.createWhiteWeapon(ModItems.BUTTERFLY_FUNERAL_CURIO.get()));
+						tabData.accept(ButterflyFuneralWeapon.createBlackWeapon(ModItems.BUTTERFLY_FUNERAL_CURIO.get()));
 					})
 					.build());
 

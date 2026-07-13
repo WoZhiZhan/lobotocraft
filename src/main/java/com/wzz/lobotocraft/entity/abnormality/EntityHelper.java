@@ -1,9 +1,11 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.DamageHelper;
+import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.core.BlockPos;
@@ -189,7 +191,88 @@ public class EntityHelper extends AbstractAbnormality {
         return super.hurt(source, amount);
     }
 
-    // ==================== tick: 旋转蓄力 → 冲刺 → 缓冲/撞墙宕机 循环 ====================
+    @Override
+    public float[] getArmorRenderScale() {
+        return new float[] {1.5f, 1.0f, 1.5f};
+    }
+
+    @Override
+    public float[] getArmorRenderOffset() {
+        return new float[] {-20.0f, 1.0f, 1.0f};
+    }
+
+    @Override
+    public float[] getWeaponRenderOffset() {
+        return new float[] {5.0f, 1.0f, 1f};
+    }
+
+    @Override
+    public int getWeaponDevelopmentCost() {
+        return 50;
+    }
+
+    @Override
+    public int getArmorDevelopmentCost() {
+        return 30;
+    }
+
+    @Override
+    public int getArmorDevelopmentMaxCount() {
+        return 3;
+    }
+
+    @Override
+    public int getWeaponDevelopmentMaxCount() {
+        return 1;
+    }
+
+    @Override
+    public float getGiftProbability() {
+        return 0.04f;
+    }
+
+    @Override
+    public EGOEquipmentData.GiftData getEGOGiftData() {
+        return new EGOEquipmentData.GiftData(
+                ResourceUtil.createInstance("textures/item/helper_curio.png"),
+                "粉碎机Mk4",
+                "眼部",
+                "helper_curio",
+                "工作成功率+4",
+                "工作速度+4",
+                "洞察工作成功率+%3"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.WeaponData getEGOWeaponData() {
+        return new EGOEquipmentData.WeaponData(
+                ResourceUtil.createInstance("textures/gui/ego/helper_weapon.png"),
+                "粉碎机Mk4",
+                getRiskLevel(),
+                "RED",
+                "2",
+                "1.6",
+                "4格",
+                getWeaponDevelopmentMaxCount(),
+                "helper_weapon"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.ArmorData getEGOArmorData() {
+        return new EGOEquipmentData.ArmorData(
+                ResourceUtil.createInstance("textures/gui/ego/helper_armor.png"),
+                "粉碎机Mk4",
+                getRiskLevel(),
+                0.6f,
+                1.3f,
+                0.9f,
+                1.5f,
+                getArmorDevelopmentMaxCount(),
+                "helper_armor"
+        );
+    }
 
     @Override
     public void tick() {

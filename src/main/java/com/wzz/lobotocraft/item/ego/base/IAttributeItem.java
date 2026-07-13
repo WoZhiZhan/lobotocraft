@@ -81,6 +81,6 @@ public interface IAttributeItem {
     }
 
     enum Mode {
-        ADDITION, MULTIPLY_BASE
+        ADDITION, MULTIPLY_BASE, MULTIPLY_TOTAL
     }
 }

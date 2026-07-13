@@ -1306,5 +1306,21 @@
         "stream": false
       }
     ]
+  },
+  "helper_weapon": {
+    "sounds": [
+      {
+        "name": "lobotocraft:helper_weapon",
+        "stream": false
+      }
+    ]
+  },
+  "butterfly_funeral_weapon": {
+    "sounds": [
+      {
+        "name": "lobotocraft:butterfly_funeral_weapon",
+        "stream": false
+      }
+    ]
   }
 }

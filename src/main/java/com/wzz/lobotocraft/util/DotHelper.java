@@ -1,7 +1,7 @@
 package com.wzz.lobotocraft.util;
 
 import com.wzz.lobotocraft.init.ModAttributes;
-import com.wzz.lobotocraft.init.ModEffects;
+import com.wzz.lobotocraft.init.ModMobEffects;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -157,7 +157,7 @@ public class DotHelper {
         if (target == null) return multiplier;
 
         // 威胁：受到 DOT 伤害 +500%（按层数）
-        MobEffectInstance menace = target.getEffect(ModEffects.MENACE.get());
+        MobEffectInstance menace = target.getEffect(ModMobEffects.MENACE.get());
         if (menace != null) {
             multiplier += MENACE_DOT_BONUS * (menace.getAmplifier() + 1);
         }
@@ -187,7 +187,7 @@ public class DotHelper {
         if (target == null || source == null) return false;
         if (!(source.getEntity() instanceof Player attacker)) return false;
         if (!EgoArmorHelper.isFullEGO(attacker, "queen_bee")) return false;
-        if (!target.hasEffect(ModEffects.MENACE.get())) return false;
+        if (!target.hasEffect(ModMobEffects.MENACE.get())) return false;
         return getColorResistance(target, source) > 0.0f;
     }
 

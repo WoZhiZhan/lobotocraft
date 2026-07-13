@@ -9,7 +9,9 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -784,5 +786,36 @@ public interface IAbnormality {
     // 在异想体图鉴渲染饰品
     default boolean renderCurio() {
         return true;
+    }
+
+    /**
+     * 研发「武器」时实际发放的物品列表。
+     * <p>
+     * 默认：按 {@link EGOEquipmentData.WeaponData#itemId()} 发一件。
+     * 多武器异想体覆写此方法，例如圣宣要同时给白枪和黑枪。
+     */
+    default List<ItemStack> getEGOWeaponStacks() {
+        EGOEquipmentData.WeaponData data = getEGOWeaponData();
+        if (data == null) return Collections.emptyList();
+        ItemStack stack = EGOEquipmentData.stack(data.itemId());
+        return stack.isEmpty() ? Collections.emptyList() : List.of(stack);
+    }
+
+    /**
+     * 研发「护甲」时实际发放的物品列表。
+     * <p>
+     * 默认：按 {@link EGOEquipmentData.ArmorData#armorId()} 拼 _chestplate / _leggings / _boots 三件。
+     * 你说护甲不用动，所以这里保持原样；留着这个方法只是为了让三条线统一，
+     * 万一以后有异想体的套装缺件或多件，覆写就行。
+     */
+    default List<ItemStack> getEGOArmorStacks() {
+        EGOEquipmentData.ArmorData data = getEGOArmorData();
+        if (data == null) return Collections.emptyList();
+        String base = data.armorId();
+        return EGOEquipmentData.stacks(
+                base + "_chestplate",
+                base + "_leggings",
+                base + "_boots"
+        );
     }
 }

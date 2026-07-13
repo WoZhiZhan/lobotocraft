@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.event;
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.init.ModItems;
+import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.util.ItemUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -115,8 +116,8 @@ public class CompanySleepHandler {
                 PlayerTabListDayHandler.refreshPlayerTabListName(serverPlayer);
 
                 // 同葬"无光之愿"buff在睡觉进入下一天后消失
-                if (player.hasEffect(com.wzz.lobotocraft.init.ModEffects.WISH_WITHOUT_LIGHT.get())) {
-                    player.removeEffect(com.wzz.lobotocraft.init.ModEffects.WISH_WITHOUT_LIGHT.get());
+                if (player.hasEffect(ModMobEffects.WISH_WITHOUT_LIGHT.get())) {
+                    player.removeEffect(ModMobEffects.WISH_WITHOUT_LIGHT.get());
                 }
                 player.sendSystemMessage(Component.literal(
                         String.format("§6=== 第 %d 天 ===", newDay)

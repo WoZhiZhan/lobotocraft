@@ -1,7 +1,7 @@
 package com.wzz.lobotocraft.event;
 
 import com.wzz.lobotocraft.effect.QueenBeeSporeEffect;
-import com.wzz.lobotocraft.init.ModEffects;
+import com.wzz.lobotocraft.init.ModMobEffects;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHealEvent;
@@ -13,7 +13,7 @@ public class QueenBeeEventHandler {
     @SubscribeEvent
     public static void onLivingHeal(LivingHealEvent event) {
         LivingEntity living = event.getEntity();
-        if (!living.level().isClientSide && living.hasEffect(ModEffects.QUEEN_BEE_SPORE.get())) {
+        if (!living.level().isClientSide && living.hasEffect(ModMobEffects.QUEEN_BEE_SPORE.get())) {
             event.setCanceled(true);
         }
     }
@@ -21,7 +21,7 @@ public class QueenBeeEventHandler {
     @SubscribeEvent
     public static void onLivingDeath(LivingDeathEvent event) {
         LivingEntity dead = event.getEntity();
-        if (!dead.level().isClientSide && dead.hasEffect(ModEffects.QUEEN_BEE_SPORE.get())) {
+        if (!dead.level().isClientSide && dead.hasEffect(ModMobEffects.QUEEN_BEE_SPORE.get())) {
             QueenBeeSporeEffect.spawnWorkerFromCorpse(dead);
         }
     }

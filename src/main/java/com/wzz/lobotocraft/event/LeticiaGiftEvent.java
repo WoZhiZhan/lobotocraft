@@ -3,7 +3,7 @@ package com.wzz.lobotocraft.event;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.entity.abnormality.EntityLeticia;
 import com.wzz.lobotocraft.event.work.WorkStartEvent;
-import com.wzz.lobotocraft.init.ModEffects;
+import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.TriggerShakePacket;
@@ -29,10 +29,10 @@ public class LeticiaGiftEvent {
             return;
         }
 
-        if (player.hasEffect(ModEffects.LETICIA_BROKEN_GIFT.get())) {
+        if (player.hasEffect(ModMobEffects.LETICIA_BROKEN_GIFT.get())) {
             player.level().playSound(null, player.blockPosition(), ModSounds.WORKER_BEE_SPAWN.get(),
                     SoundSource.HOSTILE, 1.0F, 1.0F);
-            player.removeEffect(ModEffects.LETICIA_BROKEN_GIFT.get());
+            player.removeEffect(ModMobEffects.LETICIA_BROKEN_GIFT.get());
             EntityLeticia.spawnFriendFor(player);
             player.hurt(player.damageSources().genericKill(), Float.MAX_VALUE);
             event.setCancelReason("");
@@ -40,9 +40,9 @@ public class LeticiaGiftEvent {
             return;
         }
 
-        if (player.hasEffect(ModEffects.LETICIA_GIFT.get())) {
-            player.removeEffect(ModEffects.LETICIA_GIFT.get());
-            player.addEffect(new MobEffectInstance(ModEffects.LETICIA_BROKEN_GIFT.get(),
+        if (player.hasEffect(ModMobEffects.LETICIA_GIFT.get())) {
+            player.removeEffect(ModMobEffects.LETICIA_GIFT.get());
+            player.addEffect(new MobEffectInstance(ModMobEffects.LETICIA_BROKEN_GIFT.get(),
                     GIFT_DURATION, 0, false, true, true));
         }
     }
@@ -50,7 +50,7 @@ public class LeticiaGiftEvent {
     @SubscribeEvent
     public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            player.removeEffect(ModEffects.LETICIA_BROKEN_GIFT.get());
+            player.removeEffect(ModMobEffects.LETICIA_BROKEN_GIFT.get());
         }
     }
 
@@ -60,7 +60,7 @@ public class LeticiaGiftEvent {
             return;
         }
         if (!(event.player instanceof ServerPlayer player)
-                || !player.hasEffect(ModEffects.LETICIA_BROKEN_GIFT.get())) {
+                || !player.hasEffect(ModMobEffects.LETICIA_BROKEN_GIFT.get())) {
             return;
         }
         if (player.tickCount % SHAKE_INTERVAL_TICKS == 0) {

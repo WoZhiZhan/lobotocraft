@@ -2,7 +2,7 @@ package com.wzz.lobotocraft.item.ego.queen_bee;
 
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
-import com.wzz.lobotocraft.init.ModEffects;
+import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.util.*;
@@ -99,13 +99,13 @@ public class QueenBeeWeapon extends BaseEgoWeapon {
                 target.hurt(damageSource, 8f);
                 boolean otherHas = false;
                 for (LivingEntity living : EntityUtil.findAllEntitiesWithDimension(player, player.level.dimension)) {
-                    if (living.isAlive() && living.hasEffect(ModEffects.MENACE.get())) {
+                    if (living.isAlive() && living.hasEffect(ModMobEffects.MENACE.get())) {
                         otherHas = true;
                         break;
                     }
                 }
                 if (!otherHas) {
-                    target.addEffect(new MobEffectInstance(ModEffects.MENACE.get(), 400, 0));
+                    target.addEffect(new MobEffectInstance(ModMobEffects.MENACE.get(), 400, 0));
                 }
             }
         }

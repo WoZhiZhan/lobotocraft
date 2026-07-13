@@ -235,6 +235,8 @@
   "effect.lobotocraft.spore": "Spore",
   "effect.lobotocraft.menace": "Menace",
   "effect.lobotocraft.loneliness": "Loneliness",
+  "effect.lobotocraft.butterfly_flies": "Butterfly Flies",
+  "effect.lobotocraft.redemption": "Redemption",
   "item.lobotocraft.the_lady_facing_the_wall_chestplate": "The Lady Facing The Wall Chestplate",
   "item.lobotocraft.the_lady_facing_the_wall_leggings": "The Lady Facing The Wall Leggings",
   "item.lobotocraft.the_lady_facing_the_wall_boots": "The Lady Facing The Wall Boots",
@@ -249,5 +251,17 @@
   "item.lobotocraft.leticia_leggings": "Leticia Leggings",
   "item.lobotocraft.leticia_boots": "Leticia Boots",
   "item.lobotocraft.leticia_weapon": "Leticia",
-  "item.lobotocraft.leticia_curio": "Leticia"
+  "item.lobotocraft.leticia_curio": "Leticia",
+  "item.lobotocraft.helper_chestplate": "Helper Chestplate",
+  "item.lobotocraft.helper_leggings": "Helper Leggings",
+  "item.lobotocraft.helper_boots": "Helper Boots",
+  "item.lobotocraft.helper_weapon": "Helper",
+  "item.lobotocraft.helper_curio": "Helper",
+  "item.lobotocraft.butterfly_funeral_chestplate": "Butterfly Funeral Chestplate",
+  "item.lobotocraft.butterfly_funeral_leggings": "Butterfly Funeral Leggings",
+  "item.lobotocraft.butterfly_funeral_boots": "Butterfly Funeral Boots",
+  "item.lobotocraft.butterfly_funeral_weapon": "Butterfly Funeral",
+  "item.lobotocraft.butterfly_funeral_curio": "Butterfly Funeral",
+  "key.categories.lobotocraft": "LobotoCraft",
+  "key.lobotocraft.judgement": "Judgement"
 }

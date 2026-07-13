@@ -1,7 +1,7 @@
 package com.wzz.lobotocraft.item.ego.leticia;
 
 import com.wzz.lobotocraft.init.ModAttributes;
-import com.wzz.lobotocraft.init.ModEffects;
+import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
 import com.wzz.lobotocraft.util.EgoArmorHelper;
 import com.wzz.lobotocraft.util.MentalValueUtil;
@@ -50,7 +50,7 @@ public class LeticiaCurio extends BaseEgoCurio {
     public void curioTick(SlotContext slotContext, ItemStack stack) {
         super.curioTick(slotContext, stack);
         if (slotContext.entity() instanceof ServerPlayer player && player.tickCount % 100 == 0 && EgoArmorHelper.isFullEGO(player, "leticia")) {
-            if (player.hasEffect(ModEffects.LETICIA_GIFT.get()) || player.hasEffect(ModEffects.LETICIA_BROKEN_GIFT.get())) {
+            if (player.hasEffect(ModMobEffects.LETICIA_GIFT.get()) || player.hasEffect(ModMobEffects.LETICIA_BROKEN_GIFT.get())) {
                 player.heal(6f);
                 MentalValueUtil.addMentalValue(player, 6f);
             }

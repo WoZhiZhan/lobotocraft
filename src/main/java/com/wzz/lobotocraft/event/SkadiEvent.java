@@ -2,16 +2,13 @@ package com.wzz.lobotocraft.event;
 
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.entity.abnormality.EntityDarkSkadi;
-import com.wzz.lobotocraft.init.ModEffects;
+import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModSounds;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -29,13 +26,13 @@ public class SkadiEvent {
     @SubscribeEvent
     public static void onHurt(LivingHurtEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
-        if (player.hasEffect(ModEffects.WISH_WITHOUT_LIGHT.get())) {
+        if (player.hasEffect(ModMobEffects.WISH_WITHOUT_LIGHT.get())) {
             // mod 的异想体伤害体系即"四种颜色"伤害,这里对所有进入该事件的伤害统一减免 40%
             event.setAmount(event.getAmount() * 0.6f);
         }
         if (player.level().isClientSide) return;
         if (event.getAmount() < event.getEntity().getHealth()) return;
-        if (!player.hasEffect(ModEffects.WISH_WITHOUT_LIGHT.get())) return;
+        if (!player.hasEffect(ModMobEffects.WISH_WITHOUT_LIGHT.get())) return;
 
         // 取消死亡,满血复活
         event.setCanceled(true);

@@ -2,10 +2,9 @@ package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
-import com.wzz.lobotocraft.init.ModEffects;
+import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.MentalValueUtil;
-import com.wzz.lobotocraft.util.SoundUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.nbt.CompoundTag;
@@ -136,7 +135,7 @@ public class EntityDarkSkadi extends AbstractAbnormality {
 
     private void grantBlessing(ServerPlayer player) {
         player.addEffect(new MobEffectInstance(
-                ModEffects.WISH_WITHOUT_LIGHT.get(),
+                ModMobEffects.WISH_WITHOUT_LIGHT.get(),
                 -1, 0, false, false, true
         ));
         player.sendSystemMessage(Component.literal("§9你获得了「同葬无光之愿」。"));
@@ -231,7 +230,7 @@ public class EntityDarkSkadi extends AbstractAbnormality {
 
         // 移除所有玩家身上的"同葬无光之愿"(祝福失效)
         for (Player p : serverLevel.players()) {
-            p.removeEffect(ModEffects.WISH_WITHOUT_LIGHT.get());
+            p.removeEffect(ModMobEffects.WISH_WITHOUT_LIGHT.get());
         }
 
         // 对所有玩家播放出逃音频

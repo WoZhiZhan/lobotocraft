@@ -2,12 +2,11 @@ package com.wzz.lobotocraft.item.ego.snowqueen;
 
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
-import com.wzz.lobotocraft.init.ModEffects;
+import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -16,14 +15,12 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
-import net.minecraft.world.entity.monster.warden.Warden;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.common.ForgeMod;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -86,12 +83,12 @@ public class SnowQueenWeapon extends BaseEgoWeapon {
             int i = random.nextInt(101);
             if (i <= 10) {
                 if (EgoArmorHelper.isFullEGO(player, "snowqueen"))
-                    target.addEffect(new MobEffectInstance(ModEffects.KISS.get(), 200));
+                    target.addEffect(new MobEffectInstance(ModMobEffects.KISS.get(), 200));
             }
             target.getPersistentData().putInt("SnowQueenWeaponIce", target.getPersistentData().getInt("SnowQueenWeaponIce") + 1);
             if (target.getPersistentData().getInt("SnowQueenWeaponIce") >= 10) {
                 if (!EgoArmorHelper.isFullEGO(player, "snowqueen"))
-                    target.addEffect(new MobEffectInstance(ModEffects.KISS.get(), 200));
+                    target.addEffect(new MobEffectInstance(ModMobEffects.KISS.get(), 200));
                 else applyKissEffect(target);
                 target.getPersistentData().putInt("SnowQueenWeaponIce", 0);
             }
@@ -110,7 +107,7 @@ public class SnowQueenWeapon extends BaseEgoWeapon {
                 living.getPersistentData().putInt("SnowQueenWeaponIce", living.getPersistentData().getInt("SnowQueenWeaponIce") + 1);
                 if (living.getPersistentData().getInt("SnowQueenWeaponIce") >= 10) {
                     if (!EgoArmorHelper.isFullEGO(player, "snowqueen"))
-                        living.addEffect(new MobEffectInstance(ModEffects.KISS.get(), 200));
+                        living.addEffect(new MobEffectInstance(ModMobEffects.KISS.get(), 200));
                     else applyKissEffect(living);
                     living.getPersistentData().putInt("SnowQueenWeaponIce", 0);
                 }
@@ -120,7 +117,7 @@ public class SnowQueenWeapon extends BaseEgoWeapon {
     }
 
     public void applyKissEffect(LivingEntity target) {
-        MobEffectInstance existingEffect = target.getEffect(ModEffects.KISS.get());
+        MobEffectInstance existingEffect = target.getEffect(ModMobEffects.KISS.get());
         if (existingEffect != null) {
             // 已有效果，叠加层数（最高3层）
             int currentAmplifier = existingEffect.getAmplifier();
@@ -128,16 +125,16 @@ public class SnowQueenWeapon extends BaseEgoWeapon {
             int remainingDuration = existingEffect.getDuration();
             SoundUtil.playSound(target.level, target, ModSounds.SNOWQUEEN_WEAPON_ICEBOUND.get());
             // 移除旧效果，添加新效果
-            target.removeEffect(ModEffects.KISS.get());
+            target.removeEffect(ModMobEffects.KISS.get());
             target.addEffect(new MobEffectInstance(
-                    ModEffects.KISS.get(),
+                    ModMobEffects.KISS.get(),
                     remainingDuration + 100, // 刷新持续时间
                     newAmplifier
             ));
         } else {
             // 新效果，初始1层
             target.addEffect(new MobEffectInstance(
-                    ModEffects.KISS.get(),
+                    ModMobEffects.KISS.get(),
                     200, // 10秒基础持续时间
                     0 // amplifier=0表示1层
             ));

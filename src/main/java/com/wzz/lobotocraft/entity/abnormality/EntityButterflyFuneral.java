@@ -2,11 +2,16 @@ package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
+import com.wzz.lobotocraft.init.ModItems;
+import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.item.ego.butterfly_funeral.ButterflyFuneralWeapon;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.MentalValueUtil;
+import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.core.particles.SimpleParticleType;
@@ -26,6 +31,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.util.DefaultRandomPos;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.core.animation.AnimatableManager;
@@ -122,6 +128,101 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     }
 
     @Override
+    public float[] getArmorRenderScale() {
+        return new float[] {1.5f, 1.0f, 1.5f};
+    }
+
+    @Override
+    public float[] getArmorRenderOffset() {
+        return new float[] {-20.0f, 1.0f, 1.0f};
+    }
+
+    @Override
+    public float[] getWeaponRenderOffset() {
+        return new float[] {5.0f, 1.0f, 1f};
+    }
+
+    @Override
+    public int getWeaponDevelopmentCost() {
+        return 50;
+    }
+
+    @Override
+    public int getArmorDevelopmentCost() {
+        return 45;
+    }
+
+    @Override
+    public int getArmorDevelopmentMaxCount() {
+        return 1;
+    }
+
+    @Override
+    public int getWeaponDevelopmentMaxCount() {
+        return 1;
+    }
+
+    @Override
+    public float getGiftProbability() {
+        return 0.04f;
+    }
+
+    @Override
+    public EGOEquipmentData.GiftData getEGOGiftData() {
+        return new EGOEquipmentData.GiftData(
+                ResourceUtil.createInstance("textures/item/butterfly_funeral_curio.png"),
+                "圣宣",
+                "眼部",
+                "butterfly_funeral_curio",
+                "工作成功率+4",
+                "工作速度+4",
+                "洞察工作成功率+%3"
+        );
+    }
+
+    /**
+     * 圣宣研发武器时一次给两把：白枪 + 黑枪。
+     * 黑枪靠 NBT 区分，所以不能只靠 WeaponData 里的 itemId 字符串表达，必须覆写。
+     */
+    @Override
+    public List<ItemStack> getEGOWeaponStacks() {
+        return List.of(
+                ButterflyFuneralWeapon.createWhiteWeapon(ModItems.BUTTERFLY_FUNERAL_WEAPON.get()),
+                ButterflyFuneralWeapon.createBlackWeapon(ModItems.BUTTERFLY_FUNERAL_WEAPON.get())
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.WeaponData getEGOWeaponData() {
+        return new EGOEquipmentData.WeaponData(
+                ResourceUtil.createInstance("textures/gui/ego/butterfly_funeral_weapon.png"),
+                "圣宣",
+                getRiskLevel(),
+                "WHITE",
+                "2",
+                "2.6",
+                "10格",
+                getWeaponDevelopmentMaxCount(),
+                "butterfly_funeral_weapon"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.ArmorData getEGOArmorData() {
+        return new EGOEquipmentData.ArmorData(
+                ResourceUtil.createInstance("textures/gui/ego/butterfly_funeral_armor.png"),
+                "圣宣",
+                getRiskLevel(),
+                1.2f,
+                1.8f,
+                0.5f,
+                1.5f,
+                getArmorDevelopmentMaxCount(),
+                "butterfly_funeral_armor"
+        );
+    }
+
+    @Override
     public int getBasicInfoCost() { return 16; }
     @Override
     public int getSensitiveInfoCost() { return 16; }
@@ -132,8 +233,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
 
     @Override
     public String getAbnormalityCode() { return "T-01-68"; }
-    @Override
-    public RiskLevel getRiskLevel() { return riskLevel; }
+
     @Override
     public String name() { return "butterfly_funeral"; }
 
@@ -417,7 +517,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
 
     /** 处决:蝴蝶缠身 */
     private void triggerSalvation(ServerPlayer player) {
-        if (player.hasEffect(com.wzz.lobotocraft.init.ModEffects.BUTTERFLY_SHROUD.get())) return;
+        if (player.hasEffect(ModMobEffects.BUTTERFLY_SHROUD.get())) return;
         if (this.level() instanceof ServerLevel sl) {
             sl.playSound(null, player.blockPosition(), ModSounds.BUTTERFLY_DEATH.get(), SoundSource.HOSTILE, 1.5f, 1.0f);
         }
@@ -425,7 +525,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
         MentalValueUtil.setMentalValue(player, MentalValueUtil.getEffectiveMaxMentalValue(player));
         // 蝴蝶缠身 6 秒(到期死亡由 ButterflyFuneralEvent 处理)
         player.addEffect(new MobEffectInstance(
-                com.wzz.lobotocraft.init.ModEffects.BUTTERFLY_SHROUD.get(), 6 * 20, 0, false, false, true));
+                ModMobEffects.BUTTERFLY_SHROUD.get(), 6 * 20, 0, false, false, true));
     }
 
     // ==================== 特殊攻击 ====================

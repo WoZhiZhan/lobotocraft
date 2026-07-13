@@ -196,4 +196,6 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> NOTHING_THERE_BLADE2 = register("nothing_there_blade2");
 	public static final RegistryObject<SoundEvent> NOTHING_THERE_CANNON1 = register("nothing_there_cannon1");
 	public static final RegistryObject<SoundEvent> NOTHING_THERE_CANNON2 = register("nothing_there_cannon2");
+	public static final RegistryObject<SoundEvent> HELPER_WEAPON = register("helper_weapon");
+	public static final RegistryObject<SoundEvent> BUTTERFLY_FUNERAL_WEAPON = register("butterfly_funeral_weapon");
 }

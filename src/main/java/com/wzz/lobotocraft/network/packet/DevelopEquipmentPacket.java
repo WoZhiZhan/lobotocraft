@@ -2,10 +2,8 @@ package com.wzz.lobotocraft.network.packet;
 
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
-import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.item.PEBoxItem;
 import com.wzz.lobotocraft.network.IMessage;
-import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.AbnormalityWorkHandler;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -13,17 +11,25 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.network.NetworkEvent;
-import net.minecraftforge.registries.ForgeRegistries;
+
+import java.util.List;
 
 /**
  * 装备研发数据包（客户端 -> 服务器）
- * 用于研发EGO装备（武器或护甲）
+ * 用于研发EGO装备（武器 / 护甲）
+ * <p>
+ * 改动点：不再在这里硬编码"武器发一件、护甲发三件"，
+ * 而是统一向 IAbnormality 要一个 List&lt;ItemStack&gt;。
+ * 这样多武器 / 多饰品的异想体只要覆写 getEGOWeaponStacks() 就行，本类不用动。
  */
 public class DevelopEquipmentPacket implements IMessage {
     private String abnormalityCode;
-    private String equipmentType;  // "weapon" 或 "armor"
+    private String equipmentType;  // "weapon" / "armor" / "gift"
     private int entityId;
-    private double scrollOffset;  // 滚动偏移量
+    private double scrollOffset;   // 滚动偏移量
+
+    public DevelopEquipmentPacket() {
+    }
 
     public DevelopEquipmentPacket(String abnormalityCode, String equipmentType, int entityId, double scrollOffset) {
         this.abnormalityCode = abnormalityCode;
@@ -37,7 +43,7 @@ public class DevelopEquipmentPacket implements IMessage {
         this.abnormalityCode = buf.readUtf();
         this.equipmentType = buf.readUtf();
         this.entityId = buf.readInt();
-        this.scrollOffset = buf.readDouble();  // 读取滚动位置
+        this.scrollOffset = buf.readDouble();
     }
 
     @Override
@@ -45,7 +51,7 @@ public class DevelopEquipmentPacket implements IMessage {
         buf.writeUtf(abnormalityCode);
         buf.writeUtf(equipmentType);
         buf.writeInt(entityId);
-        buf.writeDouble(scrollOffset);  // 写入滚动位置
+        buf.writeDouble(scrollOffset);
     }
 
     @Override
@@ -67,88 +73,66 @@ public class DevelopEquipmentPacket implements IMessage {
             }
 
             player.getCapability(PlayerAbnormalityDataProvider.PLAYER_ABNORMALITY_DATA).ifPresent(data -> {
-                // 异想体装备改为无限制作次数(消耗能源不变),不再限制研发上限
+                int cost = getDevelopmentCost(abnormality);
+                List<ItemStack> rewards = getRewards(abnormality);
 
-                // 获取研发所需能量
-                int cost = equipmentType.equals("weapon") ?
-                        abnormality.getWeaponDevelopmentCost() :
-                        abnormality.getArmorDevelopmentCost();
-
-                // 检查并消耗PE-BOX
-                if (PEBoxItem.consumePEBoxes(player.getInventory(), abnormalityCode, cost)) {
-                    giveEquipment(player, abnormality, equipmentType);
-                    player.sendSystemMessage(Component.literal(
-                            "§a成功研发" + (equipmentType.equals("weapon") ? "武器" : "护甲") +
-                                    "！消耗了 " + cost + " 个PE-BOX"
-                    ));
-                } else {
-                    player.sendSystemMessage(Component.literal(
-                            "§cPE-BOX不足！需要 " + cost + " 个"
-                    ));
+                if (rewards.isEmpty()) {
+                    player.sendSystemMessage(Component.literal("§c该异想体没有可研发的" + typeName() + "！"));
+                    return;
                 }
+
+                if (!PEBoxItem.consumePEBoxes(player.getInventory(), abnormalityCode, cost)) {
+                    player.sendSystemMessage(Component.literal("§cPE-BOX不足！需要 " + cost + " 个"));
+                    return;
+                }
+
+                for (ItemStack stack : rewards) {
+                    giveOrDrop(player, stack);
+                }
+
+                player.sendSystemMessage(Component.literal(
+                        "§a成功研发" + typeName() + "！消耗了 " + cost + " 个PE-BOX"
+                ));
+
+                data.addEquipmentDevelopmentCount(abnormalityCode, equipmentType, 1);
+                AbnormalityWorkHandler.openAbnormalityEncyclopediaScreen(
+                        player, abnormality, data, abnormalityCode, scrollOffset);
             });
         });
         ctx.setPacketHandled(true);
     }
 
     /**
-     * 给予玩家装备
+     * 本次研发要发放的所有物品。
+     * 多武器 / 多饰品的异想体在 IAbnormality 里覆写对应方法，这里不用改。
      */
-    private void giveEquipment(ServerPlayer player, IAbnormality abnormality, String equipmentType) {
-        if (equipmentType.equals("weapon")) {
-            EGOEquipmentData.WeaponData weaponData = abnormality.getEGOWeaponData();
-            if (weaponData == null) return;
+    private List<ItemStack> getRewards(IAbnormality abnormality) {
+        return switch (equipmentType) {
+            case "weapon" -> abnormality.getEGOWeaponStacks();
+            case "armor" -> abnormality.getEGOArmorStacks();
+            default -> List.of();
+        };
+    }
 
-            // weaponData.itemId() 已经是完整的武器ID，如 "repentance_weapon"
-            ItemStack weapon = new ItemStack(
-                    ForgeRegistries.ITEMS.getValue(ResourceUtil.createInstance(weaponData.itemId()))
-            );
+    private int getDevelopmentCost(IAbnormality abnormality) {
+        return equipmentType.equals("weapon")
+                ? abnormality.getWeaponDevelopmentCost()
+                : abnormality.getArmorDevelopmentCost();
+    }
 
-            if (!weapon.isEmpty()) {
-                player.addItem(weapon);
-                player.getCapability(PlayerAbnormalityDataProvider.PLAYER_ABNORMALITY_DATA)
-                        .ifPresent(data -> {
-                            data.addEquipmentDevelopmentCount(abnormalityCode, equipmentType, 1);
-                            AbnormalityWorkHandler.openAbnormalityEncyclopediaScreen(player, abnormality, data, abnormalityCode, scrollOffset);
-                        });
-            }
+    private String typeName() {
+        return switch (equipmentType) {
+            case "weapon" -> "武器";
+            case "armor" -> "护甲";
+            default -> "装备";
+        };
+    }
 
-        } else if (equipmentType.equals("armor")) {
-            EGOEquipmentData.ArmorData armorData = abnormality.getEGOArmorData();
-            if (armorData == null) return;
-
-            // armorData.armorId() 返回基础ID，如 "repentance"
-            String baseArmorId = armorData.armorId();
-            // 拼接完整的装备ID
-            ItemStack chestplate = new ItemStack(
-                    ForgeRegistries.ITEMS.getValue(ResourceUtil.createInstance(baseArmorId + "_chestplate"))
-            );
-            ItemStack leggings = new ItemStack(
-                    ForgeRegistries.ITEMS.getValue(ResourceUtil.createInstance(baseArmorId + "_leggings"))
-            );
-            ItemStack boots = new ItemStack(
-                    ForgeRegistries.ITEMS.getValue(ResourceUtil.createInstance(baseArmorId + "_boots"))
-            );
-
-            // 给予胸甲
-            if (!chestplate.isEmpty()) {
-                player.addItem(chestplate);
-            }
-
-            // 给予护腿
-            if (!leggings.isEmpty()) {
-                player.addItem(leggings);
-            }
-
-            // 给予靴子
-            if (!boots.isEmpty()) {
-                player.addItem(boots);
-            }
-            player.getCapability(PlayerAbnormalityDataProvider.PLAYER_ABNORMALITY_DATA)
-                    .ifPresent(data -> {
-                        data.addEquipmentDevelopmentCount(abnormalityCode, equipmentType, 1);
-                        AbnormalityWorkHandler.openAbnormalityEncyclopediaScreen(player, abnormality, data, abnormalityCode, scrollOffset);
-                    });
+    /** 背包塞不下就掉在脚下，别把研发出来的东西吞了 */
+    private static void giveOrDrop(ServerPlayer player, ItemStack stack) {
+        if (stack.isEmpty()) return;
+        if (!player.addItem(stack)) {
+            player.drop(stack, false);
         }
     }
 }

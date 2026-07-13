@@ -28,7 +28,7 @@ public class ModMain {
         ModTabs.REGISTRY.register(modEventBus);
         ModParticleTypes.REGISTRY.register(modEventBus);
         ModAttributes.ATTRIBUTES.register(modEventBus);
-        ModEffects.EFFECTS.register(modEventBus);
+        ModMobEffects.EFFECTS.register(modEventBus);
         ModSounds.REGISTRY.register(modEventBus);
         ModBlocks.BLOCKS.register(modEventBus);
         ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);

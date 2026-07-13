@@ -77,7 +77,7 @@ public class RedShoesWeapon extends BaseEgoWeapon {
             if (EgoArmorHelper.isFullEGO(player, "red_shoes")) {
                 serverPlayer.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(stats -> {
                     float ex = stats.getTemperanceLevel();
-                    damage.updateAndGet(v -> MathUtil.convertToFloat(v + ex));
+                    damage.updateAndGet(v -> v + ex);
                 });
             }
             target.hurt(DamageHelper.getDamage(player, "red"), damage.get());

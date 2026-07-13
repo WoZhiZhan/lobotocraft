@@ -5,7 +5,7 @@ import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
-import com.wzz.lobotocraft.init.ModEffects;
+import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.ParticleUtil;
@@ -176,7 +176,7 @@ public class EntityQueenBee extends AbstractAbnormality {
     private void releaseSpores() {
         List<LivingEntity> targets = findSporeTargets();
         for (LivingEntity target : targets) {
-            target.addEffect(new MobEffectInstance(ModEffects.QUEEN_BEE_SPORE.get(),
+            target.addEffect(new MobEffectInstance(ModMobEffects.QUEEN_BEE_SPORE.get(),
                     SPORE_DURATION, 0, false, true, true));
             ParticleUtil.spawnParticles(target, ParticleUtil.getDustParticle(1.0f, 0.78f, 0.08f, 1.4f), 18, 0.03D);
             if (target instanceof ServerPlayer player) {

@@ -5,7 +5,7 @@ import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
 import com.wzz.lobotocraft.init.ModAttributes;
-import com.wzz.lobotocraft.init.ModEffects;
+import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.DamageHelper;
@@ -99,8 +99,8 @@ public class EntityLeticia extends AbstractAbnormality {
 
     public void giveGift(ServerPlayer player) {
         clearOtherGiftHolders(player);
-        player.removeEffect(ModEffects.LETICIA_BROKEN_GIFT.get());
-        player.addEffect(new MobEffectInstance(ModEffects.LETICIA_GIFT.get(),
+        player.removeEffect(ModMobEffects.LETICIA_BROKEN_GIFT.get());
+        player.addEffect(new MobEffectInstance(ModMobEffects.LETICIA_GIFT.get(),
                 GIFT_DURATION, 0, false, true, true));
         ParticleUtil.spawnParticles(player, ParticleUtil.getDustParticle(0.85f, 0.55f, 0.9f, 1.1f), 12, 0.02D);
         setActionAnimation("gift", GIFT_ANIMATION_TICKS);
@@ -166,8 +166,8 @@ public class EntityLeticia extends AbstractAbnormality {
             if (player == giftHolder) {
                 continue;
             }
-            player.removeEffect(ModEffects.LETICIA_GIFT.get());
-            player.removeEffect(ModEffects.LETICIA_BROKEN_GIFT.get());
+            player.removeEffect(ModMobEffects.LETICIA_GIFT.get());
+            player.removeEffect(ModMobEffects.LETICIA_BROKEN_GIFT.get());
         }
     }
 
@@ -285,7 +285,7 @@ public class EntityLeticia extends AbstractAbnormality {
 
     @Override
     public Float modifyWorkSuccessRate(ServerPlayer player, WorkType workType, float baseRate) {
-        if (workType == WorkType.ATTACHMENT && player.hasEffect(ModEffects.LETICIA_GIFT.get())) {
+        if (workType == WorkType.ATTACHMENT && player.hasEffect(ModMobEffects.LETICIA_GIFT.get())) {
             return Math.min(0.95f, baseRate + 0.20f);
         }
         return null;
@@ -303,7 +303,7 @@ public class EntityLeticia extends AbstractAbnormality {
 
     @Override
     public void onWorkComplete(ServerPlayer player, WorkType workType, WorkResult result) {
-        if (result != WorkResult.BAD && player.hasEffect(ModEffects.LETICIA_BROKEN_GIFT.get())) {
+        if (result != WorkResult.BAD && player.hasEffect(ModMobEffects.LETICIA_BROKEN_GIFT.get())) {
             giveGift(player);
         }
     }

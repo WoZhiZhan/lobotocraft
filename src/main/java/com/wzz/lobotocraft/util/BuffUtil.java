@@ -1,6 +1,6 @@
 package com.wzz.lobotocraft.util;
 
-import com.wzz.lobotocraft.init.ModEffects;
+import com.wzz.lobotocraft.init.ModMobEffects;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.player.Player;
 
@@ -19,7 +19,7 @@ public class BuffUtil {
      * 是否拥有"友谊之证"。
      */
     public static boolean hasFriendshipProof(Player player) {
-        return player.hasEffect(ModEffects.FRIENDSHIP_PROOF.get());
+        return player.hasEffect(ModMobEffects.FRIENDSHIP_PROOF.get());
     }
 
     /**
@@ -27,7 +27,7 @@ public class BuffUtil {
      * 未拥有时返回 -1,与原 CobblestoneItem.getQliphothCounter 缺省语义一致。
      */
     public static int getFriendshipProofCounter(Player player) {
-        MobEffectInstance instance = player.getEffect(ModEffects.FRIENDSHIP_PROOF.get());
+        MobEffectInstance instance = player.getEffect(ModMobEffects.FRIENDSHIP_PROOF.get());
         if (instance == null) return -1;
         return instance.getAmplifier() + 1;
     }
@@ -38,7 +38,7 @@ public class BuffUtil {
     public static void giveFriendshipProof(Player player, int counter) {
         int amplifier = Math.max(0, counter - 1);
         player.addEffect(new MobEffectInstance(
-                ModEffects.FRIENDSHIP_PROOF.get(),
+                ModMobEffects.FRIENDSHIP_PROOF.get(),
                 INFINITE_DURATION,
                 amplifier,
                 false,
@@ -51,7 +51,7 @@ public class BuffUtil {
      * 移除"友谊之证"。
      */
     public static void removeFriendshipProof(Player player) {
-        player.removeEffect(ModEffects.FRIENDSHIP_PROOF.get());
+        player.removeEffect(ModMobEffects.FRIENDSHIP_PROOF.get());
     }
 
     // ===================== 亲吻(原冰片) =====================
@@ -60,7 +60,7 @@ public class BuffUtil {
      * 是否拥有"亲吻"。
      */
     public static boolean hasKiss(Player player) {
-        return player.hasEffect(ModEffects.KISS.get());
+        return player.hasEffect(ModMobEffects.KISS.get());
     }
 
     /**
@@ -68,7 +68,7 @@ public class BuffUtil {
      */
     public static void giveKiss(Player player) {
         player.addEffect(new MobEffectInstance(
-                ModEffects.KISS.get(),
+                ModMobEffects.KISS.get(),
                 INFINITE_DURATION,
                 0,
                 false,
@@ -81,6 +81,6 @@ public class BuffUtil {
      * 移除"亲吻"标记。
      */
     public static void removeKiss(Player player) {
-        player.removeEffect(ModEffects.KISS.get());
+        player.removeEffect(ModMobEffects.KISS.get());
     }
 }

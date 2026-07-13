@@ -4,7 +4,7 @@ import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
 import com.wzz.lobotocraft.init.ModBlockEntities;
-import com.wzz.lobotocraft.init.ModEffects;
+import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.MentalValueSyncPacket;
@@ -226,7 +226,7 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
         if (WorkManager.isPlayerWorking(serverPlayer)) {
             return;
         }
-        if (player.hasEffect(ModEffects.QUEEN_BEE_SPORE.get())) {
+        if (player.hasEffect(ModMobEffects.QUEEN_BEE_SPORE.get())) {
             return;
         }
         if (EntityRedShoes.isRedShoesControlled(player)) {
@@ -257,7 +257,7 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
     }
 
     private void healClerk(EntityClerk clerk) {
-        if (clerk.hasEffect(ModEffects.QUEEN_BEE_SPORE.get())) {
+        if (clerk.hasEffect(ModMobEffects.QUEEN_BEE_SPORE.get())) {
             return;
         }
         if (EntityRedShoes.isRedShoesControlled(clerk)) {

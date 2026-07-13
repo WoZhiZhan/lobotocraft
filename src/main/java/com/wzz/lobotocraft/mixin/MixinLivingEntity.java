@@ -1,7 +1,7 @@
 package com.wzz.lobotocraft.mixin;
 
 import com.wzz.lobotocraft.event.living.LivingSwingEvent;
-import com.wzz.lobotocraft.init.ModEffects;
+import com.wzz.lobotocraft.init.ModMobEffects;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
@@ -27,7 +27,7 @@ public class MixinLivingEntity {
         if (self.getPersistentData().getBoolean("NotMove"))
             ci.cancel();
         if (!(self instanceof Player)) {
-            MobEffectInstance kissEffect = self.getEffect(ModEffects.KISS.get());
+            MobEffectInstance kissEffect = self.getEffect(ModMobEffects.KISS.get());
             if (kissEffect != null && kissEffect.getAmplifier() >= 2) {
                 self.attackAnim = 0;
                 self.walkAnimation.setSpeed(0);

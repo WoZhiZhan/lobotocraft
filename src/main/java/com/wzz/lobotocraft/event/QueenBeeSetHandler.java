@@ -1,7 +1,7 @@
 package com.wzz.lobotocraft.event;
 
 import com.wzz.lobotocraft.effect.SporeEffect;
-import com.wzz.lobotocraft.init.ModEffects;
+import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.util.DotHelper;
 import com.wzz.lobotocraft.util.EgoArmorHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
@@ -57,7 +57,7 @@ public class QueenBeeSetHandler {
     /** 孢子：无法恢复生命值 */
     @SubscribeEvent
     public static void onLivingHeal(LivingHealEvent event) {
-        if (event.getEntity().hasEffect(ModEffects.SPORE.get())) {
+        if (event.getEntity().hasEffect(ModMobEffects.SPORE.get())) {
             event.setCanceled(true);
         }
     }

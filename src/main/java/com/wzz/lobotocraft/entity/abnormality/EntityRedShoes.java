@@ -12,7 +12,7 @@ import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.event.PlayerControlLock;
 import com.wzz.lobotocraft.event.living.LivingSwingEvent;
 import com.wzz.lobotocraft.init.ModAttributes;
-import com.wzz.lobotocraft.init.ModEffects;
+import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
@@ -498,7 +498,7 @@ public class EntityRedShoes extends AbstractAbnormality {
         data.putUUID(SOURCE_UUID_TAG, source.getUUID());
         data.putInt(BLOODLUST_ATTACK_COOLDOWN_TAG, 0);
 
-        target.addEffect(new MobEffectInstance(ModEffects.RED_SHOES_BLOODLUST.get(),
+        target.addEffect(new MobEffectInstance(ModMobEffects.RED_SHOES_BLOODLUST.get(),
                 BLOODLUST_DURATION, 0, false, true, true));
         applyBloodlustAttributes(target);
 
@@ -758,7 +758,7 @@ public class EntityRedShoes extends AbstractAbnormality {
         EntityRedShoes source = findSource(entity);
         CompoundTag data = entity.getPersistentData();
 
-        entity.addEffect(new MobEffectInstance(ModEffects.RED_SHOES_BLOODLUST.get(),
+        entity.addEffect(new MobEffectInstance(ModMobEffects.RED_SHOES_BLOODLUST.get(),
                 BLOODLUST_DURATION, 0, false, true, true));
         applyBloodlustAttributes(entity);
 
@@ -948,7 +948,7 @@ public class EntityRedShoes extends AbstractAbnormality {
 
     private static void cleanupBloodlust(LivingEntity entity) {
         removeBloodlustAttributes(entity);
-        entity.removeEffect(ModEffects.RED_SHOES_BLOODLUST.get());
+        entity.removeEffect(ModMobEffects.RED_SHOES_BLOODLUST.get());
         CompoundTag data = entity.getPersistentData();
         data.remove(BLOODLUST_TAG);
         data.remove(SOURCE_UUID_TAG);
