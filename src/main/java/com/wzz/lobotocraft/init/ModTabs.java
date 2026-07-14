@@ -60,12 +60,10 @@ public class ModTabs {
 						tabData.accept(ModItems.PE_BOX.get());
 						tabData.accept(ModItems.CONVEYER.get());
 						tabData.accept(ModItems.REGENERATION_REACTOR.get());
-						// 便携式抑制器已改为左上角 HUD 计数机制,不再以物品形式提供
 						tabData.accept(ModItems.ARMOR_LOCK.get());
 						tabData.accept(ModItems.SPECIAL_RECORD.get());
 						tabData.accept(ModItems.TARGET_MARKER.get());
 						tabData.accept(ModItems.WORK_DEVICE.get());
-						tabData.accept(ModItems.SHEEPSKIN_CURIO.get());
 						tabData.accept(ModItems.STRANGE_BADGE.get());
 						tabData.accept(ModItems.OTTO.get());
 						tabData.accept(ModItems.ESCAPE.get());
@@ -190,6 +188,18 @@ public class ModTabs {
 						tabData.accept(ButterflyFuneralWeapon.createWhiteWeapon(ModItems.BUTTERFLY_FUNERAL_WEAPON.get()));
 						tabData.accept(ButterflyFuneralWeapon.createBlackWeapon(ModItems.BUTTERFLY_FUNERAL_WEAPON.get()));
 						tabData.accept(ModItems.BUTTERFLY_FUNERAL_CURIO.get());
+						tabData.accept(ModItems.BIG_BADWOLF_CHESTPLATE.get());
+						tabData.accept(ModItems.BIG_BADWOLF_LEGGINGS.get());
+						tabData.accept(ModItems.BIG_BADWOLF_BOOTS.get());
+						tabData.accept(ModItems.BIG_BADWOLF_WEAPON.get());
+						tabData.accept(ModItems.BIG_BADWOLF_CURIO.get());
+						tabData.accept(ModItems.REDHAT_MERCENARY_CHESTPLATE.get());
+						tabData.accept(ModItems.REDHAT_MERCENARY_LEGGINGS.get());
+						tabData.accept(ModItems.REDHAT_MERCENARY_BOOTS.get());
+						tabData.accept(ModItems.REDHAT_MERCENARY_WEAPON_KNIFE.get());
+						tabData.accept(ModItems.REDHAT_MERCENARY_WEAPON_GUN.get());
+						tabData.accept(ModItems.REDHAT_MERCENARY_CURIO.get());
+						tabData.accept(ModItems.SHEEPSKIN_CURIO.get());
 					})
 					.build());
 

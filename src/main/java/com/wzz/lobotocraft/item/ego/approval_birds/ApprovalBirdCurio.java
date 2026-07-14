@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -53,7 +54,7 @@ public class ApprovalBirdCurio extends BaseEgoCurio {
     }
 
     @Override
-    public List<AttributeEntry> getAttributeEntries() {
+    public List<AttributeEntry> getAttributeEntries(LivingEntity living) {
         return Arrays.asList(
                 new AttributeEntry(UUID.fromString("d11af3db-9228-46e8-86b5-d8ee0d3cb609"),
                         this.getCurrentClassName() + " Move Speed Bonus", Attributes.MOVEMENT_SPEED, 0.012),

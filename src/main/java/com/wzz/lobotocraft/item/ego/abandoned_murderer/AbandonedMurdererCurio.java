@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.item.AttributeEntry;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -44,7 +45,7 @@ public class AbandonedMurdererCurio extends BaseEgoCurio {
     }
 
     @Override
-    public List<AttributeEntry> getAttributeEntries() {
+    public List<AttributeEntry> getAttributeEntries(LivingEntity living) {
         return Arrays.asList(
                 new AttributeEntry(UUID.fromString("a1d91b8d-52a5-4f66-8a66-41d6ee0670dd"),
                         this.getCurrentClassName() + " Max Health Bonus", Attributes.MAX_HEALTH, 2D),

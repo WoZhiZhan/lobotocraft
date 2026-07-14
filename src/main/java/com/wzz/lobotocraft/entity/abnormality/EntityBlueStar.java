@@ -320,7 +320,6 @@ public class EntityBlueStar extends AbstractAbnormality {
                 }
             }
         };
-        killTimer.setRequireMainThread(true);
         return killTimer;
     }
 
@@ -358,7 +357,6 @@ public class EntityBlueStar extends AbstractAbnormality {
                 setAnimation("animation.blue_star.idle");
             }
         };
-        timerEntry.setRequireMainThread(true);
         return timerEntry;
     }
 

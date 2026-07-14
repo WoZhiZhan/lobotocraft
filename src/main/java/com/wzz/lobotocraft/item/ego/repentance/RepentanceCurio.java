@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.item.AttributeEntry;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
@@ -51,7 +52,7 @@ public class RepentanceCurio extends BaseEgoCurio {
     }
 
     @Override
-    public List<AttributeEntry> getAttributeEntries() {
+    public List<AttributeEntry> getAttributeEntries(LivingEntity living) {
         return List.of(
                 new AttributeEntry(UUID.fromString("29f82af0-fe7f-4f2a-a316-b9a6a1eaafa7"),
                         this.getCurrentClassName() + " Extra Mental Value Bonus", ModAttributes.EXTRA_MENTAL_VALUE.get(), 2D)

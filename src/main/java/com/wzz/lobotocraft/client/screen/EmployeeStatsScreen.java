@@ -94,13 +94,12 @@ public class EmployeeStatsScreen extends Screen {
         prudenceMentalBonus = 0;
         justiceAttackSpeedBonus = 0;
         justiceMoveSpeedBonus = 0;
-
         if (minecraft.player == null) return;
 
         for (ItemStack stack : CuriosUtil.getCuriosItems(minecraft.player)) {
             if (stack.getItem() instanceof IAttributeItem attributeItem && attributeItem.hasAttribute()) {
                 // 使用新的多属性API
-                List<AttributeEntry> entries = attributeItem.getAttributeEntries();
+                List<AttributeEntry> entries = attributeItem.getAttributeEntries(minecraft.player);
 
                 for (AttributeEntry entry : entries) {
                     double bonus = entry.getValue();

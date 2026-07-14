@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.item.ego.approval_birds;
 
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
@@ -12,7 +13,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -24,7 +24,7 @@ import java.util.Map;
 public class ApprovalBirdWeapon extends BaseEgoWeapon {
     public ApprovalBirdWeapon() {
         super(
-                new Tier(),
+                new ModTier.WeaponTier(),
                 1,
                 -2.0f,
                 new Properties().stacksTo(1).fireResistant()
@@ -220,37 +220,5 @@ public class ApprovalBirdWeapon extends BaseEgoWeapon {
         components.add(Component.literal("§7不要试着移去缠在这把武器上的绷带，它掩盖着那些属于过去的，不应被人所了解的悲哀记忆。"));
         components.add(Component.literal("§7这把武器也在寻求着，渴望着为所有人带来和平与公正，就如同审判鸟的初衷一样..."));
         components.add(Component.literal("§7按住<Shift>查看详情"));
-    }
-
-    private static class Tier implements net.minecraft.world.item.Tier {
-        @Override
-        public int getUses() {
-            return 0;
-        }
-
-        @Override
-        public float getSpeed() {
-            return 2.0F;
-        }
-
-        @Override
-        public float getAttackDamageBonus() {
-            return 0.0F;
-        }
-
-        @Override
-        public int getLevel() {
-            return 2;
-        }
-
-        @Override
-        public int getEnchantmentValue() {
-            return 14;
-        }
-
-        @Override
-        public Ingredient getRepairIngredient() {
-            return Ingredient.EMPTY;
-        }
     }
 }

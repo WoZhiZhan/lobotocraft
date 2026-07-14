@@ -2,12 +2,15 @@ package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.block.entity.ElevatorBlockEntity;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.item.TargetMarkerItem;
+import com.wzz.lobotocraft.item.ego.butterfly_funeral.ButterflyFuneralWeapon;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
+import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.core.BlockPos;
@@ -315,7 +318,102 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
         return super.hurt(source, amount);
     }
 
-    // ==================== tick: 攻击 AI ====================
+    @Override
+    public float[] getArmorRenderScale() {
+        return new float[] {1.5f, 1.0f, 1.5f};
+    }
+
+    @Override
+    public float[] getArmorRenderOffset() {
+        return new float[] {-20.0f, 1.0f, 1.0f};
+    }
+
+    @Override
+    public float[] getWeaponRenderOffset() {
+        return new float[] {5.0f, 1.0f, 1f};
+    }
+
+    @Override
+    public float[] getWeaponRenderScale() {
+        return new float[] {0.8f, 0.8f, 0.8f};
+    }
+
+    @Override
+    public int getWeaponDevelopmentCost() {
+        return 70;
+    }
+
+    @Override
+    public int getArmorDevelopmentCost() {
+        return 60;
+    }
+
+    @Override
+    public int getArmorDevelopmentMaxCount() {
+        return 1;
+    }
+
+    @Override
+    public int getWeaponDevelopmentMaxCount() {
+        return 1;
+    }
+
+    @Override
+    public float getGiftProbability() {
+        return 0.03f;
+    }
+
+    @Override
+    public EGOEquipmentData.GiftData getEGOGiftData() {
+        return new EGOEquipmentData.GiftData(
+                ResourceUtil.createInstance("textures/item/redhat_mercenary_curio.png"),
+                "猩红创痕",
+                "头饰",
+                "redhat_mercenary_curio",
+                "最大生命值+2",
+                "移动速度+4",
+                "攻击速度+4",
+                "玩家手持任意EGO造成的伤害+2"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.WeaponData getEGOWeaponData() {
+        return new EGOEquipmentData.WeaponData(
+                ResourceUtil.createInstance("textures/gui/ego/redhat_mercenary_weapon.png"),
+                "猩红创痕",
+                getRiskLevel(),
+                "RED",
+                "11-13",
+                "1.2",
+                "3格",
+                getWeaponDevelopmentMaxCount(),
+                "redhat_mercenary_weapon"
+        );
+    }
+
+    @Override
+    public List<ItemStack> getEGOWeaponStacks() {
+        return List.of(
+                ButterflyFuneralWeapon.createWhiteWeapon(ModItems.REDHAT_MERCENARY_WEAPON_KNIFE.get()),
+                ButterflyFuneralWeapon.createBlackWeapon(ModItems.REDHAT_MERCENARY_WEAPON_GUN.get())
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.ArmorData getEGOArmorData() {
+        return new EGOEquipmentData.ArmorData(
+                ResourceUtil.createInstance("textures/gui/ego/redhat_mercenary_armor.png"),
+                "猩红创痕",
+                getRiskLevel(),
+                0.6f,
+                0.6f,
+                0.6f,
+                1.5f,
+                getArmorDevelopmentMaxCount(),
+                "redhat_mercenary_armor"
+        );
+    }
 
     @Override
     public void tick() {

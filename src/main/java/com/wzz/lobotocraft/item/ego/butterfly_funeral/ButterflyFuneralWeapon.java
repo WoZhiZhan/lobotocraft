@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.client.renderer.item.ButterflyFuneralWeaponRenderer;
 import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.ChatFormatting;
@@ -22,7 +23,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.client.extensions.common.IClientItemExtensions;
 import org.jetbrains.annotations.Nullable;
@@ -120,7 +120,7 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
 
     public ButterflyFuneralWeapon() {
         super(
-                new Tier(),
+                new ModTier.WeaponTier(),
                 MathUtil.toDamageModifier(2),
                 MathUtil.toSpeedModifier(2.6F),
                 new Properties().stacksTo(1).fireResistant()
@@ -508,37 +508,5 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
         tooltip.add(Component.literal("§7这两把枪令人感到严肃。"));
         tooltip.add(Component.literal(""));
         tooltip.add(Component.literal("§7死者之哀，死亡之惧，烙印其上。"));
-    }
-
-    private static class Tier implements net.minecraft.world.item.Tier {
-        @Override
-        public int getUses() {
-            return 0;
-        }
-
-        @Override
-        public float getSpeed() {
-            return 3.0F;
-        }
-
-        @Override
-        public float getAttackDamageBonus() {
-            return 0.0F;
-        }
-
-        @Override
-        public int getLevel() {
-            return 2;
-        }
-
-        @Override
-        public int getEnchantmentValue() {
-            return 14;
-        }
-
-        @Override
-        public Ingredient getRepairIngredient() {
-            return Ingredient.EMPTY;
-        }
     }
 }

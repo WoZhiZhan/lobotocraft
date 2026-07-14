@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.item.AttributeEntry;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -41,7 +42,7 @@ public class BlueStarCurio extends BaseEgoCurio {
     }
 
     @Override
-    public List<AttributeEntry> getAttributeEntries() {
+    public List<AttributeEntry> getAttributeEntries(LivingEntity living) {
         return List.of(
                 // 精神值 +15
                 new AttributeEntry(UUID.fromString("b1ce0001-0001-4000-8000-00000000a001"),

@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.item.ego.abandoned_murderer;
 
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.util.DamageHelper;
 import net.minecraft.network.chat.Component;
@@ -9,7 +10,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
@@ -18,7 +18,7 @@ import java.util.List;
 public class AbandonedMurdererWeapon extends BaseEgoWeapon {
     public AbandonedMurdererWeapon() {
         super(
-                new Tier(),
+                new ModTier.WeaponTier(),
                 2,
                 -3.2f,
                 new Properties().stacksTo(1).fireResistant()
@@ -55,37 +55,5 @@ public class AbandonedMurdererWeapon extends BaseEgoWeapon {
         components.add(Component.literal("§7看上去连仁慈的Carmen都默许了这一切。"));
         components.add(Component.literal("§7他们再也不能回到正常的生活当中。"));
         components.add(Component.literal("§7对一个连葬礼都没有的人而言，唯有深深的悔恨才是最后的悼唁。"));
-    }
-
-    private static class Tier implements net.minecraft.world.item.Tier {
-        @Override
-        public int getUses() {
-            return 0;
-        }
-
-        @Override
-        public float getSpeed() {
-            return 2.0F;
-        }
-
-        @Override
-        public float getAttackDamageBonus() {
-            return 0.0F;
-        }
-
-        @Override
-        public int getLevel() {
-            return 2;
-        }
-
-        @Override
-        public int getEnchantmentValue() {
-            return 14;
-        }
-
-        @Override
-        public Ingredient getRepairIngredient() {
-            return Ingredient.EMPTY;
-        }
     }
 }

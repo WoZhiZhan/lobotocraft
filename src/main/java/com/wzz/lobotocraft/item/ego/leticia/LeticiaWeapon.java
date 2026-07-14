@@ -1,32 +1,25 @@
 package com.wzz.lobotocraft.item.ego.leticia;
 
-import com.google.common.collect.ImmutableMultimap;
-import com.google.common.collect.Multimap;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.common.ForgeMod;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -37,7 +30,7 @@ public class LeticiaWeapon extends BaseEgoWeapon {
     private static final int USE_COOLDOWN_TICKS = 20;
     public LeticiaWeapon() {
         super(
-                new Tier(),
+                new ModTier.WeaponTier(),
                 MathUtil.toDamageModifier(6),
                 MathUtil.toSpeedModifier(1f),
                 new Properties().stacksTo(1).fireResistant()
@@ -121,45 +114,12 @@ public class LeticiaWeapon extends BaseEgoWeapon {
         }
     }
 
-    private static class Tier implements net.minecraft.world.item.Tier {
-        @Override
-        public int getUses() {
-            return 0;
-        }
-
-        @Override
-        public float getSpeed() {
-            return 3.0F;
-        }
-
-        @Override
-        public float getAttackDamageBonus() {
-            return 0.0F;
-        }
-
-        @Override
-        public int getLevel() {
-            return 2;
-        }
-
-        @Override
-        public int getEnchantmentValue() {
-            return 14;
-        }
-
-        @Override
-        public Ingredient getRepairIngredient() {
-            return Ingredient.EMPTY;
-        }
-    }
-
     public static class SpeedEffectTimer extends TimerEntry<LivingEntity> {
         private final double speedChange;
         private final UUID modifierUUID = UUID.fromString("a8d4bc56-d729-4bb4-8208-4831d2217864");
 
         public SpeedEffectTimer(double speedChange) {
             this.speedChange = speedChange;
-            this.setRequireMainThread(true);
         }
 
         @Override

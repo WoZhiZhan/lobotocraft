@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.item.AttributeEntry;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -55,7 +56,7 @@ public class SnowQueenCurio extends BaseEgoCurio {
     }
 
     @Override
-    public List<AttributeEntry> getAttributeEntries() {
+    public List<AttributeEntry> getAttributeEntries(LivingEntity living) {
         return List.of(
                 new AttributeEntry(UUID.fromString("28a5b459-0e25-4d7d-92b6-110835a9e854"),
                         this.getCurrentClassName() + " Mental Bonus", ModAttributes.EXTRA_MENTAL_VALUE.get(), 6D),

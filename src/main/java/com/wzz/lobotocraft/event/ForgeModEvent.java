@@ -226,6 +226,10 @@ public class ForgeModEvent {
 					event.setAmount(event.getAmount() * 1.3f);
 				}
 			}
+			if (EgoArmorHelper.isFullEGO(attacker, "redhat_mercenary")) {
+				float multiplier = EntityUtil.getDamageMultiplierByLostHealth(attacker, 0.004f, 0.4f);
+				event.setAmount(event.getAmount() * multiplier);
+			}
 		}
 		if (!isDot && target instanceof ServerPlayer player) {
 			if (EntityArmyInBlack.hasActiveProtection(player) && !DamageHelper.isExecution(src)) {
@@ -304,6 +308,38 @@ public class ForgeModEvent {
 				});
 				if (level.get() > 0) {
 					event.setAmount(event.getAmount() - level.get());
+				}
+			}
+			if (CuriosUtil.hasCurios(player, ModItems.BIG_BADWOLF_CURIO.get()) && isRedDamage) {
+				event.setAmount(event.getAmount() * 1.1f);
+			}
+			if (EgoArmorHelper.isFullEGO(player, "big_badwolf") && event.getAmount() >= player.getMaxHealth() * 0.25f) {
+				TimerEntry<Player> timerEntry = new TimerEntry<>() {
+					@Override
+					public void onStart(@NotNull Player entity) {
+						entity.getPersistentData().putBoolean("isSuperWolf", true);
+						entity.playSound(ModSounds.BIG_BADWOLF_CURIO.get());
+					}
+
+					@Override
+					public void onRunning(@NotNull Player entity) {
+						ParticleUtil.spawnParticlesAroundEntity(entity, ParticleTypes.END_ROD, 20, 0.5f);
+					}
+
+					@Override
+					public void onEnd(@NotNull Player entity) {
+						entity.getPersistentData().putBoolean("isSuperWolf", false);
+					}
+				};
+				timerEntry.addSkillTimer(player, 0, 5000, 1, true);
+			}
+			if (player.getPersistentData().getBoolean("isSuperWolf")) {
+				long currentTick = player.level().getGameTime();
+				long lastHurtTick = player.getPersistentData().getLong("lastSuperWolfHurtTick");
+				if (currentTick - lastHurtTick < 20) {
+					event.setCanceled(true);
+				} else {
+					player.getPersistentData().putLong("lastSuperWolfHurtTick", currentTick);
 				}
 			}
 		}

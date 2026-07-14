@@ -199,4 +199,9 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> HELPER_WEAPON = register("helper_weapon");
 	public static final RegistryObject<SoundEvent> BUTTERFLY_FUNERAL_WEAPON = register("butterfly_funeral_weapon");
 	public static final RegistryObject<SoundEvent> BUTTERFLY_FUNERAL_WEAPON_MODE = register("butterfly_funeral_weapon_mod");
+	public static final RegistryObject<SoundEvent> BIG_BADWOLF_WEAPON = register("big_badwolf_weapon");
+	public static final RegistryObject<SoundEvent> BIG_BADWOLF_CURIO = register("big_badwolf_curio");
+	public static final RegistryObject<SoundEvent> REDHAT_MERCENARY_WEAPON_KNIFE = register("redhat_mercenary_weapon_knife");
+	public static final RegistryObject<SoundEvent> REDHAT_MERCENARY_WEAPON_GUN = register("redhat_mercenary_weapon_gun");
+	public static final RegistryObject<SoundEvent> REDHAT_MERCENARY_WEAPON_FURY = register("redhat_mercenary_weapon_fury");
 }

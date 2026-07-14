@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.item.ego.the_lady_facing_the_wall;
 
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.core.particles.ParticleTypes;
@@ -13,7 +14,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
@@ -25,7 +25,7 @@ public class LadyFacingWallWeapon extends BaseEgoWeapon {
     private static final int USE_COOLDOWN_TICKS = 12;
     public LadyFacingWallWeapon() {
         super(
-                new Tier(),
+                new ModTier.WeaponTier(),
                 MathUtil.toDamageModifier(2),
                 MathUtil.toSpeedModifier(0.6f),
                 new Properties().stacksTo(1).fireResistant()
@@ -77,37 +77,5 @@ public class LadyFacingWallWeapon extends BaseEgoWeapon {
         p_41423_.add(Component.literal("§7即便该异想体的核心已经变成了E.G.O的形式，那种强烈的孤独感也仍旧存在于这把武器上。"));
         p_41423_.add(Component.literal("§7它射出的子弹并不会穿透敌人的骨头，反而会留下永久的，孤独的空白。"));
         p_41423_.add(Component.literal("§7这把手枪在被制造出来时便已锈迹斑斑了。"));
-    }
-
-    private static class Tier implements net.minecraft.world.item.Tier {
-        @Override
-        public int getUses() {
-            return 0;
-        }
-
-        @Override
-        public float getSpeed() {
-            return 3.0F;
-        }
-
-        @Override
-        public float getAttackDamageBonus() {
-            return 0.0F;
-        }
-
-        @Override
-        public int getLevel() {
-            return 2;
-        }
-
-        @Override
-        public int getEnchantmentValue() {
-            return 14;
-        }
-
-        @Override
-        public Ingredient getRepairIngredient() {
-            return Ingredient.EMPTY;
-        }
     }
 }

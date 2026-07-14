@@ -7,6 +7,7 @@ import com.wzz.lobotocraft.util.EgoArmorHelper;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -54,7 +55,7 @@ public class ButterflyFuneralCurio extends BaseEgoCurio {
     }
 
     @Override
-    public List<AttributeEntry> getAttributeEntries() {
+    public List<AttributeEntry> getAttributeEntries(LivingEntity living) {
         return Arrays.asList(
                 new AttributeEntry(UUID.fromString("4bdcfde5-6de0-49a0-a4c3-7a60c14dda2f"), this.getCurrentClassName() +  " Move Speed Bonus",
                         Attributes.MOVEMENT_SPEED, 0.01, Mode.MULTIPLY_TOTAL),

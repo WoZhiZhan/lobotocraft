@@ -53,7 +53,7 @@ public class ModArmorMaterial {
             this.enchantmentValue = enchantmentValue;
             this.sound = sound;
             this.toughness = toughness;
-            this.knockbackResistance = Float.POSITIVE_INFINITY;
+            this.knockbackResistance = 1.0F;
             this.repairIngredient = new LazyLoadedValue(repairIngredient);
         }
 

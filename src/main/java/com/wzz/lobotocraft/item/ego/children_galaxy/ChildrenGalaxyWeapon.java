@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.item.ego.children_galaxy;
 
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.util.ClientInputUtil;
 import com.wzz.lobotocraft.util.DamageHelper;
@@ -18,7 +19,6 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -36,7 +36,7 @@ public class ChildrenGalaxyWeapon extends BaseEgoWeapon {
     private static final double ATTACK_HALF_HEIGHT = 1.5D;
 
     public ChildrenGalaxyWeapon() {
-        super(new Tier(), 14, -2.0f, new Properties().stacksTo(1).fireResistant());
+        super(new ModTier.WeaponTier(), 14, -2.0f, new Properties().stacksTo(1).fireResistant());
     }
 
     @Override
@@ -146,14 +146,5 @@ public class ChildrenGalaxyWeapon extends BaseEgoWeapon {
         }
         tooltip.add(Component.literal("§6※右键挥洒坠落的星泪，对身前3x3范围内敌人造成15点黑色伤害。"));
         tooltip.add(Component.literal("§7按住<Shift>查看详情"));
-    }
-
-    private static class Tier implements net.minecraft.world.item.Tier {
-        @Override public int getUses() { return 0; }
-        @Override public float getSpeed() { return 2.0F; }
-        @Override public float getAttackDamageBonus() { return 0.0F; }
-        @Override public int getLevel() { return 2; }
-        @Override public int getEnchantmentValue() { return 14; }
-        @Override public Ingredient getRepairIngredient() { return Ingredient.EMPTY; }
     }
 }

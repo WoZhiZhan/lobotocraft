@@ -67,6 +67,14 @@ public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnima
         return hasAnimatable();
     }
 
+    protected boolean autoRegisterAttackAnim() {
+        return true;
+    }
+
+    protected String postFix() {
+        return null;
+    }
+
     /**
      * 触发攻击动画（子类可以调用）
      */
@@ -127,6 +135,11 @@ public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnima
     }
 
     @Override
+    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotIndex, boolean isSelected) {
+        super.inventoryTick(stack, level, entity, slotIndex, isSelected);
+    }
+
+    @Override
     public boolean onLeftClickEntity(ItemStack stack, Player player, Entity entity) {
         return player.getAttackStrengthScale(0.0f) == 1.0f;
     }
@@ -142,9 +155,9 @@ public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnima
             return PlayState.CONTINUE;
         });
 
-        // 注册默认攻击动画
-        controller.triggerableAnim(getAttackName(), ATTACK_ANIMATION);
-
+        if (autoRegisterAttackAnim()) {
+            controller.triggerableAnim(getAttackName(), ATTACK_ANIMATION);
+        }
         // 让子类注册额外的动画
         registerAdditionalAnimations(controller);
 
@@ -164,7 +177,7 @@ public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnima
             @Override
             public BlockEntityWithoutLevelRenderer getCustomRenderer() {
                 if (this.renderer == null)
-                    this.renderer = new BaseEgoWeaponRenderer(weaponName());
+                    this.renderer = new BaseEgoWeaponRenderer(weaponName(), postFix());
 
                 return this.renderer;
             }

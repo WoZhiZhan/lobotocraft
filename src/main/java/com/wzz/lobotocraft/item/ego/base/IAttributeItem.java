@@ -16,14 +16,6 @@ public interface IAttributeItem {
      */
     boolean hasAttribute();
 
-    /**
-     * 获取所有属性条目（新方法 - 支持多属性）
-     * @return 属性条目列表
-     */
-    default List<AttributeEntry> getAttributeEntries() {
-        return getAttributeEntries(null);
-    }
-
     default List<AttributeEntry> getAttributeEntries(@Nullable LivingEntity living) {
         // 默认实现：使用旧的单属性方法构建单个条目
         if (!hasAttribute() || getAttribute() == null || getAttributeUUID() == null) {

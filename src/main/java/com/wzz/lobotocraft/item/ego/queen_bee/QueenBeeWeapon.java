@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
 import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.core.particles.ParticleTypes;
@@ -20,7 +21,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.common.ForgeMod;
 import org.jetbrains.annotations.Nullable;
@@ -36,7 +36,7 @@ public class QueenBeeWeapon extends BaseEgoWeapon {
     private static final UUID REACH_UUID = UUID.fromString("fe190413-499b-43c1-92e9-59f4eb546434");
     public QueenBeeWeapon() {
         super(
-                new Tier(),
+                new ModTier.WeaponTier(),
                 MathUtil.toDamageModifier(8),
                 MathUtil.toSpeedModifier(1f),
                 new Properties().stacksTo(1).fireResistant()
@@ -126,38 +126,6 @@ public class QueenBeeWeapon extends BaseEgoWeapon {
             p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
         } else {
             p_41423_.add(Component.literal("§6※攻击命中目标时，为其施加”威胁“效果，一个维度内最多存在一个“威胁”。其他玩家对“威胁”造成伤害提高10%。“威胁”受到dot造成的伤害提高500%"));
-        }
-    }
-
-    private static class Tier implements net.minecraft.world.item.Tier {
-        @Override
-        public int getUses() {
-            return 0;
-        }
-
-        @Override
-        public float getSpeed() {
-            return 3.0F;
-        }
-
-        @Override
-        public float getAttackDamageBonus() {
-            return 0.0F;
-        }
-
-        @Override
-        public int getLevel() {
-            return 2;
-        }
-
-        @Override
-        public int getEnchantmentValue() {
-            return 14;
-        }
-
-        @Override
-        public Ingredient getRepairIngredient() {
-            return Ingredient.EMPTY;
         }
     }
 }

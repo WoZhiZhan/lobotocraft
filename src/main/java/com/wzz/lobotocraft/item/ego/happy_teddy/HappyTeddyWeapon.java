@@ -2,15 +2,12 @@ package com.wzz.lobotocraft.item.ego.happy_teddy;
 
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
-import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
@@ -20,7 +17,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.common.ForgeMod;
 import org.jetbrains.annotations.NotNull;
@@ -32,7 +28,7 @@ public class HappyTeddyWeapon extends BaseEgoWeapon {
     private static final UUID REACH_UUID = UUID.fromString("627cac40-6b38-49c2-96ec-5ce700c979e9");
     public HappyTeddyWeapon() {
         super(
-                new Tier(),
+                new ModTier.WeaponTier(),
                 MathUtil.toDamageModifier(7),
                 MathUtil.toSpeedModifier(0.8f),
                 new Properties().stacksTo(1).fireResistant()
@@ -99,7 +95,6 @@ public class HappyTeddyWeapon extends BaseEgoWeapon {
                                             }
                                         }
                                     };
-                                    timerEntry.setRequireMainThread(true);
                                     timerEntry.addSkillTimer(target, 0, 1000, 10, true);
                                 }
                             }
@@ -154,38 +149,6 @@ public class HappyTeddyWeapon extends BaseEgoWeapon {
             p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
         } else {
             p_41423_.add(Component.literal("§6※每次攻击会造成2段伤害。"));
-        }
-    }
-
-    private static class Tier implements net.minecraft.world.item.Tier {
-        @Override
-        public int getUses() {
-            return 0;
-        }
-
-        @Override
-        public float getSpeed() {
-            return 3.0F;
-        }
-
-        @Override
-        public float getAttackDamageBonus() {
-            return 0.0F;
-        }
-
-        @Override
-        public int getLevel() {
-            return 2;
-        }
-
-        @Override
-        public int getEnchantmentValue() {
-            return 14;
-        }
-
-        @Override
-        public Ingredient getRepairIngredient() {
-            return Ingredient.EMPTY;
         }
     }
 }

@@ -17,8 +17,12 @@ import software.bernie.geckolib.renderer.GeoItemRenderer;
  */
 public class BaseEgoWeaponRenderer extends GeoItemRenderer<BaseEgoWeapon> {
 
+    public BaseEgoWeaponRenderer(String weaponName, String postFix) {
+        super(new BaseEgoWeaponModel(weaponName, postFix));
+    }
+
     public BaseEgoWeaponRenderer(String weaponName) {
-        super(new BaseEgoWeaponModel(weaponName));
+        this(weaponName, null);
     }
 
     @Override

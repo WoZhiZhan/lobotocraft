@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -44,7 +45,7 @@ public class FourthMatchFlameCurio extends BaseEgoCurio {
     }
 
     @Override
-    public List<AttributeEntry> getAttributeEntries() {
+    public List<AttributeEntry> getAttributeEntries(LivingEntity living) {
         return List.of(
                 new AttributeEntry(UUID.fromString("e9667f5f-66dd-4cfd-8274-a6ef1297ae81"),
                         this.getCurrentClassName() + " Max Health Bonus", Attributes.MAX_HEALTH, 4)

@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.client.particle.AttackParticle;
 import com.wzz.lobotocraft.client.particle.BlueGlintParticle;
 import com.wzz.lobotocraft.client.particle.ButterflyParticle;
 import com.wzz.lobotocraft.client.particle.ColorLightParticle;
+import com.wzz.lobotocraft.color.ExtendedColor;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterParticleProvidersEvent;
@@ -25,5 +26,7 @@ public class ModParticles {
 		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.BLUE_LIGHT.get(),
 				(spriteSet -> new ColorLightParticle.Provider(spriteSet, 0.2F, 0.3F, 1.0F, 0.0F, 0.0F, 0.7F)));
 		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.GOLD_LIGHT.get(), ColorLightParticle.Provider::new);
+		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.DARK_BLUE_LIGHT.get(),
+				(spriteSet -> ColorLightParticle.createProvider(spriteSet,  ExtendedColor.MATERIAL_BLUE, ExtendedColor.BLUE)));
 	}
 }

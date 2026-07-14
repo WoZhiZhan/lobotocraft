@@ -9,6 +9,7 @@ import com.wzz.lobotocraft.util.ParticleUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
@@ -70,7 +71,7 @@ public class InnerCourageCurio extends BaseEgoCurio {
     }
 
     @Override
-    public List<AttributeEntry> getAttributeEntries() {
+    public List<AttributeEntry> getAttributeEntries(LivingEntity living) {
         return List.of(
                 new AttributeEntry(UUID.fromString("c0610001-0561-4000-8000-000000000001"),
                         this.getCurrentClassName() + " Move Speed Bonus", Attributes.MOVEMENT_SPEED, 0.10D,

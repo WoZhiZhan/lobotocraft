@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.client.particle;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.wzz.lobotocraft.color.ExtendedColor;
 import com.wzz.lobotocraft.init.ModParticleRenderTypes;
 import com.wzz.lobotocraft.init.ModShaders;
 import net.minecraft.client.Camera;
@@ -82,6 +83,16 @@ public class ColorLightParticle extends TextureSheetParticle {
     @Override
     public ParticleRenderType getRenderType() {
         return ModParticleRenderTypes.SHADER_PARTICLE_SPHERE;
+    }
+
+    public static Provider createProvider(SpriteSet sprites, ExtendedColor start, ExtendedColor end) {
+        float sr = start.getRed() / 255.0f;
+        float sg = start.getGreen() / 255.0f;
+        float sb = start.getBlue() / 255.0f;
+        float er = end.getRed() / 255.0f;
+        float eg = end.getGreen() / 255.0f;
+        float eb = end.getBlue() / 255.0f;
+        return new Provider(sprites, sr, sg, sb, er, eg, eb);
     }
 
     public static class Provider implements ParticleProvider<SimpleParticleType> {

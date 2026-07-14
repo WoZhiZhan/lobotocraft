@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.blue_star;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.ScreenDistortionEffectPacket;
@@ -25,7 +26,6 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
@@ -61,7 +61,7 @@ public class BlueStarWeapon extends BaseEgoWeapon {
     private static final double BEAM_RANGE = 25.0;
 
     public BlueStarWeapon() {
-        super(new Tier(), 0, -2.4f, new Properties().stacksTo(1).fireResistant());
+        super(new ModTier.WeaponTier(), 0, -2.4f, new Properties().stacksTo(1).fireResistant());
     }
 
     @Override
@@ -384,14 +384,5 @@ public class BlueStarWeapon extends BaseEgoWeapon {
         }
         components.add(Component.literal("§7新星自我们的绝望中闪耀。在它的光芒之下，众生皆为平等。"));
         components.add(Component.literal("§7按住<Shift>查看详情"));
-    }
-
-    private static class Tier implements net.minecraft.world.item.Tier {
-        @Override public int getUses()                    { return 0; }
-        @Override public float getSpeed()                 { return 2.0F; }
-        @Override public float getAttackDamageBonus()     { return 0.0F; }
-        @Override public int getLevel()                   { return 2; }
-        @Override public int getEnchantmentValue()        { return 14; }
-        @Override public Ingredient getRepairIngredient() { return Ingredient.EMPTY; }
     }
 }

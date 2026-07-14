@@ -32,7 +32,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 
-public abstract class BaseEgoCurio extends Item implements ICurioItem, GeoItem, IAttributeItem, IMentalValueItem, NameProvider, IWorkBonusItem, IBodyPartRenderer {
+public abstract class BaseEgoCurio extends Item implements ICurioItem, GeoItem, IAttributeItem,
+        IMentalValueItem, NameProvider, IWorkBonusItem, IBodyPartRenderer {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private static final RawAnimation IDLE_ANIMATION = RawAnimation.begin().thenLoop("idle");

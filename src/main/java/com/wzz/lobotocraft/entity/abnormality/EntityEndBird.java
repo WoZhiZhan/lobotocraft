@@ -359,7 +359,6 @@ public class EntityEndBird extends AbstractAbnormality {
                 }
             }
         };
-        timer.setRequireMainThread(true);
         timer.addSkillTimer(this, 0, 2000, 20);
     }
 
@@ -422,7 +421,6 @@ public class EntityEndBird extends AbstractAbnormality {
                 }
             }
         };
-        timer.setRequireMainThread(true);
         timer.addSkillTimer(this, 0, 3500, 20);
     }
 
@@ -501,7 +499,6 @@ public class EntityEndBird extends AbstractAbnormality {
                 }
             }
         };
-        timer.setRequireMainThread(true);
         timer.addSkillTimer(this, 0, 3250, 20);
     }
 
@@ -585,7 +582,6 @@ public class EntityEndBird extends AbstractAbnormality {
                 }
             }
         };
-        timer.setRequireMainThread(true);
         timer.addSkillTimer(this, 0, 1500, 20);
     }
 

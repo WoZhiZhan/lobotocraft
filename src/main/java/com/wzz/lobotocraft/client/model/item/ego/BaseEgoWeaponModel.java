@@ -13,25 +13,36 @@ import software.bernie.geckolib.model.GeoModel;
 public class BaseEgoWeaponModel extends GeoModel<BaseEgoWeapon> {
     
     private final String weaponName;
+    private final String postFix;
     private boolean hasAnimation = true;
 
-    public BaseEgoWeaponModel(String weaponName) {
+    public BaseEgoWeaponModel(String weaponName, String postFix) {
         this.weaponName = weaponName;
+        this.postFix = postFix;
     }
 
     @Override
     public ResourceLocation getModelResource(BaseEgoWeapon animatable) {
+        if (postFix != null) {
+            return ResourceUtil.createInstance(ModMain.MODID, "geo/weapon/" + weaponName + "_weapon_" + postFix + ".geo.json");
+        }
         return ResourceUtil.createInstance(ModMain.MODID, "geo/weapon/" + weaponName + "_weapon.geo.json");
     }
 
     @Override
     public ResourceLocation getTextureResource(BaseEgoWeapon animatable) {
+        if (postFix != null) {
+            return ResourceUtil.createInstance(ModMain.MODID, "textures/weapon/" + weaponName + "_weapon_" + postFix + ".png");
+        }
         return ResourceUtil.createInstance(ModMain.MODID, "textures/weapon/" + weaponName + "_weapon.png");
     }
 
     @Override
     public ResourceLocation getAnimationResource(BaseEgoWeapon animatable) {
         String animationPath = "animations/weapon/" + weaponName + "_weapon.animation.json";
+        if (postFix != null) {
+            animationPath = "animations/weapon/" + weaponName + "_weapon_" + postFix + ".animation.json";
+        }
         ResourceLocation animationResource = ResourceUtil.createInstance(ModMain.MODID, animationPath);
         if (ResourceUtil.exists(animationResource)) {
             return animationResource;

@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.fragment_of_the_universe;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
@@ -18,7 +19,6 @@ import net.minecraft.world.entity.monster.warden.Warden;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.common.ForgeMod;
 import org.jetbrains.annotations.NotNull;
@@ -32,7 +32,7 @@ public class FragmentUniverseWeapon extends BaseEgoWeapon {
     private static final UUID REACH_UUID = UUID.fromString("d88005cb-44d8-4fee-8e22-9067d95266a4");
     public FragmentUniverseWeapon() {
         super(
-                new Tier(),
+                new ModTier.WeaponTier(),
                 MathUtil.toDamageModifier(5),
                 MathUtil.toSpeedModifier(1.7f),
                 new Properties().stacksTo(1).fireResistant()
@@ -137,38 +137,6 @@ public class FragmentUniverseWeapon extends BaseEgoWeapon {
         } else {
             p_41423_.add(Component.literal("§6※玩家每次攻击15%概率为自己回复5点精神值，对陷入恐慌的玩家造成伤害时，额外回复恐慌玩家3点精神。"));
             p_41423_.add(Component.literal("§6※玩家手持武器shift右键时，可以播放宇宙碎片的特殊攻击音频，能够吸引一些对声音敏感的怪物。使用后对声音敏感的怪物将在10秒内对玩家无仇恨，并且会吸引它们来这个位置。"));
-        }
-    }
-
-    private static class Tier implements net.minecraft.world.item.Tier {
-        @Override
-        public int getUses() {
-            return 0;
-        }
-
-        @Override
-        public float getSpeed() {
-            return 3.0F;
-        }
-
-        @Override
-        public float getAttackDamageBonus() {
-            return 0.0F;
-        }
-
-        @Override
-        public int getLevel() {
-            return 2;
-        }
-
-        @Override
-        public int getEnchantmentValue() {
-            return 14;
-        }
-
-        @Override
-        public Ingredient getRepairIngredient() {
-            return Ingredient.EMPTY;
         }
     }
 }

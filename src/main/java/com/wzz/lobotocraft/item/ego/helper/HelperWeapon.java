@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
@@ -18,7 +19,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.common.ForgeMod;
 import org.jetbrains.annotations.NotNull;
@@ -33,7 +33,7 @@ public class HelperWeapon extends BaseEgoWeapon {
     private static final UUID REACH_UUID = UUID.fromString("4abcfd08-d9d9-4f67-9794-4edaab555777");
     public HelperWeapon() {
         super(
-                new Tier(),
+                new ModTier.WeaponTier(),
                 MathUtil.toDamageModifier(2),
                 MathUtil.toSpeedModifier(1.6f),
                 new Properties().stacksTo(1).fireResistant()
@@ -146,38 +146,6 @@ public class HelperWeapon extends BaseEgoWeapon {
         }
     }
 
-    private static class Tier implements net.minecraft.world.item.Tier {
-        @Override
-        public int getUses() {
-            return 0;
-        }
-
-        @Override
-        public float getSpeed() {
-            return 3.0F;
-        }
-
-        @Override
-        public float getAttackDamageBonus() {
-            return 0.0F;
-        }
-
-        @Override
-        public int getLevel() {
-            return 2;
-        }
-
-        @Override
-        public int getEnchantmentValue() {
-            return 14;
-        }
-
-        @Override
-        public Ingredient getRepairIngredient() {
-            return Ingredient.EMPTY;
-        }
-    }
-
     public static class DamageTimer extends TimerEntry<LivingEntity> {
         private final Player attacker;
         private final DamageSource damageSource;
@@ -187,7 +155,6 @@ public class HelperWeapon extends BaseEgoWeapon {
         private DamageTimer(DamageSource damageSource, Player attacker) {
             this.damageSource = damageSource;
             this.attacker = attacker;
-            this.setRequireMainThread(true);
         }
 
         public static void addNewTimer(LivingEntity living, DamageSource damageSource, Player attacker) {

@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.init.ModSounds;
@@ -407,7 +408,89 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         }
     }
 
-    // ==================== tick ====================
+    @Override
+    public float[] getArmorRenderScale() {
+        return new float[] {1.5f, 1.0f, 1.5f};
+    }
+
+    @Override
+    public float[] getArmorRenderOffset() {
+        return new float[] {-20.0f, 1.0f, 1.0f};
+    }
+
+    @Override
+    public float[] getWeaponRenderOffset() {
+        return new float[] {5.0f, 1.0f, 1f};
+    }
+
+    @Override
+    public int getWeaponDevelopmentCost() {
+        return 70;
+    }
+
+    @Override
+    public int getArmorDevelopmentCost() {
+        return 60;
+    }
+
+    @Override
+    public int getArmorDevelopmentMaxCount() {
+        return 1;
+    }
+
+    @Override
+    public int getWeaponDevelopmentMaxCount() {
+        return 1;
+    }
+
+    @Override
+    public float getGiftProbability() {
+        return 0.03f;
+    }
+
+    @Override
+    public EGOEquipmentData.GiftData getEGOGiftData() {
+        return new EGOEquipmentData.GiftData(
+                ResourceUtil.createInstance("textures/item/big_badwolf_curio.png"),
+                "郁蓝创痕",
+                "头饰",
+                "big_badwolf_curio",
+                "最大生命值+4",
+                "移动速度+2",
+                "攻击速度+2",
+                "玩家使用任意EGO武器时造成的红色伤害+10%"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.WeaponData getEGOWeaponData() {
+        return new EGOEquipmentData.WeaponData(
+                ResourceUtil.createInstance("textures/gui/ego/big_badwolf_weapon.png"),
+                "郁蓝创痕",
+                getRiskLevel(),
+                "RED",
+                "12-17",
+                "0.6",
+                "3格",
+                getWeaponDevelopmentMaxCount(),
+                "big_badwolf_weapon"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.ArmorData getEGOArmorData() {
+        return new EGOEquipmentData.ArmorData(
+                ResourceUtil.createInstance("textures/gui/ego/big_badwolf_armor.png"),
+                "郁蓝创痕",
+                getRiskLevel(),
+                0.4f,
+                0.8f,
+                0.7f,
+                2.0f,
+                getArmorDevelopmentMaxCount(),
+                "big_badwolf_armor"
+        );
+    }
 
     @Override
     public void tick() {

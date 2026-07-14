@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.red_shoes;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
+import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
@@ -15,7 +16,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.common.ForgeMod;
 import org.jetbrains.annotations.Nullable;
@@ -28,7 +28,7 @@ public class RedShoesWeapon extends BaseEgoWeapon {
     private static final UUID REACH_UUID = UUID.fromString("0c303a48-069b-4727-a9ae-b3cac84b6c1a");
     public RedShoesWeapon() {
         super(
-                new Tier(),
+                new ModTier.WeaponTier(),
                 MathUtil.toDamageModifier(6),
                 MathUtil.toSpeedModifier(1f),
                 new Properties().stacksTo(1).fireResistant()
@@ -104,38 +104,6 @@ public class RedShoesWeapon extends BaseEgoWeapon {
             p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
         } else {
             p_41423_.add(Component.literal("§6※玩家自律等级每高1级就提高1点伤害，低于3级时，每次攻击会扣除自身4%的精神值。"));
-        }
-    }
-
-    private static class Tier implements net.minecraft.world.item.Tier {
-        @Override
-        public int getUses() {
-            return 0;
-        }
-
-        @Override
-        public float getSpeed() {
-            return 3.0F;
-        }
-
-        @Override
-        public float getAttackDamageBonus() {
-            return 0.0F;
-        }
-
-        @Override
-        public int getLevel() {
-            return 2;
-        }
-
-        @Override
-        public int getEnchantmentValue() {
-            return 14;
-        }
-
-        @Override
-        public Ingredient getRepairIngredient() {
-            return Ingredient.EMPTY;
         }
     }
 }

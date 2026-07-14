@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.item.ego.largebird;
 
 import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.util.ClientInputUtil;
 import com.wzz.lobotocraft.util.CuriosUtil;
@@ -15,7 +16,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -28,10 +28,10 @@ public class LargeBirdWeapon extends BaseEgoWeapon {
 
     public LargeBirdWeapon() {
         super(
-            new Tier(),
-            22,
-            -3.2f,  // 攻击速度修正（基础4 + (-2) = 2.0）
-            new Properties().stacksTo(1).fireResistant()
+                new ModTier.WeaponTier(),
+                22,
+                -3.2f,  // 攻击速度修正（基础4 + (-2) = 2.0）
+                new Properties().stacksTo(1).fireResistant()
         );
     }
 
@@ -101,38 +101,6 @@ public class LargeBirdWeapon extends BaseEgoWeapon {
         } else {
             p_41423_.add(Component.literal("§6※攻击时有25%的概率给目标添加一个易伤效果，使其受到的侵蚀伤害加深50%，持续10秒。"));
             p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
-        }
-    }
-
-    private static class Tier implements net.minecraft.world.item.Tier {
-        @Override
-        public int getUses() {
-            return 0;
-        }
-
-        @Override
-        public float getSpeed() {
-            return 3.0F;
-        }
-
-        @Override
-        public float getAttackDamageBonus() {
-            return 0.0F;
-        }
-
-        @Override
-        public int getLevel() {
-            return 2;
-        }
-
-        @Override
-        public int getEnchantmentValue() {
-            return 14;
-        }
-
-        @Override
-        public Ingredient getRepairIngredient() {
-            return Ingredient.EMPTY;
         }
     }
 }

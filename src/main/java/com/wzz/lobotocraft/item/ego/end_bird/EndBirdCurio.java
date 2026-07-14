@@ -7,6 +7,7 @@ import com.wzz.lobotocraft.util.ClientInputUtil;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -75,7 +76,7 @@ public class EndBirdCurio extends BaseEgoCurio {
     }
 
     @Override
-    public List<AttributeEntry> getAttributeEntries() {
+    public List<AttributeEntry> getAttributeEntries(LivingEntity living) {
         return Arrays.asList(
                 new AttributeEntry(UUID.fromString("ec348c7c-f0df-425c-b6cf-c3e4a9247168"),
                         this.getCurrentClassName() + " Max Health Bonus", Attributes.MAX_HEALTH, 7),

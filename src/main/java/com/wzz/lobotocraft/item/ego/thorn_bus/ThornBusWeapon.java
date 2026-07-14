@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.item.ego.thorn_bus;
 
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.nbt.CompoundTag;
@@ -13,7 +14,6 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
@@ -42,7 +42,7 @@ public class ThornBusWeapon extends BaseEgoWeapon {
 
     public ThornBusWeapon() {
         super(
-                new Tier(),
+                new ModTier.WeaponTier(),
                 3,
                 -2.4f,  // 攻击速度修正（基础4 + (-2) = 2.0）
                 new Properties().stacksTo(1).fireResistant()
@@ -145,38 +145,6 @@ public class ThornBusWeapon extends BaseEgoWeapon {
             p_41423_.add(Component.literal("§6※持有者攻击时会附加额外的精神伤害。"));
             p_41423_.add(Component.literal("§6※击杀生物后获得一朵随机颜色的郁金香。"));
             p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
-        }
-    }
-
-    private static class Tier implements net.minecraft.world.item.Tier {
-        @Override
-        public int getUses() {
-            return 0;
-        }
-
-        @Override
-        public float getSpeed() {
-            return 3.0F;
-        }
-
-        @Override
-        public float getAttackDamageBonus() {
-            return 0.0F;
-        }
-
-        @Override
-        public int getLevel() {
-            return 2;
-        }
-
-        @Override
-        public int getEnchantmentValue() {
-            return 14;
-        }
-
-        @Override
-        public Ingredient getRepairIngredient() {
-            return Ingredient.EMPTY;
         }
     }
 }

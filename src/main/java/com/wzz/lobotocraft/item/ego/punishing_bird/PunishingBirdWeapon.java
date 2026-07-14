@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.item.ego.punishing_bird;
 
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
@@ -15,7 +16,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
@@ -33,7 +33,7 @@ public class PunishingBirdWeapon extends BaseEgoWeapon {
 
     public PunishingBirdWeapon() {
         super(
-                new Tier(),
+                new ModTier.WeaponTier(),
                 2,
                 -2.0f,
                 new Properties().stacksTo(1).fireResistant()
@@ -116,37 +116,5 @@ public class PunishingBirdWeapon extends BaseEgoWeapon {
         components.add(Component.literal("§7虽然这只鸟的身材娇小，可它有着很恐怖的嘴巴。它不会宽恕那些阻碍自己前进的蠢货。"));
         components.add(Component.literal("§7这把武器配套的子弹有着尖锐的弹头，就像是一颗颗小尖牙。"));
         components.add(Component.literal("§7它会给目标造成巨大的痛苦。"));
-    }
-
-    private static class Tier implements net.minecraft.world.item.Tier {
-        @Override
-        public int getUses() {
-            return 0;
-        }
-
-        @Override
-        public float getSpeed() {
-            return 4.0F;
-        }
-
-        @Override
-        public float getAttackDamageBonus() {
-            return 0.0F;
-        }
-
-        @Override
-        public int getLevel() {
-            return 2;
-        }
-
-        @Override
-        public int getEnchantmentValue() {
-            return 14;
-        }
-
-        @Override
-        public Ingredient getRepairIngredient() {
-            return Ingredient.EMPTY;
-        }
     }
 }

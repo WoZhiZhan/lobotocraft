@@ -1330,5 +1330,45 @@
         "stream": false
       }
     ]
+  },
+  "big_badwolf_weapon": {
+    "sounds": [
+      {
+        "name": "lobotocraft:big_badwolf_weapon",
+        "stream": false
+      }
+    ]
+  },
+  "big_badwolf_curio": {
+    "sounds": [
+      {
+        "name": "lobotocraft:big_badwolf_curio",
+        "stream": false
+      }
+    ]
+  },
+  "redhat_mercenary_weapon_knife": {
+    "sounds": [
+      {
+        "name": "lobotocraft:redhat_mercenary_weapon_knife",
+        "stream": false
+      }
+    ]
+  },
+  "redhat_mercenary_weapon_gun": {
+    "sounds": [
+      {
+        "name": "lobotocraft:redhat_mercenary_weapon_gun",
+        "stream": false
+      }
+    ]
+  },
+  "redhat_mercenary_weapon_fury": {
+    "sounds": [
+      {
+        "name": "lobotocraft:redhat_mercenary_weapon_fury",
+        "stream": false
+      }
+    ]
   }
 }

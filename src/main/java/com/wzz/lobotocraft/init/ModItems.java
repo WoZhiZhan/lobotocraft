@@ -12,6 +12,7 @@ import com.wzz.lobotocraft.item.debug.*;
 import com.wzz.lobotocraft.item.ego.OttoItem;
 import com.wzz.lobotocraft.item.ego.abandoned_murderer.*;
 import com.wzz.lobotocraft.item.ego.approval_birds.*;
+import com.wzz.lobotocraft.item.ego.bigbadwolf.*;
 import com.wzz.lobotocraft.item.ego.butterfly_funeral.*;
 import com.wzz.lobotocraft.item.ego.children_galaxy.*;
 import com.wzz.lobotocraft.item.ego.crumbling_armor.*;
@@ -26,6 +27,7 @@ import com.wzz.lobotocraft.item.ego.ppodae.*;
 import com.wzz.lobotocraft.item.ego.punishing_bird.*;
 import com.wzz.lobotocraft.item.ego.queen_bee.*;
 import com.wzz.lobotocraft.item.ego.red_shoes.*;
+import com.wzz.lobotocraft.item.ego.redhat_mercenary.*;
 import com.wzz.lobotocraft.item.ego.repentance.*;
 import com.wzz.lobotocraft.item.ego.snowqueen.*;
 import com.wzz.lobotocraft.item.ego.the_lady_facing_the_wall.*;
@@ -195,19 +197,6 @@ public class ModItems {
     public static final RegistryObject<Item> SPECIAL_RECORD = REGISTRY.register("special_record", SpecialRecordItem::new);
     public static final RegistryObject<Item> TARGET_MARKER = REGISTRY.register("target_marker", TargetMarkerItem::new);
     public static final RegistryObject<Item> WORK_DEVICE = REGISTRY.register("work_device", WorkDeviceItem::new);
-    /** 又大又可能很坏的狼的特殊E.G.O饰品"羊皮"(不显示在图鉴内,不受观察等级影响) */
-    public static final RegistryObject<Item> SHEEPSKIN_CURIO = REGISTRY.register("sheepskin_curio",
-            () -> new Item(new Item.Properties().stacksTo(1).rarity(net.minecraft.world.item.Rarity.EPIC)) {
-                @Override
-                public void appendHoverText(net.minecraft.world.item.ItemStack stack,
-                        @org.jetbrains.annotations.Nullable net.minecraft.world.level.Level level,
-                        java.util.List<net.minecraft.network.chat.Component> tooltip,
-                        net.minecraft.world.item.TooltipFlag flag) {
-                    tooltip.add(net.minecraft.network.chat.Component.literal("§7从狼腹中取回的羊皮。"));
-                    tooltip.add(net.minecraft.network.chat.Component.literal("§8持有者完成对小红帽雇佣兵的工作后，其计数器会减少。"));
-                    super.appendHoverText(stack, level, tooltip, flag);
-                }
-            });
 
     public static final RegistryObject<Item> REPENTANCE_CHESTPLATE = REGISTRY.register("repentance_chestplate", RepentanceChestplate::new);
     public static final RegistryObject<Item> REPENTANCE_LEGGINGS = REGISTRY.register("repentance_leggings", RepentanceLeggings::new);
@@ -331,4 +320,16 @@ public class ModItems {
     public static final RegistryObject<Item> BUTTERFLY_FUNERAL_BOOTS = REGISTRY.register("butterfly_funeral_boots", ButterflyFuneralBoots::new);
     public static final RegistryObject<Item> BUTTERFLY_FUNERAL_WEAPON = REGISTRY.register("butterfly_funeral_weapon", ButterflyFuneralWeapon::new);
     public static final RegistryObject<Item> BUTTERFLY_FUNERAL_CURIO = REGISTRY.register("butterfly_funeral_curio", ButterflyFuneralCurio::new);
+    public static final RegistryObject<Item> BIG_BADWOLF_CHESTPLATE = REGISTRY.register("big_badwolf_chestplate", BigBadwolfChestplate::new);
+    public static final RegistryObject<Item> BIG_BADWOLF_LEGGINGS = REGISTRY.register("big_badwolf_leggings", BigBadwolfLeggings::new);
+    public static final RegistryObject<Item> BIG_BADWOLF_BOOTS = REGISTRY.register("big_badwolf_boots", BigBadwolfBoots::new);
+    public static final RegistryObject<Item> BIG_BADWOLF_WEAPON = REGISTRY.register("big_badwolf_weapon", BigBadwolfWeapon::new);
+    public static final RegistryObject<Item> BIG_BADWOLF_CURIO = REGISTRY.register("big_badwolf_curio", BigBadwolfCurio::new);
+    public static final RegistryObject<Item> REDHAT_MERCENARY_CHESTPLATE = REGISTRY.register("redhat_mercenary_chestplate", RedhatMercenaryChestplate::new);
+    public static final RegistryObject<Item> REDHAT_MERCENARY_LEGGINGS = REGISTRY.register("redhat_mercenary_leggings", RedhatMercenaryLeggings::new);
+    public static final RegistryObject<Item> REDHAT_MERCENARY_BOOTS = REGISTRY.register("redhat_mercenary_boots", RedhatMercenaryBoots::new);
+    public static final RegistryObject<Item> REDHAT_MERCENARY_WEAPON_KNIFE = REGISTRY.register("redhat_mercenary_weapon_knife", RedhatMercenaryWeaponKnife::new);
+    public static final RegistryObject<Item> REDHAT_MERCENARY_WEAPON_GUN = REGISTRY.register("redhat_mercenary_weapon_gun", RedhatMercenaryWeaponGun::new);
+    public static final RegistryObject<Item> REDHAT_MERCENARY_CURIO = REGISTRY.register("redhat_mercenary_curio", RedhatMercenaryCurio::new);
+    public static final RegistryObject<Item> SHEEPSKIN_CURIO = REGISTRY.register("sheepskin_curio", SheepskinCurio::new);
 }
