@@ -330,7 +330,7 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
 
     @Override
     public float[] getWeaponRenderOffset() {
-        return new float[] {5.0f, 1.0f, 1f};
+        return new float[] {20.0f, 1.0f, 3f};
     }
 
     @Override
