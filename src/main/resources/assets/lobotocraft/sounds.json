@@ -1322,5 +1322,13 @@
         "stream": false
       }
     ]
+  },
+  "butterfly_funeral_weapon_mode": {
+    "sounds": [
+      {
+        "name": "lobotocraft:butterfly_funeral_weapon_mode",
+        "stream": false
+      }
+    ]
   }
 }
