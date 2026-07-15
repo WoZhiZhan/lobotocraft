@@ -218,7 +218,6 @@ public class SheepskinSetHandler {
                 event.setAmount(event.getAmount() * SINGLE_DAMAGE_BONUS);
             }
 
-            // 套装第2条：潜狼模式中，造成的红色伤害 +6
             if (target instanceof Player player && isBigBadwolfSetActive(player) && !isLurking(player)) {
                 float accum = player.getPersistentData().getFloat(TAG_LURK_ACCUM) + event.getAmount();
                 if (accum >= lurkThreshold(player)) {
@@ -244,6 +243,7 @@ public class SheepskinSetHandler {
                 accum = 0f;
                 player.getPersistentData().putLong(TAG_LURK_UNTIL,
                         player.level().getGameTime() + LURK_DURATION_TICKS);
+                enterLurk(player);
             }
             player.getPersistentData().putFloat(TAG_LURK_ACCUM, accum);
         }
@@ -260,8 +260,7 @@ public class SheepskinSetHandler {
     private static void enterLurk(Player player) {
         player.getPersistentData().putLong(TAG_LURK_UNTIL,
                 player.level().getGameTime() + LURK_DURATION_TICKS);
-        SoundUtil.playSound(player, ModSounds.BIG_BADWOLF_CURIO.get());
-
+        SoundUtil.playModSound(ModSounds.BIG_BADWOLF_CURIO.get(), player);
         // 6秒内每秒撒一次 END_ROD 粒子；靠 isLurking 自动停
         LurkParticleTimer timer = new LurkParticleTimer();
         timer.addSkillTimer(player, 0, LURK_DURATION_TICKS * 50, 1, true);

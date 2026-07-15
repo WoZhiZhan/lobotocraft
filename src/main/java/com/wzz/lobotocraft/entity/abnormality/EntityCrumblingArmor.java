@@ -156,7 +156,7 @@ public class EntityCrumblingArmor extends AbstractAbnormality {
                 0.9f,
                 2.0f,
                 getArmorDevelopmentMaxCount(),
-                "crumbling_armor"
+                "crumbling_armor_armor"
         );
     }
 
