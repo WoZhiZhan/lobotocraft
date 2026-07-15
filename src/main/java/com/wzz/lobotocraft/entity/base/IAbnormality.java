@@ -811,7 +811,7 @@ public interface IAbnormality {
     default List<ItemStack> getEGOArmorStacks() {
         EGOEquipmentData.ArmorData data = getEGOArmorData();
         if (data == null) return Collections.emptyList();
-        String base = data.armorId();
+        String base = data.armorId().replaceFirst("_armor$", "");
         return EGOEquipmentData.stacks(
                 base + "_chestplate",
                 base + "_leggings",

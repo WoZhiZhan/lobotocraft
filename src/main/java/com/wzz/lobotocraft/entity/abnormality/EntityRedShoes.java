@@ -254,6 +254,11 @@ public class EntityRedShoes extends AbstractAbnormality {
     }
 
     @Override
+    public float[] getGiftRenderOffset() {
+        return new float[] {20f, 1.0f, 1.0f};
+    }
+
+    @Override
     public float getGiftProbability() {
         return 0.04f;
     }
@@ -270,7 +275,7 @@ public class EntityRedShoes extends AbstractAbnormality {
 
     @Override
     public float[] getWeaponRenderOffset() {
-        return new float[] {5.0f, 1.0f, 1f};
+        return new float[] {1.0f, 1.0f, 1f};
     }
 
     @Override

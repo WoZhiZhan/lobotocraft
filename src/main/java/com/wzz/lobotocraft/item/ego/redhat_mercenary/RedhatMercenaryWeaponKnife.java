@@ -43,9 +43,8 @@ public class RedhatMercenaryWeaponKnife extends RedhatMercenaryWeapon {
 
     /** 上一 tick 是否被手持，用来判断“切进来 / 切出去” */
     private static final String TAG_SELECTED = "redhat_knife_selected";
-    /** 暴怒音效冷却 */
-    private static final String TAG_FURY_SOUND_CD = "redhat_knife_fury_sound_cd";
     private static final int REDRAW_ON_JOIN_TICK = 20;
+    private static final String TAG_FURY_SOUND_PLAYED = "redhat_knife_fury_sound_played";
 
     @Override
     protected void registerAdditionalAnimations(AnimationController<BaseEgoWeapon> controller) {
@@ -132,6 +131,8 @@ public class RedhatMercenaryWeaponKnife extends RedhatMercenaryWeapon {
                 stopAnimation(player, stack, "1");
                 stopAnimation(player, stack, "attack");
                 triggerAnimation(player, stack, "2");   // 收刀
+                // 离开手持状态时重置暴怒音效标记
+                tag.putBoolean(TAG_FURY_SOUND_PLAYED, false);
             }
         } else if (isSelected && player.tickCount == REDRAW_ON_JOIN_TICK) {
             // 重进游戏/重生：NBT 里还是"手持中"，但客户端动画状态已经没了，补一次拔刀
@@ -140,20 +141,25 @@ public class RedhatMercenaryWeaponKnife extends RedhatMercenaryWeapon {
         }
 
         if (isSelected) {
-            if (isFury(player)) {
-                int cooldown = tag.getInt(TAG_FURY_SOUND_CD);
-                if (cooldown <= 0) {
+            boolean isFury = isFury(player);
+            boolean furySoundPlayed = tag.getBoolean(TAG_FURY_SOUND_PLAYED);
+
+            if (isFury) {
+                // 进入暴怒状态且音效还未播放
+                if (!furySoundPlayed) {
                     SoundUtil.playSound(player, ModSounds.REDHAT_MERCENARY_WEAPON_FURY.get());
-                    tag.putInt(TAG_FURY_SOUND_CD, FURY_SOUND_INTERVAL);
-                } else {
-                    tag.putInt(TAG_FURY_SOUND_CD, cooldown - 1);
+                    tag.putBoolean(TAG_FURY_SOUND_PLAYED, true);
                 }
 
+                // 暴怒粒子效果（持续播放）
                 if (player.tickCount % FURY_PARTICLE_INTERVAL == 0) {
                     ParticleUtil.spawnParticlesAroundEntity(player, ModParticleTypes.RED_LIGHT.get(), 6, 0.15D);
                 }
             } else {
-                tag.remove(TAG_FURY_SOUND_CD);
+                // 离开暴怒状态时重置标记，以便下次进入时再次播放
+                if (furySoundPlayed) {
+                    tag.putBoolean(TAG_FURY_SOUND_PLAYED, false);
+                }
             }
         }
     }

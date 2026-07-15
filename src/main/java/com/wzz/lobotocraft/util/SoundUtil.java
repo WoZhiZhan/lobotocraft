@@ -11,17 +11,11 @@ import net.minecraft.world.level.LevelAccessor;
 import net.minecraftforge.registries.ForgeRegistries;
 
 public class SoundUtil {
-    
-    /**
-     * 播放模组音效（通用）
-     */
+
     public static void playModSound(LevelAccessor world, String soundName, LivingEntity entity) {
         playModSound(world, soundName, entity, SoundSource.RECORDS);
     }
-    
-    /**
-     * 播放模组音效（指定音源类别）
-     */
+
     public static void playModSound(LevelAccessor world, String soundName, 
                                    LivingEntity entity, SoundSource soundSource) {
         if (world instanceof Level level && entity != null) {
@@ -49,16 +43,14 @@ public class SoundUtil {
         }
     }
 
-    /**
-     * 播放模组音效（通用）
-     */
     public static void playModSound(LevelAccessor world, SoundEvent soundEvent, LivingEntity entity) {
         playModSound(world, soundEvent, entity, SoundSource.RECORDS);
     }
 
-    /**
-     * 播放模组音效（指定音源类别）
-     */
+    public static void playModSound(SoundEvent soundEvent, LivingEntity entity) {
+        playModSound(entity.level, soundEvent, entity, SoundSource.RECORDS);
+    }
+
     public static void playModSound(LevelAccessor world, SoundEvent soundEvent,
                                     LivingEntity entity, SoundSource soundSource) {
         if (world instanceof Level level && entity != null) {
