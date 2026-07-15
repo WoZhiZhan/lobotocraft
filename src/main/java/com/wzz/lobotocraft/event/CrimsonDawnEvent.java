@@ -35,7 +35,7 @@ import java.util.List;
  *
  * 标题不再用原版 title，统一走 {@link OrdealTitlePacket} -> OrdealTitleOverlay：
  * 半透明黑色横幅 + 左右斜纹警戒条 + 顶部小字 / 中间大标题 / 底部小字，带淡入淡出。
- * 其它考验（绿色/紫罗兰的黎明、深蓝色的正午）直接调
+ * 其它考验（绿色/紫罗兰的黎明、深蓝色/绿色的正午）直接调
  * {@link #sendOrdealTitle(MinecraftServer, String, String, String, int)} 即可，
  * 传入自己的主题色。
  */
@@ -55,6 +55,8 @@ public class CrimsonDawnEvent {
     public static final int GREEN_DAWN_COLOR = 0x6BFF8E;   // 绿色的黎明
     public static final int VIOLET_DAWN_COLOR = 0xC77DFF;  // 紫罗兰的黎明
     public static final int BLUE_MIDDAY_COLOR = 0x5AB4FF;  // 深蓝色的正午
+    public static final int VIOLET_MIDDAY_COLOR = 0xC77DFF; // 紫罗兰的正午
+    public static final int GREEN_MIDDAY_COLOR = 0x6BFF8E;  // 绿色的正午
 
     /* ===== 标题动画时长（tick）：淡入 / 停留 / 淡出 ===== */
     public static final int TITLE_FADE_IN = 10;
@@ -98,17 +100,22 @@ public class CrimsonDawnEvent {
     }
 
     private static void handleMiddayChance(ServerLevel level, MinecraftServer server, OrdealData data) {
+        int nextMiddayType = getOrCreateNextMiddayType(level, data);
         if (data.getMiddayTriggersToday() >= BlueMiddayEvent.MAX_TRIGGERS_PER_DAY) {
-            broadcastMiddayChance(server, data.getDawnChance(), true);
+            broadcastMiddayChance(server, data.getDawnChance(), nextMiddayType, true);
             return;
         }
 
         int chance = Math.min(100, data.getDawnChance() + CHANCE_STEP);
         data.setDawnChance(chance);
-        broadcastMiddayChance(server, chance, false);
+        broadcastMiddayChance(server, chance, nextMiddayType, false);
 
         if (level.getRandom().nextInt(100) < chance) {
-            BlueMiddayEvent.triggerBlueMidday(level);
+            switch (nextMiddayType) {
+                case OrdealData.VIOLET_MIDDAY_TYPE -> VioletNoonEvent.triggerVioletNoon(level);
+                case OrdealData.GREEN_MIDDAY_TYPE -> GreenNoonEvent.triggerGreenNoon(level);
+                default -> BlueMiddayEvent.triggerBlueMidday(level);
+            }
         }
     }
 
@@ -129,6 +136,13 @@ public class CrimsonDawnEvent {
             data.setRandomNextDawnType(level.getRandom());
         }
         return data.getNextDawnType();
+    }
+
+    private static int getOrCreateNextMiddayType(ServerLevel level, OrdealData data) {
+        if (!data.hasNextMiddayType()) {
+            data.setRandomNextMiddayType(level.getRandom());
+        }
+        return data.getNextMiddayType();
     }
 
     private static void triggerBloodDawn(ServerLevel level) {
@@ -342,11 +356,11 @@ public class CrimsonDawnEvent {
         }
     }
 
-    private static void broadcastMiddayChance(MinecraftServer server, int chance, boolean capped) {
+    private static void broadcastMiddayChance(MinecraftServer server, int chance, int middayType, boolean capped) {
         if (server == null) return;
-        Component message = Component.literal("深蓝色的正午：")
-                .withStyle(ChatFormatting.DARK_BLUE)
-                .append(Component.literal(chance + "%").withStyle(ChatFormatting.AQUA));
+        Component message = Component.literal(getMiddayLabel(middayType) + "：")
+                .withStyle(getMiddayLabelColor(middayType))
+                .append(Component.literal(chance + "%").withStyle(getMiddayChanceColor(middayType)));
         if (capped) {
             message = message.copy().append(Component.literal(" (今日正午已达上限)").withStyle(ChatFormatting.GRAY));
         }
@@ -361,6 +375,14 @@ public class CrimsonDawnEvent {
             case OrdealData.VIOLET_DAWN_TYPE -> "紫罗兰的黎明";
             case OrdealData.AMBER_DAWN_TYPE -> "琥珀色的黎明";
             default -> "血色的黎明";
+        };
+    }
+
+    public static String getMiddayLabel(int middayType) {
+        return switch (middayType) {
+            case OrdealData.VIOLET_MIDDAY_TYPE -> "紫罗兰的正午";
+            case OrdealData.GREEN_MIDDAY_TYPE -> "绿色的正午";
+            default -> "深蓝色的正午";
         };
     }
 
@@ -379,6 +401,22 @@ public class CrimsonDawnEvent {
             case OrdealData.VIOLET_DAWN_TYPE -> ChatFormatting.LIGHT_PURPLE;
             case OrdealData.AMBER_DAWN_TYPE -> ChatFormatting.YELLOW;
             default -> ChatFormatting.RED;
+        };
+    }
+
+    private static ChatFormatting getMiddayLabelColor(int middayType) {
+        return switch (middayType) {
+            case OrdealData.VIOLET_MIDDAY_TYPE -> ChatFormatting.DARK_PURPLE;
+            case OrdealData.GREEN_MIDDAY_TYPE -> ChatFormatting.GREEN;
+            default -> ChatFormatting.DARK_BLUE;
+        };
+    }
+
+    private static ChatFormatting getMiddayChanceColor(int middayType) {
+        return switch (middayType) {
+            case OrdealData.VIOLET_MIDDAY_TYPE -> ChatFormatting.LIGHT_PURPLE;
+            case OrdealData.GREEN_MIDDAY_TYPE -> ChatFormatting.GREEN;
+            default -> ChatFormatting.AQUA;
         };
     }
 

@@ -123,6 +123,14 @@ public class ModItems {
             () -> new TextSpawnEggItem(ModEntities.amber_dawn, 0x6B3F1D, 0xE0A43A, new Item.Properties(),
                     "§c食物-新鲜。替代品-很好。"));
 
+    public static final RegistryObject<Item> VIOLET_NOON_SPAWN_EGG = REGISTRY.register("violet_noon_spawn_egg",
+            () -> new TextSpawnEggItem(ModEntities.violet_noon, 0x2B123F, 0xC77DFF, new Item.Properties(),
+                    "§d请给我们爱！！！"));
+
+    public static final RegistryObject<Item> GREEN_NOON_SPAWN_EGG = REGISTRY.register("green_noon_spawn_egg",
+            () -> new TextSpawnEggItem(ModEntities.green_noon, 0x101510, 0x6BFF8E, new Item.Properties(),
+                    "§a理解的过程"));
+
     public static final RegistryObject<Item> ISHARMLA_SPAWN_EGG = REGISTRY.register("isharmla_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.isharmla, 0x3a1a4a, 0x7fd8ff, new Item.Properties(),
                     "§c深海的歌声将一切引向沉眠……"));

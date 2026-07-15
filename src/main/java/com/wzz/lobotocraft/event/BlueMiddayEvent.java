@@ -121,6 +121,7 @@ public class BlueMiddayEvent {
 
         data.setDawnChance(0);
         data.incrementMiddayTriggersToday();
+        data.setRandomNextMiddayType(level.getRandom());
         data.startBlueMidday(spawned);
         trialActive = true;
 

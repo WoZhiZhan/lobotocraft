@@ -87,6 +87,54 @@
       }
     ]
   },
+  "green_noon_start": {
+    "sounds": [
+      {
+        "name": "lobotocraft:green_noon_start",
+        "stream": true
+      }
+    ]
+  },
+  "green_noon_shoot": {
+    "sounds": [
+      {
+        "name": "lobotocraft:green_noon_shoot",
+        "stream": false
+      }
+    ]
+  },
+  "green_noon_chainsaw": {
+    "sounds": [
+      {
+        "name": "lobotocraft:green_noon_chainsaw",
+        "stream": false
+      }
+    ]
+  },
+  "green_noon_overload": {
+    "sounds": [
+      {
+        "name": "lobotocraft:green_noon_overload",
+        "stream": false
+      }
+    ]
+  },
+  "green_noon_death": {
+    "sounds": [
+      {
+        "name": "lobotocraft:green_noon_death",
+        "stream": false
+      }
+    ]
+  },
+  "green_noon_end": {
+    "sounds": [
+      {
+        "name": "lobotocraft:green_noon_end",
+        "stream": true
+      }
+    ]
+  },
   "violet_dawn_start": {
     "sounds": [
       {
@@ -115,6 +163,22 @@
     "sounds": [
       {
         "name": "lobotocraft:violet_dawn_end",
+        "stream": true
+      }
+    ]
+  },
+  "violet_noon_start": {
+    "sounds": [
+      {
+        "name": "lobotocraft:violet_noon_start",
+        "stream": true
+      }
+    ]
+  },
+  "violet_noon_end": {
+    "sounds": [
+      {
+        "name": "lobotocraft:violet_noon_end",
         "stream": true
       }
     ]

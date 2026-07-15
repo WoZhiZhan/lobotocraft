@@ -33,6 +33,9 @@ public class ModTabs {
 						tabData.accept(ModItems.BLUE_STAR_SPAWN_EGG.get());
 						tabData.accept(ModItems.THORN_BUS_SPAWN_EGG.get());
 						tabData.accept(ModItems.END_BIRD_SPAWN_EGG.get());
+						tabData.accept(ModItems.AMBER_DAWN_SPAWN_EGG.get());
+						tabData.accept(ModItems.VIOLET_NOON_SPAWN_EGG.get());
+						tabData.accept(ModItems.GREEN_NOON_SPAWN_EGG.get());
 						tabData.accept(ModItems.ISHARMLA_SPAWN_EGG.get());
 						tabData.accept(ModItems.BUTTERFLY_FUNERAL_SPAWN_EGG.get());
 						tabData.accept(ModItems.REDHAT_MERCENARY_SPAWN_EGG.get());

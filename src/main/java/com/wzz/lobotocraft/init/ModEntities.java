@@ -13,7 +13,9 @@ import com.wzz.lobotocraft.entity.abnormality.*;
 import com.wzz.lobotocraft.entity.ordeal.EntityAmberDawn;
 import com.wzz.lobotocraft.entity.ordeal.EntityBloodySmall;
 import com.wzz.lobotocraft.entity.ordeal.EntityGreenDawn;
+import com.wzz.lobotocraft.entity.ordeal.EntityGreenNoon;
 import com.wzz.lobotocraft.entity.ordeal.EntityVioletDawn;
+import com.wzz.lobotocraft.entity.ordeal.EntityVioletNoon;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.registries.DeferredRegister;
@@ -191,6 +193,22 @@ public class ModEntities {
                             .clientTrackingRange(8)
                             .updateInterval(3)
                             .build("violet_dawn"));
+
+    public static final RegistryObject<EntityType<EntityVioletNoon>> violet_noon =
+            ENTITIES.register("violet_noon",
+                    () -> EntityType.Builder.of(EntityVioletNoon::new, MobCategory.MONSTER)
+                            .sized(2.5F, 5.0F)
+                            .clientTrackingRange(12)
+                            .updateInterval(3)
+                            .build("violet_noon"));
+
+    public static final RegistryObject<EntityType<EntityGreenNoon>> green_noon =
+            ENTITIES.register("green_noon",
+                    () -> EntityType.Builder.of(EntityGreenNoon::new, MobCategory.MONSTER)
+                            .sized(1.0F, 2.4F)
+                            .clientTrackingRange(12)
+                            .updateInterval(3)
+                            .build("green_noon"));
 
     public static final RegistryObject<EntityType<EntityAmberDawn>> amber_dawn =
             ENTITIES.register("amber_dawn",
