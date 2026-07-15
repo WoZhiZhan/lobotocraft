@@ -26,14 +26,16 @@ import software.bernie.geckolib.core.object.PlayState;
 import java.util.*;
 
 public class ArmyInBlackWeapon extends BaseEgoWeapon {
-
+    private static final int SPLASH_RADIUS = 2;          // 5×5 => 中心±2格
+    private static final int MAX_SPLASH_COUNT = 6;        // 多目标最多6次
     private static final double ATTACK_RANGE = 35;
     private static final int USE_COOLDOWN_TICKS = 6 * 20;
     private static final float HEALTH_THRESHOLD = 0.5f;
     private static final float WHITE_DAMAGE_BONUS = 4.0f;
     private static final float BLACK_DAMAGE_BONUS = 6.0f;
-    private static final int SPLASH_RADIUS = 5;
-    private static final int MAX_SPLASH_COUNT = 6;
+    private static final int SPLASH_INTERVAL_MS = 500;    // 每0.5秒
+    private static final int SPLASH_DELAY_MS = 500;       // 命中0.5秒后开始
+    private static final int SINGLE_MAX_COUNT = 12;
 
     public ArmyInBlackWeapon() {
         super(
@@ -121,43 +123,44 @@ public class ArmyInBlackWeapon extends BaseEgoWeapon {
             ParticleUtil.spawnParticlesAroundEntity(primaryTarget, ModParticleTypes.ARMY_IN_BLACK_SPUTTERING.get(), 5, 0.2f);
             primaryTarget.hurt(source, damage);
         });
-        SplashTimer.addNewTimer(primaryTarget, player, damage, SPLASH_RADIUS, MAX_SPLASH_COUNT);
+        SplashTimer.addNewTimer(primaryTarget, player, damage, SPLASH_RADIUS, MAX_SPLASH_COUNT, SINGLE_MAX_COUNT);
     }
 
     public static class SplashTimer extends TimerEntry<LivingEntity> {
-        private static final float SPLASH_RESTORE = 3.0f;
         private final Player attacker;
         private final float damage;
         private final int radius;
-        private final int maxSplashCount;
+        private final int maxSplashCount;   // 多目标溅射上限
+        private final int singleMaxCount;   // 单体连击上限
         private int splashCount = 0;
         private LivingEntity lastTarget;
 
-        private SplashTimer(Player attacker, float damage, int radius, int maxSplashCount) {
+        private SplashTimer(Player attacker, float damage, int radius, int maxSplashCount, int singleMaxCount) {
             this.attacker = attacker;
             this.damage = damage;
             this.radius = radius;
             this.maxSplashCount = maxSplashCount;
+            this.singleMaxCount = singleMaxCount;
             this.setRequireMainThread(true);
         }
 
-        public static void addNewTimer(LivingEntity target, Player attacker, float damage, int radius, int maxSplashCount) {
-            SplashTimer timer = new SplashTimer(attacker, damage, radius, maxSplashCount);
-            timer.addSkillTimer(target, 10, 10 * maxSplashCount, 2, true);
+        public static void addNewTimer(LivingEntity target, Player attacker, float damage,
+                                       int radius, int maxSplashCount, int singleMaxCount) {
+            SplashTimer timer = new SplashTimer(attacker, damage, radius, maxSplashCount, singleMaxCount);
+            // 取两种模式里较长的那个：单体12次 * 0.5秒 = 6秒；+ 起始0.5秒延迟 + 余量
+            int duration = SPLASH_DELAY_MS + singleMaxCount * SPLASH_INTERVAL_MS + 200;
+            timer.addSkillTimer(target, SPLASH_DELAY_MS, duration, 2, true);
         }
 
         @Override
         public void onStart(@NotNull LivingEntity entity) {
-            performSplash(entity);
             splashCount = 1;
+            performSplash(entity);
         }
 
         @Override
         public void onRunning(@NotNull LivingEntity entity) {
             splashCount++;
-            if (splashCount > maxSplashCount) {
-                return;
-            }
             performSplash(entity);
         }
 
@@ -169,50 +172,43 @@ public class ArmyInBlackWeapon extends BaseEgoWeapon {
         private void performSplash(LivingEntity center) {
             if (center == null || !center.isAlive() || center.isRemoved()) return;
             if (attacker == null || !attacker.isAlive()) return;
-
             Level level = center.level();
             if (level.isClientSide()) return;
 
+            // 5×5 范围内、排除中心与攻击者
             List<LivingEntity> targets = EntityUtil.findEntitiesAround(center, 2, radius, LivingEntity.class);
             targets.remove(center);
             targets.remove(attacker);
 
             if (!targets.isEmpty()) {
+                // —— 多目标：溅射到旁边的生物，最多 maxSplashCount 次 ——
+                if (splashCount > maxSplashCount) return;
                 LivingEntity target = targets.get(0);
-                target.playSound(ModSounds.ARMY_IN_BLACK_SPUTTERING.get(), 1.0f, 1.0f);
-                DamageSource source = target.damageSources().playerAttack(attacker);
-                EntityUtil.clearHurtTime(target, () -> target.hurt(source, damage));
+                damageSplash(target);
                 lastTarget = target;
-                ParticleUtil.spawnParticlesAroundEntity(target, ModParticleTypes.ARMY_IN_BLACK_SPUTTERING.get(), 5, 0.2f);
-                onSplashHit();
-            } else if (lastTarget != null && lastTarget.isAlive()) {
-                DamageSource source = lastTarget.damageSources().playerAttack(attacker);
-                lastTarget.playSound(ModSounds.ARMY_IN_BLACK_SPUTTERING.get(), 1.0f, 1.0f);
-                EntityUtil.clearHurtTime(lastTarget, () -> lastTarget.hurt(source, damage));
-                ParticleUtil.spawnParticlesAroundEntity(lastTarget, ModParticleTypes.ARMY_IN_BLACK_SPUTTERING.get(), 5, 0.2f);
-                onSplashHit();
             } else {
-                List<LivingEntity> allTargets = EntityUtil.findEntitiesAround(center, 2, radius, LivingEntity.class);
-                allTargets.remove(center);
-                allTargets.remove(attacker);
-                if (!allTargets.isEmpty()) {
-                    LivingEntity newTarget = allTargets.get(0);
-                    newTarget.playSound(ModSounds.ARMY_IN_BLACK_SPUTTERING.get(), 1.0f, 1.0f);
-                    DamageSource source = newTarget.damageSources().playerAttack(attacker);
-                    EntityUtil.clearHurtTime(newTarget, () -> newTarget.hurt(source, damage));
-                    lastTarget = newTarget;
-                    ParticleUtil.spawnParticlesAroundEntity(lastTarget, ModParticleTypes.ARMY_IN_BLACK_SPUTTERING.get(), 5, 0.2f);
-                    onSplashHit();
-                }
+                // —— 对单：对同一生物每0.5秒一次，最多 singleMaxCount 次（持续6秒）——
+                if (splashCount > singleMaxCount) return;
+                LivingEntity target = (lastTarget != null && lastTarget.isAlive()) ? lastTarget : center;
+                damageSplash(target);
+                lastTarget = target;
             }
+        }
+
+        private void damageSplash(LivingEntity target) {
+            target.playSound(ModSounds.ARMY_IN_BLACK_SPUTTERING.get(), 1.0f, 1.0f);
+            DamageSource source = target.damageSources().playerAttack(attacker);
+            EntityUtil.clearHurtTime(target, () -> target.hurt(source, damage));
+            ParticleUtil.spawnParticlesAroundEntity(target, ModParticleTypes.ARMY_IN_BLACK_SPUTTERING.get(), 5, 0.2f);
+            onSplashHit();   // 低血量回复3点精神/生命（上一条加的）
         }
 
         private void onSplashHit() {
             if (attacker == null || !attacker.isAlive()) return;
             if (!EgoArmorHelper.isFullEGO(attacker, "army_in_black")) return;
             if (attacker.getHealth() >= attacker.getMaxHealth() * HEALTH_THRESHOLD) return;
-            attacker.heal(SPLASH_RESTORE);
-            MentalValueUtil.addMentalValue(attacker, SPLASH_RESTORE);
+            attacker.heal(3.0f);
+            MentalValueUtil.addMentalValue(attacker, 3.0f);
         }
     }
 
