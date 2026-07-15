@@ -10,6 +10,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * E.G.O装备工具类
@@ -231,7 +232,7 @@ public class EgoArmorHelper {
      * @param damage 伤害值
      * @return 是否已被套装效果处理
      */
-    public static boolean triggerDamageEffect(Player player, String damageType, float damage) {
+    public static boolean triggerDamageEffect(Player player, @Nullable String damageType, float damage) {
         String setId = getFullSetId(player);
         if (setId == null) {
             return false;  // 没有完整套装

@@ -96,6 +96,10 @@ public class SoundUtil {
         playSound(level, entity, sound, 1.0f);
     }
 
+    public static void playSound(LivingEntity entity, SoundEvent sound) {
+        playSound(entity.level, entity, sound, 1.0f);
+    }
+
     public static void playSound(Level level, LivingEntity entity, SoundEvent sound, float volume) {
         if (!level.isClientSide && level instanceof ServerLevel serverLevel) {
             serverLevel.playSound(null, entity.getX(), entity.getY(), entity.getZ(),

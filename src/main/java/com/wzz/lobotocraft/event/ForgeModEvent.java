@@ -233,6 +233,9 @@ public class ForgeModEvent {
 			if (CuriosUtil.hasCurios(attacker, ModItems.REDHAT_MERCENARY_CURIO.get())) {
 				event.setAmount(event.getAmount() + 2f);
 			}
+			if (CuriosUtil.hasCurios(attacker, ModItems.BIG_BADWOLF_CURIO.get()) && isRedDamage) {
+				event.setAmount(event.getAmount() * 1.1f);
+			}
 		}
 		if (!isDot && target instanceof ServerPlayer player) {
 			if (EntityArmyInBlack.hasActiveProtection(player) && !DamageHelper.isExecution(src)) {
@@ -313,28 +316,27 @@ public class ForgeModEvent {
 					event.setAmount(event.getAmount() - level.get());
 				}
 			}
-			if (CuriosUtil.hasCurios(player, ModItems.BIG_BADWOLF_CURIO.get()) && isRedDamage) {
-				event.setAmount(event.getAmount() * 1.1f);
-			}
-			if (EgoArmorHelper.isFullEGO(player, "big_badwolf") && event.getAmount() >= player.getMaxHealth() * 0.25f) {
-				TimerEntry<Player> timerEntry = new TimerEntry<>() {
-					@Override
-					public void onStart(@NotNull Player entity) {
-						entity.getPersistentData().putBoolean("isSuperWolf", true);
-						entity.playSound(ModSounds.BIG_BADWOLF_CURIO.get());
-					}
+			if (EgoArmorHelper.isFullSetWithCurioLocked(player, "big_badwolf") && event.getAmount() >= player.getMaxHealth() * 0.25f) {
+				if (!SheepskinSetHandler.isBigBadwolfSetActive(player)) {
+					TimerEntry<Player> timerEntry = new TimerEntry<>() {
+						@Override
+						public void onStart(@NotNull Player entity) {
+							entity.getPersistentData().putBoolean("isSuperWolf", true);
+							SoundUtil.playSound(player, ModSounds.BIG_BADWOLF_CURIO.get());
+						}
 
-					@Override
-					public void onRunning(@NotNull Player entity) {
-						ParticleUtil.spawnParticlesAroundEntity(entity, ParticleTypes.END_ROD, 20, 0.5f);
-					}
+						@Override
+						public void onRunning(@NotNull Player entity) {
+							ParticleUtil.spawnParticlesAroundEntity(entity, ParticleTypes.END_ROD, 20, 0.01f);
+						}
 
-					@Override
-					public void onEnd(@NotNull Player entity) {
-						entity.getPersistentData().putBoolean("isSuperWolf", false);
-					}
-				};
-				timerEntry.addSkillTimer(player, 0, 5000, 1, true);
+						@Override
+						public void onEnd(@NotNull Player entity) {
+							entity.getPersistentData().putBoolean("isSuperWolf", false);
+						}
+					};
+					timerEntry.addSkillTimer(player, 0, 5000, 1, true);
+				}
 			}
 			if (player.getPersistentData().getBoolean("isSuperWolf")) {
 				long currentTick = player.level().getGameTime();

@@ -10,6 +10,7 @@ import com.wzz.lobotocraft.item.block.PunishingBirdBlockItem;
 import com.wzz.lobotocraft.item.block.RegenerationReactorBlockItem;
 import com.wzz.lobotocraft.item.debug.*;
 import com.wzz.lobotocraft.item.ego.OttoItem;
+import com.wzz.lobotocraft.item.ego.SheepskinCurio;
 import com.wzz.lobotocraft.item.ego.abandoned_murderer.*;
 import com.wzz.lobotocraft.item.ego.approval_birds.*;
 import com.wzz.lobotocraft.item.ego.bigbadwolf.*;

@@ -3,11 +3,10 @@ package com.wzz.lobotocraft.event;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModItems;
+import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.item.ego.redhat_mercenary.RedhatMercenaryWeaponGun;
-import com.wzz.lobotocraft.util.CuriosUtil;
-import com.wzz.lobotocraft.util.DamageHelper;
-import com.wzz.lobotocraft.util.EgoArmorHelper;
-import com.wzz.lobotocraft.util.MentalValueUtil;
+import com.wzz.lobotocraft.util.*;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
@@ -21,6 +20,7 @@ import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
 
@@ -70,11 +70,11 @@ public class SheepskinSetHandler {
     /** 潜狼：结束的游戏时刻 */
     private static final String TAG_LURK_UNTIL = "SheepskinLurkUntil";
 
-    private static final UUID ATTACK_SPEED_UUID = UUID.fromString("a1f6c2e4-3b5d-4c8a-9e71-0d2f4b6a8c31");
-    private static final UUID RED_RES_UUID = UUID.fromString("b1f6c2e4-3b5d-4c8a-9e71-0d2f4b6a8c31");
-    private static final UUID WHITE_RES_UUID = UUID.fromString("c1f6c2e4-3b5d-4c8a-9e71-0d2f4b6a8c31");
-    private static final UUID BLACK_RES_UUID = UUID.fromString("d1f6c2e4-3b5d-4c8a-9e71-0d2f4b6a8c31");
-    private static final UUID BLUE_RES_UUID = UUID.fromString("e1f6c2e4-3b5d-4c8a-9e71-0d2f4b6a8c31");
+    private static final UUID ATTACK_SPEED_UUID = UUID.fromString("fbd2f9c9-b305-4bfc-8584-d4378fa5b7d5");
+    private static final UUID RED_RES_UUID = UUID.fromString("3a9742f4-ce9f-415b-90ae-7304b1c2e704");
+    private static final UUID WHITE_RES_UUID = UUID.fromString("38073f85-5631-4221-b29c-1487b596c15d");
+    private static final UUID BLACK_RES_UUID = UUID.fromString("3fd6543e-8a89-49d5-8aef-b078e9c2897b");
+    private static final UUID BLUE_RES_UUID = UUID.fromString("1478afbb-3f5f-4a27-b46d-6fd5e03a2fb9");
 
     /* ================================================================
      * 套装判定
@@ -219,9 +219,13 @@ public class SheepskinSetHandler {
             }
 
             // 套装第2条：潜狼模式中，造成的红色伤害 +6
-            if (isBigBadwolfSetActive(attacker) && isLurking(attacker)
-                    && DamageHelper.isRedDamage(event.getSource())) {
-                event.setAmount(event.getAmount() + LURK_RED_BONUS);
+            if (target instanceof Player player && isBigBadwolfSetActive(player) && !isLurking(player)) {
+                float accum = player.getPersistentData().getFloat(TAG_LURK_ACCUM) + event.getAmount();
+                if (accum >= lurkThreshold(player)) {
+                    accum = 0f;
+                    enterLurk(player);
+                }
+                player.getPersistentData().putFloat(TAG_LURK_ACCUM, accum);
             }
 
             // 套装第3条：对【猎物】伤害额外 +3
@@ -242,6 +246,33 @@ public class SheepskinSetHandler {
                         player.level().getGameTime() + LURK_DURATION_TICKS);
             }
             player.getPersistentData().putFloat(TAG_LURK_ACCUM, accum);
+        }
+    }
+
+    /** 潜狼触发阈值：按基础最大生命值算，避免临时 MAX_HEALTH 修饰符导致阈值忽大忽小 */
+    private static float lurkThreshold(Player player) {
+        AttributeInstance hp = player.getAttribute(Attributes.MAX_HEALTH);
+        double base = hp != null ? hp.getValue() : player.getMaxHealth();
+        return (float) (base * LURK_TRIGGER_RATIO);
+    }
+
+    /** 进入潜狼：记录结束时刻 + 音效 + 持续粒子 */
+    private static void enterLurk(Player player) {
+        player.getPersistentData().putLong(TAG_LURK_UNTIL,
+                player.level().getGameTime() + LURK_DURATION_TICKS);
+        SoundUtil.playSound(player, ModSounds.BIG_BADWOLF_CURIO.get());
+
+        // 6秒内每秒撒一次 END_ROD 粒子；靠 isLurking 自动停
+        LurkParticleTimer timer = new LurkParticleTimer();
+        timer.addSkillTimer(player, 0, LURK_DURATION_TICKS * 50, 1, true);
+    }
+
+    public static class LurkParticleTimer extends TimerEntry<Player> {
+        @Override
+        public void onRunning(@NotNull Player player) {
+            if (isLurking(player)) {
+                ParticleUtil.spawnParticlesAroundEntity(player, ParticleTypes.END_ROD, 20, 0.01f);
+            }
         }
     }
 

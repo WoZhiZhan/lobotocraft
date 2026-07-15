@@ -46,14 +46,8 @@ public class EgoArmorHandler {
             return;
         }
         DamageSource source = event.getSource();
-
-        // 判断伤害类型
         String damageType = getDamageType(source);
-        if (damageType == null) {
-            return;  // 不是自定义伤害类型，不处理
-        }
         EgoArmorHelper.triggerDamageEffect(player, damageType, event.getAmount());
-
     }
 
     /**

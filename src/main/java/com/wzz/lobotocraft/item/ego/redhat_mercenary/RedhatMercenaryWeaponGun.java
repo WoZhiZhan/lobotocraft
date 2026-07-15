@@ -83,10 +83,13 @@ public class RedhatMercenaryWeaponGun extends RedhatMercenaryWeapon {
 
         for (LivingEntity target : EntityUtil.findAllLivingEntitiesInLookDirection(player, ATTACK_RANGE)) {
             if (target == player || !target.isAlive()) continue;
-
+            if (Prey.isPreyOf(player, target)) {
+                damage += 2f + player.getRandom().nextInt(2);
+            }
             // 贯穿：清掉无敌帧，保证路径上每个目标都吃到伤害
+            float finalDamage = damage;
             EntityUtil.clearHurtTime(target,
-                    () -> target.hurt(target.damageSources().playerAttack(player), damage));
+                    () -> target.hurt(target.damageSources().playerAttack(player), finalDamage));
             if (EgoArmorHelper.isFullEGO(player, "redhat_mercenary")) {
                 SlowTimer.applySlowEffect(target);
             }
@@ -250,24 +253,8 @@ public class RedhatMercenaryWeaponGun extends RedhatMercenaryWeapon {
         }
     }
 
-    /* ================================================================
-     * 猎物相关的事件
-     * ================================================================ */
     @Mod.EventBusSubscriber(modid = ModMain.MODID)
     public static class PreyEvents {
-
-        /** 持有者对猎物造成的红色伤害 +2~3 */
-        @SubscribeEvent
-        public static void onLivingHurt(LivingHurtEvent event) {
-            LivingEntity target = event.getEntity();
-            if (target.level().isClientSide) return;
-            if (!DamageHelper.isRedDamage(event.getSource())) return;
-            if (!(event.getSource().getEntity() instanceof Player player)) return;
-            if (!Prey.isPreyOf(player, target)) return;
-
-            // 想让DOT跳伤不吃这个加成，就加一句：if (DotHelper.isDotDamage(target)) return;
-            event.setAmount(event.getAmount() + 2 + player.getRandom().nextInt(2)); // +2 或 +3
-        }
 
         @SubscribeEvent
         public static void onLivingDeath(LivingDeathEvent event) {

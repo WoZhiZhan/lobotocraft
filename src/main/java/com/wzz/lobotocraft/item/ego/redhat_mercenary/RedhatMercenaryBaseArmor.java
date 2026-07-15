@@ -37,8 +37,8 @@ public abstract class RedhatMercenaryBaseArmor extends BaseEgoArmor {
     }
 
     @Override
-    public boolean onDamaged(Player player, String damageType, float damage) {
-        if (!player.getPersistentData().getBoolean("isAddRedHat")) {
+    public boolean onDamaged(Player player,@Nullable String damageType, float damage) {
+        if (!player.getPersistentData().getBoolean("isAddRedHat") && !player.level.isClientSide) {
             SpeedBoostTimer timer = new SpeedBoostTimer();
             timer.addSkillTimer(player, 0, 5000, 1, true);
         }

@@ -243,7 +243,7 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
         GeoItem.getOrAssignId(off, player.serverLevel());
         main.getOrCreateTag().putBoolean(TAG_JUDGING, true);
         off.getOrCreateTag().putBoolean(TAG_JUDGING, true);
-        player.playSound(ModSounds.BUTTERFLY_FUNERAL_WEAPON_MODE.get());
+        SoundUtil.playSound(player, ModSounds.BUTTERFLY_FUNERAL_WEAPON_MODE.get());
         player.displayClientMessage(Component.literal("§f▶ 宣判"), true);
     }
 

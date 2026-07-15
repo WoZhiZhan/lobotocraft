@@ -3,10 +3,7 @@ package com.wzz.lobotocraft.item.ego.redhat_mercenary;
 import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
-import com.wzz.lobotocraft.util.DotHelper;
-import com.wzz.lobotocraft.util.EgoArmorHelper;
-import com.wzz.lobotocraft.util.EntityUtil;
-import com.wzz.lobotocraft.util.ParticleUtil;
+import com.wzz.lobotocraft.util.*;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
@@ -92,9 +89,9 @@ public class RedhatMercenaryWeaponKnife extends RedhatMercenaryWeapon {
         if (fury && !player.level.isClientSide) {
             hurtEntitiesInFront(player, target, damage);
             ParticleUtil.spawnParticlesAroundEntity(player, ModParticleTypes.RED.get(), 15, 0.2D);
-            if (EgoArmorHelper.isFullEGO(player, "redhat_mercenary")) {
-                DotHelper.applyDot("redhat_mercenary", player, target, 2f, "red", 20, 300, 1);
-            }
+        }
+        if (EgoArmorHelper.isFullEGO(player, "redhat_mercenary")) {
+            DotHelper.applyDot("redhat_mercenary", player, target, 2f, "red", 20, 300, 1);
         }
         return true;
     }
@@ -146,7 +143,7 @@ public class RedhatMercenaryWeaponKnife extends RedhatMercenaryWeapon {
             if (isFury(player)) {
                 int cooldown = tag.getInt(TAG_FURY_SOUND_CD);
                 if (cooldown <= 0) {
-                    player.playSound(ModSounds.REDHAT_MERCENARY_WEAPON_FURY.get());
+                    SoundUtil.playSound(player, ModSounds.REDHAT_MERCENARY_WEAPON_FURY.get());
                     tag.putInt(TAG_FURY_SOUND_CD, FURY_SOUND_INTERVAL);
                 } else {
                     tag.putInt(TAG_FURY_SOUND_CD, cooldown - 1);
