@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
+import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.event.BlueMiddayEvent;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.init.ModDimensions;
@@ -50,7 +51,7 @@ public class WorkManager {
      */
     public static class WorkSession {
         public final ServerPlayer player;
-        public final IAbnormality abnormality;
+        public final AbstractAbnormality abnormality;
         public final WorkType workType;
         public final float baseSuccessRate;
         public final float actualSuccessRate;  // 含所有加成和异想体修改
@@ -81,7 +82,7 @@ public class WorkManager {
         private int lastMultiplierCalcTick = 0;
         private static final int MULTIPLIER_CALC_INTERVAL = 10; // 每10tick重新计算一次倍率
 
-        public WorkSession(ServerPlayer player, IAbnormality abnormality, WorkType workType, boolean continuousMode) {
+        public WorkSession(ServerPlayer player, AbstractAbnormality abnormality, WorkType workType, boolean continuousMode) {
             this.player = player;
             this.abnormality = abnormality;
             this.workType = workType;
@@ -199,13 +200,13 @@ public class WorkManager {
         return activeWorks.containsKey(player.getUUID());
     }
 
-    public static boolean startWork(ServerPlayer player, IAbnormality abnormality, WorkType workType) {
+    public static boolean startWork(ServerPlayer player, AbstractAbnormality abnormality, WorkType workType) {
         return startWork(player, abnormality, workType, WorkDeviceItem.hasEnabledDevice(player), true);
     }
 
-    private static boolean startWork(ServerPlayer player, IAbnormality abnormality, WorkType workType,
+    private static boolean startWork(ServerPlayer player, AbstractAbnormality entity, WorkType workType,
                                      boolean continuousMode, boolean openClientScreen) {
-        if (!(abnormality instanceof Entity entity) || !entity.isAlive() || entity.isRemoved()) {
+        if (!entity.isAlive() || entity.isRemoved()) {
             player.sendSystemMessage(Component.literal("§c异想体不存在或已消失"));
             return false;
         }
@@ -229,7 +230,7 @@ public class WorkManager {
         }
 
         // 检查员工等级是否满足要求
-        int requiredLevel = abnormality.getRequiredEmployeeLevel();
+        int requiredLevel = entity.getRequiredEmployeeLevel();
         final int[] playerLevel = {1};
 
         player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(stats -> {
@@ -242,7 +243,7 @@ public class WorkManager {
             ));
             return false;
         }
-        WorkStartEvent startEvent = new WorkStartEvent(player, abnormality, workType);
+        WorkStartEvent startEvent = new WorkStartEvent(player, entity, workType);
         if (MinecraftForge.EVENT_BUS.post(startEvent)) {
             // 事件被取消
             if (!startEvent.getCancelReason().isEmpty()) {
@@ -251,13 +252,13 @@ public class WorkManager {
             return false;
         }
         // 调用异想体的工作开始回调
-        if (!abnormality.onWorkStart(player, workType)) {
+        if (!entity.onWorkStart(player, workType)) {
             // 异想体阻止了工作开始
             player.sendSystemMessage(Component.literal("§c无法开始工作！"));
             return false;
         }
 
-        WorkSession session = new WorkSession(player, abnormality, workType, continuousMode);
+        WorkSession session = new WorkSession(player, entity, workType, continuousMode);
         activeWorks.put(player.getUUID(), session);
 
         // 显示自律加成信息
@@ -274,7 +275,7 @@ public class WorkManager {
             int totalSpeedBonus = 0;
 
             for (int i = 1; i <= session.observationLevel; i++) {
-                IAbnormality.ObservationLevelBonus bonus = abnormality.getObservationBonus(i);
+                IAbnormality.ObservationLevelBonus bonus = entity.getObservationBonus(i);
                 totalSuccessBonus += bonus.getSuccessRateBonus();
                 totalSpeedBonus += bonus.getSpeedBonus();
             }
@@ -316,11 +317,11 @@ public class WorkManager {
         if (openClientScreen) {
             MessageLoader.getLoader().sendToPlayer(player,
                     new OpenWorkProgressPacket(
-                            abnormality.getEntityId(),
+                            entity.getEntityId(),
                             workType,
                             session.actualSuccessRate,
-                            abnormality.getMaxPEOutput(),
-                            abnormality.getEntityId(),
+                            entity.getMaxPEOutput(),
+                            entity.getEntityId(),
                             session.observationLevel,
                             continuousMode
                     )
@@ -495,7 +496,7 @@ public class WorkManager {
 
     private static void performExtraction(WorkSession session) {
         ServerPlayer player = session.player;
-        IAbnormality abnormality = session.abnormality;
+        AbstractAbnormality abnormality = session.abnormality;
 
         WorkPreExtractionEvent preEvent = new WorkPreExtractionEvent(
                 player, abnormality, session.workType,

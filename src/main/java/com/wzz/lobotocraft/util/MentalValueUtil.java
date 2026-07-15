@@ -16,18 +16,19 @@ public class MentalValueUtil {
      * @param player 玩家
      * @param amount 增加的数量
      */
-    public static void addMentalValue(ServerPlayer player, float amount) {
+    public static void addMentalValue(Player player, float amount) {
+        if (!(player instanceof ServerPlayer serverPlayer)) return;
         // 伊莎玛拉机制1:被其攻击的玩家在 debuff 期间,正向精神值恢复减少 50%
         if (amount > 0) {
-            long until = player.getPersistentData().getLong("isharmla_mental_recover_debuff_until");
-            if (until > 0 && player.level().getGameTime() < until) {
+            long until = serverPlayer.getPersistentData().getLong("isharmla_mental_recover_debuff_until");
+            if (until > 0 && serverPlayer.level().getGameTime() < until) {
                 amount *= 0.5f;
             }
         }
         final float finalAmount = amount;
-        player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
+        serverPlayer.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
             mental.addMentalValue(finalAmount);
-            MessageLoader.getLoader().sendToPlayer(player,
+            MessageLoader.getLoader().sendToPlayer(serverPlayer,
                     new MentalValueSyncPacket(mental.getMentalValue(), mental.getMaxMentalValue()));
         });
     }

@@ -255,7 +255,7 @@ public class EntityGreenDawn extends BaseGeoEntity {
     }
 
     private void playDamageSound() {
-        this.level().playSound(null, this.blockPosition(), ModSounds.FRAGMENT_ATTACK.get(),
+        this.level().playSound(null, this.blockPosition(), ModSounds.GREEN_DAWN_ATTACK.get(),
                 SoundSource.HOSTILE, 1.0F, 1.0F);
     }
 
@@ -265,7 +265,7 @@ public class EntityGreenDawn extends BaseGeoEntity {
             return;
         }
         idleSoundTimer = IDLE_SOUND_INTERVAL_TICKS;
-        this.level().playSound(null, this.blockPosition(), ModSounds.GREEN_DAWN_ATTACK.get(),
+        this.level().playSound(null, this.blockPosition(), ModSounds.GREEN_DAWN_AMBIENT.get(),
                 SoundSource.HOSTILE, 0.8F, 1.0F);
     }
 

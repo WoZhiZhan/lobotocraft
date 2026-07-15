@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.network.packet;
 
+import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.network.IMessage;
 import com.wzz.lobotocraft.work.WorkManager;
@@ -48,7 +49,7 @@ public class StartWorkPacket implements IMessage {
 
             // 获取异想体实体
             Entity entity = player.level().getEntity(abnormalityId);
-            if (!(entity instanceof IAbnormality abnormality)) {
+            if (!(entity instanceof AbstractAbnormality abnormality)) {
                 player.sendSystemMessage(Component.literal("§c异想体不存在或已消失"));
                 return;
             }

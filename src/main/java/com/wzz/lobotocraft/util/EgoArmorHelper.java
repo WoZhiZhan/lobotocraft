@@ -18,13 +18,17 @@ import org.jetbrains.annotations.Nullable;
  */
 public class EgoArmorHelper {
 
+    public static String getFullSetId(Player player) {
+        return getFullSetId(player, true);
+    }
+
     /**
      * 检查玩家是否穿戴完整的E.G.O套装
      *
      * @param player 玩家
      * @return 如果穿戴完整套装且装备已锁定，返回套装ID，否则返回null
      */
-    public static String getFullSetId(Player player) {
+    public static String getFullSetId(Player player, boolean lock) {
         // 检查装备是否锁定
         if (!ArmorEffectChecker.isArmorLocked(player)) {
             return null;  // 装备未锁定，套装不生效
@@ -70,6 +74,10 @@ public class EgoArmorHelper {
         return null;
     }
 
+    public static boolean isWearingFullSet(Player player, String setId) {
+        return isWearingFullSet(player, setId, true);
+    }
+
     /**
      * 检查玩家是否穿戴完整的特定E.G.O套装
      *
@@ -77,12 +85,16 @@ public class EgoArmorHelper {
      * @param setId 套装ID
      * @return true如果穿戴完整的指定套装
      */
-    public static boolean isWearingFullSet(Player player, String setId) {
-        String fullSetId = getFullSetId(player);
+    public static boolean isWearingFullSet(Player player, String setId, boolean lock) {
+        String fullSetId = getFullSetId(player, lock);
         return fullSetId != null && fullSetId.equals(setId);
     }
 
     public static boolean isFullEGO(Player player, String name) {
+        return isFullEGO(player, name, true);
+    }
+
+    public static boolean isFullEGO(Player player, String name, boolean lock) {
         if (player == null) return false;
         if (!isWearingFullSet(player, name))
             return false;

@@ -113,6 +113,11 @@ public class ParticleUtil {
         }
     }
 
+
+    public static void spawnLineParticles(Level world, LivingEntity living, ParticleType<?> particleType, int particleCount, double speed) {
+        spawnLineParticles(world, living, (SimpleParticleType) particleType, particleCount, speed);
+    }
+
     public static void spawnLineParticles(Level world, LivingEntity living, SimpleParticleType particleType, int particleCount, double speed) {
         if (world instanceof ServerLevel serverLevel) {
             Vec3 viewVector = living.getLookAngle();
@@ -125,6 +130,10 @@ public class ParticleUtil {
                 serverLevel.sendParticles(particleType, x, y, z, 1, 0, 0, 0, speed);
             }
         }
+    }
+
+    public static void spawnLineParticles(Level world, LivingEntity living, ParticleType<?> particleType, int particleCount, double speed, double distance) {
+        spawnLineParticles(world, living, (SimpleParticleType) particleType, particleCount, speed, distance);
     }
 
     public static void spawnLineParticles(Level world, LivingEntity living, SimpleParticleType particleType, int particleCount, double speed, double distance) {

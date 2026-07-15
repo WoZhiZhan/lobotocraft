@@ -1434,5 +1434,37 @@
         "stream": false
       }
     ]
+  },
+  "army_in_black_sputtering": {
+    "sounds": [
+      {
+        "name": "lobotocraft:army_in_black_sputtering",
+        "stream": false
+      }
+    ]
+  },
+  "army_in_black_normal_hit": {
+    "sounds": [
+      {
+        "name": "lobotocraft:army_in_black_normal_hit",
+        "stream": false
+      }
+    ]
+  },
+  "army_in_black_half_hit": {
+    "sounds": [
+      {
+        "name": "lobotocraft:army_in_black_half_hit",
+        "stream": false
+      }
+    ]
+  },
+  "army_in_black_shoot": {
+    "sounds": [
+      {
+        "name": "lobotocraft:army_in_black_shoot",
+        "stream": false
+      }
+    ]
   }
 }

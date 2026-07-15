@@ -278,5 +278,10 @@
   "item.lobotocraft.redhat_mercenary_curio": "猩红创痕",
   "item.lobotocraft.redhat_mercenary_weapon_knife": "猩红创痕",
   "item.lobotocraft.redhat_mercenary_weapon_gun": "猩红创痕",
-  "curios.identifier.face": "面部"
+  "curios.identifier.face": "面部",
+  "item.lobotocraft.army_in_black_chestplate": "粉红军备 胸甲",
+  "item.lobotocraft.army_in_black_leggings": "粉红军备 护腿",
+  "item.lobotocraft.army_in_black_boots": "粉红军备 靴子",
+  "item.lobotocraft.army_in_black_weapon": "粉红军备",
+  "item.lobotocraft.army_in_black_curio": "粉红军备"
 }

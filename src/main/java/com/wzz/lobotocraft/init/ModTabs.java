@@ -203,6 +203,11 @@ public class ModTabs {
 						tabData.accept(ModItems.REDHAT_MERCENARY_WEAPON_GUN.get());
 						tabData.accept(ModItems.REDHAT_MERCENARY_CURIO.get());
 						tabData.accept(ModItems.SHEEPSKIN_CURIO.get());
+						tabData.accept(ModItems.ARMY_IN_BLACK_CHESTPLATE.get());
+						tabData.accept(ModItems.ARMY_IN_BLACK_LEGGINGS.get());
+						tabData.accept(ModItems.ARMY_IN_BLACK_BOOTS.get());
+						tabData.accept(ModItems.ARMY_IN_BLACK_WEAPON.get());
+						tabData.accept(ModItems.ARMY_IN_BLACK_CURIO.get());
 					})
 					.build());
 

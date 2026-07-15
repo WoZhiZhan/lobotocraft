@@ -5,16 +5,14 @@ import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.EscapeTracker;
+import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.event.abnormality.AbnormalityEscapeStopEvent;
 import com.wzz.lobotocraft.item.TargetMarkerItem;
-import com.wzz.lobotocraft.util.DamageHelper;
-import com.wzz.lobotocraft.util.EntityUtil;
-import com.wzz.lobotocraft.util.MentalValueUtil;
-import com.wzz.lobotocraft.util.ParticleUtil;
+import com.wzz.lobotocraft.util.*;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.core.BlockPos;
@@ -198,6 +196,89 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     @Override
     public boolean shouldGivePEBox(ServerPlayer player, WorkType workType, WorkResult result, int peOutput) {
         return workType != WorkType.ATTACHMENT;
+    }
+
+    @Override
+    public float[] getArmorRenderScale() {
+        return new float[] {1.5f, 1.0f, 1.5f};
+    }
+
+    @Override
+    public float[] getArmorRenderOffset() {
+        return new float[] {-20.0f, 1.0f, 1.0f};
+    }
+
+    @Override
+    public float[] getWeaponRenderOffset() {
+        return new float[] {5.0f, 1.0f, 1f};
+    }
+
+    @Override
+    public int getWeaponDevelopmentCost() {
+        return 222;
+    }
+
+    @Override
+    public int getArmorDevelopmentCost() {
+        return 120;
+    }
+
+    @Override
+    public int getArmorDevelopmentMaxCount() {
+        return 1;
+    }
+
+    @Override
+    public int getWeaponDevelopmentMaxCount() {
+        return 1;
+    }
+
+    @Override
+    public float getGiftProbability() {
+        return 0.01f;
+    }
+
+    @Override
+    public EGOEquipmentData.GiftData getEGOGiftData() {
+        return new EGOEquipmentData.GiftData(
+                ResourceUtil.createInstance("textures/item/army_in_black_curio.png"),
+                "粉红军备",
+                "头部",
+                "army_in_black_curio",
+                "最大精神值+5",
+                "攻击速度+5",
+                "装备全套“粉红军备”时，E.G.O武器“粉红军备”的攻击力将提高15点"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.WeaponData getEGOWeaponData() {
+        return new EGOEquipmentData.WeaponData(
+                ResourceUtil.createInstance("textures/gui/ego/army_in_black_weapon.png"),
+                "粉红军备",
+                getRiskLevel(),
+                "WHITE",
+                "24",
+                "6s",
+                "35格",
+                getWeaponDevelopmentMaxCount(),
+                "army_in_black_weapon"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.ArmorData getEGOArmorData() {
+        return new EGOEquipmentData.ArmorData(
+                ResourceUtil.createInstance("textures/gui/ego/army_in_black_armor.png"),
+                "粉红军备",
+                getRiskLevel(),
+                0.5f,
+                0.3f,
+                0.4f,
+                1.5f,
+                getArmorDevelopmentMaxCount(),
+                "army_in_black_armor"
+        );
     }
 
     @Override

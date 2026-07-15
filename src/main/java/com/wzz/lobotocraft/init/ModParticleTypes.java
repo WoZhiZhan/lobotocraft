@@ -19,4 +19,8 @@ public class ModParticleTypes {
 	public static final RegistryObject<ParticleType<?>> BLUE_LIGHT = REGISTRY.register("blue_light", () -> new SimpleParticleType(true));
 	public static final RegistryObject<ParticleType<?>> GOLD_LIGHT = REGISTRY.register("gold_light", () -> new SimpleParticleType(true));
 	public static final RegistryObject<ParticleType<?>> DARK_BLUE_LIGHT = REGISTRY.register("dark_blue_light", () -> new SimpleParticleType(true));
+	public static final RegistryObject<ParticleType<?>> ARMY_IN_BLACK_EXPLODE = REGISTRY.register("army_in_black_explode", () -> new SimpleParticleType(true));
+	public static final RegistryObject<ParticleType<?>> ARMY_IN_BLACK_HALF_SHOOT = REGISTRY.register("army_in_black_half_shoot", () -> new SimpleParticleType(true));
+	public static final RegistryObject<ParticleType<?>> ARMY_IN_BLACK_NORMAL_SHOOT = REGISTRY.register("army_in_black_normal_shoot", () -> new SimpleParticleType(true));
+	public static final RegistryObject<ParticleType<?>> ARMY_IN_BLACK_SPUTTERING = REGISTRY.register("army_in_black_sputtering", () -> new SimpleParticleType(true));
 }

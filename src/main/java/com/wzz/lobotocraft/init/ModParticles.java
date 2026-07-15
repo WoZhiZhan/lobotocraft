@@ -28,5 +28,9 @@ public class ModParticles {
 		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.GOLD_LIGHT.get(), ColorLightParticle.Provider::new);
 		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.DARK_BLUE_LIGHT.get(),
 				(spriteSet -> ColorLightParticle.createProvider(spriteSet,  ExtendedColor.MATERIAL_BLUE, ExtendedColor.BLUE)));
+		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.ARMY_IN_BLACK_EXPLODE.get(), AttackParticle::provider);
+		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.ARMY_IN_BLACK_HALF_SHOOT.get(), AttackParticle::provider);
+		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.ARMY_IN_BLACK_NORMAL_SHOOT.get(), AttackParticle::provider);
+		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.ARMY_IN_BLACK_SPUTTERING.get(), AttackParticle::provider);
 	}
 }

@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.event.work;
 
+import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.work.WorkManager;
 import com.wzz.lobotocraft.work.WorkType;
@@ -13,13 +14,13 @@ import net.minecraftforge.eventbus.api.Event;
 @Cancelable
 public class WorkDamageEvent extends Event {
     private final ServerPlayer player;
-    private final IAbnormality abnormality;
+    private final AbstractAbnormality abnormality;
     private final WorkType workType;
     private final int extractionCount;
     private final WorkManager.WorkSession session;
     private String cancelMessage = "";
 
-    public WorkDamageEvent(ServerPlayer player, IAbnormality abnormality, 
+    public WorkDamageEvent(ServerPlayer player, AbstractAbnormality abnormality,
                           WorkType workType, int extractionCount,
                           WorkManager.WorkSession session) {
         this.player = player;
@@ -30,7 +31,7 @@ public class WorkDamageEvent extends Event {
     }
 
     public ServerPlayer getPlayer() { return player; }
-    public IAbnormality getAbnormality() { return abnormality; }
+    public AbstractAbnormality getAbnormality() { return abnormality; }
     public WorkType getWorkType() { return workType; }
     public int getExtractionCount() { return extractionCount; }
     public WorkManager.WorkSession getSession() { return session; }

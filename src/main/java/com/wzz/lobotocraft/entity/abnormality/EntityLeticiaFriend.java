@@ -182,6 +182,9 @@ public class EntityLeticiaFriend extends BaseGeoEntity {
                 continue;
             }
             hurt |= target.hurt(DamageHelper.getDamage(this, "lobotocraft:red"), damage);
+            if (target instanceof Player player && player.getHealth() <= 0f) {
+                playSound(ModSounds.LETICIA_FRIEND_KILL_PLAYER.get(), 1.0f, 1.0f);
+            }
         }
         return hurt;
     }

@@ -212,4 +212,8 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> REDHAT_MERCENARY_WEAPON_KNIFE = register("redhat_mercenary_weapon_knife");
 	public static final RegistryObject<SoundEvent> REDHAT_MERCENARY_WEAPON_GUN = register("redhat_mercenary_weapon_gun");
 	public static final RegistryObject<SoundEvent> REDHAT_MERCENARY_WEAPON_FURY = register("redhat_mercenary_weapon_fury");
+	public static final RegistryObject<SoundEvent> ARMY_IN_BLACK_SPUTTERING = register("army_in_black_sputtering");
+	public static final RegistryObject<SoundEvent> ARMY_IN_BLACK_NORMAL_HIT = register("army_in_black_normal_hit");
+	public static final RegistryObject<SoundEvent> ARMY_IN_BLACK_HALF_HIT = register("army_in_black_half_hit");
+	public static final RegistryObject<SoundEvent> ARMY_IN_BLACK_SHOOT = register("army_in_black_shoot");
 }

@@ -13,6 +13,7 @@ import com.wzz.lobotocraft.item.ego.OttoItem;
 import com.wzz.lobotocraft.item.ego.SheepskinCurio;
 import com.wzz.lobotocraft.item.ego.abandoned_murderer.*;
 import com.wzz.lobotocraft.item.ego.approval_birds.*;
+import com.wzz.lobotocraft.item.ego.army_in_black.*;
 import com.wzz.lobotocraft.item.ego.bigbadwolf.*;
 import com.wzz.lobotocraft.item.ego.butterfly_funeral.*;
 import com.wzz.lobotocraft.item.ego.children_galaxy.*;
@@ -341,4 +342,9 @@ public class ModItems {
     public static final RegistryObject<Item> REDHAT_MERCENARY_WEAPON_GUN = REGISTRY.register("redhat_mercenary_weapon_gun", RedhatMercenaryWeaponGun::new);
     public static final RegistryObject<Item> REDHAT_MERCENARY_CURIO = REGISTRY.register("redhat_mercenary_curio", RedhatMercenaryCurio::new);
     public static final RegistryObject<Item> SHEEPSKIN_CURIO = REGISTRY.register("sheepskin_curio", SheepskinCurio::new);
+    public static final RegistryObject<Item> ARMY_IN_BLACK_CHESTPLATE = REGISTRY.register("army_in_black_chestplate", ArmyInBlackChestplate::new);
+    public static final RegistryObject<Item> ARMY_IN_BLACK_LEGGINGS = REGISTRY.register("army_in_black_leggings", ArmyInBlackLeggings::new);
+    public static final RegistryObject<Item> ARMY_IN_BLACK_BOOTS = REGISTRY.register("army_in_black_boots", ArmyInBlackBoots::new);
+    public static final RegistryObject<Item> ARMY_IN_BLACK_WEAPON = REGISTRY.register("army_in_black_weapon", ArmyInBlackWeapon::new);
+    public static final RegistryObject<Item> ARMY_IN_BLACK_CURIO = REGISTRY.register("army_in_black_curio", ArmyInBlackCurio::new);
 }

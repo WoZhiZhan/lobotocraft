@@ -119,6 +119,15 @@ public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnima
     }
 
     @Override
+    public boolean onDroppedByPlayer(ItemStack item, Player player) {
+        if (item.getOrCreateTag().getInt("UseTick") > 0) {
+            item.getOrCreateTag().remove("UseTick");
+            return false;
+        }
+        return super.onDroppedByPlayer(item, player);
+    }
+
+    @Override
     public boolean canEquip(ItemStack stack, EquipmentSlot armorType, Entity entity) {
         if (entity instanceof Player player) {
             if (!canUseItem(player)) return false;

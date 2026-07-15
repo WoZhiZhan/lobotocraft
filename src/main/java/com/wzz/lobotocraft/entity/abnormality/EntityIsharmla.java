@@ -374,6 +374,7 @@ public class EntityIsharmla extends AbstractAbnormality {
         }
         switch (attackAnimType) {
             case 0 -> { // 咬:身前较小范围
+                playSound(ModSounds.ISHARMLA_BITE.get());
                 hitTargetsInForwardArea(level, 8.0, 4.2, 1.2, 40f);
             }
             case 1 -> { // 甩尾:身前6x9大范围

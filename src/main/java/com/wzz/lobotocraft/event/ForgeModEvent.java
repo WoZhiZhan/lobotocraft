@@ -236,6 +236,9 @@ public class ForgeModEvent {
 			if (CuriosUtil.hasCurios(attacker, ModItems.BIG_BADWOLF_CURIO.get()) && isRedDamage) {
 				event.setAmount(event.getAmount() * 1.1f);
 			}
+			if (EgoArmorHelper.isFullEGO(attacker, "army_in_black", false)) {
+				event.setAmount(event.getAmount() + 15f);
+			}
 		}
 		if (!isDot && target instanceof ServerPlayer player) {
 			if (EntityArmyInBlack.hasActiveProtection(player) && !DamageHelper.isExecution(src)) {
@@ -345,6 +348,15 @@ public class ForgeModEvent {
 					event.setCanceled(true);
 				} else {
 					player.getPersistentData().putLong("lastSuperWolfHurtTick", currentTick);
+				}
+			}
+			if (EgoArmorHelper.isWearingFullSet(player, "army_in_black")) {
+				float mentalValue = MentalValueUtil.getMentalValue(player);
+				if (mentalValue >= MentalValueUtil.getEffectiveMaxMentalValue(player)) {
+					event.setCanceled(true);
+				} else {
+					float reduction = Math.min((mentalValue / 10) * 0.05f, 0.30f);
+					event.setAmount(event.getAmount() * (1 - reduction));
 				}
 			}
 		}
@@ -912,6 +924,10 @@ public class ForgeModEvent {
 			if (i <= 25) {
 				event.setCanceled(true);
 			}
+		}
+		if (EgoArmorHelper.isFullEGO(event.getPlayer(), "army_in_black")) {
+			event.setCanceled(true);
+			event.getPlayer().hurt(DamageHelper.getDamage(event.getAbnormality(), event.getWorkType().getDamageType()), 1f);
 		}
 	}
 
