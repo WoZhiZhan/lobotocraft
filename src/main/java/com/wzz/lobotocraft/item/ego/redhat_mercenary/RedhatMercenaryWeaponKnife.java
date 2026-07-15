@@ -88,10 +88,9 @@ public class RedhatMercenaryWeaponKnife extends RedhatMercenaryWeapon {
 
         DamageSource source = target.damageSources().playerAttack(player);
         target.hurt(source, damage);
-
+        player.playSound(ModSounds.REDHAT_MERCENARY_WEAPON_KNIFE.get());
         if (fury && !player.level.isClientSide) {
             hurtEntitiesInFront(player, target, damage);
-            player.playSound(ModSounds.REDHAT_MERCENARY_WEAPON_KNIFE.get());
             ParticleUtil.spawnParticlesAroundEntity(player, ModParticleTypes.RED.get(), 15, 0.2D);
             if (EgoArmorHelper.isFullEGO(player, "redhat_mercenary")) {
                 DotHelper.applyDot("redhat_mercenary", player, target, 2f, "red", 20, 300, 1);
@@ -143,21 +142,22 @@ public class RedhatMercenaryWeaponKnife extends RedhatMercenaryWeapon {
             triggerAnimation(player, stack, "1");
         }
 
-        // 暴怒表现：音效（有冷却）+ 红色粒子
-        if (isFury(player)) {
-            int cooldown = tag.getInt(TAG_FURY_SOUND_CD);
-            if (cooldown <= 0) {
-                player.playSound(ModSounds.REDHAT_MERCENARY_WEAPON_FURY.get());
-                tag.putInt(TAG_FURY_SOUND_CD, FURY_SOUND_INTERVAL);
-            } else {
-                tag.putInt(TAG_FURY_SOUND_CD, cooldown - 1);
-            }
+        if (isSelected) {
+            if (isFury(player)) {
+                int cooldown = tag.getInt(TAG_FURY_SOUND_CD);
+                if (cooldown <= 0) {
+                    player.playSound(ModSounds.REDHAT_MERCENARY_WEAPON_FURY.get());
+                    tag.putInt(TAG_FURY_SOUND_CD, FURY_SOUND_INTERVAL);
+                } else {
+                    tag.putInt(TAG_FURY_SOUND_CD, cooldown - 1);
+                }
 
-            if (player.tickCount % FURY_PARTICLE_INTERVAL == 0) {
-                ParticleUtil.spawnParticlesAroundEntity(player, ModParticleTypes.RED_LIGHT.get(), 6, 0.15D);
+                if (player.tickCount % FURY_PARTICLE_INTERVAL == 0) {
+                    ParticleUtil.spawnParticlesAroundEntity(player, ModParticleTypes.RED_LIGHT.get(), 6, 0.15D);
+                }
+            } else {
+                tag.remove(TAG_FURY_SOUND_CD);
             }
-        } else {
-            tag.remove(TAG_FURY_SOUND_CD);
         }
     }
 

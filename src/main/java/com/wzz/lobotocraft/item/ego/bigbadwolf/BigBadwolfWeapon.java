@@ -52,6 +52,8 @@ public class BigBadwolfWeapon extends BaseEgoWeapon {
         float damage = 12 + new Random().nextInt(6);
         if (player.getHealth() < player.getMaxHealth() / 2) {
             damage = damage * 2;
+        } else {
+            SoundUtil.playSound(player.level, player, ModSounds.BIG_BADWOLF_WEAPON.get());
         }
         target.hurt(target.damageSources().playerAttack(player), damage);
         DotHelper.applyDot("big_badwolf", player, target, 3f, "red", 20, 100, 1);
@@ -64,6 +66,7 @@ public class BigBadwolfWeapon extends BaseEgoWeapon {
     @Override
     public boolean onEntitySwing(ItemStack stack, LivingEntity entity) {
         if (entity instanceof Player player && !player.level.isClientSide && player.getHealth() < player.getMaxHealth() / 2) {
+            SoundUtil.playSound(player.level, player, ModSounds.BIG_BADWOLF_WEAPON.get());
             float damage = 24 + new Random().nextInt(6);
             for (LivingEntity target : EntityUtil.findAllEntitiesInLookDirection(player, 4, 3, LivingEntity.class)) {
                 target.hurt(target.damageSources().playerAttack(player), damage);

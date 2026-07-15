@@ -230,6 +230,9 @@ public class ForgeModEvent {
 				float multiplier = EntityUtil.getDamageMultiplierByLostHealth(attacker, 0.004f, 0.4f);
 				event.setAmount(event.getAmount() * multiplier);
 			}
+			if (CuriosUtil.hasCurios(attacker, ModItems.REDHAT_MERCENARY_CURIO.get())) {
+				event.setAmount(event.getAmount() + 2f);
+			}
 		}
 		if (!isDot && target instanceof ServerPlayer player) {
 			if (EntityArmyInBlack.hasActiveProtection(player) && !DamageHelper.isExecution(src)) {

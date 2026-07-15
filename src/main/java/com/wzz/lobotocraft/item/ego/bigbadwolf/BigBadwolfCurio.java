@@ -53,11 +53,11 @@ public class BigBadwolfCurio extends BaseEgoCurio {
     public List<AttributeEntry> getAttributeEntries(LivingEntity living) {
         return List.of(
                 new AttributeEntry(UUID.fromString("d39d69c6-1fd2-44ad-bd7d-134997ba64ae"),
-                        this.getCurrentClassName() + "Max Health Bonus", Attributes.MOVEMENT_SPEED, 4D),
+                        this.getCurrentClassName() + "Max Health Bonus", Attributes.MAX_HEALTH, 4D),
                 new AttributeEntry(UUID.fromString("b4d8d3d7-8061-4b4c-bce4-f7ea74d2e7b4"),
-                        this.getCurrentClassName() + " Move Speed Bonus", Attributes.MOVEMENT_SPEED, 0.024D),
+                        this.getCurrentClassName() + " Move Speed Bonus", Attributes.MOVEMENT_SPEED, 0.05D, Mode.MULTIPLY_BASE),
                 new AttributeEntry(UUID.fromString("18423f10-2d24-4142-b8ef-5997293af7ed"),
-                        this.getCurrentClassName() + " Attack Speed Bonus", Attributes.ATTACK_SPEED, 0.012D)
+                        this.getCurrentClassName() + " Attack Speed Bonus", Attributes.ATTACK_SPEED, 0.05D, Mode.MULTIPLY_BASE)
         );
     }
 }
