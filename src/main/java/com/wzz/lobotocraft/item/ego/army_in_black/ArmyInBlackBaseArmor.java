@@ -33,6 +33,11 @@ public abstract class ArmyInBlackBaseArmor extends BaseEgoArmor {
     }
 
     @Override
+    public boolean useSeparateTextures() {
+        return false;
+    }
+
+    @Override
     public RiskLevel riskLevel() {
         return RiskLevel.ALEPH;
     }
