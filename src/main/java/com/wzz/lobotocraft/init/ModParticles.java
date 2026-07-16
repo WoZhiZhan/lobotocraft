@@ -32,5 +32,10 @@ public class ModParticles {
 		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.ARMY_IN_BLACK_HALF_SHOOT.get(), AttackParticle::provider);
 		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.ARMY_IN_BLACK_NORMAL_SHOOT.get(), AttackParticle::provider);
 		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.ARMY_IN_BLACK_SPUTTERING.get(), AttackParticle::provider);
+		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.SMILING_CORPSE_MOUNTAIN_VOMITUS_1.get(), AttackParticle::provider);
+		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.SMILING_CORPSE_MOUNTAIN_VOMITUS_2.get(), AttackParticle::provider);
+		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.SMILING_CORPSE_MOUNTAIN_VOMITUS_3.get(), AttackParticle::provider);
+		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.SMILING_CORPSE_MOUNTAIN_VOMITUS_4.get(), AttackParticle::provider);
+		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.SMILING_CORPSE_MOUNTAIN_VOMITUS_5.get(), AttackParticle::provider);
 	}
 }

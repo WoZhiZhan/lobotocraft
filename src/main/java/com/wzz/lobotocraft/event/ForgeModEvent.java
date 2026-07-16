@@ -577,7 +577,7 @@ public class ForgeModEvent {
 				}
 				if (entity instanceof EntitySmilingCorpseMountain corpseMountain) {
 					corpseMountain.addClerkDieCount(1);
-					if (corpseMountain.getClerkDieCount() >= 10) {
+					if (corpseMountain.getClerkDieCount() == 10) {
 						corpseMountain.triggerClerkDieCount();
 						if (event.getSource().getEntity() instanceof ServerPlayer player) {
 							player.displayClientMessage(Component.literal("§c因你的失误，"+corpseMountain.getAbnormalityJadeName()+"的计数器-1"), false);

@@ -23,4 +23,9 @@ public class ModParticleTypes {
 	public static final RegistryObject<ParticleType<?>> ARMY_IN_BLACK_HALF_SHOOT = REGISTRY.register("army_in_black_half_shoot", () -> new SimpleParticleType(true));
 	public static final RegistryObject<ParticleType<?>> ARMY_IN_BLACK_NORMAL_SHOOT = REGISTRY.register("army_in_black_normal_shoot", () -> new SimpleParticleType(true));
 	public static final RegistryObject<ParticleType<?>> ARMY_IN_BLACK_SPUTTERING = REGISTRY.register("army_in_black_sputtering", () -> new SimpleParticleType(true));
+	public static final RegistryObject<ParticleType<?>> SMILING_CORPSE_MOUNTAIN_VOMITUS_1 = REGISTRY.register("smiling_corpse_mountain_vomitus_1", () -> new SimpleParticleType(true));
+	public static final RegistryObject<ParticleType<?>> SMILING_CORPSE_MOUNTAIN_VOMITUS_2 = REGISTRY.register("smiling_corpse_mountain_vomitus_2", () -> new SimpleParticleType(true));
+	public static final RegistryObject<ParticleType<?>> SMILING_CORPSE_MOUNTAIN_VOMITUS_3 = REGISTRY.register("smiling_corpse_mountain_vomitus_3", () -> new SimpleParticleType(true));
+	public static final RegistryObject<ParticleType<?>> SMILING_CORPSE_MOUNTAIN_VOMITUS_4 = REGISTRY.register("smiling_corpse_mountain_vomitus_4", () -> new SimpleParticleType(true));
+	public static final RegistryObject<ParticleType<?>> SMILING_CORPSE_MOUNTAIN_VOMITUS_5 = REGISTRY.register("smiling_corpse_mountain_vomitus_5", () -> new SimpleParticleType(true));
 }

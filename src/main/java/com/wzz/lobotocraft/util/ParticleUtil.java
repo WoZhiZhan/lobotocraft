@@ -263,4 +263,47 @@ public class ParticleUtil {
     public static DustParticleOptions getDustParticle(float r, float g, float b, float scale) {
         return new DustParticleOptions(new Vector3f(r,g,b), scale);
     }
+
+    /**
+     * 向实体前方喷吐锥形混合粒子（多种粒子类型随机混合，越远越发散、带向前初速度）。
+     *
+     * @param living      喷吐实体（以其朝向 getLookAngle 为喷射方向）
+     * @param types       混合的粒子类型数组（每个粒子随机挑一种）
+     * @param distance    喷吐最大距离
+     * @param count       粒子总数
+     * @param coneRadius  末端锥形半径（越大越发散，0=直线）
+     * @param speed       粒子速度倍率
+     * @param yOffset     起始点相对实体脚部的高度偏移（一般给嘴部高度）
+     */
+    public static void spawnConeSprayMixed(LivingEntity living, ParticleOptions[] types, double distance,
+                                           int count, double coneRadius, double speed, double yOffset) {
+        if (!(living.level instanceof ServerLevel serverLevel) || types == null || types.length == 0) return;
+
+        Vec3 dir = living.getLookAngle().normalize();
+        Vec3 origin = living.position().add(0, yOffset, 0).add(dir.scale(0.5));
+        // 垂直于喷射方向的两个基向量
+        Vec3 right = new Vec3(-dir.z, 0, dir.x).normalize();
+        Vec3 up = dir.cross(right).normalize();
+        RandomSource random = living.getRandom();
+
+        for (int i = 0; i < count; i++) {
+            double factor = random.nextDouble();               // 0..1 沿喷射方向的位置
+            double dist = factor * distance;
+            double spread = coneRadius * factor;               // 越远发散越大
+            double angle = random.nextDouble() * Math.PI * 2;
+            double r = Math.sqrt(random.nextDouble()) * spread; // 均匀分布在圆面
+
+            Vec3 pos = origin.add(dir.scale(dist))
+                    .add(right.scale(Math.cos(angle) * r))
+                    .add(up.scale(Math.sin(angle) * r));
+
+            ParticleOptions type = types[random.nextInt(types.length)];
+            // count=0 时 (dx,dy,dz) 作为粒子初速度方向，给一点向前+向上的喷溅感
+            serverLevel.sendParticles(type,
+                    pos.x, pos.y, pos.z,
+                    0,
+                    dir.x, dir.y + 0.05, dir.z,
+                    speed);
+        }
+    }
 }
