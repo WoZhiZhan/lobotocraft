@@ -216,4 +216,13 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> ARMY_IN_BLACK_NORMAL_HIT = register("army_in_black_normal_hit");
 	public static final RegistryObject<SoundEvent> ARMY_IN_BLACK_HALF_HIT = register("army_in_black_half_hit");
 	public static final RegistryObject<SoundEvent> ARMY_IN_BLACK_SHOOT = register("army_in_black_shoot");
+
+	public static final RegistryObject<SoundEvent> SMILING_CORPSE_MOUNTAIN_RISE_PHASE = register("smiling_corpse_mountain_rise_phase");
+	public static final RegistryObject<SoundEvent> SMILING_CORPSE_MOUNTAIN_DECLINE_PHASE = register("smiling_corpse_mountain_decline_phase");
+	public static final RegistryObject<SoundEvent> SMILING_CORPSE_MOUNTAIN_TWO_STAGE_HOWLING = register("smiling_corpse_mountain_two_stage_howling");
+	public static final RegistryObject<SoundEvent> SMILING_CORPSE_MOUNTAIN_COUNTER_DECREASED_TO_1 = register("smiling_corpse_mountain_counter_decreased_to_1");
+	public static final RegistryObject<SoundEvent> SMILING_CORPSE_MOUNTAIN_THREE_STAGES_NORMAL_ATTACK = register("smiling_corpse_mountain_three_stages_normal_attack");
+	public static final RegistryObject<SoundEvent> SMILING_CORPSE_MOUNTAIN_THREE_STAGES_SPECIAL_ATTACK = register("smiling_corpse_mountain_three_stages_special_attack");
+	public static final RegistryObject<SoundEvent> SMILING_CORPSE_MOUNTAIN_IDLE = register("smiling_corpse_mountain_idle");
+	public static final RegistryObject<SoundEvent> SMILING_CORPSE_MOUNTAIN_ONE_STAGES_ATTACK = register("smiling_corpse_mountain_one_stages_attack");
 }

@@ -465,4 +465,12 @@ public class ModEntities {
                             .clientTrackingRange(10)
                             .updateInterval(3)
                             .build("nothing_there"));
+
+    public static final RegistryObject<EntityType<EntitySmilingCorpseMountain>> smiling_corpse_mountain =
+            ENTITIES.register("smiling_corpse_mountain",
+                    () -> EntityType.Builder.of(EntitySmilingCorpseMountain::new, MobCategory.CREATURE)
+                            .sized(2F, 2F)
+                            .clientTrackingRange(32)
+                            .updateInterval(3)
+                            .build("smiling_corpse_mountain"));
 }

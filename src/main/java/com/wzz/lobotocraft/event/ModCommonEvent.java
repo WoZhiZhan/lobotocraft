@@ -72,5 +72,6 @@ public class ModCommonEvent {
 		event.put(ModEntities.end_bird_egg_small.get(), EntityEndBirdEggSmall.createAttributes().build());
 		event.put(ModEntities.end_bird.get(), EntityEndBird.createAttributes().build());
 		event.put(ModEntities.nothing_there.get(), EntityNothingThere.createAttributes().build());
+		event.put(ModEntities.smiling_corpse_mountain.get(), EntitySmilingCorpseMountain.createAttributes().build());
 	}
 }

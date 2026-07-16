@@ -145,5 +145,6 @@ public class ModClientEvent {
         event.registerEntityRenderer(ModEntities.water_spit.get(), EmptyEntityRenderer::new);
         event.registerEntityRenderer(ModEntities.nothing_there.get(),
                 (r) -> new EntityNothingThereRenderer(r, 0.9f));
+        event.registerEntityRenderer(ModEntities.smiling_corpse_mountain.get(), (r) -> new AbnormalityRenderer<>(r, 0.8f, 0.8f));
     }
 }

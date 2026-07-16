@@ -283,5 +283,7 @@
   "item.lobotocraft.army_in_black_leggings": "粉红军备 护腿",
   "item.lobotocraft.army_in_black_boots": "粉红军备 靴子",
   "item.lobotocraft.army_in_black_weapon": "粉红军备",
-  "item.lobotocraft.army_in_black_curio": "粉红军备"
+  "item.lobotocraft.army_in_black_curio": "粉红军备",
+  "entity.lobotocraft.smiling_corpse_mountain": "微笑的尸山",
+  "item.lobotocraft.smiling_corpse_mountain_spawn_egg": "微笑的尸山 刷怪蛋"
 }

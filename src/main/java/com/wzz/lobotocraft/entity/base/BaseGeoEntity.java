@@ -42,7 +42,6 @@ public abstract class BaseGeoEntity extends TamableAnimal implements GeoEntity {
     public void defineSynchedData() {
         super.defineSynchedData();
         this.entityData.define(TEXTURE, name());
-        // 修复:此前漏注册 DATA_ANIMATION,导致调用 setAnimation 时 DataItem 为 null 而崩溃
         this.entityData.define(DATA_ANIMATION, "idle");
     }
 

@@ -196,6 +196,9 @@ public class ModItems {
     public static final RegistryObject<Item> NOTHING_THERE_SPAWN_EGG = REGISTRY.register("nothing_there_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.nothing_there, 0x8B0000, 0xCD5C5C, new Item.Properties(),
                     "§c主管！主管！主管！主管！主管！主管！主管！主管！主管！主管！"));
+    public static final RegistryObject<Item> SMILING_CORPSE_MOUNTAIN_SPAWN_EGG = REGISTRY.register("smiling_corpse_mountain_spawn_egg",
+            () -> new TextSpawnEggItem(ModEntities.smiling_corpse_mountain, ExtendedColor.BLACK.getRGB(), ExtendedColor.WHITE_SMOKE.getRGB(), new Item.Properties(),
+                    "§c那些阴森可怖的笑脸上弥漫着哀伤。"));
 
     public static final RegistryObject<Item> PE_BOX = REGISTRY.register("pe_box", PEBoxItem::new);
     public static final RegistryObject<Item> STRANGE_BADGE = REGISTRY.register("strange_badge", StrangeBadgeItem::new);

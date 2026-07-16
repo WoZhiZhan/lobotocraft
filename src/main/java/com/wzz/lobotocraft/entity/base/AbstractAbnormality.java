@@ -383,7 +383,7 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
     }
 
     protected void playAttackSound() {
-        if (!(this.level() instanceof ServerLevel) || getEscapeWarningSound() == null) return;
+        if (!(this.level() instanceof ServerLevel) || getAttackSound() == null) return;
         this.level().playSound(
                 null,
                 this.getX(),

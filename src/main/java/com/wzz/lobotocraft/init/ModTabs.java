@@ -55,6 +55,7 @@ public class ModTabs {
 						tabData.accept(ModItems.NUCLEIC_MALEFICENT_SPAWN_EGG.get());
 						tabData.accept(ModItems.BASINSEA_REAPER_SPAWN_EGG.get());
 						tabData.accept(ModItems.NOTHING_THERE_SPAWN_EGG.get());
+						tabData.accept(ModItems.SMILING_CORPSE_MOUNTAIN_SPAWN_EGG.get());
 					})
 					.build());
 

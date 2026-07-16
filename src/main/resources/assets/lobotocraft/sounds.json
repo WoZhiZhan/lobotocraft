@@ -1466,5 +1466,69 @@
         "stream": false
       }
     ]
+  },
+  "smiling_corpse_mountain_rise_phase": {
+    "sounds": [
+      {
+        "name": "lobotocraft:smiling_corpse_mountain_rise_phase",
+        "stream": false
+      }
+    ]
+  },
+  "smiling_corpse_mountain_decline_phase": {
+    "sounds": [
+      {
+        "name": "lobotocraft:smiling_corpse_mountain_decline_phase",
+        "stream": false
+      }
+    ]
+  },
+  "smiling_corpse_mountain_two_stage_howling": {
+    "sounds": [
+      {
+        "name": "lobotocraft:smiling_corpse_mountain_two_stage_howling",
+        "stream": false
+      }
+    ]
+  },
+  "smiling_corpse_mountain_counter_decreased_to_1": {
+    "sounds": [
+      {
+        "name": "lobotocraft:smiling_corpse_mountain_counter_decreased_to_1",
+        "stream": false
+      }
+    ]
+  },
+  "smiling_corpse_mountain_three_stages_normal_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:smiling_corpse_mountain_three_stages_normal_attack",
+        "stream": false
+      }
+    ]
+  },
+  "smiling_corpse_mountain_three_stages_special_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:smiling_corpse_mountain_three_stages_special_attack",
+        "stream": false
+      }
+    ]
+  },
+  "smiling_corpse_mountain_idle": {
+    "sounds": [
+      {
+        "name": "lobotocraft:smiling_corpse_mountain_idle",
+        "stream": false
+      }
+    ]
+  },
+  "smiling_corpse_mountain_one_stages_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:smiling_corpse_mountain_one_stages_attack",
+        "stream": false
+      }
+    ]
   }
 }

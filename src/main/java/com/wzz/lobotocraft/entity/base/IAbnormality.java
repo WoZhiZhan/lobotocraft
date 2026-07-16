@@ -191,7 +191,7 @@ public interface IAbnormality {
      * @return true表示此异想体会在空闲时播放环境音效
      */
     default boolean hasAbnormalityAmbientSound() {
-        return false;
+        return getAbnormalityAmbientSound() != null;
     }
 
     /**
