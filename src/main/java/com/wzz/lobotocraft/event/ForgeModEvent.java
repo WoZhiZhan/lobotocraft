@@ -236,7 +236,7 @@ public class ForgeModEvent {
 			if (CuriosUtil.hasCurios(attacker, ModItems.BIG_BADWOLF_CURIO.get()) && isRedDamage) {
 				event.setAmount(event.getAmount() * 1.1f);
 			}
-			if (EgoArmorHelper.isFullEGO(attacker, "army_in_black", false)) {
+			if (EgoArmorHelper.isFullEGO(attacker, "army_in_black", false) && attacker.getMainHandItem().getItem() == ModItems.ARMY_IN_BLACK_WEAPON.get()) {
 				event.setAmount(event.getAmount() + 15f);
 			}
 		}

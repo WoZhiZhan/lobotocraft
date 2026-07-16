@@ -31,8 +31,8 @@ public class ArmyInBlackWeapon extends BaseEgoWeapon {
     private static final double ATTACK_RANGE = 35;
     private static final int USE_COOLDOWN_TICKS = 6 * 20;
     private static final float HEALTH_THRESHOLD = 0.5f;
-    private static final float WHITE_DAMAGE_BONUS = 4.0f;
-    private static final float BLACK_DAMAGE_BONUS = 6.0f;
+    private static final float WHITE_DAMAGE_BONUS = 2.5f;
+    private static final float BLACK_DAMAGE_BONUS = 1.5f;
     private static final int SPLASH_INTERVAL_MS = 500;    // 每0.5秒
     private static final int SPLASH_DELAY_MS = 500;       // 命中0.5秒后开始
     private static final int SINGLE_MAX_COUNT = 12;
@@ -147,8 +147,7 @@ public class ArmyInBlackWeapon extends BaseEgoWeapon {
         public static void addNewTimer(LivingEntity target, Player attacker, float damage,
                                        int radius, int maxSplashCount, int singleMaxCount) {
             SplashTimer timer = new SplashTimer(attacker, damage, radius, maxSplashCount, singleMaxCount);
-            // 取两种模式里较长的那个：单体12次 * 0.5秒 = 6秒；+ 起始0.5秒延迟 + 余量
-            int duration = SPLASH_DELAY_MS + singleMaxCount * SPLASH_INTERVAL_MS + 200;
+            int duration = SPLASH_DELAY_MS + singleMaxCount * SPLASH_INTERVAL_MS - 2800;
             timer.addSkillTimer(target, SPLASH_DELAY_MS, duration, 2, true);
         }
 
