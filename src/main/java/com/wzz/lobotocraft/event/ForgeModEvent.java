@@ -350,11 +350,9 @@ public class ForgeModEvent {
 					player.getPersistentData().putLong("lastSuperWolfHurtTick", currentTick);
 				}
 			}
-			if (EgoArmorHelper.isWearingFullSet(player, "army_in_black")) {
+			if (EgoArmorHelper.isWearingFullSet(player, "army_in_black", false)) {
 				float mentalValue = MentalValueUtil.getMentalValue(player);
 				if (mentalValue >= MentalValueUtil.getEffectiveMaxMentalValue(player)) {
-					event.setCanceled(true);
-				} else {
 					float reduction = Math.min((mentalValue / 10) * 0.05f, 0.30f);
 					event.setAmount(event.getAmount() * (1 - reduction));
 				}

@@ -80,7 +80,7 @@ public abstract class ArmyInBlackBaseArmor extends BaseEgoArmor {
     @Override
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
-        p_41423_.add(Component.literal("§6※※玩家当前精神值越高，受到的伤害越低。"));
+        p_41423_.add(Component.literal("§6※玩家当前精神值越高，受到的伤害越低。"));
         p_41423_.add(Component.literal("§7这是一件粉红色的军装制服。"));
         p_41423_.add(Component.literal("§7它的口袋能够充分容纳穿戴着所携带的各类弹药。"));
         p_41423_.add(Component.literal("§7这件衣服的粉红色可以抚慰你的心灵，带来一种安全感。"));
