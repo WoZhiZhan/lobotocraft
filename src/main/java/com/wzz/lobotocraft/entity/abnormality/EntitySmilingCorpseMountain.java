@@ -69,11 +69,11 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     private static final double[] PHASE_SPEED_MUL = {0.0, 1.0, 1.0, 1.0};
 
     // 攻击时序（tick，20t=1s）。伤害触发帧来自策划给定触发时间。
-    private static final int P1_DMG = 20,  P1_TOTAL = 28,  P1_CD = 10;
+    private static final int P1_DMG = 10,  P1_TOTAL = 28,  P1_CD = 10;
     private static final int P2_DMG = 16,  P2_TOTAL = 24,  P2_CD = 20;
     private static final int P3_1_DMG = 20, P3_1_TOTAL = 28;
     private static final int P3_2_DMG = 30, P3_2_TOTAL = 40;
-    private static final int P3S_DMG = 17,  P3S_TOTAL = 26;
+    private static final int P3S_DMG = 15,  P3S_TOTAL = 26;
     private static final int P3_CD = 15;
 
     // 攻击范围（横向半宽为策划未指定项，取合理默认，可调）
