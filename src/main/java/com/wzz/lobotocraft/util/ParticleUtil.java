@@ -17,7 +17,7 @@ import org.joml.Vector3f;
 import java.util.Random;
 
 public class ParticleUtil {
-    
+
     /**
      * 在实体周围生成粒子
      */
@@ -99,8 +99,8 @@ public class ParticleUtil {
     /**
      * 在指定位置生成粒子
      */
-    public static void spawnParticlesAtPosition(ServerLevel level, ParticleType<?> type, 
-                                                double x, double y, double z, 
+    public static void spawnParticlesAtPosition(ServerLevel level, ParticleType<?> type,
+                                                double x, double y, double z,
                                                 int count, double spread, double speed) {
         if (level != null) {
             level.sendParticles(
@@ -266,6 +266,7 @@ public class ParticleUtil {
 
     /**
      * 向实体前方喷吐锥形混合粒子（多种粒子类型随机混合，越远越发散、带向前初速度）。
+     * 用于「微笑的尸山」三阶段特殊攻击的喷吐液体效果。
      *
      * @param living      喷吐实体（以其朝向 getLookAngle 为喷射方向）
      * @param types       混合的粒子类型数组（每个粒子随机挑一种）
@@ -306,4 +307,24 @@ public class ParticleUtil {
                     speed);
         }
     }
+
+    public static void spawnFallingVomit(ServerLevel level, Vec3 origin, Vec3 dir,
+                                         double forward, double back, double halfWidth,
+                                         double spawnHeight, int count,
+                                         ParticleOptions[] types, double fallSpeed) {
+        if (level == null || types == null || types.length == 0) return;
+        Vec3 f = new Vec3(dir.x, 0, dir.z).normalize();
+        Vec3 right = new Vec3(-f.z, 0, f.x).normalize();
+        RandomSource random = level.getRandom();
+        for (int i = 0; i < count; i++) {
+            double along = -back + random.nextDouble() * (forward + back); // 前后铺开
+            double lat = (random.nextDouble() - 0.5) * 2 * halfWidth;      // 横向铺开
+            double h = spawnHeight + random.nextDouble() * 1.5;            // 在上方随机高度生成
+            Vec3 p = origin.add(f.scale(along)).add(right.scale(lat)).add(0, h, 0);
+            ParticleOptions type = types[random.nextInt(types.length)];
+            // count=0 时 (dx,dy,dz) 为初速度：纯向下 → 从上往下倒落
+            level.sendParticles(type, p.x, p.y, p.z, 0, 0, -Math.abs(fallSpeed), 0, 1.0);
+        }
+    }
+
 }
