@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.client.particle.AttackParticle;
 import com.wzz.lobotocraft.client.particle.BlueGlintParticle;
 import com.wzz.lobotocraft.client.particle.ButterflyParticle;
 import com.wzz.lobotocraft.client.particle.ColorLightParticle;
+import com.wzz.lobotocraft.client.particle.GreenNoonOverloadParticle;
 import com.wzz.lobotocraft.color.ExtendedColor;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraftforge.api.distmarker.Dist;
@@ -37,5 +38,6 @@ public class ModParticles {
 		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.SMILING_CORPSE_MOUNTAIN_VOMITUS_3.get(), AttackParticle::provider);
 		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.SMILING_CORPSE_MOUNTAIN_VOMITUS_4.get(), AttackParticle::provider);
 		event.registerSpriteSet((SimpleParticleType) ModParticleTypes.SMILING_CORPSE_MOUNTAIN_VOMITUS_5.get(), AttackParticle::provider);
+		event.registerSpriteSet(ModParticleTypes.GREEN_NOON_OVERLOAD.get(), GreenNoonOverloadParticle::provider);
 	}
 }

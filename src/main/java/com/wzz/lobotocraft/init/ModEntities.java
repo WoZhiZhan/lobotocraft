@@ -197,7 +197,7 @@ public class ModEntities {
     public static final RegistryObject<EntityType<EntityVioletNoon>> violet_noon =
             ENTITIES.register("violet_noon",
                     () -> EntityType.Builder.of(EntityVioletNoon::new, MobCategory.MONSTER)
-                            .sized(2.5F, 5.0F)
+                            .sized(5.0F, 10.0F)
                             .clientTrackingRange(12)
                             .updateInterval(3)
                             .build("violet_noon"));
@@ -205,7 +205,7 @@ public class ModEntities {
     public static final RegistryObject<EntityType<EntityGreenNoon>> green_noon =
             ENTITIES.register("green_noon",
                     () -> EntityType.Builder.of(EntityGreenNoon::new, MobCategory.MONSTER)
-                            .sized(1.0F, 2.4F)
+                            .sized(1.4F, 2.7F)
                             .clientTrackingRange(12)
                             .updateInterval(3)
                             .build("green_noon"));

@@ -28,4 +28,5 @@ public class ModParticleTypes {
 	public static final RegistryObject<ParticleType<?>> SMILING_CORPSE_MOUNTAIN_VOMITUS_3 = REGISTRY.register("smiling_corpse_mountain_vomitus_3", () -> new SimpleParticleType(true));
 	public static final RegistryObject<ParticleType<?>> SMILING_CORPSE_MOUNTAIN_VOMITUS_4 = REGISTRY.register("smiling_corpse_mountain_vomitus_4", () -> new SimpleParticleType(true));
 	public static final RegistryObject<ParticleType<?>> SMILING_CORPSE_MOUNTAIN_VOMITUS_5 = REGISTRY.register("smiling_corpse_mountain_vomitus_5", () -> new SimpleParticleType(true));
+	public static final RegistryObject<SimpleParticleType> GREEN_NOON_OVERLOAD = REGISTRY.register("green_noon_overload", () -> new SimpleParticleType(true));
 }

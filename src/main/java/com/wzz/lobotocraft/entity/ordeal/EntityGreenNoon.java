@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.entity.ordeal;
 import com.wzz.lobotocraft.entity.base.BaseGeoEntity;
 import com.wzz.lobotocraft.event.GreenNoonEvent;
 import com.wzz.lobotocraft.init.ModAttributes;
+import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
@@ -54,7 +55,8 @@ public class EntityGreenNoon extends BaseGeoEntity {
     private static final EntityDataAccessor<Integer> ANIM_VERSION =
             SynchedEntityData.defineId(EntityGreenNoon.class, EntityDataSerializers.INT);
 
-    private static final int SHOOT_INTERVAL_TICKS = 7;
+    private static final int SHOOTS_PER_SECOND = 6;
+    private static final int SHOOT_RATE_SCALE = 20;
     private static final int SHOOT_ANIM_TICKS = 12;
     private static final int CHAINSAW_ATTACK_TICKS = 40;
     private static final int CHAINSAW_COOLDOWN_TICKS = 30;
@@ -63,11 +65,11 @@ public class EntityGreenNoon extends BaseGeoEntity {
     private static final int DEATH_ANIM_TICKS = 10;
     private static final int[] CHAINSAW_HIT_TICKS = {10, 12, 14, 16, 18, 20, 22, 24, 26};
     private static final double SHOOT_RANGE = 30.0D;
-    private static final double CHAINSAW_RANGE = 4.0D;
+    private static final double CHAINSAW_RANGE = 2.0D;
 
     private String lastClientAnim = "";
     private int lastClientAnimVersion = -1;
-    private int shootCooldown = 0;
+    private int shootRateAccumulator = SHOOT_RATE_SCALE;
     private int shootAnimationTick = 0;
     private int chainsawAttackTick = 0;
     private int chainsawCooldown = 0;
@@ -110,7 +112,12 @@ public class EntityGreenNoon extends BaseGeoEntity {
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
-        this.goalSelector.addGoal(2, new MeleeAttackGoal(this, 1.25D, false));
+        this.goalSelector.addGoal(2, new MeleeAttackGoal(this, 1.25D, false) {
+            @Override
+            protected double getAttackReachSqr(LivingEntity target) {
+                return CHAINSAW_RANGE * CHAINSAW_RANGE;
+            }
+        });
         this.goalSelector.addGoal(7, new WaterAvoidingRandomStrollGoal(this, 1.0D));
         this.goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0F));
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
@@ -145,10 +152,14 @@ public class EntityGreenNoon extends BaseGeoEntity {
         if (deathAnimationStarted || overloadTick > 0 || chainsawAttackTick > 0) {
             return false;
         }
-        if (target instanceof LivingEntity living && isValidAttackTarget(living) && chainsawCooldown <= 0) {
+        if (target instanceof LivingEntity living
+                && isValidAttackTarget(living)
+                && isWithinChainsawRange(living)
+                && chainsawCooldown <= 0) {
             beginChainsawAttack(living);
+            return true;
         }
-        return true;
+        return false;
     }
 
     @Override
@@ -221,21 +232,22 @@ public class EntityGreenNoon extends BaseGeoEntity {
     }
 
     private void tickShooting(ServerLevel level) {
-        if (shootCooldown > 0) {
-            shootCooldown--;
-            return;
-        }
-
         LivingEntity target = findNearestTarget(SHOOT_RANGE);
         if (target == null) {
+            shootRateAccumulator = SHOOT_RATE_SCALE;
             return;
         }
 
-        shootCooldown = SHOOT_INTERVAL_TICKS;
+        shootRateAccumulator += SHOOTS_PER_SECOND;
+        if (shootRateAccumulator < SHOOT_RATE_SCALE) {
+            return;
+        }
+
+        shootRateAccumulator -= SHOOT_RATE_SCALE;
         shootAnimationTick = SHOOT_ANIM_TICKS;
         this.setTarget(target);
         faceTarget(target);
-        setAnim("shoot");
+        setAnimIfChanged("shoot");
 
         EntityUtil.clearHurtTime(target);
         if (target.hurt(DamageHelper.getDamage(this, "red"), 1.0F)) {
@@ -274,7 +286,8 @@ public class EntityGreenNoon extends BaseGeoEntity {
 
     private void hurtChainsawTargets(ServerLevel level) {
         AABB range = this.getBoundingBox().inflate(CHAINSAW_RANGE, 2.5D, CHAINSAW_RANGE);
-        for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, range, this::isValidAttackTarget)) {
+        for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, range,
+                target -> isValidAttackTarget(target) && isWithinChainsawRange(target))) {
             EntityUtil.clearHurtTime(target);
             target.hurt(DamageHelper.getDamage(this, "red"), 1.0F + this.random.nextFloat());
             EntityUtil.clearHurtTime(target);
@@ -285,7 +298,7 @@ public class EntityGreenNoon extends BaseGeoEntity {
         overloadTick = OVERLOAD_DURATION_TICKS;
         chainsawAttackTick = 0;
         shootAnimationTick = 0;
-        shootCooldown = SHOOT_INTERVAL_TICKS;
+        shootRateAccumulator = 0;
         this.setNoAi(true);
         stopMovement();
         setAnim("overload");
@@ -295,10 +308,10 @@ public class EntityGreenNoon extends BaseGeoEntity {
 
     private void tickOverload(ServerLevel level) {
         stopMovement();
-        if (overloadTick % 10 == 0) {
-            level.sendParticles(net.minecraft.core.particles.ParticleTypes.ELECTRIC_SPARK,
+        if (overloadTick % 4 == 0) {
+            level.sendParticles(ModParticleTypes.GREEN_NOON_OVERLOAD.get(),
                     this.getX(), this.getY() + this.getBbHeight() * 0.55D, this.getZ(),
-                    12, 0.45D, 0.65D, 0.45D, 0.02D);
+                    3, 0.65D, this.getBbHeight() * 0.35D, 0.65D, 0.015D);
         }
 
         overloadTick--;
@@ -315,8 +328,13 @@ public class EntityGreenNoon extends BaseGeoEntity {
         }
         AABB range = this.getBoundingBox().inflate(horizontalRange, 8.0D, horizontalRange);
         return level.getEntitiesOfClass(LivingEntity.class, range, this::isValidAttackTarget).stream()
+                .filter(target -> this.distanceToSqr(target) <= horizontalRange * horizontalRange)
                 .min(Comparator.comparingDouble(this::distanceToSqr))
                 .orElse(null);
+    }
+
+    private boolean isWithinChainsawRange(LivingEntity target) {
+        return this.distanceToSqr(target) <= CHAINSAW_RANGE * CHAINSAW_RANGE;
     }
 
     private boolean isValidAttackTarget(@Nullable LivingEntity target) {
@@ -439,7 +457,8 @@ public class EntityGreenNoon extends BaseGeoEntity {
         return switch (anim) {
             case "shoot" -> event.setAndContinue(RawAnimation.begin().thenLoop("animation.green_noon.shoot"));
             case "attack" -> event.setAndContinue(RawAnimation.begin().thenPlay("animation.green_noon.attack"));
-            case "overload" -> event.setAndContinue(RawAnimation.begin().thenPlay("animation.green_noon.overload"));
+            case "overload" -> event.setAndContinue(
+                    RawAnimation.begin().thenPlayAndHold("animation.green_noon.overload"));
             case "death" -> event.setAndContinue(RawAnimation.begin().thenPlay("animation.green_noon.death"));
             case "walk" -> event.setAndContinue(RawAnimation.begin().thenLoop("animation.green_noon.walk"));
             default -> event.setAndContinue(RawAnimation.begin().thenLoop("animation.green_noon.idle"));
@@ -462,7 +481,7 @@ public class EntityGreenNoon extends BaseGeoEntity {
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
-        tag.putInt("ShootCooldown", shootCooldown);
+        tag.putInt("ShootRateAccumulator", shootRateAccumulator);
         tag.putInt("ShootAnimationTick", shootAnimationTick);
         tag.putInt("ChainsawAttackTick", chainsawAttackTick);
         tag.putInt("ChainsawCooldown", chainsawCooldown);
@@ -479,7 +498,9 @@ public class EntityGreenNoon extends BaseGeoEntity {
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
-        shootCooldown = tag.getInt("ShootCooldown");
+        shootRateAccumulator = tag.contains("ShootRateAccumulator")
+                ? tag.getInt("ShootRateAccumulator")
+                : SHOOT_RATE_SCALE;
         shootAnimationTick = tag.getInt("ShootAnimationTick");
         chainsawAttackTick = tag.getInt("ChainsawAttackTick");
         chainsawCooldown = tag.getInt("ChainsawCooldown");

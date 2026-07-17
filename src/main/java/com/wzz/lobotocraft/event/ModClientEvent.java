@@ -93,8 +93,8 @@ public class ModClientEvent {
         event.registerEntityRenderer(ModEntities.bloody_small.get(), (r) -> new GeoEntityRenderer<>(r, 0.5f, 0.5f));
         event.registerEntityRenderer(ModEntities.green_dawn.get(), (r) -> new GeoEntityRenderer<>(r, 1.0f, 1.0f));
         event.registerEntityRenderer(ModEntities.violet_dawn.get(), (r) -> new GeoEntityRenderer<>(r, 1.0f, 1.0f));
-        event.registerEntityRenderer(ModEntities.violet_noon.get(), (r) -> new GeoEntityRenderer<>(r, 1.0f, 1.0f));
-        event.registerEntityRenderer(ModEntities.green_noon.get(), (r) -> new GeoEntityRenderer<>(r, 1.0f, 1.0f));
+        event.registerEntityRenderer(ModEntities.violet_noon.get(), (r) -> new GeoEntityRenderer<>(r, 2.0f, 2.0f));
+        event.registerEntityRenderer(ModEntities.green_noon.get(), (r) -> new GeoEntityRenderer<>(r, 1.1f, 1.1f));
         event.registerEntityRenderer(ModEntities.amber_dawn.get(), (r) -> new GeoEntityRenderer<>(r, 0.8f, 0.8f));
         event.registerEntityRenderer(ModEntities.butterfly_funeral.get(), (r) -> new AbnormalityRenderer<>(r, "butterfly", "butterfly", 0.6f, 0.6f));
         event.registerEntityRenderer(ModEntities.fragment_of_the_universe.get(), (r) -> new AbnormalityRenderer<>(r, 1.0f, 1.0f));
