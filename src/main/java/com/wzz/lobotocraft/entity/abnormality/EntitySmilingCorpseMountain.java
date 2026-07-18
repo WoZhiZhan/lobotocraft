@@ -69,18 +69,22 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     private static final double[] PHASE_SPEED_MUL = {0.0, 1.0, 1.0, 1.0};
 
     // 攻击时序（tick，20t=1s）。伤害触发帧来自策划给定触发时间。
-    private static final int P1_DMG = 10,  P1_TOTAL = 28,  P1_CD = 10;
-    private static final int P2_DMG = 16,  P2_TOTAL = 24,  P2_CD = 20;
-    private static final int P3_1_DMG = 20, P3_1_TOTAL = 28;
-    private static final int P3_2_DMG = 30, P3_2_TOTAL = 40;
-    private static final int P3S_DMG = 15,  P3S_TOTAL = 26;
+    private static final int P1_DMG = 15,  P1_TOTAL = 24,  P1_CD = 10;   // 一阶段：0.75s 出伤
+    private static final int P2_DMG = 20,  P2_TOTAL = 32,  P2_CD = 20;   // 二阶段：抬鼙鼓=动画1s后出伤
+    private static final int P3_1_DMG = 20, P3_1_TOTAL = 28;             // attack3-1：1s
+    private static final int P3_2_DMG = 30, P3_2_TOTAL = 40;             // attack3-2：1.5s
+    private static final int P3S_DMG = 16,  P3S_TOTAL = 40;             // attack3-3：0.8s 起，右→左扫射
     private static final int P3_CD = 15;
+    private static final int P3S_SWEEP = 16; // 特殊喷吐从右到左的扫射持续 tick
 
     // 攻击范围（横向半宽为策划未指定项，取合理默认，可调）
     private static final double P1_FWD = 3, P1_BACK = 2, P1_HALF = 2.0;
     private static final double P2_TRIGGER = 10, P2_RADIUS = 12;
     private static final double P3_FWD = 6, P3_BACK = 3, P3_HALF = 2.5;
-    private static final double P3S_FWD = 10, P3S_BACK = 2, P3S_HALF = 3.0;
+    // 特殊喷吐：7 格长直线，从右到左覆盖 7x7
+    private static final double P3S_LEN = 7.0, P3S_HALF = 3.5;
+    // 计数器降到1的过渡：ready_run 播完切 ready_run_idle（按 ready_run 动画长度调整）
+    private static final int READY_RUN_TICKS = 20;
 
     // 移动追击范围
     private static final double CHASE_RANGE_LOW = 16.0;   // 一/二阶段
@@ -94,6 +98,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     private int lastTombstoneScan = -100;
 
     private int transitionCooldown = 0;
+    private int readyRunTransition = 0;
 
     private ParticleOptions[] vomitParticles;
 
@@ -214,6 +219,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     /** 计数器降到 1：过渡动画 ready_run -> ready_run_idle + 音效 */
     public void triggerClerkDieCount() {
         setAnimation("ready_run");
+        readyRunTransition = READY_RUN_TICKS;
         playSound(ModSounds.SMILING_CORPSE_MOUNTAIN_COUNTER_DECREASED_TO_1.get());
     }
 
@@ -331,9 +337,10 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     // ============================================================
     //  伤害
     // ============================================================
-    private void dealDirectionalDamage(double forward, double back, double halfWidth, double yRange,
-                                       float min, float max, String dmgId, boolean slow) {
-        if (level().isClientSide) return;
+    private List<LivingEntity> dealDirectionalDamage(double forward, double back, double halfWidth, double yRange,
+                                                     float min, float max, String dmgId, boolean slow) {
+        List<LivingEntity> hitList = new ArrayList<>();
+        if (level().isClientSide) return hitList;
         java.util.function.Predicate<LivingEntity> pred = victimPredicate();
         Vec3 self = position();
         double rad = Math.toRadians(getYRot());
@@ -351,7 +358,9 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
             float dmg = min + random.nextFloat() * (max - min);
             e.hurt(DamageHelper.getDamage(this, dmgId), dmg);
             if (slow) e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 255));
+            hitList.add(e);
         }
+        return hitList;
     }
 
     private void dealRadiusDamage(double radius, float min, float max, String dmgId) {
@@ -390,20 +399,72 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         }
     }
 
-    private ParticleOptions[] vomitParticles() {
+    private ParticleOptions[] vomitOrganParticles() {
         if (vomitParticles == null) {
             vomitParticles = new ParticleOptions[] {
                     (SimpleParticleType) ModParticleTypes.SMILING_CORPSE_MOUNTAIN_VOMITUS_1.get(),
                     (SimpleParticleType) ModParticleTypes.SMILING_CORPSE_MOUNTAIN_VOMITUS_2.get(),
                     (SimpleParticleType) ModParticleTypes.SMILING_CORPSE_MOUNTAIN_VOMITUS_3.get(),
                     (SimpleParticleType) ModParticleTypes.SMILING_CORPSE_MOUNTAIN_VOMITUS_4.get(),
-                    (SimpleParticleType) ModParticleTypes.SMILING_CORPSE_MOUNTAIN_VOMITUS_5.get(),
-                    // 混入黑色粒子特效
-                    ParticleUtil.getDustParticle(0.02f, 0.02f, 0.02f, 1.6f),
-                    ParticleUtil.getDustParticle(0.06f, 0.0f, 0.10f, 1.4f) // 一点暗紫增加层次
+                    (SimpleParticleType) ModParticleTypes.SMILING_CORPSE_MOUNTAIN_VOMITUS_5.get()
             };
         }
         return vomitParticles;
+    }
+
+    /**
+     * 特殊喷吐扫射：progress 0→1 表示从右到左。
+     * 每 tick 对当前横向列内、7格长范围内、未被击中的目标造成一次黑侵蚀伤害。
+     */
+    private void sweepVomitDamage(float progress, java.util.Set<LivingEntity> hit) {
+        if (level().isClientSide) return;
+        double rad = Math.toRadians(getYRot());
+        Vec3 fwd = new Vec3(-Math.sin(rad), 0, -Math.cos(rad));
+        Vec3 right = new Vec3(-fwd.z, 0, fwd.x);
+        Vec3 self = position();
+        double latCenter = P3S_HALF * (1 - 2 * progress); // +half(右) → -half(左)
+        double sliceHalf = P3S_HALF / 2.5;
+        List<LivingEntity> list = level().getEntitiesOfClass(LivingEntity.class,
+                getBoundingBox().inflate(P3S_LEN + 1, 3, P3S_LEN + 1), this::isPhase3Target);
+        for (LivingEntity e : list) {
+            if (hit.contains(e)) continue;
+            Vec3 d = e.position().subtract(self);
+            double proj = d.x * fwd.x + d.z * fwd.z;
+            if (proj < 0 || proj > P3S_LEN) continue;
+            double lat = d.x * right.x + d.z * right.z;
+            if (Math.abs(lat - latCenter) > sliceHalf) continue;
+            if (Math.abs(d.y) > 3) continue;
+            float dmg = 120 + random.nextFloat() * 30;
+            e.hurt(DamageHelper.getDamage(this, "lobotocraft:black"), dmg);
+            hit.add(e);
+        }
+    }
+
+    /**
+     * 喷吐粒子：从头部（近似）以抛物线弧度射向当前扫射列的扇形范围。
+     * 黑色粒子:内脏粒子 ≈ 7:1，随尸山朝向/位置每 tick 更新（跟随头部）。
+     */
+    private void spawnVomitArc(float progress) {
+        if (!(level() instanceof ServerLevel sl)) return;
+        double rad = Math.toRadians(getYRot());
+        Vec3 fwd = new Vec3(-Math.sin(rad), 0, -Math.cos(rad));
+        Vec3 right = new Vec3(-fwd.z, 0, fwd.x);
+        Vec3 head = position().add(0, getEyeHeight() + 0.3, 0).add(fwd.scale(0.8)); // 近似头部/鼙鼓口
+        double latCenter = P3S_HALF * (1 - 2 * progress);
+        ParticleOptions[] organs = vomitOrganParticles();
+        ParticleOptions black = ParticleUtil.getDustParticle(0.02f, 0.02f, 0.02f, 1.6f);
+        int count = 24;
+        for (int i = 0; i < count; i++) {
+            double dist = random.nextDouble() * P3S_LEN;
+            double lat = latCenter + (random.nextDouble() - 0.5) * (P3S_HALF / 2.0); // 列内散布=扇形
+            Vec3 target = position().add(fwd.scale(dist)).add(right.scale(lat)).add(0, 0.2, 0);
+            double tt = random.nextDouble();
+            double arc = 1.8 * (tt * (1 - tt) * 4.0); // 抛物线弧度（发射器式下落）
+            Vec3 p = head.add(target.subtract(head).scale(tt)).add(0, arc, 0);
+            // 7:1 黑:内脏
+            ParticleOptions type = (random.nextInt(8) == 0) ? organs[random.nextInt(organs.length)] : black;
+            sl.sendParticles(type, p.x, p.y, p.z, 1, 0.04, 0.04, 0.04, 0.02);
+        }
     }
 
     // ============================================================
@@ -559,10 +620,15 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
             setNoAi(true);
             setTarget(null);
             if (getPhase() != 0) { setPhase(0); applyPhaseAttributes(0); }
-            if (getQliphothCounter() >= getMaxQliphothCounter()
-                    && !"ready_run".equals(getAnimation())
-                    && !"ready_run_idle".equals(getAnimation())) {
-                setAnimation("idle1");
+            if (readyRunTransition > 0) {
+                readyRunTransition--;
+                if (readyRunTransition == 0) setAnimation("ready_run_idle");
+            } else if (getQliphothCounter() >= getMaxQliphothCounter()) {
+                if (!"idle1".equals(getAnimation())) setAnimation("idle1"); // 满计数：收容待机
+            } else {
+                // 计数未满且不在过渡：保持/切到准备出逃待机
+                String a = getAnimation();
+                if (!"ready_run".equals(a) && !"ready_run_idle".equals(a)) setAnimation("ready_run_idle");
             }
             return;
         }
@@ -625,6 +691,13 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     }
 
     private PlayState movementPredicate(AnimationState<EntitySmilingCorpseMountain> event) {
+        String a = getAnimation();
+        // 攻击/过渡/死亡/容器态待机时，movement 控制器完全让位给 action，避免盖住动作或走路
+        boolean actionBusy = a.startsWith("attack") || "phase_two".equals(a) || "phase_three".equals(a)
+                || "death1".equals(a)
+                || (!hasEscape() && ("ready_run".equals(a) || "ready_run_idle".equals(a)));
+        if (actionBusy) return PlayState.STOP;
+
         if (event.isMoving()) {
             String move = switch (getPhase()) {
                 case 2 -> "move2";
@@ -638,19 +711,33 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
     private PlayState actionPredicate(AnimationState<EntitySmilingCorpseMountain> event) {
         String anim = getAnimation();
-        return switch (anim) {
-            case "ready_run" ->
-                    event.setAndContinue(RawAnimation.begin().thenPlay("ready_run").thenLoop("ready_run_idle"));
-            case "death1" -> event.setAndContinue(RawAnimation.begin().thenPlayAndHold("death1"));
-            case "phase_two" -> event.setAndContinue(RawAnimation.begin().thenPlay("phase_two"));
-            case "phase_three" -> event.setAndContinue(RawAnimation.begin().thenPlay("phase_three"));
-            case "attack1" -> event.setAndContinue(RawAnimation.begin().thenPlay("attack1"));
-            case "attack2" -> event.setAndContinue(RawAnimation.begin().thenPlay("attack2"));
-            case "attack3-1" -> event.setAndContinue(RawAnimation.begin().thenPlay("attack3-1"));
-            case "attack3-2" -> event.setAndContinue(RawAnimation.begin().thenPlay("attack3-2"));
-            case "attack3-3" -> event.setAndContinue(RawAnimation.begin().thenPlay("attack3-3"));
-            default -> PlayState.STOP; // idle 交给 movement 控制器，避免覆盖走路
-        };
+        switch (anim) {
+            case "ready_run":
+                return event.setAndContinue(RawAnimation.begin().thenPlayAndHold("ready_run"));
+            case "ready_run_idle":
+                // 容器态：这里循环准备出逃待机；出逃态交给 movement（否则会盖住走路）
+                if (!hasEscape())
+                    return event.setAndContinue(RawAnimation.begin().thenLoop("ready_run_idle"));
+                return PlayState.STOP;
+            case "death1":
+                return event.setAndContinue(RawAnimation.begin().thenPlayAndHold("death1"));
+            case "phase_two":
+                return event.setAndContinue(RawAnimation.begin().thenPlay("phase_two"));
+            case "phase_three":
+                return event.setAndContinue(RawAnimation.begin().thenPlay("phase_three"));
+            case "attack1":
+                return event.setAndContinue(RawAnimation.begin().thenPlay("attack1"));
+            case "attack2":
+                return event.setAndContinue(RawAnimation.begin().thenPlay("attack2"));
+            case "attack3-1":
+                return event.setAndContinue(RawAnimation.begin().thenPlay("attack3-1"));
+            case "attack3-2":
+                return event.setAndContinue(RawAnimation.begin().thenPlay("attack3-2"));
+            case "attack3-3":
+                return event.setAndContinue(RawAnimation.begin().thenPlay("attack3-3"));
+            default:
+                return PlayState.STOP;
+        }
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -796,7 +883,6 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
             t = 0;
             e.faceTarget(e.findNearestVictim(P1_FWD + 1));
             e.setAnimation("attack1");
-            e.playPositionalSound(ModSounds.SMILING_CORPSE_MOUNTAIN_ONE_STAGES_ATTACK.get());
         }
 
         @Override
@@ -804,7 +890,21 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
             e.faceTarget(e.findNearestVictim(P1_FWD + 1.5)); // 攻击期间持续转向
             t++;
             if (t == P1_DMG) {
-                e.dealDirectionalDamage(P1_FWD, P1_BACK, P1_HALF, 2.5, 7, 11, "lobotocraft:red", false);
+                e.playPositionalSound(ModSounds.SMILING_CORPSE_MOUNTAIN_ONE_STAGES_ATTACK.get());
+                List<LivingEntity> hit = e.dealDirectionalDamage(P1_FWD, P1_BACK, P1_HALF, 2.5,
+                        7, 11, "lobotocraft:red", false);
+                // 必中：主目标即使不在锥形内也强制命中
+                LivingEntity primary = e.findNearestVictim(P1_FWD + 1.5);
+                if (primary != null && !hit.contains(primary)) {
+                    primary.hurt(DamageHelper.getDamage(e, "lobotocraft:red"), 7 + e.random.nextFloat() * 4);
+                    hit.add(primary);
+                }
+                // 对文职施加约 50% 减速（Slowness III ≈ -45%~-50%，2s）
+                for (LivingEntity v : hit) {
+                    if (v instanceof EntityClerk) {
+                        v.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 2));
+                    }
+                }
             }
             if (t >= P1_TOTAL) {
                 active = false;
@@ -846,15 +946,15 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
             t = 0;
             e.faceTarget(e.findNearestVictim(P2_TRIGGER));
             e.setAnimation("attack2");
-            e.playPositionalSound(ModSounds.SMILING_CORPSE_MOUNTAIN_TWO_STAGE_HOWLING.get());
         }
 
         @Override
         public void tick() {
             t++;
             if (t == P2_DMG) {
+                // 抬鼙鼓时刻（动画1s后）同时：音效 + 出伤 + 冲击波
+                e.playPositionalSound(ModSounds.SMILING_CORPSE_MOUNTAIN_TWO_STAGE_HOWLING.get());
                 e.dealRadiusDamage(P2_RADIUS, 20, 27, "lobotocraft:black");
-                // 黑紫色冲击波（客户端 ShockwaveEffectManager 负责扩张动画）
                 e.spawnShockwave((float) P2_RADIUS, SHOCKWAVE_COLOR);
             }
             if (t >= P2_TOTAL) {
@@ -896,11 +996,14 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         @Override
         public boolean canContinueToUse() { return active; }
 
+        private final java.util.Set<LivingEntity> sweepHit = new java.util.HashSet<>();
+
         @Override
         public void start() {
             active = true;
             t = 0;
-            e.faceTarget(e.findNearestVictim(P3S_FWD));
+            sweepHit.clear();
+            e.faceTarget(e.findNearestVictim(P3S_LEN));
             special = e.random.nextFloat() < 0.30f;
             if (special) {
                 dmgTick = P3S_DMG;
@@ -915,21 +1018,21 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
         @Override
         public void tick() {
-            e.faceTarget(e.findNearestVictim(P3S_FWD)); // 持续转向
+            e.faceTarget(e.findNearestVictim(P3S_LEN)); // 持续转向（喷吐随头部移动）
             t++;
-            if (t == dmgTick) {
-                if (special) {
-                    // 音效在喷吐帧播放，与动画对齐
+            if (special) {
+                if (t == dmgTick) {
+                    // 喷吐开始：音效与动画对齐
                     e.playPositionalSound(ModSounds.SMILING_CORPSE_MOUNTAIN_THREE_STAGES_SPECIAL_ATTACK.get());
-                    if (e.level() instanceof ServerLevel sl) {
-                        double rad = Math.toRadians(e.getYRot());
-                        Vec3 dir = new Vec3(-Math.sin(rad), 0, -Math.cos(rad));
-                        ParticleUtil.spawnFallingVomit(sl, e.position(), dir,
-                                P3S_FWD, P3S_BACK, P3S_HALF,
-                                e.getEyeHeight() + 2.0, 160, e.vomitParticles(), 0.35);
-                    }
-                    e.dealDirectionalDamage(P3S_FWD, P3S_BACK, P3S_HALF, 2.5, 120, 150, "lobotocraft:black", false);
-                } else {
+                }
+                // 从右到左逐渐出伤 + 喷吐弧线粒子
+                if (t >= dmgTick && t < dmgTick + P3S_SWEEP) {
+                    float prog = (float) (t - dmgTick) / (float) P3S_SWEEP; // 0=右 → 1=左
+                    e.sweepVomitDamage(prog, sweepHit);
+                    e.spawnVomitArc(prog);
+                }
+            } else {
+                if (t == dmgTick) {
                     e.playPositionalSound(ModSounds.SMILING_CORPSE_MOUNTAIN_THREE_STAGES_NORMAL_ATTACK.get());
                     e.dealDirectionalDamage(P3_FWD, P3_BACK, P3_HALF, 2.5, 15, 19, "lobotocraft:black", true);
                 }
