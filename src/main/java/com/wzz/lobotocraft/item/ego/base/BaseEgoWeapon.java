@@ -6,6 +6,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.SwordItem;
@@ -28,6 +29,7 @@ import java.util.function.Consumer;
  * 所有E.G.O武器都继承这个类
  */
 public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnimatablePerspective, IEgoLevelItem {
+    public static final String PARTIAL_ATTACK_TICK_TAG = "lobotocraft_partial_ego_attack_tick";
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final RawAnimation IDLE_ANIMATION = RawAnimation.begin().thenLoop("idle");
@@ -150,7 +152,17 @@ public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnima
 
     @Override
     public boolean onLeftClickEntity(ItemStack stack, Player player, Entity entity) {
-        return player.getAttackStrengthScale(0.0f) == 1.0f;
+        boolean fullyCharged = player.getAttackStrengthScale(0.0f) == 1.0f;
+        if (!fullyCharged && !player.level().isClientSide) {
+            player.getPersistentData().putLong(PARTIAL_ATTACK_TICK_TAG, player.level().getGameTime());
+        }
+        return fullyCharged;
+    }
+
+    public static boolean isMarkedPartialAttack(LivingEntity living) {
+        if (!(living.getMainHandItem().getItem() instanceof BaseEgoWeapon)) return false;
+        long attackTick = living.getPersistentData().getLong(PARTIAL_ATTACK_TICK_TAG);
+        return attackTick > 0L && living.level().getGameTime() - attackTick <= 1L;
     }
 
     @Override

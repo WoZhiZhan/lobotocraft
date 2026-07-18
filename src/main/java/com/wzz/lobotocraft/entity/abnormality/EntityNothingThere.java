@@ -305,10 +305,6 @@ public class EntityNothingThere extends AbstractAbnormality {
     }
     @Override
     public boolean hurt(net.minecraft.world.damagesource.DamageSource source, float amount) {
-        // 二三阶段检测到红色伤害直接取消受击判定
-        if ((currentPhase == PHASE_2 || currentPhase == PHASE_3) && DamageHelper.isRedDamage(source)) {
-            return false;
-        }
         boolean result = super.hurt(source, amount);
         if (result) {
             lastDamagedTick = this.tickCount;
@@ -755,7 +751,7 @@ public class EntityNothingThere extends AbstractAbnormality {
 
     private void updatePhase2Attributes() {
         var redResist = this.getAttribute(ModAttributes.RED_DAMAGE_RESISTANCE.get());
-        if (redResist != null) redResist.setBaseValue(0.0D);
+        if (redResist != null) redResist.setBaseValue(0.3D);
         var whiteResist = this.getAttribute(ModAttributes.WHITE_DAMAGE_RESISTANCE.get());
         if (whiteResist != null) whiteResist.setBaseValue(0.6D);
         var blackResist = this.getAttribute(ModAttributes.BLACK_DAMAGE_RESISTANCE.get());
@@ -768,7 +764,7 @@ public class EntityNothingThere extends AbstractAbnormality {
         var speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
         if (speed != null) speed.setBaseValue(PHASE3_MOVEMENT_SPEED);
         var redResist = this.getAttribute(ModAttributes.RED_DAMAGE_RESISTANCE.get());
-        if (redResist != null) redResist.setBaseValue(0.0D);
+        if (redResist != null) redResist.setBaseValue(0.3D);
         var whiteResist = this.getAttribute(ModAttributes.WHITE_DAMAGE_RESISTANCE.get());
         if (whiteResist != null) whiteResist.setBaseValue(0.4D);
         var blackResist = this.getAttribute(ModAttributes.BLACK_DAMAGE_RESISTANCE.get());

@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.util;
 
 import com.wzz.lobotocraft.damagetype.AttackDamage;
+import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.mixinaccess.IDamageSource;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
@@ -115,7 +116,17 @@ public class DamageHelper {
         if (damageSource instanceof IDamageSource iDamageSource && iDamageSource.getDamageType() != null && iDamageSource.getDamageType().equals("red")) {
             return true;
         }
+        if (isUnchargedEgoWeaponMelee(damageSource)) {
+            return true;
+        }
         return damageSource.getMsgId().equals("red");
+    }
+
+    public static boolean isUnchargedEgoWeaponMelee(DamageSource damageSource) {
+        return damageSource != null
+                && damageSource.is(DamageTypes.PLAYER_ATTACK)
+                && damageSource.getEntity() instanceof LivingEntity living
+                && BaseEgoWeapon.isMarkedPartialAttack(living);
     }
 
     public static boolean isBlueDamage(DamageSource damageSource) {

@@ -71,11 +71,11 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     private static final double[] PHASE_SPEED_MUL = {0.0, 1.0, 1.0, 1.0};
 
     // 攻击时序（tick，20t=1s）。伤害触发帧来自策划给定触发时间。
-    private static final int P1_DMG = 15,  P1_TOTAL = 24,  P1_CD = 10;   // 一阶段：0.75s 出伤
-    private static final int P2_DMG = 20,  P2_TOTAL = 32,  P2_CD = 20;   // 二阶段：抬鼙鼓=动画1s后出伤
-    private static final int P3_1_DMG = 20, P3_1_TOTAL = 28;             // attack3-1：1s
-    private static final int P3_2_DMG = 30, P3_2_TOTAL = 40;             // attack3-2：1.5s
-    private static final int P3S_DMG = 16,  P3S_TOTAL = 40;             // attack3-3：0.8s 起，右→左扫射
+    private static final int P1_DMG = 15,  P1_TOTAL = 28,  P1_CD = 10;   // 一阶段：0.75s 出伤，attack1 约1.4167s
+    private static final int P2_DMG = 20,  P2_TOTAL = 53,  P2_CD = 20;   // 二阶段：1s 出伤，attack2 约2.6667s
+    private static final int P3_1_DMG = 20, P3_1_TOTAL = 38;             // attack3-1：1s，约1.875s
+    private static final int P3_2_DMG = 30, P3_2_TOTAL = 51;             // attack3-2：1.5s，约2.5417s
+    private static final int P3S_DMG = 16,  P3S_TOTAL = 60;              // attack3-3：0.8s 起，约3s
     private static final int P3_CD = 15;
     private static final int P3S_SWEEP = 16; // 特殊喷吐从右到左的扫射持续 tick
 
@@ -390,6 +390,11 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         level().playSound(null, getX(), getY(), getZ(), s, SoundSource.HOSTILE, 1.0f, 1.0f);
     }
 
+    private void lockMovementForAttack() {
+        getNavigation().stop();
+        setDeltaMovement(0.0D, getDeltaMovement().y, 0.0D);
+    }
+
     /** 向附近玩家发送冲击波渲染包（复用碧蓝新星的 ShockwaveEffectManager） */
     private void spawnShockwave(float maxRadius, int color) {
         if (!(level() instanceof ServerLevel sl)) return;
@@ -523,12 +528,17 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     //  出逃 / 生命周期
     // ============================================================
     @Override
-    public void onWorkComplete(ServerPlayer player, WorkType workType, WorkResult result) {
-        // 机制1补充：血量不满的玩家完成工作 -> 计数器 -1
+    public boolean onWorkStart(ServerPlayer player, WorkType workType) {
         if (!hasEscape() && player != null && player.getHealth() < player.getMaxHealth()) {
             decreaseQliphothCounter(1);
             if (getQliphothCounter() == 1) triggerClerkDieCount();
+            if (getQliphothCounter() <= 0) triggerEscape();
         }
+        return super.onWorkStart(player, workType);
+    }
+
+    @Override
+    public void onWorkComplete(ServerPlayer player, WorkType workType, WorkResult result) {
         if (!hasEscape() && getQliphothCounter() <= 0) {
             triggerEscape();
         }
@@ -947,10 +957,11 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         private int t;
         private boolean active;
         private int cd;
+        private LivingEntity primary;
 
         Phase1AttackGoal(EntitySmilingCorpseMountain e) {
             this.e = e;
-            setFlags(EnumSet.of(Flag.LOOK));
+            setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
         }
 
         @Override
@@ -966,21 +977,21 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         public void start() {
             active = true;
             t = 0;
-            e.faceTarget(e.findNearestVictim(P1_FWD + 1));
+            primary = e.findNearestVictim(P1_FWD + 1);
+            e.faceTarget(primary);
             e.setAnimation("attack1");
         }
 
         @Override
         public void tick() {
-            e.faceTarget(e.findNearestVictim(P1_FWD + 1.5)); // 攻击期间持续转向
+            e.lockMovementForAttack();
+            e.faceTarget(primary); // 命中目标锁定，避免出伤前重新选目标导致“必中”失效
             t++;
             if (t == P1_DMG) {
                 e.playPositionalSound(ModSounds.SMILING_CORPSE_MOUNTAIN_ONE_STAGES_ATTACK.get());
                 List<LivingEntity> hit = e.dealDirectionalDamage(P1_FWD, P1_BACK, P1_HALF, 2.5,
                         7, 11, "lobotocraft:red", false);
-                // 必中：主目标即使不在锥形内也强制命中
-                LivingEntity primary = e.findNearestVictim(P1_FWD + 1.5);
-                if (primary != null && !hit.contains(primary)) {
+                if (primary != null && primary.isAlive() && e.victimPredicate().test(primary) && !hit.contains(primary)) {
                     primary.hurt(DamageHelper.getDamage(e, "lobotocraft:red"), 7 + e.random.nextFloat() * 4);
                     hit.add(primary);
                 }
@@ -1001,6 +1012,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         @Override
         public void stop() {
             active = false;
+            primary = null;
             if ("attack1".equals(e.getAnimation())) e.setAnimation(e.phaseIdle());
         }
     }
@@ -1014,7 +1026,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
         Phase2HowlGoal(EntitySmilingCorpseMountain e) {
             this.e = e;
-            setFlags(EnumSet.of(Flag.LOOK));
+            setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
         }
 
         @Override
@@ -1035,6 +1047,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
         @Override
         public void tick() {
+            e.lockMovementForAttack();
             t++;
             if (t == P2_DMG) {
                 // 抬鼙鼓时刻（动画1s后）同时：音效 + 出伤 + 冲击波
@@ -1069,7 +1082,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
         Phase3AttackGoal(EntitySmilingCorpseMountain e) {
             this.e = e;
-            setFlags(EnumSet.of(Flag.LOOK));
+            setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
         }
 
         @Override
@@ -1103,6 +1116,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
         @Override
         public void tick() {
+            e.lockMovementForAttack();
             e.faceTarget(e.findNearestVictim(P3S_LEN)); // 持续转向（喷吐随头部移动）
             t++;
             if (special) {

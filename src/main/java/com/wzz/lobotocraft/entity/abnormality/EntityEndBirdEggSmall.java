@@ -99,6 +99,9 @@ public class EntityEndBirdEggSmall extends AbstractAbnormality {
         if (entity instanceof LivingEntity living && !living.getMainHandItem().getItem().getClass().getName().startsWith("com.wzz.lobotocraft")
                 && !(living instanceof AbstractAbnormality))
             return false;
+        if (DamageHelper.isUnchargedEgoWeaponMelee(damageSource)) {
+            return baseHurt(damageSource, f);
+        }
         if (DamageHelper.isRedDamage(damageSource)) {
             if (!level().isClientSide) {
                 heal(f);
