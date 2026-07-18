@@ -12,6 +12,7 @@ import com.wzz.lobotocraft.entity.EntityLightFollower;
 import com.wzz.lobotocraft.entity.abnormality.*;
 import com.wzz.lobotocraft.entity.ordeal.EntityAmberDawn;
 import com.wzz.lobotocraft.entity.ordeal.EntityBloodySmall;
+import com.wzz.lobotocraft.entity.ordeal.EntityCrimsonNoon;
 import com.wzz.lobotocraft.entity.ordeal.EntityGreenDawn;
 import com.wzz.lobotocraft.entity.ordeal.EntityGreenNoon;
 import com.wzz.lobotocraft.entity.ordeal.EntityVioletDawn;
@@ -209,6 +210,14 @@ public class ModEntities {
                             .clientTrackingRange(12)
                             .updateInterval(3)
                             .build("green_noon"));
+
+    public static final RegistryObject<EntityType<EntityCrimsonNoon>> crimson_noon =
+            ENTITIES.register("crimson_noon",
+                    () -> EntityType.Builder.of(EntityCrimsonNoon::new, MobCategory.MONSTER)
+                            .sized(1.8F, 1.2F)
+                            .clientTrackingRange(12)
+                            .updateInterval(3)
+                            .build("crimson_noon"));
 
     public static final RegistryObject<EntityType<EntityAmberDawn>> amber_dawn =
             ENTITIES.register("amber_dawn",

@@ -31,6 +31,9 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> GREEN_NOON_OVERLOAD = register("green_noon_overload");
 	public static final RegistryObject<SoundEvent> GREEN_NOON_DEATH = register("green_noon_death");
 	public static final RegistryObject<SoundEvent> GREEN_NOON_END = register("green_noon_end");
+	public static final RegistryObject<SoundEvent> CRIMSON_NOON_START = register("crimson_noon_start");
+	public static final RegistryObject<SoundEvent> CRIMSON_NOON_ATTACK = register("crimson_noon_attack");
+	public static final RegistryObject<SoundEvent> CRIMSON_NOON_END = register("crimson_noon_end");
 	public static final RegistryObject<SoundEvent> VIOLET_DAWN_START = register("violet_dawn_start");
 	public static final RegistryObject<SoundEvent> VIOLET_DAWN_ATTACK = register("violet_dawn_attack");
 	public static final RegistryObject<SoundEvent> VIOLET_DAWN_DEATH = register("violet_dawn_death");

@@ -19,6 +19,7 @@ public class OrdealData extends SavedData {
     public static final int BLUE_MIDDAY_TYPE = 1;
     public static final int VIOLET_MIDDAY_TYPE = 2;
     public static final int GREEN_MIDDAY_TYPE = 3;
+    public static final int CRIMSON_MIDDAY_TYPE = 4;
 
     private int trackedDay = 0;
     private int dawnChance = 0;
@@ -40,6 +41,8 @@ public class OrdealData extends SavedData {
     private int violetMiddayRemaining = 0;
     private boolean greenMiddayActive = false;
     private int greenMiddayRemaining = 0;
+    private boolean crimsonMiddayActive = false;
+    private int crimsonMiddayRemaining = 0;
 
     public static OrdealData get(ServerLevel level) {
         return level.getServer().overworld().getDataStorage().computeIfAbsent(
@@ -77,6 +80,8 @@ public class OrdealData extends SavedData {
             violetMiddayRemaining = 0;
             greenMiddayActive = false;
             greenMiddayRemaining = 0;
+            crimsonMiddayActive = false;
+            crimsonMiddayRemaining = 0;
             setDirty();
         }
     }
@@ -268,7 +273,7 @@ public class OrdealData extends SavedData {
     }
 
     public void setNextMiddayType(int middayType) {
-        if (middayType < BLUE_MIDDAY_TYPE || middayType > GREEN_MIDDAY_TYPE) {
+        if (middayType < BLUE_MIDDAY_TYPE || middayType > CRIMSON_MIDDAY_TYPE) {
             nextMiddayType = NO_MIDDAY_TYPE;
         } else {
             nextMiddayType = middayType;
@@ -277,7 +282,7 @@ public class OrdealData extends SavedData {
     }
 
     public void setRandomNextMiddayType(RandomSource random) {
-        setNextMiddayType(BLUE_MIDDAY_TYPE + random.nextInt(GREEN_MIDDAY_TYPE));
+        setNextMiddayType(BLUE_MIDDAY_TYPE + random.nextInt(CRIMSON_MIDDAY_TYPE));
     }
 
     public boolean isBlueMiddayActive() {
@@ -352,8 +357,38 @@ public class OrdealData extends SavedData {
         setDirty();
     }
 
+    public boolean isCrimsonMiddayActive() {
+        return crimsonMiddayActive;
+    }
+
+    public void startCrimsonMidday(int entityCount) {
+        crimsonMiddayActive = true;
+        crimsonMiddayRemaining = Math.max(0, entityCount);
+        setDirty();
+    }
+
+    public void addCrimsonMiddayRemaining(int entityCount) {
+        if (entityCount <= 0) return;
+        crimsonMiddayRemaining += entityCount;
+        setDirty();
+    }
+
+    public int decrementCrimsonMiddayRemaining() {
+        if (crimsonMiddayRemaining > 0) {
+            crimsonMiddayRemaining--;
+            setDirty();
+        }
+        return crimsonMiddayRemaining;
+    }
+
+    public void finishCrimsonMidday() {
+        crimsonMiddayActive = false;
+        crimsonMiddayRemaining = 0;
+        setDirty();
+    }
+
     public boolean hasActiveMidday() {
-        return blueMiddayActive || violetMiddayActive || greenMiddayActive;
+        return blueMiddayActive || violetMiddayActive || greenMiddayActive || crimsonMiddayActive;
     }
 
     public boolean hasActiveOrdeal() {
@@ -382,6 +417,8 @@ public class OrdealData extends SavedData {
         tag.putInt("VioletMiddayRemaining", violetMiddayRemaining);
         tag.putBoolean("GreenMiddayActive", greenMiddayActive);
         tag.putInt("GreenMiddayRemaining", greenMiddayRemaining);
+        tag.putBoolean("CrimsonMiddayActive", crimsonMiddayActive);
+        tag.putInt("CrimsonMiddayRemaining", crimsonMiddayRemaining);
         return tag;
     }
 
@@ -407,6 +444,8 @@ public class OrdealData extends SavedData {
         data.violetMiddayRemaining = tag.getInt("VioletMiddayRemaining");
         data.greenMiddayActive = tag.getBoolean("GreenMiddayActive");
         data.greenMiddayRemaining = tag.getInt("GreenMiddayRemaining");
+        data.crimsonMiddayActive = tag.getBoolean("CrimsonMiddayActive");
+        data.crimsonMiddayRemaining = tag.getInt("CrimsonMiddayRemaining");
         return data;
     }
 }

@@ -135,6 +135,30 @@
       }
     ]
   },
+  "crimson_noon_start": {
+    "sounds": [
+      {
+        "name": "lobotocraft:crimson_noon_start",
+        "stream": true
+      }
+    ]
+  },
+  "crimson_noon_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:crimson_noon_attack",
+        "stream": false
+      }
+    ]
+  },
+  "crimson_noon_end": {
+    "sounds": [
+      {
+        "name": "lobotocraft:crimson_noon_end",
+        "stream": true
+      }
+    ]
+  },
   "violet_dawn_start": {
     "sounds": [
       {

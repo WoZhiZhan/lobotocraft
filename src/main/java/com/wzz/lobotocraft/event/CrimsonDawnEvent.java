@@ -57,6 +57,7 @@ public class CrimsonDawnEvent {
     public static final int BLUE_MIDDAY_COLOR = 0x5AB4FF;  // 深蓝色的正午
     public static final int VIOLET_MIDDAY_COLOR = 0xC77DFF; // 紫罗兰的正午
     public static final int GREEN_MIDDAY_COLOR = 0x6BFF8E;  // 绿色的正午
+    public static final int CRIMSON_MIDDAY_COLOR = 0xFF3B3B; // 血色的正午
 
     /* ===== 标题动画时长（tick）：淡入 / 停留 / 淡出 ===== */
     public static final int TITLE_FADE_IN = 10;
@@ -112,6 +113,7 @@ public class CrimsonDawnEvent {
 
         if (level.getRandom().nextInt(100) < chance) {
             switch (nextMiddayType) {
+                case OrdealData.CRIMSON_MIDDAY_TYPE -> CrimsonNoonEvent.triggerCrimsonNoon(level);
                 case OrdealData.VIOLET_MIDDAY_TYPE -> VioletNoonEvent.triggerVioletNoon(level);
                 case OrdealData.GREEN_MIDDAY_TYPE -> GreenNoonEvent.triggerGreenNoon(level);
                 default -> BlueMiddayEvent.triggerBlueMidday(level);
@@ -380,6 +382,7 @@ public class CrimsonDawnEvent {
 
     public static String getMiddayLabel(int middayType) {
         return switch (middayType) {
+            case OrdealData.CRIMSON_MIDDAY_TYPE -> "血色的正午";
             case OrdealData.VIOLET_MIDDAY_TYPE -> "紫罗兰的正午";
             case OrdealData.GREEN_MIDDAY_TYPE -> "绿色的正午";
             default -> "深蓝色的正午";
@@ -406,6 +409,7 @@ public class CrimsonDawnEvent {
 
     private static ChatFormatting getMiddayLabelColor(int middayType) {
         return switch (middayType) {
+            case OrdealData.CRIMSON_MIDDAY_TYPE -> ChatFormatting.DARK_RED;
             case OrdealData.VIOLET_MIDDAY_TYPE -> ChatFormatting.DARK_PURPLE;
             case OrdealData.GREEN_MIDDAY_TYPE -> ChatFormatting.GREEN;
             default -> ChatFormatting.DARK_BLUE;
@@ -414,6 +418,7 @@ public class CrimsonDawnEvent {
 
     private static ChatFormatting getMiddayChanceColor(int middayType) {
         return switch (middayType) {
+            case OrdealData.CRIMSON_MIDDAY_TYPE -> ChatFormatting.RED;
             case OrdealData.VIOLET_MIDDAY_TYPE -> ChatFormatting.LIGHT_PURPLE;
             case OrdealData.GREEN_MIDDAY_TYPE -> ChatFormatting.GREEN;
             default -> ChatFormatting.AQUA;

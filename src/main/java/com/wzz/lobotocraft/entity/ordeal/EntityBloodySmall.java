@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.entity.abnormality.EntityDarkSkadi;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.BaseGeoEntity;
 import com.wzz.lobotocraft.event.CrimsonDawnEvent;
+import com.wzz.lobotocraft.event.CrimsonNoonEvent;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
@@ -56,6 +57,7 @@ public class EntityBloodySmall extends BaseGeoEntity {
     private int teleportTimer = 0;
     private int noticeCooldown = 0;
     private boolean countedDeath = false;
+    private boolean crimsonNoonSpawn = false;
 
     public EntityBloodySmall(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -98,11 +100,24 @@ public class EntityBloodySmall extends BaseGeoEntity {
         tryNotifyAbnormalityLocation(abnormality);
     }
 
+    public boolean isCrimsonNoonSpawn() {
+        return crimsonNoonSpawn;
+    }
+
+    public void setCrimsonNoonSpawn(boolean crimsonNoonSpawn) {
+        this.crimsonNoonSpawn = crimsonNoonSpawn;
+        this.getPersistentData().putBoolean(CrimsonNoonEvent.CRIMSON_NOON_CLOWN_TAG, crimsonNoonSpawn);
+    }
+
     @Override
     public void tick() {
         super.tick();
         if (this.level().isClientSide) return;
         if (!(this.level() instanceof ServerLevel level)) return;
+
+        if (!crimsonNoonSpawn && this.getPersistentData().getBoolean(CrimsonNoonEvent.CRIMSON_NOON_CLOWN_TAG)) {
+            crimsonNoonSpawn = true;
+        }
 
         if (!this.hasEffect(MobEffects.GLOWING)) {
             this.addEffect(new MobEffectInstance(MobEffects.GLOWING, Integer.MAX_VALUE, 0, false, false));
@@ -214,7 +229,11 @@ public class EntityBloodySmall extends BaseGeoEntity {
     public void die(DamageSource source) {
         if (!this.level().isClientSide && !countedDeath && this.level() instanceof ServerLevel level) {
             countedDeath = true;
-            CrimsonDawnEvent.onBloodySmallKilled(level);
+            if (crimsonNoonSpawn || this.getPersistentData().getBoolean(CrimsonNoonEvent.CRIMSON_NOON_CLOWN_TAG)) {
+                CrimsonNoonEvent.onCrimsonNoonClownKilled(level);
+            } else {
+                CrimsonDawnEvent.onBloodySmallKilled(level);
+            }
         }
         super.die(source);
     }
@@ -254,6 +273,7 @@ public class EntityBloodySmall extends BaseGeoEntity {
         tag.putInt("TeleportTimer", teleportTimer);
         tag.putInt("NoticeCooldown", noticeCooldown);
         tag.putBoolean("CountedDeath", countedDeath);
+        tag.putBoolean("CrimsonNoonSpawn", crimsonNoonSpawn);
     }
 
     @Override
@@ -263,5 +283,10 @@ public class EntityBloodySmall extends BaseGeoEntity {
         teleportTimer = tag.getInt("TeleportTimer");
         noticeCooldown = tag.getInt("NoticeCooldown");
         countedDeath = tag.getBoolean("CountedDeath");
+        crimsonNoonSpawn = tag.getBoolean("CrimsonNoonSpawn")
+                || this.getPersistentData().getBoolean(CrimsonNoonEvent.CRIMSON_NOON_CLOWN_TAG);
+        if (crimsonNoonSpawn) {
+            this.getPersistentData().putBoolean(CrimsonNoonEvent.CRIMSON_NOON_CLOWN_TAG, true);
+        }
     }
 }

@@ -133,6 +133,10 @@ public class ModItems {
             () -> new TextSpawnEggItem(ModEntities.green_noon, 0x101510, 0x6BFF8E, new Item.Properties(),
                     "§a理解的过程"));
 
+    public static final RegistryObject<Item> CRIMSON_NOON_SPAWN_EGG = REGISTRY.register("crimson_noon_spawn_egg",
+            () -> new TextSpawnEggItem(ModEntities.crimson_noon, 0x4A0505, 0xFF3B3B, new Item.Properties(),
+                    "§c汁水大合唱"));
+
     public static final RegistryObject<Item> ISHARMLA_SPAWN_EGG = REGISTRY.register("isharmla_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.isharmla, 0x3a1a4a, 0x7fd8ff, new Item.Properties(),
                     "§c深海的歌声将一切引向沉眠……"));
