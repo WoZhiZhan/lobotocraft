@@ -12,6 +12,11 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 /**
  * E.G.O装备工具类
  * 用于检查E.G.O套装完整性和应用效果
@@ -389,5 +394,131 @@ public class EgoArmorHelper {
             }
         }
         return false;
+    }
+
+    /**
+     * 获取玩家当前穿戴的E.G.O装备列表（胸甲、护腿、靴子）
+     *
+     * @param player 玩家
+     * @return 包含所有E.G.O装备的列表
+     */
+    public static List<ItemStack> getEgoArmorList(Player player) {
+        List<ItemStack> armorList = new ArrayList<>();
+        // 只遍历E.G.O装备的三个槽位
+        for (EquipmentSlot slot : new EquipmentSlot[]{
+                EquipmentSlot.CHEST,
+                EquipmentSlot.LEGS,
+                EquipmentSlot.FEET
+        }) {
+            ItemStack stack = player.getItemBySlot(slot);
+            if (stack.getItem() instanceof IEgoArmor) {
+                armorList.add(stack);
+            }
+        }
+        return armorList;
+    }
+
+    /**
+     * 获取玩家穿戴的指定套装的装备列表
+     *
+     * @param player 玩家
+     * @param setId 套装ID
+     * @return 包含指定套装所有部件的列表（仅返回属于该套装的装备）
+     */
+    public static List<ItemStack> getEgoArmorListBySet(Player player, String setId) {
+        List<ItemStack> armorList = new ArrayList<>();
+        for (EquipmentSlot slot : new EquipmentSlot[]{
+                EquipmentSlot.CHEST,
+                EquipmentSlot.LEGS,
+                EquipmentSlot.FEET
+        }) {
+            ItemStack stack = player.getItemBySlot(slot);
+            if (stack.getItem() instanceof IEgoArmor egoArmor &&
+                    egoArmor.getSetId().equals(setId)) {
+                armorList.add(stack);
+            }
+        }
+        return armorList;
+    }
+
+    /**
+     * 获取玩家穿戴的完整套装的所有装备（只返回完整套装的部件）
+     * 如果套装不完整，返回空列表
+     *
+     * @param player 玩家
+     * @return 完整套装的装备列表，如果套装不完整则返回空列表
+     */
+    public static List<ItemStack> getFullSetArmorList(Player player) {
+        String setId = getFullSetId(player);
+        if (setId == null) {
+            return new ArrayList<>();
+        }
+        return getEgoArmorListBySet(player, setId);
+    }
+
+    /**
+     * 获取玩家穿戴的特定套装的装备列表（不检查完整性）
+     *
+     * @param player 玩家
+     * @param setId 套装ID
+     * @return 该套装的所有装备列表
+     */
+    public static List<ItemStack> getArmorPiecesBySet(Player player, String setId) {
+        List<ItemStack> pieces = new ArrayList<>();
+        for (EquipmentSlot slot : new EquipmentSlot[]{
+                EquipmentSlot.CHEST,
+                EquipmentSlot.LEGS,
+                EquipmentSlot.FEET
+        }) {
+            ItemStack stack = player.getItemBySlot(slot);
+            if (stack.getItem() instanceof IEgoArmor egoArmor &&
+                    egoArmor.getSetId().equals(setId)) {
+                pieces.add(stack);
+            }
+        }
+        return pieces;
+    }
+
+    /**
+     * 获取玩家穿戴的装备中所有的套装ID
+     *
+     * @param player 玩家
+     * @return 套装ID的集合（去重）
+     */
+    public static Set<String> getEquippedSetIds(Player player) {
+        Set<String> setIds = new HashSet<>();
+        for (EquipmentSlot slot : new EquipmentSlot[]{
+                EquipmentSlot.CHEST,
+                EquipmentSlot.LEGS,
+                EquipmentSlot.FEET
+        }) {
+            ItemStack stack = player.getItemBySlot(slot);
+            if (stack.getItem() instanceof IEgoArmor egoArmor) {
+                setIds.add(egoArmor.getSetId());
+            }
+        }
+        return setIds;
+    }
+
+    /**
+     * 检查玩家是否穿戴了指定套装的任意部件
+     *
+     * @param player 玩家
+     * @param setId 套装ID
+     * @return true如果穿戴了至少一件该套装的装备
+     */
+    public static boolean hasAnyArmorPiece(Player player, String setId) {
+        return !getArmorPiecesBySet(player, setId).isEmpty();
+    }
+
+    /**
+     * 获取玩家穿戴的指定套装装备数量
+     *
+     * @param player 玩家
+     * @param setId 套装ID
+     * @return 该套装的装备数量（0-3）
+     */
+    public static int getArmorPieceCount(Player player, String setId) {
+        return getArmorPiecesBySet(player, setId).size();
     }
 }

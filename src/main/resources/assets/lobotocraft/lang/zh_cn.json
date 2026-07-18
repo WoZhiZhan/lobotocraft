@@ -285,5 +285,12 @@
   "item.lobotocraft.army_in_black_weapon": "粉红军备",
   "item.lobotocraft.army_in_black_curio": "粉红军备",
   "entity.lobotocraft.smiling_corpse_mountain": "微笑的尸山",
-  "item.lobotocraft.smiling_corpse_mountain_spawn_egg": "微笑的尸山 刷怪蛋"
+  "item.lobotocraft.smiling_corpse_mountain_spawn_egg": "微笑的尸山 刷怪蛋",
+  "item.lobotocraft.smiling_corpse_mountain_chestplate": "笑靥 胸甲",
+  "item.lobotocraft.smiling_corpse_mountain_leggings": "笑靥 护腿",
+  "item.lobotocraft.smiling_corpse_mountain_boots": "笑靥 靴子",
+  "item.lobotocraft.smiling_corpse_mountain_weapon": "笑靥",
+  "item.lobotocraft.smiling_corpse_mountain_curio": "笑靥",
+  "effect.lobotocraft.corruption": "腐败",
+  "entity.lobotocraft.smiling_corpse_mountain_shock_wave": "冲击波"
 }

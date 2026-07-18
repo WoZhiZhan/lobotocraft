@@ -209,6 +209,11 @@ public class ModTabs {
 						tabData.accept(ModItems.ARMY_IN_BLACK_BOOTS.get());
 						tabData.accept(ModItems.ARMY_IN_BLACK_WEAPON.get());
 						tabData.accept(ModItems.ARMY_IN_BLACK_CURIO.get());
+						tabData.accept(ModItems.SMILING_CORPSE_MOUNTAIN_CHESTPLATE.get());
+						tabData.accept(ModItems.SMILING_CORPSE_MOUNTAIN_LEGGINGS.get());
+						tabData.accept(ModItems.SMILING_CORPSE_MOUNTAIN_BOOTS.get());
+						tabData.accept(ModItems.SMILING_CORPSE_MOUNTAIN_WEAPON.get());
+						tabData.accept(ModItems.SMILING_CORPSE_MOUNTAIN_CURIO.get());
 					})
 					.build());
 

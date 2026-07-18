@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.event;
 
+import com.wzz.lobotocraft.block.TombstoneBlock;
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
@@ -22,6 +23,7 @@ import com.wzz.lobotocraft.item.PEBoxItem;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.item.ego.children_galaxy.ChildrenGalaxyCurio;
 import com.wzz.lobotocraft.item.ego.red_shoes.RedShoesWeapon;
+import com.wzz.lobotocraft.item.ego.smiling_corpse_mountain.SmilingCorpseMountainBaseArmor;
 import com.wzz.lobotocraft.item.ego.thorn_bus.ThornBusWeapon;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.*;
@@ -54,6 +56,7 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.living.*;
@@ -238,6 +241,9 @@ public class ForgeModEvent {
 			}
 			if (EgoArmorHelper.isFullEGO(attacker, "army_in_black", false) && attacker.getMainHandItem().getItem() == ModItems.ARMY_IN_BLACK_WEAPON.get()) {
 				event.setAmount(event.getAmount() + 15f);
+			}
+			if (CuriosUtil.hasCurios(attacker, ModItems.SMILING_CORPSE_MOUNTAIN_CURIO.get()) && isBlackDamage) {
+				event.setAmount(event.getAmount() * 1.2f);
 			}
 		}
 		if (!isDot && target instanceof ServerPlayer player) {
@@ -852,6 +858,21 @@ public class ForgeModEvent {
 	public static void onPlayerRightBlock(PlayerInteractEvent.RightClickBlock event) {
 		if (event.getEntity().getMainHandItem().getItem() instanceof BaseEgoWeapon) {
 			event.setCanceled(true);
+		}
+		Player player = event.getEntity();
+		if (EgoArmorHelper.isWearingFullSet(player, "smiling_corpse_mountain") && !player.level.isClientSide) {
+			BlockPos pos = event.getPos();
+			BlockState state = player.level().getBlockState(pos);
+			if (state.getBlock() instanceof TombstoneBlock) {
+				player.playSound(SoundEvents.GENERIC_EAT);
+				player.level.destroyBlock(pos, false, player);
+				player.heal(player.getMaxHealth() * 0.1f);
+				MentalValueUtil.addMentalValue(player, MentalValueUtil.getEffectiveMaxMentalValue(player) * 0.1f);
+				List<ItemStack> fullSetPieces = EgoArmorHelper.getFullSetArmorList(player);
+				for (ItemStack piece : fullSetPieces) {
+					SmilingCorpseMountainBaseArmor.incrementClearedCount(piece);
+				}
+			}
 		}
 	}
 

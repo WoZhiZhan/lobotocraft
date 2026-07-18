@@ -31,6 +31,7 @@ import com.wzz.lobotocraft.item.ego.queen_bee.*;
 import com.wzz.lobotocraft.item.ego.red_shoes.*;
 import com.wzz.lobotocraft.item.ego.redhat_mercenary.*;
 import com.wzz.lobotocraft.item.ego.repentance.*;
+import com.wzz.lobotocraft.item.ego.smiling_corpse_mountain.*;
 import com.wzz.lobotocraft.item.ego.snowqueen.*;
 import com.wzz.lobotocraft.item.ego.the_lady_facing_the_wall.*;
 import com.wzz.lobotocraft.item.ego.thorn_bus.*;
@@ -350,4 +351,9 @@ public class ModItems {
     public static final RegistryObject<Item> ARMY_IN_BLACK_BOOTS = REGISTRY.register("army_in_black_boots", ArmyInBlackBoots::new);
     public static final RegistryObject<Item> ARMY_IN_BLACK_WEAPON = REGISTRY.register("army_in_black_weapon", ArmyInBlackWeapon::new);
     public static final RegistryObject<Item> ARMY_IN_BLACK_CURIO = REGISTRY.register("army_in_black_curio", ArmyInBlackCurio::new);
+    public static final RegistryObject<Item> SMILING_CORPSE_MOUNTAIN_CHESTPLATE = REGISTRY.register("smiling_corpse_mountain_chestplate", SmilingCorpseMountainChestplate::new);
+    public static final RegistryObject<Item> SMILING_CORPSE_MOUNTAIN_LEGGINGS = REGISTRY.register("smiling_corpse_mountain_leggings", SmilingCorpseMountainLeggings::new);
+    public static final RegistryObject<Item> SMILING_CORPSE_MOUNTAIN_BOOTS = REGISTRY.register("smiling_corpse_mountain_boots", SmilingCorpseMountainBoots::new);
+    public static final RegistryObject<Item> SMILING_CORPSE_MOUNTAIN_WEAPON = REGISTRY.register("smiling_corpse_mountain_weapon", SmilingCorpseMountainWeapon::new);
+    public static final RegistryObject<Item> SMILING_CORPSE_MOUNTAIN_CURIO = REGISTRY.register("smiling_corpse_mountain_curio", SmilingCorpseMountainCurio::new);
 }

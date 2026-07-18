@@ -1530,5 +1530,21 @@
         "stream": false
       }
     ]
+  },
+  "smiling_corpse_mountain_normal_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:smiling_corpse_mountain_normal_attack",
+        "stream": false
+      }
+    ]
+  },
+  "smiling_corpse_mountain_special_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:smiling_corpse_mountain_special_attack",
+        "stream": false
+      }
+    ]
   }
 }

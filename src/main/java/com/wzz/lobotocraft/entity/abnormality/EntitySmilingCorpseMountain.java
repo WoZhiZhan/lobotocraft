@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.entity.abnormality;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.EntityLightFollower;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.event.BlackForestEvent;
 import com.wzz.lobotocraft.init.*;
@@ -11,6 +12,7 @@ import com.wzz.lobotocraft.network.packet.ShockwaveEffectPacket;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.ParticleUtil;
+import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.core.BlockPos;
@@ -591,6 +593,89 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     @Override
     protected AbstractAbnormality createNewInstance(ServerLevel serverLevel) {
         return new EntitySmilingCorpseMountain((EntityType<? extends TamableAnimal>) this.getType(), serverLevel);
+    }
+
+    @Override
+    public float[] getArmorRenderScale() {
+        return new float[] {1.5f, 1.0f, 1.5f};
+    }
+
+    @Override
+    public float[] getArmorRenderOffset() {
+        return new float[] {-20.0f, 1.0f, 1.0f};
+    }
+
+    @Override
+    public float[] getWeaponRenderOffset() {
+        return new float[] {5.0f, 1.0f, 1f};
+    }
+
+    @Override
+    public int getWeaponDevelopmentCost() {
+        return 222;
+    }
+
+    @Override
+    public int getArmorDevelopmentCost() {
+        return 120;
+    }
+
+    @Override
+    public int getArmorDevelopmentMaxCount() {
+        return 1;
+    }
+
+    @Override
+    public int getWeaponDevelopmentMaxCount() {
+        return 1;
+    }
+
+    @Override
+    public float getGiftProbability() {
+        return 0.01f;
+    }
+
+    @Override
+    public EGOEquipmentData.GiftData getEGOGiftData() {
+        return new EGOEquipmentData.GiftData(
+                ResourceUtil.createInstance("textures/item/smiling_corpse_mountain_curio.png"),
+                "笑靥",
+                "眼部",
+                "smiling_corpse_mountain_curio",
+                "最大精神值+5",
+                "最大生命值+5",
+                "玩家手持任意EGO造成的黑色伤害+20%"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.WeaponData getEGOWeaponData() {
+        return new EGOEquipmentData.WeaponData(
+                ResourceUtil.createInstance("textures/gui/ego/smiling_corpse_mountain_weapon.png"),
+                "笑靥",
+                getRiskLevel(),
+                "BLACK",
+                "16",
+                "1.5",
+                "3格",
+                getWeaponDevelopmentMaxCount(),
+                "smiling_corpse_mountain_weapon"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.ArmorData getEGOArmorData() {
+        return new EGOEquipmentData.ArmorData(
+                ResourceUtil.createInstance("textures/gui/ego/smiling_corpse_mountain_armor.png"),
+                "笑靥",
+                getRiskLevel(),
+                0.5f,
+                0.5f,
+                0.5f,
+                1.0f,
+                getArmorDevelopmentMaxCount(),
+                "smiling_corpse_mountain_armor"
+        );
     }
 
     @Override

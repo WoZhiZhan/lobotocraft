@@ -285,5 +285,12 @@
   "item.lobotocraft.army_in_black_weapon": "Army In Black",
   "item.lobotocraft.army_in_black_curio": "Army In Blackf",
   "item.lobotocraft.smiling_corpse_mountain_spawn_egg": "Smiling Corpse Mountain Spawn Egg",
-  "entity.lobotocraft.smiling_corpse_mountain": "Smiling Corpse Mountain"
+  "entity.lobotocraft.smiling_corpse_mountain": "Smiling Corpse Mountain",
+  "item.lobotocraft.smiling_corpse_mountain_chestplate": "Smiling Corpse Mountain Chestplate",
+  "item.lobotocraft.smiling_corpse_mountain_leggings": "Smiling Corpse Mountain Leggings",
+  "item.lobotocraft.smiling_corpse_mountain_boots": "Smiling Corpse Mountain Boots",
+  "item.lobotocraft.smiling_corpse_mountain_weapon": "Smiling Corpse Mountain",
+  "item.lobotocraft.smiling_corpse_mountain_curio": "Smiling Corpse Mountain",
+  "effect.lobotocraft.corruption": "Corruption",
+  "entity.lobotocraft.smiling_corpse_mountain_shock_wave": "Shock Wave"
 }
