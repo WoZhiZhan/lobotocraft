@@ -6,7 +6,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Axis;
-import com.wzz.lobotocraft.event.ScreenSnakeEvent;
+import com.wzz.lobotocraft.event.listener.ScreenSnakeEvent;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;

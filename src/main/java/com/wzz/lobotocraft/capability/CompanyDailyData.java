@@ -1,6 +1,6 @@
 package com.wzz.lobotocraft.capability;
 
-import com.wzz.lobotocraft.event.company.*;
+import com.wzz.lobotocraft.event.definition.company.*;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.common.MinecraftForge;

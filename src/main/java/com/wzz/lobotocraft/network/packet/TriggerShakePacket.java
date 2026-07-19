@@ -1,6 +1,6 @@
 package com.wzz.lobotocraft.network.packet;
 
-import com.wzz.lobotocraft.event.ScreenSnakeEvent;
+import com.wzz.lobotocraft.event.listener.ScreenSnakeEvent;
 import com.wzz.lobotocraft.network.IMessage;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.api.distmarker.Dist;

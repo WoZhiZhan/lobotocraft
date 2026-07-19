@@ -10,13 +10,17 @@ import com.wzz.lobotocraft.entity.ai.AttackAI;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
-import com.wzz.lobotocraft.event.company.CompanyDayAdvanceEvent;
-import com.wzz.lobotocraft.event.living.LivingSwingEvent;
-import com.wzz.lobotocraft.event.mental_value.MentalValueEvent;
-import com.wzz.lobotocraft.event.work.WorkCompleteEvent;
-import com.wzz.lobotocraft.event.work.WorkDamageEvent;
-import com.wzz.lobotocraft.event.work.WorkScreenOpenEvent;
-import com.wzz.lobotocraft.event.work.WorkStartEvent;
+import com.wzz.lobotocraft.event.definition.company.CompanyDayAdvanceEvent;
+import com.wzz.lobotocraft.event.definition.living.LivingSwingEvent;
+import com.wzz.lobotocraft.event.definition.mental_value.MentalValueEvent;
+import com.wzz.lobotocraft.event.definition.work.WorkCompleteEvent;
+import com.wzz.lobotocraft.event.definition.work.WorkDamageEvent;
+import com.wzz.lobotocraft.event.definition.work.WorkScreenOpenEvent;
+import com.wzz.lobotocraft.event.definition.work.WorkStartEvent;
+import com.wzz.lobotocraft.event.listener.ClerkEvent;
+import com.wzz.lobotocraft.event.listener.RedShoesBleedHandler;
+import com.wzz.lobotocraft.event.listener.SheepskinSetHandler;
+import com.wzz.lobotocraft.event.listener.WeaponBuffEvent;
 import com.wzz.lobotocraft.init.*;
 import com.wzz.lobotocraft.item.CaptureUnitItem;
 import com.wzz.lobotocraft.item.PEBoxItem;
@@ -149,10 +153,10 @@ public class ForgeModEvent {
 		}
 		if (!isDot && src.getEntity() instanceof Player attacker) {
 			// 补充4第2条:正义裁决者武器命中刷新攻速移速buff
-			com.wzz.lobotocraft.event.WeaponBuffEvent.triggerJusticeBuff(attacker);
+			WeaponBuffEvent.triggerJusticeBuff(attacker);
 			// 悔恨武器命中刷新减速buff,且buff期间造成的红色伤害+10%
-			com.wzz.lobotocraft.event.WeaponBuffEvent.triggerAbandonedMurdererBuff(attacker);
-			if (com.wzz.lobotocraft.event.WeaponBuffEvent.isAbandonedMurdererBuffActive(attacker)
+			WeaponBuffEvent.triggerAbandonedMurdererBuff(attacker);
+			if (WeaponBuffEvent.isAbandonedMurdererBuffActive(attacker)
 					&& EgoArmorHelper.isHoldingWeapon(attacker, "abandoned_murderer") && isRedDamage(src)) {
 				event.setAmount(event.getAmount() * 1.1f);
 			}
@@ -173,7 +177,7 @@ public class ForgeModEvent {
 					&& !com.wzz.lobotocraft.item.ego.end_bird.EndBirdWeapon.isThinDuskSpecialDamage(attacker)) {
 				attacker.heal(event.getAmount() * 0.1f);
 			}
-			com.wzz.lobotocraft.event.WeaponBuffEvent.triggerThinDuskApprovalBuff(attacker);
+			WeaponBuffEvent.triggerThinDuskApprovalBuff(attacker);
 			if ((EgoArmorHelper.isFullEGO(attacker, "end_bird") && EgoArmorHelper.isHoldingWeapon(attacker, "end_bird")) ||
 					EgoArmorHelper.hasEquipmentCombination(attacker, "end_bird", true, false, true)) {
 				float multiplier = EntityUtil.getDamageMultiplierByLostHealth(attacker, 2.0f, 1.0f);

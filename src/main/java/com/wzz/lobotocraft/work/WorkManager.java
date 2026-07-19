@@ -5,8 +5,10 @@ import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
-import com.wzz.lobotocraft.event.BlueMiddayEvent;
+import com.wzz.lobotocraft.event.listener.BlueMiddayEvent;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
+import com.wzz.lobotocraft.event.definition.work.*;
+import com.wzz.lobotocraft.event.listener.EmployeeStatsApplier;
 import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.item.PEBoxItem;
 import com.wzz.lobotocraft.item.WorkDeviceItem;
@@ -15,7 +17,6 @@ import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.OpenWorkProgressPacket;
 import com.wzz.lobotocraft.network.packet.WorkExtractionPacket;
 import com.wzz.lobotocraft.network.packet.WorkCompletePacket;
-import com.wzz.lobotocraft.event.work.*;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.world.data.OrdealData;
 import net.minecraft.ChatFormatting;
@@ -673,7 +674,7 @@ public class WorkManager {
                                     "§c▲ 勇气 +" + added + " §7(Lv." + stats.getFortitudeLevel() +
                                             " " + stats.getFortitude() + "/100)"
                             ));
-                            com.wzz.lobotocraft.event.EmployeeStatsApplier.applyAllAttributes(player);
+                            EmployeeStatsApplier.applyAllAttributes(player);
                         }
                     }
                     case INSIGHT -> {
@@ -683,7 +684,7 @@ public class WorkManager {
                                     "§b▲ 谨慎 +" + added + " §7(Lv." + stats.getPrudenceLevel() +
                                             " " + stats.getPrudence() + "/100)"
                             ));
-                            com.wzz.lobotocraft.event.EmployeeStatsApplier.applyAllAttributes(player);
+                            EmployeeStatsApplier.applyAllAttributes(player);
                         }
                     }
                     case ATTACHMENT -> {
@@ -693,7 +694,7 @@ public class WorkManager {
                                     "§a▲ 自律 +" + added + " §7(Lv." + stats.getTemperanceLevel() +
                                             " " + stats.getTemperance() + "/100)"
                             ));
-                            com.wzz.lobotocraft.event.EmployeeStatsApplier.applyAllAttributes(player);
+                            EmployeeStatsApplier.applyAllAttributes(player);
                         }
                     }
                     case REPRESSION -> {
@@ -703,7 +704,7 @@ public class WorkManager {
                                     "§6▲ 正义 +" + added + " §7(Lv." + stats.getJusticeLevel() +
                                             " " + stats.getJustice() + "/100)"
                             ));
-                            com.wzz.lobotocraft.event.EmployeeStatsApplier.applyAllAttributes(player);
+                            EmployeeStatsApplier.applyAllAttributes(player);
                         }
                     }
                 }

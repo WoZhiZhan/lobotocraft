@@ -1,6 +1,6 @@
 package com.wzz.lobotocraft.network.packet;
 
-import com.wzz.lobotocraft.event.FallBackCameraEffect;
+import com.wzz.lobotocraft.event.listener.FallBackCameraEffect;
 import com.wzz.lobotocraft.network.IMessage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;

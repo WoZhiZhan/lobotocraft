@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.entity.abnormality;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
+import com.wzz.lobotocraft.event.listener.BlueMiddayEvent;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.item.SkadiBanishData;
@@ -214,14 +215,14 @@ public class EntityIsharmla extends AbstractAbnormality {
             this.teleportTo(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
         }
         // 机制2:若正处于"深蓝色正午"考验,立刻结束考验,场上海嗣集体瞬移到身边并死亡,每只供给+50点生命值
-        if (com.wzz.lobotocraft.event.BlueMiddayEvent.isTrialActive()) {
-            com.wzz.lobotocraft.event.BlueMiddayEvent.endTrial();
+        if (BlueMiddayEvent.isTrialActive()) {
+            BlueMiddayEvent.endTrial();
             List<net.minecraft.world.entity.Entity> seaborns =
                     level.getEntitiesOfClass(LivingEntity.class,
                             new net.minecraft.world.phys.AABB(
                                     -30000000, level.getMinBuildHeight(), -30000000,
                                     30000000, level.getMaxBuildHeight(), 30000000),
-                            com.wzz.lobotocraft.event.BlueMiddayEvent::isSeaborn)
+                            BlueMiddayEvent::isSeaborn)
                     .stream().map(e -> (net.minecraft.world.entity.Entity) e)
                     .collect(java.util.stream.Collectors.toList());
             float bonus = 0;

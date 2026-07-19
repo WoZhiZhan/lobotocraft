@@ -1,7 +1,7 @@
 package com.wzz.lobotocraft.item.ego.redhat_mercenary;
 
 import com.wzz.lobotocraft.ModMain;
-import com.wzz.lobotocraft.event.SheepskinSetHandler;
+import com.wzz.lobotocraft.event.listener.SheepskinSetHandler;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.item.ego.bigbadwolf.BigBadwolfWeapon;
 import com.wzz.lobotocraft.util.*;
@@ -20,7 +20,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.jetbrains.annotations.NotNull;

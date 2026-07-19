@@ -1,14 +1,8 @@
 package com.wzz.lobotocraft.init;
 
 import com.wzz.lobotocraft.ModMain;
-import com.wzz.lobotocraft.entity.EntityClerk;
-import com.wzz.lobotocraft.entity.EntityLightOrb;
-import com.wzz.lobotocraft.entity.EntityRedShoesClerk;
-import com.wzz.lobotocraft.entity.EntityWaterSpit;
+import com.wzz.lobotocraft.entity.*;
 import com.wzz.lobotocraft.entity.abnormality.EntityBlackForestDoor;
-import com.wzz.lobotocraft.entity.EntityGallows;
-import com.wzz.lobotocraft.entity.EntityImmortalItem;
-import com.wzz.lobotocraft.entity.EntityLightFollower;
 import com.wzz.lobotocraft.entity.abnormality.*;
 import com.wzz.lobotocraft.entity.ordeal.EntityAmberDawn;
 import com.wzz.lobotocraft.entity.ordeal.EntityBloodySmall;
@@ -482,4 +476,15 @@ public class ModEntities {
                             .clientTrackingRange(32)
                             .updateInterval(3)
                             .build("smiling_corpse_mountain"));
+
+    public static final RegistryObject<EntityType<EntitySmilingCorpseMountainShockWave>> smiling_corpse_mountain_shock_wave =
+            ENTITIES.register("smiling_corpse_mountain_shock_wave",
+                    () -> EntityType.Builder.of(
+                                    EntitySmilingCorpseMountainShockWave::new, MobCategory.MISC)
+                            .sized(0.5F, 0.2F)
+                            .clientTrackingRange(48)
+                            .updateInterval(1)
+                            .fireImmune()
+                            .noSummon()
+                            .build("smiling_corpse_mountain_shock_wave"));
 }

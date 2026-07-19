@@ -1,7 +1,7 @@
 package com.wzz.lobotocraft.entity.ordeal;
 
 import com.wzz.lobotocraft.entity.base.BaseGeoEntity;
-import com.wzz.lobotocraft.event.GreenNoonEvent;
+import com.wzz.lobotocraft.event.listener.GreenNoonEvent;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.init.ModSounds;

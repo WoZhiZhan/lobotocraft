@@ -1,6 +1,6 @@
 package com.wzz.lobotocraft.mixin;
 
-import com.wzz.lobotocraft.event.living.LivingSwingEvent;
+import com.wzz.lobotocraft.event.definition.living.LivingSwingEvent;
 import com.wzz.lobotocraft.init.ModMobEffects;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffectInstance;

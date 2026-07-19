@@ -1,6 +1,6 @@
 package com.wzz.lobotocraft.item.ego.army_in_black;
 
-import com.wzz.lobotocraft.event.SheepskinSetHandler;
+import com.wzz.lobotocraft.event.listener.SheepskinSetHandler;
 import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;

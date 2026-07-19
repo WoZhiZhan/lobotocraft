@@ -2,7 +2,7 @@ package com.wzz.lobotocraft.command;
 
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
-import com.wzz.lobotocraft.event.ClerkEvent;
+import com.wzz.lobotocraft.event.listener.ClerkEvent;
 import com.wzz.lobotocraft.init.ModDimensions;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;

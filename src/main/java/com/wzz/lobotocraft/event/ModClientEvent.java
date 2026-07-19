@@ -3,16 +3,12 @@ package com.wzz.lobotocraft.event;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.client.model.block.GenericGeoBlockModel;
 import com.wzz.lobotocraft.client.model.item.FlatCurioModel;
-import com.wzz.lobotocraft.client.renderer.entity.EntityClerkRenderer;
-import com.wzz.lobotocraft.client.renderer.entity.EntityLightOrbRenderer;
+import com.wzz.lobotocraft.client.renderer.entity.*;
 import com.wzz.lobotocraft.client.renderer.entity.abnormality.BlackForestDoorRenderer;
-import com.wzz.lobotocraft.client.renderer.entity.EmptyEntityRenderer;
-import com.wzz.lobotocraft.client.renderer.entity.GeoEntityRenderer;
 import com.wzz.lobotocraft.client.renderer.block.BaseGeoBlockRenderer;
 import com.wzz.lobotocraft.client.renderer.block.SimpleBlockEntityRenderer;
 import com.wzz.lobotocraft.client.renderer.entity.abnormality.*;
 import com.wzz.lobotocraft.client.renderer.item.BaseEgoCurioRenderer;
-import com.wzz.lobotocraft.client.renderer.entity.AbnormalityRenderer;
 import com.wzz.lobotocraft.init.ModBlockEntities;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModItems;
@@ -147,5 +143,6 @@ public class ModClientEvent {
         event.registerEntityRenderer(ModEntities.nothing_there.get(),
                 (r) -> new EntityNothingThereRenderer(r, 0.9f));
         event.registerEntityRenderer(ModEntities.smiling_corpse_mountain.get(), (r) -> new AbnormalityRenderer<>(r, 0.8f, 0.8f));
+        event.registerEntityRenderer(ModEntities.smiling_corpse_mountain_shock_wave.get(), SmilingCorpseMountainShockWaveRenderer::new);
     }
 }

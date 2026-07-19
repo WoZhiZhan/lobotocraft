@@ -3,7 +3,7 @@ package com.wzz.lobotocraft.entity.ordeal;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.BaseGeoEntity;
-import com.wzz.lobotocraft.event.VioletDawnEvent;
+import com.wzz.lobotocraft.event.listener.VioletDawnEvent;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.DamageHelper;

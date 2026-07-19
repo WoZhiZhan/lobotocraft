@@ -1,6 +1,6 @@
 package com.wzz.lobotocraft.capability;
 
-import com.wzz.lobotocraft.event.mental_value.MentalValueEvent;
+import com.wzz.lobotocraft.event.definition.mental_value.MentalValueEvent;
 import com.wzz.lobotocraft.init.ModAttributes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;

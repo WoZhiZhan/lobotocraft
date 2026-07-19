@@ -6,7 +6,7 @@ import com.wzz.lobotocraft.capability.PlayerAbnormalityData;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
 import com.wzz.lobotocraft.entity.data.AbnormalityEncyclopediaData;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
-import com.wzz.lobotocraft.event.work.WorkScreenOpenEvent;
+import com.wzz.lobotocraft.event.definition.work.WorkScreenOpenEvent;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.OpenManualScreenPacket;
 import com.wzz.lobotocraft.network.packet.OpenToolUseScreenPacket;

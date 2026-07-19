@@ -3,14 +3,10 @@ package com.wzz.lobotocraft.item.ego.smiling_corpse_mountain;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.item.AttributeEntry;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
-import com.wzz.lobotocraft.util.EgoArmorHelper;
-import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
@@ -41,14 +37,15 @@ public class SmilingCorpseMountainCurio extends BaseEgoCurio {
         tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
         tooltip.add(Component.literal("  • 最大精神值 + 5").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal("  • 最大生命值 + 5").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 玩家手持任意EGO造成的黑色伤害 + 20%").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal(""));
         tooltip.add(Component.literal("套装效果（装备+武器+饰品）：").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("  • 玩家进行沟通工作时，成功率额外提高6%。").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 玩家使用武器“熊熊抱”造成伤害时，有20%概率额外造成一次等同于这次伤害的白色伤害。").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 玩家使用武器“熊熊抱”每造成40红色伤害，则眩晕对方1秒。期间无法移动和攻击。").withStyle(ChatFormatting.LIGHT_PURPLE));
+        tooltip.add(Component.literal("  • 锁定装备后，每清理一个石碑，使自身使用“笑靥”造成的伤害 +1%。").withStyle(ChatFormatting.LIGHT_PURPLE));
+        tooltip.add(Component.literal("  • 特殊攻击命中带有“腐败”的生物时，对方每有一层“腐败”便额外造成一次伤害。").withStyle(ChatFormatting.LIGHT_PURPLE));
+        tooltip.add(Component.literal("  • 每隔30秒生成持续25秒的护盾，护盾值 = 清理石碑数 × 2。").withStyle(ChatFormatting.LIGHT_PURPLE));
+        tooltip.add(Component.literal("  • 使用“笑靥”命中带“腐败”的生物时，使其移动速度降低70%，持续5秒。").withStyle(ChatFormatting.LIGHT_PURPLE));
         super.appendHoverText(stack, level, tooltip, flag);
     }
+
     @Override
     public boolean hasAttribute() {
         return true;

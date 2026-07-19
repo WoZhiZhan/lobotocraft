@@ -4,7 +4,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
-import com.wzz.lobotocraft.event.EmployeeStatsApplier;
+import com.wzz.lobotocraft.event.listener.EmployeeStatsApplier;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.EmployeeStatsSyncPacket;
 import net.minecraft.commands.CommandSourceStack;

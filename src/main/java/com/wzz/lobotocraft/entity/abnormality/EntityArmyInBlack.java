@@ -10,7 +10,7 @@ import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModSounds;
-import com.wzz.lobotocraft.event.abnormality.AbnormalityEscapeStopEvent;
+import com.wzz.lobotocraft.event.definition.abnormality.AbnormalityEscapeStopEvent;
 import com.wzz.lobotocraft.item.TargetMarkerItem;
 import com.wzz.lobotocraft.util.*;
 import com.wzz.lobotocraft.work.WorkResult;

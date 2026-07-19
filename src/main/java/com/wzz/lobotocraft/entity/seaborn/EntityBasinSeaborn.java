@@ -2,7 +2,7 @@ package com.wzz.lobotocraft.entity.seaborn;
 
 import com.wzz.lobotocraft.entity.base.BaseGeoEntity;
 import com.wzz.lobotocraft.entity.EntityClerk;
-import com.wzz.lobotocraft.event.BlueMiddayEvent;
+import com.wzz.lobotocraft.event.listener.BlueMiddayEvent;
 import com.wzz.lobotocraft.util.AnimationTimingUtil;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
