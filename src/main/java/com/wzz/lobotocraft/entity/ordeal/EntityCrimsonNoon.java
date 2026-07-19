@@ -54,7 +54,7 @@ public class EntityCrimsonNoon extends BaseGeoEntity {
     private static final EntityDataAccessor<Integer> ANIM_VERSION =
             SynchedEntityData.defineId(EntityCrimsonNoon.class, EntityDataSerializers.INT);
 
-    private static final int ATTACK_INTERVAL_TICKS = 4 * 20;
+    private static final int ATTACK_INTERVAL_TICKS = 2 * 20;
     private static final int ATTACK_ANIM_TICKS = 34;
     private static final int ATTACK_HIT_TICK = 16;
     private static final int DEATH_ANIM_TICKS = 24;

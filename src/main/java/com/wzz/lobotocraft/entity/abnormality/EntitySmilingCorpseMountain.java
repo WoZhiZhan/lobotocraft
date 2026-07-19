@@ -271,7 +271,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         this.goalSelector.addGoal(5, new LookAtPlayerGoal(this, Player.class, 16.0F));
         this.goalSelector.addGoal(6, new RandomLookAroundGoal(this));
 
-        // 目标选择：三阶段=区块级仇恨（除不会出逃类异想体外一切生物）；一/二阶段=文职/村民/贴身玩家
+        // 目标选择：三阶段=区块级仇恨；所有阶段都不主动仇恨未出逃异想体。
         this.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(this, LivingEntity.class, 10, true, false,
                 (entity) -> {
                     if (!hasEscape()) return false;
@@ -298,10 +298,10 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         return true;
     }
 
-    /** 三阶段仇恨：除了“不会出逃类异想体”之外的所有生物 */
+    /** 三阶段仇恨：一切有效生物，但不主动仇恨未出逃异想体。 */
     private boolean isPhase3Target(LivingEntity e) {
         if (e == this || !e.isAlive()) return false;
-        if (e instanceof AbstractAbnormality ab) return ab.canEscape();
+        if (e instanceof AbstractAbnormality ab) return ab.hasEscape();
         if (e instanceof Player p) return !p.isCreative() && !p.isSpectator();
         return true;
     }
@@ -924,6 +924,10 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
         @Override
         public void tick() {
+            if (e.getAnimation().startsWith("attack")) {
+                e.getNavigation().stop();
+                return;
+            }
             if (wantTombstone() && tomb != null) {
                 e.getNavigation().moveTo(tomb.getX() + 0.5, tomb.getY(), tomb.getZ() + 0.5, 1.0);
                 e.getLookControl().setLookAt(tomb.getX() + 0.5, tomb.getY(), tomb.getZ() + 0.5);
@@ -961,7 +965,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
         Phase1AttackGoal(EntitySmilingCorpseMountain e) {
             this.e = e;
-            setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
+            setFlags(EnumSet.of(Flag.LOOK));
         }
 
         @Override
@@ -1026,7 +1030,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
         Phase2HowlGoal(EntitySmilingCorpseMountain e) {
             this.e = e;
-            setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
+            setFlags(EnumSet.of(Flag.LOOK));
         }
 
         @Override
@@ -1082,7 +1086,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
         Phase3AttackGoal(EntitySmilingCorpseMountain e) {
             this.e = e;
-            setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
+            setFlags(EnumSet.of(Flag.LOOK));
         }
 
         @Override

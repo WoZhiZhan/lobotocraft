@@ -305,6 +305,9 @@ public class EntityNothingThere extends AbstractAbnormality {
     }
     @Override
     public boolean hurt(net.minecraft.world.damagesource.DamageSource source, float amount) {
+        if (currentPhase == PHASE_3 && DamageHelper.isRedDamage(source)) {
+            return false;
+        }
         boolean result = super.hurt(source, amount);
         if (result) {
             lastDamagedTick = this.tickCount;

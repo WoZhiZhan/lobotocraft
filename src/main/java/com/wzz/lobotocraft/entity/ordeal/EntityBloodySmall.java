@@ -107,6 +107,9 @@ public class EntityBloodySmall extends BaseGeoEntity {
     public void setCrimsonNoonSpawn(boolean crimsonNoonSpawn) {
         this.crimsonNoonSpawn = crimsonNoonSpawn;
         this.getPersistentData().putBoolean(CrimsonNoonEvent.CRIMSON_NOON_CLOWN_TAG, crimsonNoonSpawn);
+        if (crimsonNoonSpawn) {
+            this.teleportTimer = TELEPORT_INTERVAL;
+        }
     }
 
     @Override
@@ -158,12 +161,8 @@ public class EntityBloodySmall extends BaseGeoEntity {
                 40, 1.0D, 0.8D, 1.0D, 0.02D);
 
         AbstractAbnormality current = getTrackedAbnormality(level);
-        if (current != null && !current.hasEscape()) {
-            if (current instanceof EntityDarkSkadi) {
-                notifySkadiCounterProtected(level);
-            } else if (current.getQliphothCounter() > 0) {
-                current.decreaseQliphothCounter(1);
-            }
+        if (current != null) {
+            affectAbnormality(level, current);
         }
         decreaseTodayWorkCount(level);
 
@@ -183,6 +182,17 @@ public class EntityBloodySmall extends BaseGeoEntity {
                 .withStyle(ChatFormatting.BLUE);
         for (ServerPlayer player : level.players()) {
             player.sendSystemMessage(message);
+        }
+    }
+
+    private void affectAbnormality(ServerLevel level, AbstractAbnormality abnormality) {
+        if (abnormality == null || !abnormality.isAlive() || abnormality.hasEscape()) {
+            return;
+        }
+        if (abnormality instanceof EntityDarkSkadi) {
+            notifySkadiCounterProtected(level);
+        } else if (abnormality.getQliphothCounter() > 0) {
+            abnormality.decreaseQliphothCounter(1);
         }
     }
 
@@ -218,7 +228,7 @@ public class EntityBloodySmall extends BaseGeoEntity {
     @Nullable
     private AbstractAbnormality chooseNextAbnormality(ServerLevel level, @Nullable AbstractAbnormality current) {
         List<AbstractAbnormality> candidates = new ArrayList<>(CrimsonDawnEvent.findCandidateAbnormalities(level));
-        if (current != null && candidates.size() > 1) {
+        if (!crimsonNoonSpawn && current != null && candidates.size() > 1) {
             candidates.removeIf(abnormality -> abnormality.getUUID().equals(current.getUUID()));
         }
         if (candidates.isEmpty()) return null;

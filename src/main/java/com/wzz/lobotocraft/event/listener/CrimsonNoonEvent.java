@@ -201,16 +201,24 @@ public class CrimsonNoonEvent {
 
         int spawned = 0;
         List<AbstractAbnormality> abnormalities = new ArrayList<>(CrimsonDawnEvent.findCandidateAbnormalities(level));
-        Collections.shuffle(abnormalities, new java.util.Random(level.getRandom().nextLong()));
         for (int i = 0; i < BLOODY_SMALL_SPAWN_COUNT; i++) {
-            AbstractAbnormality abnormality = abnormalities.isEmpty()
-                    ? null
-                    : abnormalities.get(i % abnormalities.size());
+            AbstractAbnormality abnormality = chooseCrimsonNoonClownTarget(level, crimsonNoon, abnormalities);
             if (spawnCrimsonNoonClown(level, crimsonNoon.blockPosition(), abnormality)) {
                 spawned++;
             }
         }
         return spawned;
+    }
+
+    private static AbstractAbnormality chooseCrimsonNoonClownTarget(ServerLevel level, EntityCrimsonNoon crimsonNoon,
+                                                                   List<AbstractAbnormality> abnormalities) {
+        if (abnormalities.isEmpty()) {
+            return null;
+        }
+        return abnormalities.stream()
+                .filter(abnormality -> EntityUtil.isInCompany(level, abnormality.blockPosition()))
+                .min(java.util.Comparator.comparingDouble(crimsonNoon::distanceToSqr))
+                .orElse(null);
     }
 
     private static boolean spawnCrimsonNoonClown(ServerLevel level, BlockPos fallbackCenter,
@@ -220,8 +228,16 @@ public class CrimsonNoonEvent {
             return false;
         }
 
-        BlockPos center = abnormality == null ? fallbackCenter : abnormality.blockPosition();
-        BlockPos spawnPos = CrimsonDawnEvent.findBloodySmallSpawnPosition(level, clown, center, 4);
+        BlockPos spawnPos = null;
+        if (abnormality != null) {
+            spawnPos = CrimsonDawnEvent.findBloodySmallSpawnPosition(level, clown, abnormality.blockPosition(), 4);
+            if (spawnPos == null) {
+                spawnPos = CrimsonDawnEvent.findBloodySmallSpawnPosition(level, clown, abnormality.blockPosition(), 8);
+            }
+            if (spawnPos == null) {
+                spawnPos = CrimsonDawnEvent.findBloodySmallSpawnPosition(level, clown, abnormality.blockPosition(), 12);
+            }
+        }
         if (spawnPos == null) {
             spawnPos = CrimsonDawnEvent.findBloodySmallSpawnPosition(level, clown, fallbackCenter, 6);
         }
