@@ -215,34 +215,42 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
         if (!EgoArmorHelper.isFullEGO(player, EGO_SET_NAME)) return false;
         ItemStack main = player.getMainHandItem();
         ItemStack off = player.getOffhandItem();
-        // 主手必须是白枪
         if (!(main.getItem() instanceof ButterflyFuneralWeapon) || isBlack(main)) return false;
-        // 副手必须是黑枪
         return off.getItem() instanceof ButterflyFuneralWeapon && isBlack(off);
     }
 
     /** R 键切换宣判状态（由 ToggleJudgementPacket 在服务端调用） */
     public static void toggleJudgement(ServerPlayer player) {
         if (player == null) return;
+
         if (isJudging(player)) {
             exitJudgement(player);
             player.displayClientMessage(Component.literal("§7宣判 解除"), true);
             return;
         }
-        if (!canJudge(player)) {
-            player.displayClientMessage(
-                    Component.literal("§7需要集齐 E.G.O 套装，并左手白枪、右手黑枪。"), true);
+
+        if (!EgoArmorHelper.isFullEGO(player, EGO_SET_NAME)) {
             return;
         }
-        player.getPersistentData().putBoolean(PLAYER_TAG_JUDGING, true);
 
         ItemStack main = player.getMainHandItem();
         ItemStack off = player.getOffhandItem();
-        // 给两把枪各自分配独立的 GeckoLib 实例 id，否则双手会共用同一套动画状态
+
+        if (!(main.getItem() instanceof ButterflyFuneralWeapon) || isBlack(main)
+                || !(off.getItem() instanceof ButterflyFuneralWeapon) || !isBlack(off)) {
+            player.displayClientMessage(
+                    Component.literal("§7需要主手白枪、副手黑枪。"), true);
+            return;
+        }
+
+        player.getPersistentData().putBoolean(PLAYER_TAG_JUDGING, true);
+
         GeoItem.getOrAssignId(main, player.serverLevel());
         GeoItem.getOrAssignId(off, player.serverLevel());
+
         main.getOrCreateTag().putBoolean(TAG_JUDGING, true);
         off.getOrCreateTag().putBoolean(TAG_JUDGING, true);
+
         SoundUtil.playSound(player, ModSounds.BUTTERFLY_FUNERAL_WEAPON_MODE.get());
         player.displayClientMessage(Component.literal("§f▶ 宣判"), true);
     }

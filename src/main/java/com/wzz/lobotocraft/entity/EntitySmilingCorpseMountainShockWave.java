@@ -20,7 +20,7 @@ public class EntitySmilingCorpseMountainShockWave extends Entity {
     /** 帧数(tex_0 .. tex_6) */
     public static final int FRAMES = 7;
     /** 每帧停留的 tick 数 */
-    public static final int FRAME_TICKS = 3;
+    public static final int FRAME_TICKS = 2;
     /** 整段动画循环次数 */
     public static final int LOOPS = 3;
     /** 实体存活总时长 = 7 * 3 * 3 = 63 tick (~3.15s) */

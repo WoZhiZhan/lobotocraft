@@ -49,7 +49,7 @@ public class SmilingCorpseMountainWeapon extends BaseEgoWeapon {
         super(
                 new ModTier.WeaponTier(),
                 MathUtil.toDamageModifier(16),
-                MathUtil.toSpeedModifier(1.5f),
+                MathUtil.toSpeedModifier(0.8f),
                 new Properties().stacksTo(1).fireResistant()
         );
     }
@@ -105,12 +105,8 @@ public class SmilingCorpseMountainWeapon extends BaseEgoWeapon {
             if (target != null) {
                 TimerEntry<LivingEntity> timerEntry = new TimerEntry<>() {
                     @Override
-                    public void onStart(@NotNull LivingEntity entity) {
-                        SoundUtil.playSound(player, ModSounds.SMILING_CORPSE_MOUNTAIN_SPECIAL_ATTACK.get());
-                    }
-
-                    @Override
                     public void onEnd(@NotNull LivingEntity entity) {
+                        SoundUtil.playSound(player, ModSounds.SMILING_CORPSE_MOUNTAIN_SPECIAL_ATTACK.get());
                         resolveSpecialAttack(player, entity);
                     }
                 };
@@ -218,7 +214,7 @@ public class SmilingCorpseMountainWeapon extends BaseEgoWeapon {
             p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
         } else {
             p_41423_.add(Component.literal("§6※每次普通攻击为对方施加1层腐败（最高5层，持续10秒，满层刷新），每层使特殊攻击伤害+20%。"));
-            p_41423_.add(Component.literal("§6※特殊攻击造成翻倍的黑色伤害（32点）。使用后清除对方全部腐败，并在落点产生冲击波。"));
+            p_41423_.add(Component.literal("§6※特殊攻击造成翻倍的黑色伤害（32点）。使用后清除对方全部腐败。"));
         }
     }
 }
