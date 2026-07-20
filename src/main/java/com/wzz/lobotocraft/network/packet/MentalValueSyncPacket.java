@@ -16,7 +16,7 @@ public class MentalValueSyncPacket implements IMessage {
     private MentalValueEvent.ChangeType changeType;
 
     public MentalValueSyncPacket(float mentalValue, float maxMentalValue) {
-        this(mentalValue, maxMentalValue, null);
+        this(mentalValue, maxMentalValue, MentalValueEvent.ChangeType.ERROR);
     }
 
     public MentalValueSyncPacket(float mentalValue, float maxMentalValue, MentalValueEvent.ChangeType changeType) {

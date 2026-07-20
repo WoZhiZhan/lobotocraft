@@ -11,7 +11,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -27,7 +26,6 @@ import java.util.*;
 
 public class LeticiaWeapon extends BaseEgoWeapon {
     private static final double ATTACK_RANGE = 25.0;
-    private static final int USE_COOLDOWN_TICKS = 20;
     public LeticiaWeapon() {
         super(
                 new ModTier.WeaponTier(),
@@ -38,21 +36,19 @@ public class LeticiaWeapon extends BaseEgoWeapon {
     }
 
     @Override
-    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
-        super.inventoryTick(stack, level, entity, slotId, isSelected);
-        if (stack.getOrCreateTag().getInt("UseTick") > 0) {
-            stack.getOrCreateTag().putInt("UseTick", stack.getOrCreateTag().getInt("UseTick") - 1);
-        }
+    protected int getCooldownTicks(Player player, ItemStack stack) {
+        return 20;
     }
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-        if (stack.getOrCreateTag().getInt("UseTick") > 0) {
-            player.displayClientMessage(Component.literal("§a冷却中,还剩:" + stack.getOrCreateTag().getInt("UseTick") + " tick"), true);
+        if (isOnCooldown(player, stack)) {
+            player.displayClientMessage(
+                    Component.literal("§a冷却中,还剩:" + getRemainingCooldown(player, stack) + " tick"), true);
             return InteractionResultHolder.pass(stack);
         }
-        stack.getOrCreateTag().putInt("UseTick", USE_COOLDOWN_TICKS);
+        startCooldown(player, stack);
         if (!level.isClientSide) {
             ParticleUtil.spawnLineParticles(level, player, ParticleTypes.CRIT, 50, 0.1d, ATTACK_RANGE);
             SoundUtil.playSound(level, player, ModSounds.PUNISHING_BIRD_WEAPON_ATTACK.get());

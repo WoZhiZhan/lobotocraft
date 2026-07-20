@@ -44,9 +44,6 @@ public class ApprovalBirdWeapon extends BaseEgoWeapon {
     @Override
     public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
         super.inventoryTick(stack, level, entity, slotId, isSelected);
-        if (stack.getOrCreateTag().getInt("UseTick") > 0) {
-            stack.getOrCreateTag().putInt("UseTick", stack.getOrCreateTag().getInt("UseTick") - 1);
-        }
         if (stack.getOrCreateTag().getBoolean("isInAnimatable") && !level.isClientSide) {
             stack.getOrCreateTag().putInt("AnimTime", stack.getOrCreateTag().getInt("AnimTime") + 1);
             if (stack.getOrCreateTag().getInt("AnimTime") >= 300) {
@@ -110,10 +107,16 @@ public class ApprovalBirdWeapon extends BaseEgoWeapon {
     }
 
     @Override
+    protected int getCooldownTicks(Player player, ItemStack stack) {
+        return 1200;
+    }
+
+    @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-        if (stack.getOrCreateTag().getInt("UseTick") > 0) {
-            player.displayClientMessage(Component.literal("§a冷却中,还剩:" + stack.getOrCreateTag().getInt("UseTick") + " tick"), true);
+        if (isOnCooldown(player, stack)) {
+            player.displayClientMessage(
+                    Component.literal("§a冷却中,还剩:" + getRemainingCooldown(player, stack) + " tick"), true);
             return InteractionResultHolder.pass(stack);
         }
         if (!canUseItem(player))
@@ -121,7 +124,7 @@ public class ApprovalBirdWeapon extends BaseEgoWeapon {
         if (!stack.getOrCreateTag().getBoolean("isInAnimatable")) {
             stack.getOrCreateTag().putBoolean("isInAnimatable", true);
             stack.getOrCreateTag().remove("AnimTime");
-            stack.getOrCreateTag().putInt("UseTick", 1200);
+            startCooldown(player, stack);
             triggerAttackAnimation(player, stack);
             if (!level.isClientSide) {
                 player.getServer().execute(() -> {
@@ -204,9 +207,6 @@ public class ApprovalBirdWeapon extends BaseEgoWeapon {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> components, TooltipFlag flag) {
         super.appendHoverText(stack, level, components, flag);
-        if (stack.getOrCreateTag().getInt("UseTick") > 0) {
-            components.add(Component.literal("§a冷却中：" + stack.getOrCreateTag().getInt("UseTick")));
-        }
         if (ClientInputUtil.isShiftPressed()) {
             components.add(Component.literal("§6※这把武器每次满蓄力攻击时会额外造成4段蓝色伤害（由这把武器造成的灵魂伤害在基础数值上额外附带对方生命值上限2%-3%的蓝色伤害，最高3点）。"));
             components.add(Component.literal(""));

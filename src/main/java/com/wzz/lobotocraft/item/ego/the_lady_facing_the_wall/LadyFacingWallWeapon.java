@@ -22,7 +22,6 @@ import java.util.Random;
 
 public class LadyFacingWallWeapon extends BaseEgoWeapon {
     private static final double ATTACK_RANGE = 10.0;
-    private static final int USE_COOLDOWN_TICKS = 12;
     public LadyFacingWallWeapon() {
         super(
                 new ModTier.WeaponTier(),
@@ -43,21 +42,19 @@ public class LadyFacingWallWeapon extends BaseEgoWeapon {
     }
 
     @Override
-    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
-        super.inventoryTick(stack, level, entity, slotId, isSelected);
-        if (stack.getOrCreateTag().getInt("UseTick") > 0) {
-            stack.getOrCreateTag().putInt("UseTick", stack.getOrCreateTag().getInt("UseTick") - 1);
-        }
+    protected int getCooldownTicks(Player player, ItemStack stack) {
+        return 12;
     }
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-        if (stack.getOrCreateTag().getInt("UseTick") > 0) {
-            player.displayClientMessage(Component.literal("§a冷却中,还剩:" + stack.getOrCreateTag().getInt("UseTick") + " tick"), true);
+        if (isOnCooldown(player, stack)) {
+            player.displayClientMessage(
+                    Component.literal("§a冷却中,还剩:" + getRemainingCooldown(player, stack) + " tick"), true);
             return InteractionResultHolder.pass(stack);
         }
-        stack.getOrCreateTag().putInt("UseTick", USE_COOLDOWN_TICKS);
+        startCooldown(player, stack);
         if (!level.isClientSide) {
             ParticleUtil.spawnLineParticles(level, player, ParticleTypes.CRIT, 40, 0.1d, ATTACK_RANGE);
             SoundUtil.playSound(level, player, ModSounds.PUNISHING_BIRD_WEAPON_ATTACK.get());

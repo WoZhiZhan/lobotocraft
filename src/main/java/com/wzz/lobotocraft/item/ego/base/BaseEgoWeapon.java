@@ -30,6 +30,7 @@ import java.util.function.Consumer;
  */
 public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnimatablePerspective, IEgoLevelItem {
     public static final String PARTIAL_ATTACK_TICK_TAG = "lobotocraft_partial_ego_attack_tick";
+    public static final String COOLDOWN_TAG = "LastUseTime";
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final RawAnimation IDLE_ANIMATION = RawAnimation.begin().thenLoop("idle");
@@ -120,10 +121,39 @@ public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnima
         // 默认不做任何事，子类可以重写添加自己需要的动画
     }
 
+
+    /** 子类重写，返回这把武器当前的冷却 tick 数。默认无冷却。 */
+    protected int getCooldownTicks(Player player, ItemStack stack) {
+        return 0;
+    }
+
+    /** 还剩多少 tick，<=0 表示可用 */
+    public long getRemainingCooldown(Player player, ItemStack stack) {
+        int cd = getCooldownTicks(player, stack);
+        if (cd <= 0) return 0;
+        long last = stack.getOrCreateTag().getLong(COOLDOWN_TAG);
+        long remaining = cd - (player.level().getGameTime() - last);
+        return Math.max(0, remaining);
+    }
+
+    public boolean isOnCooldown(Player player, ItemStack stack) {
+        return getRemainingCooldown(player, stack) > 0;
+    }
+
+    /** 开始计时（在成功使用时调用一次） */
+    public void startCooldown(Player player, ItemStack stack) {
+        stack.getOrCreateTag().putLong(COOLDOWN_TAG, player.level().getGameTime());
+    }
+
+    /** 立刻重置冷却，使其可用（刷新机制用） */
+    public void resetCooldown(ItemStack stack) {
+        stack.getOrCreateTag().remove(COOLDOWN_TAG);
+    }
+
     @Override
     public boolean onDroppedByPlayer(ItemStack item, Player player) {
-        if (item.getOrCreateTag().getInt("UseTick") > 0) {
-            item.getOrCreateTag().remove("UseTick");
+        if (isOnCooldown(player, item)) {
+            resetCooldown(item);
             return false;
         }
         return super.onDroppedByPlayer(item, player);
@@ -135,6 +165,11 @@ public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnima
             if (!canUseItem(player)) return false;
         }
         return super.canEquip(stack, armorType, entity);
+    }
+
+    @Override
+    public boolean shouldCauseReequipAnimation(ItemStack oldStack, ItemStack newStack, boolean slotChanged) {
+        return slotChanged;
     }
 
     @Override

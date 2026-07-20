@@ -27,7 +27,6 @@ import java.util.*;
 
 public class BigBadwolfWeapon extends BaseEgoWeapon {
     private static final double ATTACK_RANGE = 3.1;
-    private static final int USE_COOLDOWN_TICKS = 100;
     public BigBadwolfWeapon() {
         super(
                 new ModTier.WeaponTier(),
@@ -80,16 +79,22 @@ public class BigBadwolfWeapon extends BaseEgoWeapon {
     }
 
     @Override
+    protected int getCooldownTicks(Player player, ItemStack stack) {
+        return 100;
+    }
+
+    @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (!canUseItem(player)) {
             return InteractionResultHolder.pass(stack);
         }
-        if (stack.getOrCreateTag().getInt("UseTick") > 0) {
-            player.displayClientMessage(Component.literal("§a冷却中,还剩:" + stack.getOrCreateTag().getInt("UseTick") + " tick"), true);
+        if (isOnCooldown(player, stack)) {
+            player.displayClientMessage(
+                    Component.literal("§a冷却中,还剩:" + getRemainingCooldown(player, stack) + " tick"), true);
             return InteractionResultHolder.pass(stack);
         }
-        stack.getOrCreateTag().putInt("UseTick", USE_COOLDOWN_TICKS);
+        startCooldown(player, stack);
         if (!level.isClientSide) {
             SoundUtil.playSound(level, player, ModSounds.BIG_BADWOLF_WEAPON.get());
             triggerAttackAnimation(player, stack);
@@ -107,9 +112,6 @@ public class BigBadwolfWeapon extends BaseEgoWeapon {
     @Override
     public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
         super.inventoryTick(stack, level, entity, slotId, isSelected);
-        if (stack.getOrCreateTag().getInt("UseTick") > 0) {
-            stack.getOrCreateTag().putInt("UseTick", stack.getOrCreateTag().getInt("UseTick") - 1);
-        }
         if (entity instanceof Player player && !level.isClientSide &&
                 player.tickCount % 20 == 0 && isSelected && player.getHealth() < player.getMaxHealth() / 2 && player.isAlive()) {
             ParticleUtil.spawnParticlesAroundEntity(player, ModParticleTypes.DARK_BLUE_LIGHT.get(), 20, 0.1D);

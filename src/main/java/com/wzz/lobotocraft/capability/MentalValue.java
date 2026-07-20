@@ -51,7 +51,7 @@ public class MentalValue implements IMentalValue {
     public void setMentalValue(float value, MentalValueEvent.ChangeType changeType) {
         float originalValue = this.mentalValue;
         float effectiveMax = getEffectiveMaxMentalValue();
-        if (changeType == null) changeType = MentalValueEvent.ChangeType.SET;
+        if (changeType == MentalValueEvent.ChangeType.ERROR) changeType = MentalValueEvent.ChangeType.SET;
         MentalValueEvent.Pre preEvent = new MentalValueEvent.Pre(
                 player, originalValue, effectiveMax,
                 value, changeType, null
@@ -154,7 +154,7 @@ public class MentalValue implements IMentalValue {
     @Override
     public void addMentalValue(float amount, MentalValueEvent.ChangeType changeType) {
         if (amount <= 0) return;
-        if (changeType == null) changeType = MentalValueEvent.ChangeType.ADD;
+        if (changeType == MentalValueEvent.ChangeType.ERROR) changeType = MentalValueEvent.ChangeType.ADD;
         float originalValue = this.mentalValue;
         float effectiveMax = getEffectiveMaxMentalValue();
         float newValue = originalValue + amount;
@@ -182,7 +182,7 @@ public class MentalValue implements IMentalValue {
     @Override
     public void reduceMentalValue(float amount, MentalValueEvent.ChangeType changeType) {
         if (amount <= 0) return;
-        if (changeType == null) changeType = MentalValueEvent.ChangeType.REDUCE;
+        if (changeType == MentalValueEvent.ChangeType.ERROR) changeType = MentalValueEvent.ChangeType.REDUCE;
         float originalValue = this.mentalValue;
         float effectiveMax = getEffectiveMaxMentalValue();
         float newValue = originalValue - amount;

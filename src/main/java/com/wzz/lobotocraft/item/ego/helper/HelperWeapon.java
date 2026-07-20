@@ -29,7 +29,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class HelperWeapon extends BaseEgoWeapon {
     private static final double ATTACK_RANGE = 4.0;
-    private static final int USE_COOLDOWN_TICKS = 20;
     private static final UUID REACH_UUID = UUID.fromString("4abcfd08-d9d9-4f67-9794-4edaab555777");
     public HelperWeapon() {
         super(
@@ -75,16 +74,22 @@ public class HelperWeapon extends BaseEgoWeapon {
     }
 
     @Override
+    protected int getCooldownTicks(Player player, ItemStack stack) {
+        return 20;
+    }
+
+    @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (!canUseItem(player)) {
             return InteractionResultHolder.pass(stack);
         }
-        if (stack.getOrCreateTag().getInt("UseTick") > 0) {
-            player.displayClientMessage(Component.literal("§a冷却中,还剩:" + stack.getOrCreateTag().getInt("UseTick") + " tick"), true);
+        if (isOnCooldown(player, stack)) {
+            player.displayClientMessage(
+                    Component.literal("§a冷却中,还剩:" + getRemainingCooldown(player, stack) + " tick"), true);
             return InteractionResultHolder.pass(stack);
         }
-        stack.getOrCreateTag().putInt("UseTick", USE_COOLDOWN_TICKS);
+        startCooldown(player, stack);
         if (!level.isClientSide) {
             SoundUtil.playSound(level, player, ModSounds.HELPER_WEAPON.get());
             triggerAttackAnimation(player, stack);
@@ -93,14 +98,6 @@ public class HelperWeapon extends BaseEgoWeapon {
             }
         }
         return super.use(level, player, hand);
-    }
-
-    @Override
-    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
-        super.inventoryTick(stack, level, entity, slotId, isSelected);
-        if (stack.getOrCreateTag().getInt("UseTick") > 0) {
-            stack.getOrCreateTag().putInt("UseTick", stack.getOrCreateTag().getInt("UseTick") - 1);
-        }
     }
 
     @Override

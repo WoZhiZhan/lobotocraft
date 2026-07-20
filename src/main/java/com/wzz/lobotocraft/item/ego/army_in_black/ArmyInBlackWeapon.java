@@ -29,7 +29,6 @@ public class ArmyInBlackWeapon extends BaseEgoWeapon {
     private static final int SPLASH_RADIUS = 2;          // 5×5 => 中心±2格
     private static final int MAX_SPLASH_COUNT = 6;        // 多目标最多6次
     private static final double ATTACK_RANGE = 35;
-    private static final int USE_COOLDOWN_TICKS = 6 * 20;
     private static final float HEALTH_THRESHOLD = 0.5f;
     private static final float WHITE_DAMAGE_BONUS = 2.5f;
     private static final float BLACK_DAMAGE_BONUS = 1.5f;
@@ -55,20 +54,22 @@ public class ArmyInBlackWeapon extends BaseEgoWeapon {
     }
 
     @Override
+    protected int getCooldownTicks(Player player, ItemStack stack) {
+        return 120;
+    }
+
+    @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (!canUseItem(player)) {
             return InteractionResultHolder.pass(stack);
         }
-
-        int cooldown = stack.getOrCreateTag().getInt("UseTick");
-        if (cooldown > 0) {
+        if (isOnCooldown(player, stack)) {
             player.displayClientMessage(
-                    Component.literal("§a冷却中,还剩:" + cooldown + " tick"), true);
+                    Component.literal("§a冷却中,还剩:" + getRemainingCooldown(player, stack) + " tick"), true);
             return InteractionResultHolder.pass(stack);
         }
-        stack.getOrCreateTag().putInt("UseTick",
-                SheepskinSetHandler.getGunCooldown(player, USE_COOLDOWN_TICKS));
+        startCooldown(player, stack);
         if (!level.isClientSide) {
             SoundUtil.playSound(level, player, ModSounds.ARMY_IN_BLACK_SHOOT.get());
             triggerAnimation(player, stack, "2");

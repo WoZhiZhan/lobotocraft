@@ -29,7 +29,6 @@ import java.util.Map;
 
 public class SmilingCorpseMountainWeapon extends BaseEgoWeapon {
     private static final double ATTACK_RANGE = 4.0;
-    private static final int USE_COOLDOWN_TICKS = 40;
 
     // ===== 腐败效果参数 =====
     /** 最高层数 = 5 (amplifier 0..4 表示 1..5 层) */
@@ -84,21 +83,19 @@ public class SmilingCorpseMountainWeapon extends BaseEgoWeapon {
     }
 
     @Override
-    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
-        super.inventoryTick(stack, level, entity, slotId, isSelected);
-        if (stack.getOrCreateTag().getInt("UseTick") > 0) {
-            stack.getOrCreateTag().putInt("UseTick", stack.getOrCreateTag().getInt("UseTick") - 1);
-        }
+    protected int getCooldownTicks(Player player, ItemStack stack) {
+        return 40;
     }
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-        if (stack.getOrCreateTag().getInt("UseTick") > 0) {
-            player.displayClientMessage(Component.literal("§a冷却中,还剩:" + stack.getOrCreateTag().getInt("UseTick") + " tick"), true);
+        if (isOnCooldown(player, stack)) {
+            player.displayClientMessage(
+                    Component.literal("§a冷却中,还剩:" + getRemainingCooldown(player, stack) + " tick"), true);
             return InteractionResultHolder.pass(stack);
         }
-        stack.getOrCreateTag().putInt("UseTick", USE_COOLDOWN_TICKS);
+        startCooldown(player, stack);
         if (!level.isClientSide) {
             triggerAttackAnimation(player, stack);
             LivingEntity target = EntityUtil.findLivingEntityInLookDirection(player, ATTACK_RANGE);

@@ -134,6 +134,7 @@ public class MentalValueEvent extends PlayerEvent {
         REGENERATE, // 自然恢复
         DAMAGE,     // 伤害
         SYNC,       // 同步
+        ERROR,      // 损坏（这个代表null）
         OTHER       // 其他
     }
 }

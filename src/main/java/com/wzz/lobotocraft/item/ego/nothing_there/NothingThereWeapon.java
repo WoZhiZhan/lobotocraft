@@ -1,6 +1,5 @@
 package com.wzz.lobotocraft.item.ego.nothing_there;
 
-import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
@@ -22,7 +21,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class NothingThereWeapon extends BaseEgoWeapon {
     private static final double ATTACK_RANGE = 4.0;
@@ -45,7 +43,7 @@ public class NothingThereWeapon extends BaseEgoWeapon {
         if (!canUseItem(player))
             return false;
         boolean isFullEGO = EgoArmorHelper.isFullEGO(player, "nothing_there");
-        player.playSound(ModSounds.NOTHING_THERE_WEAPON_NORMAL_ATTACK.get());
+        SoundUtil.playSound(player, ModSounds.NOTHING_THERE_WEAPON_NORMAL_ATTACK.get());
         stack.hurtAndBreak(1, player,
                 p -> p.broadcastBreakEvent(EquipmentSlot.MAINHAND)
         );
@@ -56,7 +54,7 @@ public class NothingThereWeapon extends BaseEgoWeapon {
         }
         if (frash <= player.random.nextInt(101)) {
             player.displayClientMessage(Component.literal("§a拟态的特殊攻击冷却刷新了！"), true);
-            stack.getOrCreateTag().putInt("UseTick", 0);
+            resetCooldown(stack);
         }
         target.hurt(target.damageSources().playerAttack(player), damage);
         if (!isFullEGO) {
@@ -68,20 +66,22 @@ public class NothingThereWeapon extends BaseEgoWeapon {
     }
 
     @Override
+    protected int getCooldownTicks(Player player, ItemStack stack) {
+        return EgoArmorHelper.isFullEGO(player, "nothing_there") ? 100 : 200;
+    }
+
+    @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (!canUseItem(player)) {
             return InteractionResultHolder.pass(stack);
         }
-        if (stack.getOrCreateTag().getInt("UseTick") > 0) {
-            player.displayClientMessage(Component.literal("§a冷却中,还剩:" + stack.getOrCreateTag().getInt("UseTick") + " tick"), true);
+        if (isOnCooldown(player, stack)) {
+            player.displayClientMessage(
+                    Component.literal("§a冷却中,还剩:" + getRemainingCooldown(player, stack) + " tick"), true);
             return InteractionResultHolder.pass(stack);
         }
-        int cooldown = 200;
-        if (EgoArmorHelper.isFullEGO(player, "nothing_there")) {
-            cooldown = 100;
-        }
-        stack.getOrCreateTag().putInt("UseTick", cooldown);
+        startCooldown(player, stack);
         if (!level.isClientSide) {
             triggerAttackAnimation(player, stack);
             for (LivingEntity target : EntityUtil.findAllLivingEntitiesInLookDirection(player, ATTACK_RANGE)) {
@@ -89,14 +89,6 @@ public class NothingThereWeapon extends BaseEgoWeapon {
             }
         }
         return super.use(level, player, hand);
-    }
-
-    @Override
-    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
-        super.inventoryTick(stack, level, entity, slotId, isSelected);
-        if (stack.getOrCreateTag().getInt("UseTick") > 0) {
-            stack.getOrCreateTag().putInt("UseTick", stack.getOrCreateTag().getInt("UseTick") - 1);
-        }
     }
 
     @Override
@@ -110,11 +102,6 @@ public class NothingThereWeapon extends BaseEgoWeapon {
     @Override
     public boolean hasAnimatable() {
         return true;
-    }
-
-    @Override
-    protected boolean hasIdle() {
-        return false;
     }
 
     @Override
@@ -161,17 +148,11 @@ public class NothingThereWeapon extends BaseEgoWeapon {
 
         private void performAttack(LivingEntity entity) {
             if (entity.isAlive() && !entity.isRemoved()) {
-                if (attacker != null) {
-                    if (EgoArmorHelper.isFullEGO(attacker, "helper")) {
-                        attacker.heal(1f);
-                    }
-                }
-                SoundUtil.playSound(entity, ModSounds.NOTHING_THERE_WEAPON_SPECIAL_ATTACK.get());
-                AtomicReference<Float> damage = new AtomicReference<>(2f);
-                if (EgoArmorHelper.isFullEGO(attacker, "helper")) {
-                    attacker.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(data -> damage.updateAndGet(v -> v + data.getJusticeLevel()));
-                }
-                EntityUtil.clearHurtTime(entity, () -> entity.hurt(damageSource, damage.get()));
+                float damage = 40f + entity.random.nextInt(51);
+                EntityUtil.clearHurtTime(entity, () ->  {
+                    entity.hurt(damageSource, damage);
+                    SoundUtil.playSound(entity, ModSounds.NOTHING_THERE_WEAPON_SPECIAL_ATTACK.get());
+                });
             }
         }
     }

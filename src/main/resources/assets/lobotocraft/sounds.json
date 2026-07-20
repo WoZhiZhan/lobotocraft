@@ -1579,10 +1579,10 @@
       }
     ]
   },
-  "nothing_there_weapon_special_attack.": {
+  "nothing_there_weapon_special_attack": {
     "sounds": [
       {
-        "name": "lobotocraft:nothing_there_weapon_special_attack.",
+        "name": "lobotocraft:nothing_there_weapon_special_attack",
         "stream": false
       }
     ]

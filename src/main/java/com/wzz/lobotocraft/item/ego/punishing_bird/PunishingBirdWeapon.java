@@ -29,7 +29,6 @@ import static com.wzz.lobotocraft.item.ego.base.IAnimatablePerspective.Perspecti
 public class PunishingBirdWeapon extends BaseEgoWeapon {
 
     private static final double ATTACK_RANGE = 10.0;
-    private static final int USE_COOLDOWN_TICKS = 16;
 
     public PunishingBirdWeapon() {
         super(
@@ -56,24 +55,19 @@ public class PunishingBirdWeapon extends BaseEgoWeapon {
     }
 
     @Override
-    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
-        super.inventoryTick(stack, level, entity, slotId, isSelected);
-        if (stack.getOrCreateTag().getInt("UseTick") > 0) {
-            stack.getOrCreateTag().putInt("UseTick", stack.getOrCreateTag().getInt("UseTick") - 1);
-        }
+    protected int getCooldownTicks(Player player, ItemStack stack) {
+        return 16;
     }
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-
-        // 检查攻击冷却
-        if (stack.getOrCreateTag().getInt("UseTick") > 0) {
-            player.displayClientMessage(Component.literal("§a冷却中,还剩:" + stack.getOrCreateTag().getInt("UseTick") + " tick"), true);
+        if (isOnCooldown(player, stack)) {
+            player.displayClientMessage(
+                    Component.literal("§a冷却中,还剩:" + getRemainingCooldown(player, stack) + " tick"), true);
             return InteractionResultHolder.pass(stack);
         }
-
-        stack.getOrCreateTag().putInt("UseTick", USE_COOLDOWN_TICKS);
+        startCooldown(player, stack);
         player.playSound(ModSounds.PUNISHING_BIRD_WEAPON_ATTACK.get());
 
         if (!level.isClientSide) {
