@@ -298,7 +298,7 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
         tag.putInt(TAG_COOLDOWN, cooldown);
 
         if (!level.isClientSide) {
-            SoundUtil.playSound(level, player, ModSounds.BUTTERFLY_FUNERAL_WEAPON.get());
+            SoundUtil.playSound(level, player, ModSounds.BUTTERFLY_FUNERAL_WEAPON.get(), 0.7f);
             triggerAnimation(player, stack, getFireAnimation(judging, burst));
             performShot(level, player, stack);
             if (burst) {
@@ -410,7 +410,7 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
             tag.putInt(TAG_BURST_DELAY, delay - 1);
             return;
         }
-        SoundUtil.playSound(level, player, ModSounds.BUTTERFLY_FUNERAL_WEAPON.get());
+        SoundUtil.playSound(level, player, ModSounds.BUTTERFLY_FUNERAL_WEAPON.get(), 0.7f);
         performShot(level, player, stack);
         tag.putInt(TAG_BURST, burst - 1);
         tag.putInt(TAG_BURST_DELAY, BURST_INTERVAL);

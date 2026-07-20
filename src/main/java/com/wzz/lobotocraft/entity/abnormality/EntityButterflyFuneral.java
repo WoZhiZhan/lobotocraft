@@ -331,6 +331,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
                 // 死亡动画播放完毕,正式死亡(基类die会回到出逃位置重置)
                 this.setHealth(0f);
                 this.die(this.damageSources().fellOutOfWorld());
+                this.discard();
             }
             return;
         }
