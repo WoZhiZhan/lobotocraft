@@ -299,5 +299,21 @@
   "item.lobotocraft.nothing_there_leggings": "Nothing There Leggings",
   "item.lobotocraft.nothing_there_boots": "Nothing There Boots",
   "item.lobotocraft.nothing_there_weapon": "Nothing There",
-  "item.lobotocraft.nothing_there_curio": "Nothing There"
+  "item.lobotocraft.nothing_there_curio": "Nothing There",
+  "entity.lobotocraft.malkuth": "Malkuth",
+  "entity.lobotocraft.yesod": "Yesod",
+  "entity.lobotocraft.hod": "Hod",
+  "entity.lobotocraft.netzach": "Netzach",
+  "item.lobotocraft.malkuth_spawn_egg": "Malkuth Spawn Egg",
+  "item.lobotocraft.yesod_spawn_egg": "Yesod Spawn Egg",
+  "item.lobotocraft.hod_spawn_egg": "Hod Spawn Egg",
+  "item.lobotocraft.netzach_spawn_egg": "Netzach Spawn Egg",
+  "advancements.lobotocraft.malkuth_core.title": "The Will to Stand up Straight",
+  "advancements.lobotocraft.malkuth_core.description": "Complete Malkuth Core Suppression",
+  "advancements.lobotocraft.yesod_core.title": "The Rationality to Maintain Discretion",
+  "advancements.lobotocraft.yesod_core.description": "Complete Yesod Core Suppression",
+  "advancements.lobotocraft.hod_core.title": "The Hope to Be a Better Person",
+  "advancements.lobotocraft.hod_core.description": "Complete Hod Core Suppression",
+  "advancements.lobotocraft.netzach_core.title": "The Fearlessness to Keep on Living",
+  "advancements.lobotocraft.netzach_core.description": "Complete Netzach Core Suppression"
 }

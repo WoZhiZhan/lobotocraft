@@ -7,6 +7,12 @@ import snownee.jade.api.IWailaCommonRegistration;
 import snownee.jade.api.IWailaPlugin;
 import snownee.jade.api.WailaPlugin;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.client.core.CoreSuppressionClientState;
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.LivingEntity;
+import snownee.jade.api.EntityAccessor;
+import snownee.jade.api.Identifiers;
 
 /**
  * Jade模组联动插件
@@ -35,5 +41,13 @@ public class LobotocraftJadePlugin implements IWailaPlugin {
                 AbnormalityComponentProvider.INSTANCE, 
                 AbstractAbnormality.class
         );
+        registration.addTooltipCollectedCallback(1000, (tooltip, accessor) -> {
+            if (CoreSuppressionClientState.isActive(CoreSuppressionType.YESOD)
+                    && accessor instanceof EntityAccessor entityAccessor
+                    && entityAccessor.getEntity() instanceof LivingEntity) {
+                tooltip.remove(Identifiers.MC_ENTITY_HEALTH);
+                tooltip.add(Component.literal("??? / ???"), Identifiers.MC_ENTITY_HEALTH);
+            }
+        });
     }
 }

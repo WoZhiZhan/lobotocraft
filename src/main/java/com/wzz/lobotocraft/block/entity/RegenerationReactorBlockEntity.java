@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.block.entity;
 
 import com.wzz.lobotocraft.capability.MentalValueProvider;
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
 import com.wzz.lobotocraft.event.definition.mental_value.MentalValueEvent;
@@ -41,6 +42,8 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
     private static final double EFFECT_RADIUS = 16.0; // 影响范围（方块）
     private static final int HEAL_INTERVAL = 200; // 恢复间隔
     private static final float HEAL_PERCENTAGE = 0.2f; // 恢复百分比
+    private static final float REMOTE_HEAL_PERCENTAGE = 0.1f;
+    private static final String REMOTE_HEAL_TICK_TAG = "lobotocraft_netzach_remote_heal_tick";
     
     // GeckoLib动画
     private static final RawAnimation IDLE_ANIMATION = RawAnimation.begin().thenLoop("animation.hx-1.1");
@@ -56,6 +59,11 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
      * 服务端Tick逻辑
      */
     public static void serverTick(Level level, BlockPos pos, BlockState state, RegenerationReactorBlockEntity blockEntity) {
+        if (CoreSuppressionManager.isNetzachReactorDisabled(level)) {
+            blockEntity.tickCounter = 0;
+            if (level.getGameTime() % 10 == 0) blockEntity.sendFailureMessage(level, pos);
+            return;
+        }
         blockEntity.tickCounter++;
 
         if (blockEntity.tickCounter >= HEAL_INTERVAL) {
@@ -125,6 +133,15 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
         }
     }
 
+    private void sendFailureMessage(Level level, BlockPos pos) {
+        AABB range = createEffectRange(level, pos);
+        for (Player player : level.getEntitiesOfClass(Player.class, range)) {
+            if (!player.isDeadOrDying()) {
+                player.displayClientMessage(Component.literal("§c故障，无法使用"), true);
+            }
+        }
+    }
+
     /**
      * 生成进度条
      */
@@ -168,6 +185,19 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
             boolean hasSight = hasLineOfSight(level, pos, clerk);
             if (hasSight) {
                 healClerk(clerk);
+            }
+        }
+
+        if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+            long gameTime = level.getGameTime();
+            for (ServerPlayer player : serverLevel.players()) {
+                if (player.isDeadOrDying() || range.intersects(player.getBoundingBox())
+                        || !CoreSuppressionManager.hasNetzachReward(player)) {
+                    continue;
+                }
+                if (player.getPersistentData().getLong(REMOTE_HEAL_TICK_TAG) == gameTime) continue;
+                player.getPersistentData().putLong(REMOTE_HEAL_TICK_TAG, gameTime);
+                healPlayer(player, REMOTE_HEAL_PERCENTAGE);
             }
         }
     }
@@ -221,6 +251,12 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
      * 修改：玩家工作时无法受到治疗
      */
     private void healPlayer(Player player) {
+        float percentage = CoreSuppressionManager.hasNetzachReward(player)
+                ? HEAL_PERCENTAGE * 1.1F : HEAL_PERCENTAGE;
+        healPlayer(player, percentage);
+    }
+
+    private void healPlayer(Player player, float percentage) {
         if (!(player instanceof ServerPlayer serverPlayer)) {
             return;
         }
@@ -238,7 +274,7 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
             return;
         }
 
-        float healAmount = maxHealth * HEAL_PERCENTAGE;
+        float healAmount = maxHealth * percentage;
         float newHealth = Math.min(player.getHealth() + healAmount, maxHealth);
         player.setHealth(newHealth);
         player.addEffect(new MobEffectInstance(MobEffects.SATURATION, 60));
@@ -248,7 +284,7 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
         player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
             float maxMental = mental.getEffectiveMaxMentalValue();
             float currentMental = mental.getMentalValue();
-            float mentalHeal = maxMental * HEAL_PERCENTAGE;
+            float mentalHeal = maxMental * percentage;
             float newMental = Math.min(currentMental + mentalHeal, maxMental);
             ParticleUtil.spawnParticlesAroundEntity(player, ModParticleTypes.BLUE_GLINT.get(), (int) mentalHeal, 0.1d);
             mental.setMentalValue(newMental, MentalValueEvent.ChangeType.REGENERATE);

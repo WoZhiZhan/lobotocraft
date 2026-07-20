@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.item;
 
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
 import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.ResourceUtil;
@@ -37,6 +38,10 @@ public class ConveyerItem extends Item {
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         if (!(player instanceof ServerPlayer serverPlayer)) {
             return super.use(level, player, hand);
+        }
+        if (CoreSuppressionManager.isDeviceRestricted(player)) {
+            player.sendSystemMessage(Component.literal("§c核心抑制期间无法使用传送装置。"));
+            return InteractionResultHolder.fail(player.getItemInHand(hand));
         }
         CompoundTag nbt = player.getPersistentData();
         final String keyX = "lobotocraft:LotoOldX";

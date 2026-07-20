@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.client.ScreenDistortionEffect;
 import com.wzz.lobotocraft.client.ScreenDistortionState;
 import com.wzz.lobotocraft.client.audio.GuiMusicManager;
+import com.wzz.lobotocraft.client.core.CoreSuppressionClientState;
 import com.wzz.lobotocraft.client.renderer.ExplosionRenderer;
 import com.wzz.lobotocraft.entity.abnormality.EntityLargeBird;
 import com.wzz.lobotocraft.init.ModShaders;
@@ -54,6 +55,7 @@ public class ForgeModClientEvent {
             ClientPacketHandler.tick();
             ++ModShaders.renderTime;
             ScreenDistortionState.tick();
+            CoreSuppressionClientState.tick();
         }
     }
 
@@ -72,6 +74,7 @@ public class ForgeModClientEvent {
         if (event.getLevel().isClientSide()) {
             GuiMusicManager.getInstance().clearAll();
             active_charms.clear();
+            CoreSuppressionClientState.update(false, -1, "", 0, 0, 0, 0, 0, 0);
         }
     }
 

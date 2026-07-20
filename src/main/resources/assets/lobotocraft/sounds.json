@@ -1586,5 +1586,21 @@
         "stream": false
       }
     ]
+  },
+  "yesod_core_stage": {
+    "sounds": [
+      {
+        "name": "lobotocraft:yesod_core_stage",
+        "stream": false
+      }
+    ]
+  },
+  "netzach_core_heal": {
+    "sounds": [
+      {
+        "name": "lobotocraft:netzach_core_heal",
+        "stream": false
+      }
+    ]
   }
 }

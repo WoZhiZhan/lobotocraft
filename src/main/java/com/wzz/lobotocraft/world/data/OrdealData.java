@@ -24,6 +24,8 @@ public class OrdealData extends SavedData {
     private int trackedDay = 0;
     private int dawnChance = 0;
     private int dawnTriggersToday = 0;
+    private int dawnTriggerSerialToday = 0;
+    private int dawnCompletionsToday = 0;
     private int nextDawnType = NO_DAWN_TYPE;
     private boolean bloodDawnActive = false;
     private int bloodDawnRemaining = 0;
@@ -34,6 +36,8 @@ public class OrdealData extends SavedData {
     private boolean amberDawnActive = false;
     private int amberDawnRemaining = 0;
     private int middayTriggersToday = 0;
+    private int middayTriggerSerialToday = 0;
+    private int middayCompletionsToday = 0;
     private int nextMiddayType = NO_MIDDAY_TYPE;
     private boolean blueMiddayActive = false;
     private int blueMiddayRemaining = 0;
@@ -63,6 +67,8 @@ public class OrdealData extends SavedData {
             trackedDay = day;
             dawnChance = 0;
             dawnTriggersToday = 0;
+            dawnTriggerSerialToday = 0;
+            dawnCompletionsToday = 0;
             nextDawnType = NO_DAWN_TYPE;
             bloodDawnActive = false;
             bloodDawnRemaining = 0;
@@ -73,6 +79,8 @@ public class OrdealData extends SavedData {
             amberDawnActive = false;
             amberDawnRemaining = 0;
             middayTriggersToday = 0;
+            middayTriggerSerialToday = 0;
+            middayCompletionsToday = 0;
             nextMiddayType = NO_MIDDAY_TYPE;
             blueMiddayActive = false;
             blueMiddayRemaining = 0;
@@ -101,7 +109,16 @@ public class OrdealData extends SavedData {
 
     public void incrementDawnTriggersToday() {
         dawnTriggersToday++;
+        dawnTriggerSerialToday++;
         setDirty();
+    }
+
+    public int getDawnTriggerSerialToday() {
+        return dawnTriggerSerialToday;
+    }
+
+    public int getDawnCompletionsToday() {
+        return dawnCompletionsToday;
     }
 
     public void decrementDawnTriggersToday() {
@@ -168,6 +185,7 @@ public class OrdealData extends SavedData {
     }
 
     public void finishBloodDawn() {
+        if (bloodDawnActive) dawnCompletionsToday++;
         bloodDawnActive = false;
         bloodDawnRemaining = 0;
         setDirty();
@@ -192,6 +210,7 @@ public class OrdealData extends SavedData {
     }
 
     public void finishGreenDawn() {
+        if (greenDawnActive) dawnCompletionsToday++;
         greenDawnActive = false;
         greenDawnRemaining = 0;
         setDirty();
@@ -216,6 +235,7 @@ public class OrdealData extends SavedData {
     }
 
     public void finishVioletDawn() {
+        if (violetDawnActive) dawnCompletionsToday++;
         violetDawnActive = false;
         violetDawnRemaining = 0;
         setDirty();
@@ -244,6 +264,7 @@ public class OrdealData extends SavedData {
     }
 
     public void finishAmberDawn() {
+        if (amberDawnActive) dawnCompletionsToday++;
         amberDawnActive = false;
         amberDawnRemaining = 0;
         setDirty();
@@ -255,7 +276,16 @@ public class OrdealData extends SavedData {
 
     public void incrementMiddayTriggersToday() {
         middayTriggersToday++;
+        middayTriggerSerialToday++;
         setDirty();
+    }
+
+    public int getMiddayTriggerSerialToday() {
+        return middayTriggerSerialToday;
+    }
+
+    public int getMiddayCompletionsToday() {
+        return middayCompletionsToday;
     }
 
     public void decrementMiddayTriggersToday() {
@@ -304,6 +334,7 @@ public class OrdealData extends SavedData {
     }
 
     public void finishBlueMidday() {
+        if (blueMiddayActive) middayCompletionsToday++;
         blueMiddayActive = false;
         blueMiddayRemaining = 0;
         setDirty();
@@ -328,6 +359,7 @@ public class OrdealData extends SavedData {
     }
 
     public void finishVioletMidday() {
+        if (violetMiddayActive) middayCompletionsToday++;
         violetMiddayActive = false;
         violetMiddayRemaining = 0;
         setDirty();
@@ -352,6 +384,7 @@ public class OrdealData extends SavedData {
     }
 
     public void finishGreenMidday() {
+        if (greenMiddayActive) middayCompletionsToday++;
         greenMiddayActive = false;
         greenMiddayRemaining = 0;
         setDirty();
@@ -382,6 +415,7 @@ public class OrdealData extends SavedData {
     }
 
     public void finishCrimsonMidday() {
+        if (crimsonMiddayActive) middayCompletionsToday++;
         crimsonMiddayActive = false;
         crimsonMiddayRemaining = 0;
         setDirty();
@@ -395,11 +429,43 @@ public class OrdealData extends SavedData {
         return hasActiveDawn() || hasActiveMidday();
     }
 
+    public void resetForChallenge(int day) {
+        trackedDay = Math.max(1, day);
+        dawnChance = 0;
+        dawnTriggersToday = 0;
+        dawnTriggerSerialToday = 0;
+        dawnCompletionsToday = 0;
+        nextDawnType = NO_DAWN_TYPE;
+        bloodDawnActive = false;
+        bloodDawnRemaining = 0;
+        greenDawnActive = false;
+        greenDawnRemaining = 0;
+        violetDawnActive = false;
+        violetDawnRemaining = 0;
+        amberDawnActive = false;
+        amberDawnRemaining = 0;
+        middayTriggersToday = 0;
+        middayTriggerSerialToday = 0;
+        middayCompletionsToday = 0;
+        nextMiddayType = NO_MIDDAY_TYPE;
+        blueMiddayActive = false;
+        blueMiddayRemaining = 0;
+        violetMiddayActive = false;
+        violetMiddayRemaining = 0;
+        greenMiddayActive = false;
+        greenMiddayRemaining = 0;
+        crimsonMiddayActive = false;
+        crimsonMiddayRemaining = 0;
+        setDirty();
+    }
+
     @Override
     public CompoundTag save(CompoundTag tag) {
         tag.putInt("TrackedDay", trackedDay);
         tag.putInt("DawnChance", dawnChance);
         tag.putInt("DawnTriggersToday", dawnTriggersToday);
+        tag.putInt("DawnTriggerSerialToday", dawnTriggerSerialToday);
+        tag.putInt("DawnCompletionsToday", dawnCompletionsToday);
         tag.putInt("NextDawnType", nextDawnType);
         tag.putBoolean("BloodDawnActive", bloodDawnActive);
         tag.putInt("BloodDawnRemaining", bloodDawnRemaining);
@@ -410,6 +476,8 @@ public class OrdealData extends SavedData {
         tag.putBoolean("AmberDawnActive", amberDawnActive);
         tag.putInt("AmberDawnRemaining", amberDawnRemaining);
         tag.putInt("MiddayTriggersToday", middayTriggersToday);
+        tag.putInt("MiddayTriggerSerialToday", middayTriggerSerialToday);
+        tag.putInt("MiddayCompletionsToday", middayCompletionsToday);
         tag.putInt("NextMiddayType", nextMiddayType);
         tag.putBoolean("BlueMiddayActive", blueMiddayActive);
         tag.putInt("BlueMiddayRemaining", blueMiddayRemaining);
@@ -427,6 +495,8 @@ public class OrdealData extends SavedData {
         data.trackedDay = tag.getInt("TrackedDay");
         data.dawnChance = tag.getInt("DawnChance");
         data.dawnTriggersToday = tag.getInt("DawnTriggersToday");
+        data.dawnTriggerSerialToday = tag.getInt("DawnTriggerSerialToday");
+        data.dawnCompletionsToday = tag.getInt("DawnCompletionsToday");
         data.nextDawnType = tag.getInt("NextDawnType");
         data.bloodDawnActive = tag.getBoolean("BloodDawnActive");
         data.bloodDawnRemaining = tag.getInt("BloodDawnRemaining");
@@ -437,6 +507,8 @@ public class OrdealData extends SavedData {
         data.amberDawnActive = tag.getBoolean("AmberDawnActive");
         data.amberDawnRemaining = tag.getInt("AmberDawnRemaining");
         data.middayTriggersToday = tag.getInt("MiddayTriggersToday");
+        data.middayTriggerSerialToday = tag.getInt("MiddayTriggerSerialToday");
+        data.middayCompletionsToday = tag.getInt("MiddayCompletionsToday");
         data.nextMiddayType = tag.getInt("NextMiddayType");
         data.blueMiddayActive = tag.getBoolean("BlueMiddayActive");
         data.blueMiddayRemaining = tag.getInt("BlueMiddayRemaining");

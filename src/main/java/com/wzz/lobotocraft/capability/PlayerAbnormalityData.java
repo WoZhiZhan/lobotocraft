@@ -105,6 +105,16 @@ public class PlayerAbnormalityData {
         return unlocked != null ? unlocked.size() : 0;
     }
 
+    public int countFullyObservedAbnormalities() {
+        int count = 0;
+        for (String abnormalityCode : unlockedManuals.keySet()) {
+            if (getObservationLevel(abnormalityCode) >= 4) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     /**
      * 检查是否所有管理须知都已解锁
      */

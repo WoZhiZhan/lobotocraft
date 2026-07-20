@@ -2,6 +2,8 @@ package com.wzz.lobotocraft.client.screen;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.wzz.lobotocraft.client.screen.config.EncyclopediaGUIConfig;
+import com.wzz.lobotocraft.client.core.CoreSuppressionClientState;
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.StartWorkPacket;
@@ -26,6 +28,8 @@ public class AbnormalityWorkScreen extends Screen {
             ResourceUtil.createInstance("textures/gui/work_pref_attachment.png");
     private static final ResourceLocation REPRESSION_ICON =
             ResourceUtil.createInstance("textures/gui/work_pref_repression.png");
+    private static final ResourceLocation MALKUTH_UNKNOWN_ICON =
+            ResourceUtil.createInstance("textures/gui/core_suppression/malkuth_unknown_work.png");
 
     private final int abnormalityId;
     private final float[][] fullWorkPreferences;
@@ -139,7 +143,15 @@ public class AbnormalityWorkScreen extends Screen {
         }
 
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        graphics.blit(icon, x, y, 0, 0, 40, 40, 40, 40);
+        if (CoreSuppressionClientState.isActive(CoreSuppressionType.MALKUTH)) {
+            graphics.pose().pushPose();
+            graphics.pose().translate(x, y, 0);
+            graphics.pose().scale(40.0F / 136.0F, 40.0F / 184.0F, 1.0F);
+            graphics.blit(MALKUTH_UNKNOWN_ICON, 0, 0, 0, 0, 136, 184, 136, 184);
+            graphics.pose().popPose();
+        } else {
+            graphics.blit(icon, x, y, 0, 0, 40, 40, 40, 40);
+        }
 
         int nameX = x + 20 - this.font.width(name) / 2;
         graphics.drawString(this.font, name, nameX, y + 45, 0xFFFFFF);

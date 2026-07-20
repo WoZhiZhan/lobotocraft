@@ -3,11 +3,14 @@ package com.wzz.lobotocraft.command;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.entity.EntityClerk;
+import com.wzz.lobotocraft.entity.EntityCoreSuppressionNpc;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.event.listener.BlueMiddayEvent;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -37,22 +40,41 @@ public class KillCommand implements ICommand {
     }
 
     private static int execute(CommandSourceStack source) {
-        int count = 0;
-
-        for (ServerLevel level : source.getServer().getAllLevels()) {
-            for (Entity entity : level.getAllEntities()) {
-                if (isKillTarget(entity)) {
-                    LivingEntity living = (LivingEntity) entity;
-                    KILL_QUEUE.add(living);
-                    count++;
-                }
-            }
-        }
+        int count = queueAllSuppressionTargets(source.getServer());
 
         int finalCount = count;
         source.sendSuccess(() ->
                         Component.literal("已将 " + finalCount + " 个出逃异想体/生物加入清理队列"),
                 true);
+        return count;
+    }
+
+    public static int queueAllSuppressionTargets(MinecraftServer server) {
+        int count = 0;
+        for (ServerLevel level : server.getAllLevels()) {
+            for (Entity entity : level.getAllEntities()) {
+                if (isKillTarget(entity)) {
+                    KILL_QUEUE.add((LivingEntity) entity);
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    public static int queueActiveOrdealTargets(MinecraftServer server) {
+        int count = 0;
+        for (ServerLevel level : server.getAllLevels()) {
+            for (Entity entity : level.getAllEntities()) {
+                if (!(entity instanceof LivingEntity living) || !living.isAlive()) continue;
+                String packageName = entity.getClass().getPackageName();
+                if (packageName.contains(".entity.ordeal") || BlueMiddayEvent.isBlueMiddaySpawn(entity)) {
+                    KILL_QUEUE.add(living);
+                    count++;
+                }
+            }
+        }
+        BlueMiddayEvent.endTrial();
         return count;
     }
 
@@ -77,6 +99,7 @@ public class KillCommand implements ICommand {
         if (!(entity instanceof LivingEntity living)
                 || living instanceof Player
                 || living instanceof EntityClerk
+                || living instanceof EntityCoreSuppressionNpc
                 || !living.isAlive()) {
             return false;
         }

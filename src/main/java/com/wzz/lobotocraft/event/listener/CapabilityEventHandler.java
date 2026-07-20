@@ -2,6 +2,8 @@ package com.wzz.lobotocraft.event.listener;
 
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.capability.*;
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
 import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
@@ -168,6 +170,15 @@ public class CapabilityEventHandler {
                     });
                 });
             }
+        } else if (CoreSuppressionManager.hasReward(event.getOriginal(), CoreSuppressionType.HOD)) {
+            CompoundTag backupStats = deathBackupStats.get(playerUUID);
+            event.getEntity().getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(newStats -> {
+                if (newStats instanceof EmployeeStats employeeStats) {
+                    if (backupStats != null) employeeStats.loadFromNBT(backupStats);
+                    CoreSuppressionManager.retainHodDeathStats(event.getOriginal(), employeeStats);
+                }
+            });
+            deathBackupStats.remove(playerUUID);
         } else {
             deathBackupStats.remove(playerUUID);
         }

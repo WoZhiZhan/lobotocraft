@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.event.listener.BlueMiddayEvent;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
@@ -143,7 +144,8 @@ public class WorkManager {
 
             // 应用所有加成的计算
             float rateWithBonuses = Math.min(0.95f,
-                    baseSuccessRate + temperanceBonus + observationSuccessBonus + itemSuccessBonus);
+                    baseSuccessRate + temperanceBonus + observationSuccessBonus + itemSuccessBonus
+                            + CoreSuppressionManager.getWorkSuccessBonus(player));
 
             // 应用速度加成
             int intervalAfterTemperance = (int)(BASE_EXTRACTION_INTERVAL * (1.0f - temperanceBonus));
@@ -215,6 +217,8 @@ public class WorkManager {
             player.sendSystemMessage(Component.literal("§c距离异想体太远了"));
             return false;
         }
+
+        workType = CoreSuppressionManager.randomizeWorkType(player, workType);
 
         // 检查精神值是否为空
         final boolean[] mentalEmpty = {false};
@@ -590,6 +594,12 @@ public class WorkManager {
         ));
         if (abnormality.shouldGivePEBox(player, workType, result, peOutput)) {
             givePEBox(player, abnormality, workType, result, peOutput);
+            int independentBonus = CoreSuppressionManager.getIndependentPeBoxBonus(player, peOutput);
+            if (independentBonus > 0) {
+                givePEBox(player, abnormality, workType, result, independentBonus);
+                player.sendSystemMessage(Component.literal(
+                        "§dYesod核心抑制奖励：额外获得 " + independentBonus + " 个独立PE-BOX。"));
+            }
         }
         if (session.continuousMode && !session.stopContinuousAfterCurrent) {
             String stopReason = getContinuousStopReason(session);
@@ -609,11 +619,13 @@ public class WorkManager {
         if (player.level().dimension() == ModDimensions.LOBOTO_KEY) {
             player.getCapability(CompanyDailyDataProvider.COMPANY_DAILY_DATA).ifPresent(data -> {
                 data.addWorkCount();
+                boolean doubled = CoreSuppressionManager.shouldDoubleWorkCount(player);
+                if (doubled) data.addWorkCount();
                 data.setHasSleep(false);
                 int current = data.getTodayWorkCount();
                 int required = data.getRequiredWorkCount();
                 player.sendSystemMessage(Component.literal(
-                        String.format("§a工作次数 +1 §7(%d/%d)", current, required)
+                        String.format("§a工作次数 +%d §7(%d/%d)", doubled ? 2 : 1, current, required)
                 ).withStyle(ChatFormatting.GREEN));
 
                 if (data.hasCompletedTodayWork()) {
@@ -665,6 +677,7 @@ public class WorkManager {
         player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(stats -> {
             String riskLevel = abnormality.getRiskLevel().name();
             int increase = stats.calculateAttributeIncrease(riskLevel, workType.name());
+            increase *= CoreSuppressionManager.getAttributeGrowthMultiplier(player);
             if (increase > 0) {
                 switch (workType) {
                     case INSTINCT -> {

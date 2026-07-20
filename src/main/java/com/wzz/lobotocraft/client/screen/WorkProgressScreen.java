@@ -2,6 +2,8 @@ package com.wzz.lobotocraft.client.screen;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
+import com.wzz.lobotocraft.client.core.CoreSuppressionClientState;
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
 import com.wzz.lobotocraft.logger.ModLogger;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.ObtainGiftPacket;
@@ -510,6 +512,14 @@ public class WorkProgressScreen extends Screen {
 
         renderEnergyBar(graphics);
         renderWorkTimer(graphics);   // ← 右上角计时器
+
+        if (CoreSuppressionClientState.isActive(CoreSuppressionType.MALKUTH) && finalResult == null) {
+            String actualWork = "实际工作类型：" + workType.getDisplayName();
+            int textWidth = font.width(actualWork);
+            graphics.fill(width / 2 - textWidth / 2 - 8, 12,
+                    width / 2 + textWidth / 2 + 8, 30, 0xC0000000);
+            graphics.drawCenteredString(font, actualWork, width / 2, 17, 0xFFF3C85B);
+        }
 
         if (finalResult != null) {
             renderFinalResult(graphics);

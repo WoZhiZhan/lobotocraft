@@ -299,5 +299,21 @@
   "item.lobotocraft.nothing_there_leggings": "拟态 护腿",
   "item.lobotocraft.nothing_there_boots": "拟态 靴子",
   "item.lobotocraft.nothing_there_weapon": "拟态",
-  "item.lobotocraft.nothing_there_curio": "拟态"
+  "item.lobotocraft.nothing_there_curio": "拟态",
+  "entity.lobotocraft.malkuth": "Malkuth",
+  "entity.lobotocraft.yesod": "Yesod",
+  "entity.lobotocraft.hod": "Hod",
+  "entity.lobotocraft.netzach": "Netzach",
+  "item.lobotocraft.malkuth_spawn_egg": "Malkuth 生成蛋",
+  "item.lobotocraft.yesod_spawn_egg": "Yesod 生成蛋",
+  "item.lobotocraft.hod_spawn_egg": "Hod 生成蛋",
+  "item.lobotocraft.netzach_spawn_egg": "Netzach 生成蛋",
+  "advancements.lobotocraft.malkuth_core.title": "昂首阔步的信念",
+  "advancements.lobotocraft.malkuth_core.description": "完成Malkuth核心抑制",
+  "advancements.lobotocraft.yesod_core.title": "卓尔不凡的理性",
+  "advancements.lobotocraft.yesod_core.description": "完成Yesod核心抑制",
+  "advancements.lobotocraft.hod_core.title": "愈加善良的希望",
+  "advancements.lobotocraft.hod_core.description": "完成Hod核心抑制",
+  "advancements.lobotocraft.netzach_core.title": "生存下去的勇气",
+  "advancements.lobotocraft.netzach_core.description": "完成Netzach核心抑制"
 }
