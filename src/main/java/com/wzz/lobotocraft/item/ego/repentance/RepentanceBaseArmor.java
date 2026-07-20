@@ -68,12 +68,13 @@ public abstract class RepentanceBaseArmor extends BaseEgoArmor {
 
     @Override
     public boolean onDamaged(Player player, String damageType, float damage) {
-        // 受到RED或BLACK伤害时，5%概率恢复10点精神值
-        if (player instanceof ServerPlayer serverPlayer) {
-            if (damageType.equals("red") || damageType.equals("black")) {
-                if (player.getRandom().nextFloat() < 0.05f) {
-                    MentalValueUtil.addMentalValue(serverPlayer, 10);
-                    player.sendSystemMessage(Component.literal("§a忏悔：恢复了10点精神值"));
+        if (damageType != null) {
+            if (player instanceof ServerPlayer serverPlayer) {
+                if (damageType.equals("red") || damageType.equals("black")) {
+                    if (player.getRandom().nextFloat() < 0.05f) {
+                        MentalValueUtil.addMentalValue(serverPlayer, 10);
+                        player.sendSystemMessage(Component.literal("§a忏悔：恢复了10点精神值"));
+                    }
                 }
             }
         }
