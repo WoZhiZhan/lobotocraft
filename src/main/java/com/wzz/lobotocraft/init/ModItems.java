@@ -168,7 +168,7 @@ public class ModItems {
                     "§c眼前响起了悦耳的歌声，它正慢慢朝你靠近..."));
 
     public static final RegistryObject<Item> BIGBADWOLF_SPAWN_EGG = REGISTRY.register("bigbadwolf_spawn_egg",
-            () -> new TextSpawnEggItem(ModEntities.bigbadwolf, 0x4a3a2a, 0x901010, new Item.Properties(),
+            () -> new TextSpawnEggItem(ModEntities.bigbadwolf, ExtendedColor.STEEL_BLUE.getRGB(), ExtendedColor.SLATE_GRAY.getRGB(), new Item.Properties(),
                     "§c说实话我根本就不在乎，因为我必须是一只又大又坏的狼..."));
 
     public static final RegistryObject<Item> HELPER_SPAWN_EGG = REGISTRY.register("helper_spawn_egg",
