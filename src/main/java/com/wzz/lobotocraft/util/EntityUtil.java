@@ -4,6 +4,7 @@ import com.mojang.datafixers.util.Pair;
 import com.wzz.lobotocraft.logger.ModLogger;
 import com.wzz.lobotocraft.world.LobotoTeleporter;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -46,6 +47,14 @@ public class EntityUtil {
             if (!entity.level.isClientSide && entity.getServer() != null) {
                 entity.getServer().execute(runnable);
             }
+        }
+    }
+
+    public static void broadcastMessage(Level level, String message) {
+        if (!(level instanceof ServerLevel serverLevel)) return;
+        List<ServerPlayer> players = serverLevel.getServer().getPlayerList().getPlayers();
+        for (ServerPlayer player : players) {
+            player.sendSystemMessage(Component.literal(message));
         }
     }
     

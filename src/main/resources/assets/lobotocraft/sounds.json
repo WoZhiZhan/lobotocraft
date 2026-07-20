@@ -1570,5 +1570,21 @@
         "stream": false
       }
     ]
+  },
+  "nothing_there_weapon_normal_attack": {
+    "sounds": [
+      {
+        "name": "lobotocraft:nothing_there_weapon_normal_attack",
+        "stream": false
+      }
+    ]
+  },
+  "nothing_there_weapon_special_attack.": {
+    "sounds": [
+      {
+        "name": "lobotocraft:nothing_there_weapon_special_attack.",
+        "stream": false
+      }
+    ]
   }
 }

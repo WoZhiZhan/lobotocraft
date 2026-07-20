@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.util;
 
 import com.wzz.lobotocraft.capability.IMentalValue;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
+import com.wzz.lobotocraft.event.definition.mental_value.MentalValueEvent;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.MentalValueSyncPacket;
 import net.minecraft.server.level.ServerPlayer;
@@ -17,19 +18,16 @@ public class MentalValueUtil {
      * @param amount 增加的数量
      */
     public static void addMentalValue(Player player, float amount) {
+        addMentalValue(player, amount, MentalValueEvent.ChangeType.ADD);
+    }
+
+    public static void addMentalValue(Player player, float amount, MentalValueEvent.ChangeType changeType) {
         if (!(player instanceof ServerPlayer serverPlayer)) return;
-        // 伊莎玛拉机制1:被其攻击的玩家在 debuff 期间,正向精神值恢复减少 50%
-        if (amount > 0) {
-            long until = serverPlayer.getPersistentData().getLong("isharmla_mental_recover_debuff_until");
-            if (until > 0 && serverPlayer.level().getGameTime() < until) {
-                amount *= 0.5f;
-            }
-        }
         final float finalAmount = amount;
         serverPlayer.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
-            mental.addMentalValue(finalAmount);
+            mental.addMentalValue(finalAmount, changeType);
             MessageLoader.getLoader().sendToPlayer(serverPlayer,
-                    new MentalValueSyncPacket(mental.getMentalValue(), mental.getMaxMentalValue()));
+                    new MentalValueSyncPacket(mental.getMentalValue(), mental.getMaxMentalValue(), changeType));
         });
     }
 
@@ -40,12 +38,16 @@ public class MentalValueUtil {
         return panic.get();
     }
 
-    public static void reduceMentalValue(ServerPlayer player, float amount) {
+    public static void reduceMentalValue(ServerPlayer player, float amount, MentalValueEvent.ChangeType changeType) {
         player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
-            mental.reduceMentalValue(amount);
+            mental.reduceMentalValue(amount, changeType);
             MessageLoader.getLoader().sendToPlayer(player,
-                    new MentalValueSyncPacket(mental.getMentalValue(), mental.getMaxMentalValue()));
+                    new MentalValueSyncPacket(mental.getMentalValue(), mental.getMaxMentalValue(), changeType));
         });
+    }
+
+    public static void reduceMentalValue(ServerPlayer player, float amount) {
+        reduceMentalValue(player, amount, MentalValueEvent.ChangeType.REDUCE);
     }
 
     /**
@@ -54,10 +56,14 @@ public class MentalValueUtil {
      * @param value 要设置的值
      */
     public static void setMentalValue(ServerPlayer player, float value) {
+        setMentalValue(player, value, MentalValueEvent.ChangeType.SET);
+    }
+
+    public static void setMentalValue(ServerPlayer player, float value, MentalValueEvent.ChangeType changeType) {
         player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
-            mental.setMentalValue(value);
+            mental.setMentalValue(value, changeType);
             MessageLoader.getLoader().sendToPlayer(player,
-                    new MentalValueSyncPacket(mental.getMentalValue(), mental.getMaxMentalValue()));
+                    new MentalValueSyncPacket(mental.getMentalValue(), mental.getMaxMentalValue(), changeType));
         });
     }
     

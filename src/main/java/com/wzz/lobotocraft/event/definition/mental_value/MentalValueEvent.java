@@ -132,6 +132,8 @@ public class MentalValueEvent extends PlayerEvent {
         ADD,        // 增加
         REDUCE,     // 减少
         REGENERATE, // 自然恢复
+        DAMAGE,     // 伤害
+        SYNC,       // 同步
         OTHER       // 其他
     }
 }

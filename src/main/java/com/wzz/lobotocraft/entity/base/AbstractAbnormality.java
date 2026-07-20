@@ -462,7 +462,7 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
     }
 
     protected void broadcastEscapeMessage() {
-        broadcastMessage("§c§l警告！" + getAbnormalityName() + "已经出逃！");
+        EntityUtil.broadcastMessage(level,"§c§l警告！" + getAbnormalityName() + "已经出逃！");
     }
 
     private BlockPos findAvailableEscapeBlock() {
@@ -533,14 +533,6 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
                             SoundSource.HOSTILE
                     )
             );
-        }
-    }
-
-    public void broadcastMessage(String message) {
-        if (!(this.level() instanceof ServerLevel serverLevel)) return;
-        List<ServerPlayer> players = serverLevel.getServer().getPlayerList().getPlayers();
-        for (ServerPlayer player : players) {
-            player.sendSystemMessage(Component.literal(message));
         }
     }
 

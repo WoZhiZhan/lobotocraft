@@ -294,5 +294,10 @@
   "item.lobotocraft.smiling_corpse_mountain_weapon": "Smiling Corpse Mountain",
   "item.lobotocraft.smiling_corpse_mountain_curio": "Smiling Corpse Mountain",
   "effect.lobotocraft.corruption": "Corruption",
-  "entity.lobotocraft.smiling_corpse_mountain_shock_wave": "Shock Wave"
+  "entity.lobotocraft.smiling_corpse_mountain_shock_wave": "Shock Wave",
+  "item.lobotocraft.nothing_there_chestplate": "Nothing There Chestplate",
+  "item.lobotocraft.nothing_there_leggings": "Nothing There Leggings",
+  "item.lobotocraft.nothing_there_boots": "Nothing There Boots",
+  "item.lobotocraft.nothing_there_weapon": "Nothing There",
+  "item.lobotocraft.nothing_there_curio": "Nothing There"
 }

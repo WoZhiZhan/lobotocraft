@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.block.entity;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
+import com.wzz.lobotocraft.event.definition.mental_value.MentalValueEvent;
 import com.wzz.lobotocraft.init.ModBlockEntities;
 import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModParticleTypes;
@@ -250,9 +251,9 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
             float mentalHeal = maxMental * HEAL_PERCENTAGE;
             float newMental = Math.min(currentMental + mentalHeal, maxMental);
             ParticleUtil.spawnParticlesAroundEntity(player, ModParticleTypes.BLUE_GLINT.get(), (int) mentalHeal, 0.1d);
-            mental.setMentalValue(newMental);
+            mental.setMentalValue(newMental, MentalValueEvent.ChangeType.REGENERATE);
             MessageLoader.getLoader().sendToPlayer(serverPlayer,
-                    new MentalValueSyncPacket((int) newMental, (int) mental.getMaxMentalValue()));
+                    new MentalValueSyncPacket((int) newMental, (int) mental.getMaxMentalValue(), MentalValueEvent.ChangeType.REGENERATE));
         });
     }
 

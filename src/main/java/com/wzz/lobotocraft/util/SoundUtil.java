@@ -1,13 +1,19 @@
 package com.wzz.lobotocraft.util;
 
 import com.wzz.lobotocraft.logger.ModLogger;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.registries.ForgeRegistries;
 
 public class SoundUtil {
@@ -96,6 +102,38 @@ public class SoundUtil {
         if (!level.isClientSide && level instanceof ServerLevel serverLevel) {
             serverLevel.playSound(null, entity.getX(), entity.getY(), entity.getZ(),
                     sound, entity.getSoundSource(), volume, 1.0f);
+        }
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    public static void playSoundWithClient(LevelAccessor world, String soundName, LivingEntity living) {
+        playSoundWithClient(world, soundName, living, SoundSource.RECORDS);
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    public static void playSoundWithClient(LevelAccessor world, String soundName, LivingEntity living, SoundSource soundSource) {
+        if (world.isClientSide()) {
+            Minecraft minecraft = Minecraft.getInstance();
+            Player localPlayer = minecraft.player;
+            if (localPlayer != null && living == localPlayer) {
+                SoundEvent soundEvent = ForgeRegistries.SOUND_EVENTS.getValue(
+                        ResourceUtil.createInstance(soundName)
+                );
+                if (soundEvent != null) {
+                    minecraft.getSoundManager().play(
+                            new SimpleSoundInstance(
+                                    soundEvent,
+                                    soundSource,
+                                    1.0f,
+                                    1.0f,
+                                    living.getRandom(),
+                                    living.getX(),
+                                    living.getY(),
+                                    living.getZ()
+                            )
+                    );
+                }
+            }
         }
     }
 }

@@ -249,6 +249,9 @@ public class ForgeModEvent {
 			if (CuriosUtil.hasCurios(attacker, ModItems.SMILING_CORPSE_MOUNTAIN_CURIO.get()) && isBlackDamage) {
 				event.setAmount(event.getAmount() * 1.2f);
 			}
+			if (CuriosUtil.hasCurios(attacker, ModItems.NOTHING_THERE_CURIO.get())) {
+				attacker.heal(event.getAmount() * 0.05f);
+			}
 		}
 		if (!isDot && target instanceof ServerPlayer player) {
 			if (EntityArmyInBlack.hasActiveProtection(player) && !DamageHelper.isExecution(src)) {
@@ -623,6 +626,21 @@ public class ForgeModEvent {
 	}
 
 	@SubscribeEvent
+	public static void onMentalValue(MentalValueEvent.Pre event) {
+		if (event.getChangeType() == MentalValueEvent.ChangeType.DAMAGE) {
+			if (EgoArmorHelper.isFullSetWithCurioLocked(event.getEntity(), "nothing_there")) {
+				event.setCanceled(true);
+			}
+		}
+		if (event.getChangeType() == MentalValueEvent.ChangeType.ADD || event.getChangeType() == MentalValueEvent.ChangeType.REGENERATE) {
+			long until = event.getEntity().getPersistentData().getLong("isharmla_mental_recover_debuff_until");
+			if (until > 0 && event.getEntity().level().getGameTime() < until) {
+				event.setNewValue(event.getOriginalValue() * 0.5f);
+			}
+		}
+	}
+
+	@SubscribeEvent
 	public static void onLivingSwing(LivingSwingEvent.Pre event) {
 		if (event.getEntity() instanceof Player player && player.getPersistentData().getBoolean("isLargeBirdCharm") && !player.level.isClientSide) {
 			if (EgoArmorHelper.isFullEGO(player, "end_bird")
@@ -942,6 +960,23 @@ public class ForgeModEvent {
 					player.removeEffect(ModMobEffects.LETICIA_BROKEN_GIFT.get());
 					player.removeEffect(ModMobEffects.LETICIA_GIFT.get());
 				}
+			}
+			if (EgoArmorHelper.isWearingFullSet(player, "nothing_there")
+					&& event.getAmount() >= player.getHealth()) {
+				CompoundTag persistentData = player.getPersistentData();
+				String cooldownKey = "nothing_there_cooldown";
+				long currentTime = System.currentTimeMillis();
+				long cooldownEnd = persistentData.getLong(cooldownKey);
+				if (cooldownEnd > currentTime) {
+					return;
+				}
+				event.setAmount(0f);
+				event.setCanceled(true);
+				player.playSound(SoundEvents.TOTEM_USE);
+				ParticleUtil.spawnParticlesAroundEntity(player, ParticleTypes.HEART, 30, 0.01f);
+				player.heal(player.getMaxHealth() * 0.25f);
+				MentalValueUtil.addMentalValue(player, MentalValueUtil.getEffectiveMaxMentalValue(player) * 0.25f);
+				persistentData.putLong(cooldownKey, currentTime + 90000L);
 			}
 		}
 	}

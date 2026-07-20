@@ -12,6 +12,7 @@
     "MixinLevel",
     "MixinLevelChunk",
     "MixinLivingEntity",
+    "MixinPlayerFoodExhaustion",
     "MixinPowderSnowBlock",
     "MixinRangedAttribute",
     "MixinServerPlayer",

@@ -25,6 +25,7 @@ import com.wzz.lobotocraft.item.ego.happy_teddy.*;
 import com.wzz.lobotocraft.item.ego.helper.*;
 import com.wzz.lobotocraft.item.ego.largebird.*;
 import com.wzz.lobotocraft.item.ego.leticia.*;
+import com.wzz.lobotocraft.item.ego.nothing_there.*;
 import com.wzz.lobotocraft.item.ego.ppodae.*;
 import com.wzz.lobotocraft.item.ego.punishing_bird.*;
 import com.wzz.lobotocraft.item.ego.queen_bee.*;
@@ -360,4 +361,9 @@ public class ModItems {
     public static final RegistryObject<Item> SMILING_CORPSE_MOUNTAIN_BOOTS = REGISTRY.register("smiling_corpse_mountain_boots", SmilingCorpseMountainBoots::new);
     public static final RegistryObject<Item> SMILING_CORPSE_MOUNTAIN_WEAPON = REGISTRY.register("smiling_corpse_mountain_weapon", SmilingCorpseMountainWeapon::new);
     public static final RegistryObject<Item> SMILING_CORPSE_MOUNTAIN_CURIO = REGISTRY.register("smiling_corpse_mountain_curio", SmilingCorpseMountainCurio::new);
+    public static final RegistryObject<Item> NOTHING_THERE_CHESTPLATE = REGISTRY.register("nothing_there_chestplate", NothingThereChestplate::new);
+    public static final RegistryObject<Item> NOTHING_THERE_LEGGINGS = REGISTRY.register("nothing_there_leggings", NothingThereLeggings::new);
+    public static final RegistryObject<Item> NOTHING_THERE_BOOTS = REGISTRY.register("nothing_there_boots", NothingThereBoots::new);
+    public static final RegistryObject<Item> NOTHING_THERE_WEAPON = REGISTRY.register("nothing_there_weapon", NothingThereWeapon::new);
+    public static final RegistryObject<Item> NOTHING_THERE_CURIO = REGISTRY.register("nothing_there_curio", NothingThereCurio::new);
 }

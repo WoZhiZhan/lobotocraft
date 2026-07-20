@@ -294,5 +294,10 @@
   "item.lobotocraft.smiling_corpse_mountain_weapon": "笑靥",
   "item.lobotocraft.smiling_corpse_mountain_curio": "笑靥",
   "effect.lobotocraft.corruption": "腐败",
-  "entity.lobotocraft.smiling_corpse_mountain_shock_wave": "冲击波"
+  "entity.lobotocraft.smiling_corpse_mountain_shock_wave": "冲击波",
+  "item.lobotocraft.nothing_there_chestplate": "拟态 胸甲",
+  "item.lobotocraft.nothing_there_leggings": "拟态 护腿",
+  "item.lobotocraft.nothing_there_boots": "拟态 靴子",
+  "item.lobotocraft.nothing_there_weapon": "拟态",
+  "item.lobotocraft.nothing_there_curio": "拟态"
 }

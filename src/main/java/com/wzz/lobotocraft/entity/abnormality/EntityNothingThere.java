@@ -2,7 +2,7 @@ package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
-import com.wzz.lobotocraft.entity.base.BaseGeoEntity;
+import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModEntities;
@@ -10,6 +10,7 @@ import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.MentalValueUtil;
+import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.core.BlockPos;
@@ -340,6 +341,89 @@ public class EntityNothingThere extends AbstractAbnormality {
 
             tickContainedAmbient();
         }
+    }
+
+    @Override
+    public float[] getArmorRenderScale() {
+        return new float[] {1.5f, 1.0f, 1.5f};
+    }
+
+    @Override
+    public float[] getArmorRenderOffset() {
+        return new float[] {-20.0f, 1.0f, 1.0f};
+    }
+
+    @Override
+    public float[] getWeaponRenderOffset() {
+        return new float[] {5.0f, 1.0f, 1f};
+    }
+
+    @Override
+    public int getWeaponDevelopmentCost() {
+        return 222;
+    }
+
+    @Override
+    public int getArmorDevelopmentCost() {
+        return 120;
+    }
+
+    @Override
+    public int getArmorDevelopmentMaxCount() {
+        return 1;
+    }
+
+    @Override
+    public int getWeaponDevelopmentMaxCount() {
+        return 1;
+    }
+
+    @Override
+    public float getGiftProbability() {
+        return 0.01f;
+    }
+
+    @Override
+    public EGOEquipmentData.GiftData getEGOGiftData() {
+        return new EGOEquipmentData.GiftData(
+                ResourceUtil.createInstance("textures/item/nothing_there_curio.png"),
+                "拟态",
+                "脸颊",
+                "nothing_there_curio",
+                "使用任意EGO造成伤害时恢复等同于伤害值5%的生命值",
+                "最大生命值+10",
+                "使用近战EGO攻速+10%"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.WeaponData getEGOWeaponData() {
+        return new EGOEquipmentData.WeaponData(
+                ResourceUtil.createInstance("textures/gui/ego/nothing_there_weapon.png"),
+                "拟态",
+                getRiskLevel(),
+                "RED",
+                "10~14",
+                "1.1",
+                "3格",
+                getWeaponDevelopmentMaxCount(),
+                "nothing_there_weapon"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.ArmorData getEGOArmorData() {
+        return new EGOEquipmentData.ArmorData(
+                ResourceUtil.createInstance("textures/gui/ego/nothing_there_armor.png"),
+                "拟态",
+                getRiskLevel(),
+                0.2f,
+                0.5f,
+                0.5f,
+                1.0f,
+                getArmorDevelopmentMaxCount(),
+                "nothing_there_armor"
+        );
     }
 
     private void tickEscapePhases() {

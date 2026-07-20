@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.event.listener;
 
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
+import com.wzz.lobotocraft.event.definition.mental_value.MentalValueEvent;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.DamageBorderPacket;
@@ -65,7 +66,7 @@ public class MentalValueEventHandler {
     @SubscribeEvent
     public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
-            syncMentalValue(serverPlayer);
+            syncMentalValue(serverPlayer, MentalValueEvent.ChangeType.SYNC);
         }
     }
 
@@ -75,7 +76,7 @@ public class MentalValueEventHandler {
             // 重生时恢复满精神值
             serverPlayer.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
                 mental.setMentalValue(mental.getEffectiveMaxMentalValue());
-                syncMentalValue(serverPlayer);
+                syncMentalValue(serverPlayer, MentalValueEvent.ChangeType.SYNC);
             });
         }
     }
@@ -121,18 +122,18 @@ public class MentalValueEventHandler {
 
             // 白色伤害：只扣精神值
             if (DamageHelper.isWhiteDamage(source)) {
-                mental.reduceMentalValue(actualDamage);
+                mental.reduceMentalValue(actualDamage, MentalValueEvent.ChangeType.DAMAGE);
                 event.setCanceled(true); // 取消血量伤害
                 if (player instanceof ServerPlayer serverPlayer) {
-                    syncMentalValue(serverPlayer);
+                    syncMentalValue(serverPlayer, MentalValueEvent.ChangeType.DAMAGE);
                 }
             }
             // 黑色伤害：同时扣血量和精神值
             else if (DamageHelper.isBlackDamage(source)) {
-                mental.reduceMentalValue(actualDamage);
+                mental.reduceMentalValue(actualDamage, MentalValueEvent.ChangeType.DAMAGE);
                 event.setAmount(actualDamage); // 设置实际伤害
                 if (player instanceof ServerPlayer serverPlayer) {
-                    syncMentalValue(serverPlayer);
+                    syncMentalValue(serverPlayer, MentalValueEvent.ChangeType.DAMAGE);
                 }
             }
             // 蓝色伤害：基础伤害 + 最大生命值的5%-7%
@@ -331,10 +332,10 @@ public class MentalValueEventHandler {
         }
     }
 
-    private static void syncMentalValue(ServerPlayer player) {
+    private static void syncMentalValue(ServerPlayer player, MentalValueEvent.ChangeType changeType) {
         player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
             MessageLoader.getLoader().sendToPlayer(player,
-                    new MentalValueSyncPacket(mental.getMentalValue(), mental.getMaxMentalValue()));
+                    new MentalValueSyncPacket(mental.getMentalValue(), mental.getMaxMentalValue(), changeType));
         });
     }
 

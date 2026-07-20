@@ -232,4 +232,6 @@ public class ModSounds {
 	// 这是武器的
 	public static final RegistryObject<SoundEvent> SMILING_CORPSE_MOUNTAIN_NORMAL_ATTACK = register("smiling_corpse_mountain_normal_attack");
 	public static final RegistryObject<SoundEvent> SMILING_CORPSE_MOUNTAIN_SPECIAL_ATTACK = register("smiling_corpse_mountain_special_attack");
+	public static final RegistryObject<SoundEvent> NOTHING_THERE_WEAPON_NORMAL_ATTACK = register("nothing_there_weapon_normal_attack");
+	public static final RegistryObject<SoundEvent> NOTHING_THERE_WEAPON_SPECIAL_ATTACK = register("nothing_there_weapon_special_attack");
 }

@@ -215,6 +215,11 @@ public class ModTabs {
 						tabData.accept(ModItems.SMILING_CORPSE_MOUNTAIN_BOOTS.get());
 						tabData.accept(ModItems.SMILING_CORPSE_MOUNTAIN_WEAPON.get());
 						tabData.accept(ModItems.SMILING_CORPSE_MOUNTAIN_CURIO.get());
+						tabData.accept(ModItems.NOTHING_THERE_CHESTPLATE.get());
+						tabData.accept(ModItems.NOTHING_THERE_LEGGINGS.get());
+						tabData.accept(ModItems.NOTHING_THERE_BOOTS.get());
+						tabData.accept(ModItems.NOTHING_THERE_WEAPON.get());
+						tabData.accept(ModItems.NOTHING_THERE_CURIO.get());
 					})
 					.build());
 

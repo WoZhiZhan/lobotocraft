@@ -44,12 +44,17 @@ public class MentalValue implements IMentalValue {
 
     @Override
     public void setMentalValue(float value) {
+       setMentalValue(value, MentalValueEvent.ChangeType.SET);
+    }
+
+    @Override
+    public void setMentalValue(float value, MentalValueEvent.ChangeType changeType) {
         float originalValue = this.mentalValue;
         float effectiveMax = getEffectiveMaxMentalValue();
-
+        if (changeType == null) changeType = MentalValueEvent.ChangeType.SET;
         MentalValueEvent.Pre preEvent = new MentalValueEvent.Pre(
                 player, originalValue, effectiveMax,
-                value, MentalValueEvent.ChangeType.SET, null
+                value, changeType, null
         );
 
         if (MinecraftForge.EVENT_BUS.post(preEvent)) {
@@ -62,7 +67,7 @@ public class MentalValue implements IMentalValue {
 
         MentalValueEvent.Post postEvent = new MentalValueEvent.Post(
                 player, originalValue, effectiveMax,
-                this.mentalValue, MentalValueEvent.ChangeType.SET, null
+                this.mentalValue, changeType, null
         );
         MinecraftForge.EVENT_BUS.post(postEvent);
 
@@ -143,15 +148,20 @@ public class MentalValue implements IMentalValue {
 
     @Override
     public void addMentalValue(float amount) {
-        if (amount <= 0) return;
+      addMentalValue(amount, MentalValueEvent.ChangeType.ADD);
+    }
 
+    @Override
+    public void addMentalValue(float amount, MentalValueEvent.ChangeType changeType) {
+        if (amount <= 0) return;
+        if (changeType == null) changeType = MentalValueEvent.ChangeType.ADD;
         float originalValue = this.mentalValue;
         float effectiveMax = getEffectiveMaxMentalValue();
         float newValue = originalValue + amount;
 
         MentalValueEvent.Pre preEvent = new MentalValueEvent.Pre(
                 player, originalValue, effectiveMax,
-                newValue, MentalValueEvent.ChangeType.ADD, null
+                newValue, changeType, null
         );
 
         if (MinecraftForge.EVENT_BUS.post(preEvent)) {
@@ -164,22 +174,22 @@ public class MentalValue implements IMentalValue {
 
         MentalValueEvent.Post postEvent = new MentalValueEvent.Post(
                 player, originalValue, effectiveMax,
-                this.mentalValue, MentalValueEvent.ChangeType.ADD, null
+                this.mentalValue, changeType, null
         );
         MinecraftForge.EVENT_BUS.post(postEvent);
     }
 
     @Override
-    public void reduceMentalValue(float amount) {
+    public void reduceMentalValue(float amount, MentalValueEvent.ChangeType changeType) {
         if (amount <= 0) return;
-
+        if (changeType == null) changeType = MentalValueEvent.ChangeType.REDUCE;
         float originalValue = this.mentalValue;
         float effectiveMax = getEffectiveMaxMentalValue();
         float newValue = originalValue - amount;
 
         MentalValueEvent.Pre preEvent = new MentalValueEvent.Pre(
                 player, originalValue, effectiveMax,
-                newValue, MentalValueEvent.ChangeType.REDUCE, null
+                newValue, changeType, null
         );
 
         if (MinecraftForge.EVENT_BUS.post(preEvent)) {
@@ -191,11 +201,16 @@ public class MentalValue implements IMentalValue {
 
         MentalValueEvent.Post postEvent = new MentalValueEvent.Post(
                 player, originalValue, effectiveMax,
-                this.mentalValue, MentalValueEvent.ChangeType.REDUCE, null
+                this.mentalValue, changeType, null
         );
         MinecraftForge.EVENT_BUS.post(postEvent);
 
         checkDepleted(originalValue);
+    }
+
+    @Override
+    public void reduceMentalValue(float amount) {
+       reduceMentalValue(amount, MentalValueEvent.ChangeType.REDUCE);
     }
 
     @Override
