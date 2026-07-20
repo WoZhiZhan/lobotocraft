@@ -469,10 +469,6 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         EntityUtil.broadcastMessage(level,"§c§l警告！" + getAbnormalityName() + "已经出逃！");
     }
 
-    protected void broadcastMessage(String meg) {
-        EntityUtil.broadcastMessage(level, meg);
-    }
-
     private BlockPos findAvailableEscapeBlock() {
         List<BlockEntity> escapeBlocks = EntityUtil.findBlockEntities(level, getOnPos(), 6).stream()
                 .filter(be -> level.getBlockState(be.getBlockPos()).getBlock() instanceof EscapeBlock)
