@@ -69,6 +69,10 @@ public class ModClientEvent {
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.onebad.get(), AbnormalityRenderer::new);
         event.registerEntityRenderer(ModEntities.clerk.get(), EntityClerkRenderer::new);
+        event.registerEntityRenderer(ModEntities.malkuth.get(), CoreSuppressionNpcRenderer::new);
+        event.registerEntityRenderer(ModEntities.yesod.get(), CoreSuppressionNpcRenderer::new);
+        event.registerEntityRenderer(ModEntities.hod.get(), CoreSuppressionNpcRenderer::new);
+        event.registerEntityRenderer(ModEntities.netzach.get(), CoreSuppressionNpcRenderer::new);
         event.registerEntityRenderer(ModEntities.red_shoes_clerk.get(), EntityClerkRenderer::new);
         event.registerEntityRenderer(ModEntities.happy_teddy.get(), (r) -> new AbnormalityRenderer<>(r, 1.0f, 0.65f));
         event.registerEntityRenderer(ModEntities.skadi_corrupted.get(), (r) -> new AbnormalityRenderer<>(r, 1.0f, 1.0f));

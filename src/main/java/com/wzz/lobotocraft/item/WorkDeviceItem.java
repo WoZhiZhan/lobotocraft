@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.item;
 
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
 import com.wzz.lobotocraft.work.WorkManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
@@ -27,6 +28,11 @@ public class WorkDeviceItem extends Item {
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (!level.isClientSide) {
+            if (CoreSuppressionManager.isDeviceRestricted(player)) {
+                setEnabled(stack, false);
+                player.sendSystemMessage(Component.literal("§c核心抑制期间无法使用工作装置。"));
+                return InteractionResultHolder.fail(stack);
+            }
             boolean enabled = !isEnabled(stack);
             setEnabled(stack, enabled);
             player.sendSystemMessage(Component.literal(enabled

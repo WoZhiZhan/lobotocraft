@@ -37,6 +37,24 @@ public class ModEntities {
                             .updateInterval(3)
                             .build("clerk"));
 
+    public static final RegistryObject<EntityType<EntityCoreSuppressionNpc>> malkuth =
+            registerCoreSuppressionNpc("malkuth");
+    public static final RegistryObject<EntityType<EntityCoreSuppressionNpc>> yesod =
+            registerCoreSuppressionNpc("yesod");
+    public static final RegistryObject<EntityType<EntityCoreSuppressionNpc>> hod =
+            registerCoreSuppressionNpc("hod");
+    public static final RegistryObject<EntityType<EntityCoreSuppressionNpc>> netzach =
+            registerCoreSuppressionNpc("netzach");
+
+    private static RegistryObject<EntityType<EntityCoreSuppressionNpc>> registerCoreSuppressionNpc(String id) {
+        return ENTITIES.register(id,
+                () -> EntityType.Builder.of(EntityCoreSuppressionNpc::new, MobCategory.CREATURE)
+                        .sized(0.6F, 1.8F)
+                        .clientTrackingRange(10)
+                        .updateInterval(3)
+                        .build(id));
+    }
+
     public static final RegistryObject<EntityType<EntityRedShoesClerk>> red_shoes_clerk =
             ENTITIES.register("red_shoes_clerk",
                     () -> EntityType.Builder.of(EntityRedShoesClerk::new, MobCategory.MONSTER)

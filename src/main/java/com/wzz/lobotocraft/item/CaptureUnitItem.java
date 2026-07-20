@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.item;
 
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import net.minecraft.nbt.CompoundTag;
@@ -51,6 +52,10 @@ public class CaptureUnitItem extends Item {
 
     @Override
     public InteractionResult interactLivingEntity(ItemStack stack, Player player, LivingEntity living, InteractionHand hand) {
+        if (CoreSuppressionManager.isDeviceRestricted(player)) {
+            player.displayClientMessage(Component.literal("§c核心抑制期间无法使用捕捉单元。"), true);
+            return InteractionResult.FAIL;
+        }
         if (stack.getOrCreateTag().contains(ENTITY_UUID)) {
             player.displayClientMessage(Component.literal("§c捕获失败，当前已有捕获的异想体"), true);
             return InteractionResult.FAIL;
@@ -74,6 +79,10 @@ public class CaptureUnitItem extends Item {
         ItemStack stack = context.getItemInHand();
         if (level.isClientSide || player == null) {
             return InteractionResult.SUCCESS;
+        }
+        if (CoreSuppressionManager.isDeviceRestricted(player)) {
+            player.displayClientMessage(Component.literal("§c核心抑制期间无法使用捕捉单元。"), true);
+            return InteractionResult.FAIL;
         }
         if (!(level instanceof ServerLevel serverLevel)) {
             return super.useOn(context);

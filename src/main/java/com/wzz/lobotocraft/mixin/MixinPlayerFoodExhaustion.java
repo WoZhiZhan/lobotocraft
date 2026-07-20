@@ -1,5 +1,7 @@
 package com.wzz.lobotocraft.mixin;
 
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
 import com.wzz.lobotocraft.item.ego.nothing_there.NothingThereCurio;
 import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,11 +16,15 @@ public class MixinPlayerFoodExhaustion {
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/world/food/FoodData;addExhaustion(F)V")
     )
-    private float lobotocraft$nothingThereSprintReduction(float amount) {
+    private float lobotocraft$sprintExhaustionReduction(float amount) {
         Player self = (Player) (Object) this;
+        float result = amount;
         if (self.isSprinting() && NothingThereCurio.sprintExhaustionReduced(self)) {
-            return amount * 0.2F; // -80%
+            result *= 0.2F;
         }
-        return amount;
+        if (self.isSprinting() && CoreSuppressionManager.hasReward(self, CoreSuppressionType.MALKUTH)) {
+            result *= 0.8F;
+        }
+        return result;
     }
 }

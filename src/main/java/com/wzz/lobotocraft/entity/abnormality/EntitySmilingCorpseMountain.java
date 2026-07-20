@@ -70,14 +70,26 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     // 所有阶段移动速度 x2（MULTIPLY_TOTAL 加成 1.0 => x2；收容态不加速）
     private static final double[] PHASE_SPEED_MUL = {0.0, 1.0, 1.0, 1.0};
 
-    // 攻击时序（tick，20t=1s）。伤害触发帧来自策划给定触发时间。
-    private static final int P1_DMG = 15,  P1_TOTAL = 28,  P1_CD = 10;   // 一阶段：0.75s 出伤，attack1 约1.4167s
-    private static final int P2_DMG = 20,  P2_TOTAL = 53,  P2_CD = 20;   // 二阶段：1s 出伤，attack2 约2.6667s
-    private static final int P3_1_DMG = 20, P3_1_TOTAL = 38;             // attack3-1：1s，约1.875s
-    private static final int P3_2_DMG = 30, P3_2_TOTAL = 51;             // attack3-2：1.5s，约2.5417s
-    private static final int P3S_DMG = 16,  P3S_TOTAL = 60;              // attack3-3：0.8s 起，约3s
+    private static final int TICKS_PER_SECOND = 20;
+
+    // 攻击时序直接对应动画资源；命中点使用归一化动画进度，避免 Goal 降频后伤害帧漂移。
+    private static final double P1_DURATION = 1.4167D;
+    private static final int P1_TOTAL = animationTicks(P1_DURATION), P1_CD = 10;
+    private static final double P1_HIT_PROGRESS = 0.75D / P1_DURATION;
+    private static final double P2_DURATION = 2.6667D;
+    private static final int P2_TOTAL = animationTicks(P2_DURATION), P2_CD = 20;
+    private static final double P2_HIT_PROGRESS = 1.0D / P2_DURATION;
+    private static final double P3_1_DURATION = 1.875D;
+    private static final int P3_1_TOTAL = animationTicks(P3_1_DURATION);
+    private static final double P3_1_HIT_PROGRESS = 1.0D / P3_1_DURATION;
+    private static final double P3_2_DURATION = 2.5417D;
+    private static final int P3_2_TOTAL = animationTicks(P3_2_DURATION);
+    private static final double P3_2_HIT_PROGRESS = 1.5D / P3_2_DURATION;
+    private static final double P3S_DURATION = 3.0D;
+    private static final int P3S_TOTAL = animationTicks(P3S_DURATION);
+    private static final double P3S_HIT_PROGRESS = 0.8D / P3S_DURATION;
+    private static final double P3S_SWEEP_END_PROGRESS = 1.6D / P3S_DURATION;
     private static final int P3_CD = 15;
-    private static final int P3S_SWEEP = 16; // 特殊喷吐从右到左的扫射持续 tick
 
     // 攻击范围（横向半宽为策划未指定项，取合理默认，可调）
     private static final double P1_FWD = 3, P1_BACK = 2, P1_HALF = 2.0;
@@ -85,8 +97,10 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     private static final double P3_FWD = 6, P3_BACK = 3, P3_HALF = 2.5;
     // 特殊喷吐：7 格长直线，从右到左覆盖 7x7
     private static final double P3S_LEN = 7.0, P3S_HALF = 3.5;
-    // 计数器降到1的过渡：ready_run 播完切 ready_run_idle（按 ready_run 动画长度调整）
-    private static final int READY_RUN_TICKS = 20;
+    // 非循环动画时长同样与资源保持一致。
+    private static final int READY_RUN_TICKS = animationTicks(1.25D);
+    private static final int PHASE_TWO_TRANSITION_TICKS = animationTicks(1.75D);
+    private static final int PHASE_THREE_TRANSITION_TICKS = animationTicks(1.625D);
 
     // 移动追击范围
     private static final double CHASE_RANGE_LOW = 16.0;   // 一/二阶段
@@ -103,6 +117,21 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     private int readyRunTransition = 0;
 
     private ParticleOptions[] vomitParticles;
+
+    private static int animationTicks(double seconds) {
+        return Math.max(1, (int) Math.round(seconds * TICKS_PER_SECOND));
+    }
+
+    private static double animationProgress(int elapsedTicks, double durationSeconds) {
+        return Math.min(1.0D, Math.max(0.0D,
+                elapsedTicks / (durationSeconds * TICKS_PER_SECOND)));
+    }
+
+    private static boolean crossedAnimationProgress(int previousTick, int currentTick,
+                                                    double durationSeconds, double targetProgress) {
+        return animationProgress(previousTick, durationSeconds) < targetProgress
+                && animationProgress(currentTick, durationSeconds) >= targetProgress;
+    }
 
     public EntitySmilingCorpseMountain(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -146,7 +175,9 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         applyPhaseAttributes(getPhase());
         setHealth(getMaxHealth());
         setAnimation(getPhase() == 2 ? "phase_two" : "phase_three");
-        transitionCooldown = 30;
+        transitionCooldown = getPhase() == 2
+                ? PHASE_TWO_TRANSITION_TICKS
+                : PHASE_THREE_TRANSITION_TICKS;
         getNavigation().stop();
         playPositionalSound(ModSounds.SMILING_CORPSE_MOUNTAIN_RISE_PHASE.get());
     }
@@ -978,6 +1009,9 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         public boolean canContinueToUse() { return active; }
 
         @Override
+        public boolean requiresUpdateEveryTick() { return true; }
+
+        @Override
         public void start() {
             active = true;
             t = 0;
@@ -990,8 +1024,9 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         public void tick() {
             e.lockMovementForAttack();
             e.faceTarget(primary); // 命中目标锁定，避免出伤前重新选目标导致“必中”失效
+            int previousTick = t;
             t++;
-            if (t == P1_DMG) {
+            if (crossedAnimationProgress(previousTick, t, P1_DURATION, P1_HIT_PROGRESS)) {
                 e.playPositionalSound(ModSounds.SMILING_CORPSE_MOUNTAIN_ONE_STAGES_ATTACK.get());
                 List<LivingEntity> hit = e.dealDirectionalDamage(P1_FWD, P1_BACK, P1_HALF, 2.5,
                         7, 11, "lobotocraft:red", false);
@@ -1042,6 +1077,9 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         public boolean canContinueToUse() { return active; }
 
         @Override
+        public boolean requiresUpdateEveryTick() { return true; }
+
+        @Override
         public void start() {
             active = true;
             t = 0;
@@ -1052,9 +1090,10 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         @Override
         public void tick() {
             e.lockMovementForAttack();
+            int previousTick = t;
             t++;
-            if (t == P2_DMG) {
-                // 抬鼙鼓时刻（动画1s后）同时：音效 + 出伤 + 冲击波
+            if (crossedAnimationProgress(previousTick, t, P2_DURATION, P2_HIT_PROGRESS)) {
+                // 动画越过抬鼓命中点时，同时触发音效、伤害和冲击波。
                 e.playPositionalSound(ModSounds.SMILING_CORPSE_MOUNTAIN_TWO_STAGE_HOWLING.get());
                 e.dealRadiusDamage(P2_RADIUS, 20, 27, "lobotocraft:black");
                 e.spawnShockwave((float) P2_RADIUS, SHOCKWAVE_COLOR);
@@ -1081,8 +1120,9 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         private int cd;
         private boolean special;
         private boolean useSecond;
-        private int dmgTick;
         private int totalTick;
+        private double durationSeconds;
+        private double hitProgress;
 
         Phase3AttackGoal(EntitySmilingCorpseMountain e) {
             this.e = e;
@@ -1098,6 +1138,9 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         @Override
         public boolean canContinueToUse() { return active; }
 
+        @Override
+        public boolean requiresUpdateEveryTick() { return true; }
+
         private final java.util.Set<LivingEntity> sweepHit = new java.util.HashSet<>();
 
         @Override
@@ -1108,12 +1151,22 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
             e.faceTarget(e.findNearestVictim(P3S_LEN));
             special = e.random.nextFloat() < 0.30f;
             if (special) {
-                dmgTick = P3S_DMG;
                 totalTick = P3S_TOTAL;
+                durationSeconds = P3S_DURATION;
+                hitProgress = P3S_HIT_PROGRESS;
                 e.setAnimation("attack3-3");
             } else {
-                if (useSecond) { dmgTick = P3_2_DMG; totalTick = P3_2_TOTAL; e.setAnimation("attack3-2"); }
-                else           { dmgTick = P3_1_DMG; totalTick = P3_1_TOTAL; e.setAnimation("attack3-1"); }
+                if (useSecond) {
+                    totalTick = P3_2_TOTAL;
+                    durationSeconds = P3_2_DURATION;
+                    hitProgress = P3_2_HIT_PROGRESS;
+                    e.setAnimation("attack3-2");
+                } else {
+                    totalTick = P3_1_TOTAL;
+                    durationSeconds = P3_1_DURATION;
+                    hitProgress = P3_1_HIT_PROGRESS;
+                    e.setAnimation("attack3-1");
+                }
                 useSecond = !useSecond;
             }
         }
@@ -1122,20 +1175,23 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         public void tick() {
             e.lockMovementForAttack();
             e.faceTarget(e.findNearestVictim(P3S_LEN)); // 持续转向（喷吐随头部移动）
+            int previousTick = t;
             t++;
             if (special) {
-                if (t == dmgTick) {
+                if (crossedAnimationProgress(previousTick, t, durationSeconds, hitProgress)) {
                     // 喷吐开始：音效与动画对齐
                     e.playPositionalSound(ModSounds.SMILING_CORPSE_MOUNTAIN_THREE_STAGES_SPECIAL_ATTACK.get());
                 }
-                // 从右到左逐渐出伤 + 喷吐弧线粒子
-                if (t >= dmgTick && t < dmgTick + P3S_SWEEP) {
-                    float prog = (float) (t - dmgTick) / (float) P3S_SWEEP; // 0=右 → 1=左
-                    e.sweepVomitDamage(prog, sweepHit);
-                    e.spawnVomitArc(prog);
+                double progress = animationProgress(t, durationSeconds);
+                // 从动画 26.7% 到 53.3% 的喷吐动作中，由右向左逐渐出伤。
+                if (progress >= hitProgress && progress < P3S_SWEEP_END_PROGRESS) {
+                    float sweepProgress = (float) ((progress - hitProgress)
+                            / (P3S_SWEEP_END_PROGRESS - hitProgress));
+                    e.sweepVomitDamage(sweepProgress, sweepHit);
+                    e.spawnVomitArc(sweepProgress);
                 }
             } else {
-                if (t == dmgTick) {
+                if (crossedAnimationProgress(previousTick, t, durationSeconds, hitProgress)) {
                     e.playPositionalSound(ModSounds.SMILING_CORPSE_MOUNTAIN_THREE_STAGES_NORMAL_ATTACK.get());
                     e.dealDirectionalDamage(P3_FWD, P3_BACK, P3_HALF, 2.5, 15, 19, "lobotocraft:black", true);
                 }

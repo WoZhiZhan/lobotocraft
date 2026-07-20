@@ -54,6 +54,19 @@ public class ModItems {
             () -> new TextSpawnEggItem(ModEntities.clerk, 0xE8C7A4, 0x4A4A4A, new Item.Properties(),
                     "§7公司基层文职人员。"));
 
+    public static final RegistryObject<Item> MALKUTH_SPAWN_EGG = REGISTRY.register("malkuth_spawn_egg",
+            () -> new TextSpawnEggItem(ModEntities.malkuth, 0xE7B847, 0x2A2418, new Item.Properties(),
+                    "§6接取第一个核心抑制。"));
+    public static final RegistryObject<Item> YESOD_SPAWN_EGG = REGISTRY.register("yesod_spawn_egg",
+            () -> new TextSpawnEggItem(ModEntities.yesod, 0x8E73B8, 0x211B2A, new Item.Properties(),
+                    "§5接取第二个核心抑制。"));
+    public static final RegistryObject<Item> HOD_SPAWN_EGG = REGISTRY.register("hod_spawn_egg",
+            () -> new TextSpawnEggItem(ModEntities.hod, 0xD88965, 0x2A1D18, new Item.Properties(),
+                    "§6接取第三个核心抑制。"));
+    public static final RegistryObject<Item> NETZACH_SPAWN_EGG = REGISTRY.register("netzach_spawn_egg",
+            () -> new TextSpawnEggItem(ModEntities.netzach, 0x79A85A, 0x1A2918, new Item.Properties(),
+                    "§a接取第四个核心抑制。"));
+
     public static final RegistryObject<Item> HAPPY_TEDDY_SPAWN_EGG = REGISTRY.register("happy_teddy_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.happy_teddy, ExtendedColor.DARK_GREEN.getRGB(), ExtendedColor.EARTH.getRGB(), new Item.Properties(),
                     "§c它的记忆始于温暖的怀抱。"));

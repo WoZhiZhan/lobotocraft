@@ -1,0 +1,15 @@
+{
+  "display": {
+    "icon": { "item": "lobotocraft:yesod_spawn_egg" },
+    "title": { "translate": "advancements.lobotocraft.yesod_core.title" },
+    "description": { "translate": "advancements.lobotocraft.yesod_core.description" },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "completed": { "trigger": "minecraft:impossible" }
+  },
+  "requirements": [["completed"]]
+}

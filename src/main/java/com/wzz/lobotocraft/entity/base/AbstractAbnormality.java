@@ -86,6 +86,10 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         this.setCustomName(Component.literal(this.abnormalityCode));
     }
 
+    protected void broadcastMessage(String message) {
+        EntityUtil.broadcastMessage(level(), message);
+    }
+
     @Override
     public boolean fireImmune() {
         return true;
