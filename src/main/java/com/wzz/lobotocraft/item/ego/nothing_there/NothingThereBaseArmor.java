@@ -28,6 +28,11 @@ public abstract class NothingThereBaseArmor extends BaseEgoArmor {
     }
 
     @Override
+    public boolean useSeparateTextures() {
+        return false;
+    }
+
+    @Override
     public RiskLevel riskLevel() {
         return RiskLevel.ALEPH;
     }
