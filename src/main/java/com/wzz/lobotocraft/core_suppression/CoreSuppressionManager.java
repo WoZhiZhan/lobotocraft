@@ -204,10 +204,28 @@ public final class CoreSuppressionManager {
             processChallenge(server);
             syncAll(server);
         }
+        if (server.getTickCount() % 120 == 0) {
+            spawnFloatingQuotes(server);
+        }
         if (server.getTickCount() % 100 == 0) {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 applyPendingHodRestore(player);
                 applyNetzachHealthBoost(player);
+            }
+        }
+    }
+
+    private static void spawnFloatingQuotes(MinecraftServer server) {
+        CoreSuppressionData state = CoreSuppressionData.get(server.overworld());
+        if (!state.isActive()) return;
+        CoreSuppressionType type = state.getActiveType();
+        if (type == null) return;
+
+        // 只在接取者所在维度、给在场玩家周围生成
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (player.level().dimension() != ModDimensions.LOBOTO_KEY) continue;
+            if (player.level() instanceof ServerLevel level) {
+                CoreSuppressionQuotes.spawnRandomQuote(level, player, type);
             }
         }
     }

@@ -505,4 +505,13 @@ public class ModEntities {
                             .fireImmune()
                             .noSummon()
                             .build("smiling_corpse_mountain_shock_wave"));
+
+    public static final RegistryObject<EntityType<EntityText>> text =
+            ENTITIES.register("text",
+                    () -> EntityType.Builder.of(
+                                    EntityText::new, MobCategory.MISC)
+                            .sized(0.1F, 0.1F)
+                            .clientTrackingRange(64)
+                            .updateInterval(1)
+                            .build("text"));
 }

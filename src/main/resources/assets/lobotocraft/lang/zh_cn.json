@@ -315,5 +315,6 @@
   "advancements.lobotocraft.hod_core.title": "愈加善良的希望",
   "advancements.lobotocraft.hod_core.description": "完成Hod核心抑制",
   "advancements.lobotocraft.netzach_core.title": "生存下去的勇气",
-  "advancements.lobotocraft.netzach_core.description": "完成Netzach核心抑制"
+  "advancements.lobotocraft.netzach_core.description": "完成Netzach核心抑制",
+  "entity.lobotocraft.text": "请输入文本"
 }

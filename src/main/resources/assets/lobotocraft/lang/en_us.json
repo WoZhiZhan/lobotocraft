@@ -315,5 +315,6 @@
   "advancements.lobotocraft.hod_core.title": "The Hope to Be a Better Person",
   "advancements.lobotocraft.hod_core.description": "Complete Hod Core Suppression",
   "advancements.lobotocraft.netzach_core.title": "The Fearlessness to Keep on Living",
-  "advancements.lobotocraft.netzach_core.description": "Complete Netzach Core Suppression"
+  "advancements.lobotocraft.netzach_core.description": "Complete Netzach Core Suppression",
+  "entity.lobotocraft.text": "Please Input Text"
 }
