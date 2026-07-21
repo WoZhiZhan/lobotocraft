@@ -3,7 +3,6 @@ package com.wzz.lobotocraft.item.ego.butterfly_funeral;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.item.AttributeEntry;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
-import com.wzz.lobotocraft.util.EgoArmorHelper;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;

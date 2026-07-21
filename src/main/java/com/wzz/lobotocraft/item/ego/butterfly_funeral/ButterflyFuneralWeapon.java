@@ -109,17 +109,17 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
 
     /** 宣判：持枪姿势（按 R 后常驻，定格在最后一帧） */
     private static final String ANIM_JUDGE_POSE = "a-1";
-    private static final String ANIM_BLACK_JUDGE_POSE = "white-a-1";
+    private static final String ANIM_WHITE_JUDGE_POSE = "white-a-1";
     /** 宣判：开火 */
     private static final String ANIM_JUDGE_FIRE = "a-2";
-    private static final String ANIM_BLACK_JUDGE_FIRE = "white-a-2";
+    private static final String ANIM_WHITE_JUDGE_FIRE = "white-a-2";
 
     /**
      * 持枪姿势必须用 thenPlayAndHold：播一遍然后【定格在最后一帧】，那一帧就是架枪姿势。
      * 用 thenLoop 会每播完一遍就重头再来，看起来就是两把枪一直抽搐。
      */
     private static final RawAnimation JUDGE_POSE = RawAnimation.begin().thenPlayAndHold(ANIM_JUDGE_POSE);
-    private static final RawAnimation BLACK_JUDGE_POSE = RawAnimation.begin().thenPlayAndHold(ANIM_BLACK_JUDGE_POSE);
+    private static final RawAnimation WHITE_JUDGE_POSE = RawAnimation.begin().thenPlayAndHold(ANIM_WHITE_JUDGE_POSE);
 
     public ButterflyFuneralWeapon() {
         super(
@@ -272,7 +272,7 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
         if (stack.getItem() instanceof ButterflyFuneralWeapon weapon) {
             stack.getOrCreateTag().putBoolean(TAG_JUDGING, false);
             weapon.stopAnimation(player, stack, ANIM_JUDGE_FIRE);
-            weapon.stopAnimation(player, stack, ANIM_BLACK_JUDGE_FIRE);
+            weapon.stopAnimation(player, stack, ANIM_WHITE_JUDGE_FIRE);
         }
     }
 
@@ -323,10 +323,10 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
      */
     private static String getFireAnimation(ItemStack stack, boolean judging, boolean burst) {
         if (judging) {
-            if (!isBlack(stack)) {
+            if (isBlack(stack)) {
                 return ANIM_JUDGE_FIRE;
             } else {
-                return ANIM_BLACK_JUDGE_FIRE;
+                return ANIM_WHITE_JUDGE_FIRE;
             }
         }
         return burst ? "2" : "1";
@@ -441,10 +441,10 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
                     // ButterflyRenderContext.CURRENT 由渲染器在 renderByItem 里设置，
                     // 保证这里拿到的就是"当前正在渲染的那一把枪"。
                     if (isJudgingStack(ButterflyRenderContext.CURRENT)) {
-                        if (!isBlack(ButterflyRenderContext.CURRENT)) {
+                        if (isBlack(ButterflyRenderContext.CURRENT)) {
                             ctrl.setAnimation(JUDGE_POSE);
                         } else {
-                            ctrl.setAnimation(BLACK_JUDGE_POSE);
+                            ctrl.setAnimation(WHITE_JUDGE_POSE);
                         }
                         return PlayState.CONTINUE;
                     }
@@ -467,7 +467,7 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
         controller.triggerableAnim("1", RawAnimation.begin().thenPlay("1"));
         controller.triggerableAnim("2", RawAnimation.begin().thenPlay("2"));
         controller.triggerableAnim(ANIM_JUDGE_FIRE, RawAnimation.begin().thenPlayAndHold(ANIM_JUDGE_FIRE));
-        controller.triggerableAnim(ANIM_BLACK_JUDGE_FIRE, RawAnimation.begin().thenPlayAndHold(ANIM_BLACK_JUDGE_FIRE));
+        controller.triggerableAnim(ANIM_WHITE_JUDGE_FIRE, RawAnimation.begin().thenPlayAndHold(ANIM_WHITE_JUDGE_FIRE));
         // ANIM_JUDGE_POSE 不注册成 triggerableAnim：它由上面的 predicate 常驻托管，
         // 再被 trigger 一次会把定格状态打断重播。
 
