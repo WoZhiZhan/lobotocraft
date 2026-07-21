@@ -186,7 +186,6 @@ public class ModSounds {
 	// 又大又可能很坏的狼
 	public static final RegistryObject<SoundEvent> WOLF_STEALTH = register("wolf_stealth");
 	public static final RegistryObject<SoundEvent> WOLF_CLAW = register("wolf_claw");
-	public static final RegistryObject<SoundEvent> WOLF_IDLE = register("wolf_idle");
 	public static final RegistryObject<SoundEvent> WOLF_HOWL = register("wolf_howl");
 
 	// 小帮手

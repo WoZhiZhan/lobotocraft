@@ -1,0 +1,18 @@
+{
+  "targets": [ "swap" ],
+  "passes": [
+    {
+      "name": "lobotocraft:pixelate",
+      "intarget": "minecraft:main",
+      "outtarget": "swap",
+      "uniforms": [
+        { "name": "TargetHeight", "values": [ 1080.0 ] }
+      ]
+    },
+    {
+      "name": "minecraft:blit",
+      "intarget": "swap",
+      "outtarget": "minecraft:main"
+    }
+  ]
+}

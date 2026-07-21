@@ -1,7 +1,8 @@
 package com.wzz.lobotocraft.client.core;
 
-import com.wzz.lobotocraft.client.ScreenDistortionState;
+import com.wzz.lobotocraft.client.ShaderQuality;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
+import com.wzz.lobotocraft.event.listener.ResolutionShaderHandler;
 
 public final class CoreSuppressionClientState {
     private static boolean active;
@@ -38,12 +39,12 @@ public final class CoreSuppressionClientState {
         if (!active || type != CoreSuppressionType.YESOD) return;
         tick++;
         if (tick % 20 == 0) {
-            float intensity = switch (visualStage) {
-                case 3 -> 0.78F;
-                case 2 -> 0.48F;
-                default -> 0.22F;
+            ShaderQuality shaderQuality = switch (visualStage) {
+                case 3 -> ShaderQuality.Q36;
+                case 2 -> ShaderQuality.Q144;
+                default -> ShaderQuality.Q720;
             };
-            ScreenDistortionState.activate(intensity, 60);
+            ResolutionShaderHandler.apply(shaderQuality, 60);
         }
     }
 

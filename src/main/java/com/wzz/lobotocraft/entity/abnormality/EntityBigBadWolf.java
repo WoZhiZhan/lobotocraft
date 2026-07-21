@@ -500,10 +500,6 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         syncMovementSpeed();
         if (!hasEscape()) {
             // 收容期检测(每秒,以收容单元附近16格近似"收容单元前的走廊")
-            if (getAnimation().equals("idle") && tickCount % 30 == 0) {
-                float pitch = 1.0f + random.nextFloat() * 0.2f - 0.1f;
-                playSound(ModSounds.WOLF_IDLE.get(), 1.0f, pitch);
-            }
             if (this.tickCount % 20 == 0) {
                 // 须知Ⅴ:小红帽(出逃/委托状态)经过附近 → 直接突破收容
                 if (!level.getEntitiesOfClass(EntityRedHoodMercenary.class,

@@ -107,6 +107,10 @@ public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnima
 
     public void stopAnimation(Player player, ItemStack stack) {
         if (player.level().isClientSide()) return;
+        stopAnimation(stack);
+    }
+
+    public void stopAnimation(ItemStack stack) {
         var item = (GeoItem) stack.getItem();
         item.getAnimatableInstanceCache().getManagerForId(
                 GeoItem.getId(stack)
