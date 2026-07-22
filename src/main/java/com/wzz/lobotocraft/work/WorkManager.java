@@ -44,9 +44,11 @@ import java.util.concurrent.atomic.AtomicReference;
 public class WorkManager {
 
     private static final ConcurrentHashMap<UUID, WorkSession> activeWorks = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<UUID, Long> suppressionWorkCooldowns = new ConcurrentHashMap<>();
 
     // 基础配置常量
     private static final int BASE_EXTRACTION_INTERVAL = 40;
+    private static final int SUPPRESSION_WORK_COOLDOWN_TICKS = 5 * 20;
 
     /**
      * 工作会话数据（含自律加成、观察等级加成和异想体特殊逻辑）
@@ -203,6 +205,36 @@ public class WorkManager {
         return activeWorks.containsKey(player.getUUID());
     }
 
+    public static boolean isAbnormalityBeingWorked(AbstractAbnormality abnormality) {
+        UUID abnormalityUuid = abnormality.getUUID();
+        return activeWorks.values().stream()
+                .anyMatch(session -> session.abnormality.getUUID().equals(abnormalityUuid));
+    }
+
+    private static String getSuppressionWorkDenial(ServerPlayer player, AbstractAbnormality abnormality) {
+        if (!CoreSuppressionManager.isSuppressionActive(player.level())) return null;
+        if (isAbnormalityBeingWorked(abnormality)) {
+            return "核心抑制期间，同一异想体不能由多人同时工作。";
+        }
+        long gameTime = player.serverLevel().getGameTime();
+        long cooldownEnd = suppressionWorkCooldowns.getOrDefault(abnormality.getUUID(), 0L);
+        if (cooldownEnd <= gameTime) {
+            suppressionWorkCooldowns.remove(abnormality.getUUID(), cooldownEnd);
+            return null;
+        }
+        long remainingSeconds = (cooldownEnd - gameTime + 19L) / 20L;
+        return "该异想体仍在工作冷却中，请等待 " + remainingSeconds + " 秒。";
+    }
+
+    private static void beginSuppressionWorkCooldown(AbstractAbnormality abnormality) {
+        if (!(abnormality.level() instanceof ServerLevel level)
+                || !CoreSuppressionManager.isSuppressionActive(level)) {
+            return;
+        }
+        suppressionWorkCooldowns.put(abnormality.getUUID(),
+                level.getGameTime() + SUPPRESSION_WORK_COOLDOWN_TICKS);
+    }
+
     public static boolean startWork(ServerPlayer player, AbstractAbnormality abnormality, WorkType workType) {
         return startWork(player, abnormality, workType, WorkDeviceItem.hasEnabledDevice(player), true);
     }
@@ -215,6 +247,11 @@ public class WorkManager {
         }
         if (player.distanceToSqr(entity) > 100.0) {
             player.sendSystemMessage(Component.literal("§c距离异想体太远了"));
+            return false;
+        }
+        String suppressionDenial = getSuppressionWorkDenial(player, entity);
+        if (suppressionDenial != null) {
+            player.sendSystemMessage(Component.literal("§c" + suppressionDenial));
             return false;
         }
 
@@ -265,6 +302,7 @@ public class WorkManager {
 
         WorkSession session = new WorkSession(player, entity, workType, continuousMode);
         activeWorks.put(player.getUUID(), session);
+        CoreSuppressionManager.resolveMeltdownOnWorkStart(entity, player);
 
         // 显示自律加成信息
         if (session.temperance > 20) {
@@ -592,6 +630,9 @@ public class WorkManager {
                 session,
                 session.forcedEnd
         ));
+        if (!session.forcedEnd) {
+            beginSuppressionWorkCooldown(session.abnormality);
+        }
         if (abnormality.shouldGivePEBox(player, workType, result, peOutput)) {
             givePEBox(player, abnormality, workType, result, peOutput);
             int independentBonus = CoreSuppressionManager.getIndependentPeBoxBonus(player, peOutput);

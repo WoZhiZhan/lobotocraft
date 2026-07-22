@@ -25,6 +25,8 @@ public class CoreSuppressionData extends SavedData {
 
     private final Map<UUID, int[]> hodPenalties = new HashMap<>();
     private final Map<UUID, int[]> pendingHodRestores = new HashMap<>();
+    private final Map<UUID, int[]> meltdownWorkProgress = new HashMap<>();
+    private final Map<UUID, int[]> pendingMeltdownPenalties = new HashMap<>();
 
     public static CoreSuppressionData get(ServerLevel level) {
         return level.getServer().overworld().getDataStorage().computeIfAbsent(
@@ -94,6 +96,7 @@ public class CoreSuppressionData extends SavedData {
         this.seenDawnTriggerSerial = dawnTriggerSerial;
         this.seenMiddayTriggerSerial = middayTriggerSerial;
         this.hodPenalties.clear();
+        this.meltdownWorkProgress.clear();
         setDirty();
     }
 
@@ -115,6 +118,31 @@ public class CoreSuppressionData extends SavedData {
         seenDawnTriggerSerial = Math.max(0, dawn);
         seenMiddayTriggerSerial = Math.max(0, midday);
         setDirty();
+    }
+
+    public boolean recordMeltdownWork(UUID playerUuid, int triggerInterval) {
+        int[] progress = meltdownWorkProgress.computeIfAbsent(playerUuid, ignored -> new int[1]);
+        progress[0]++;
+        boolean shouldTrigger = progress[0] >= Math.max(1, triggerInterval);
+        if (shouldTrigger) {
+            progress[0] = 0;
+        }
+        setDirty();
+        return shouldTrigger;
+    }
+
+    public void queueMeltdownPenalty(UUID playerUuid, int day, int amount) {
+        if (amount <= 0) return;
+        int[] pending = pendingMeltdownPenalties.computeIfAbsent(playerUuid, ignored -> new int[2]);
+        pending[0] = day;
+        pending[1] += amount;
+        setDirty();
+    }
+
+    public int[] takePendingMeltdownPenalty(UUID playerUuid) {
+        int[] pending = pendingMeltdownPenalties.remove(playerUuid);
+        if (pending != null) setDirty();
+        return pending;
     }
 
     public void addHodPenalty(UUID playerUuid, int statIndex, int amount) {
@@ -154,6 +182,7 @@ public class CoreSuppressionData extends SavedData {
         middayCompleted = 0;
         seenDawnTriggerSerial = 0;
         seenMiddayTriggerSerial = 0;
+        meltdownWorkProgress.clear();
         setDirty();
     }
 
@@ -170,6 +199,8 @@ public class CoreSuppressionData extends SavedData {
         tag.putInt("SeenMiddayTriggerSerial", seenMiddayTriggerSerial);
         tag.put("HodPenalties", saveStatMap(hodPenalties));
         tag.put("PendingHodRestores", saveStatMap(pendingHodRestores));
+        tag.put("MeltdownWorkProgress", saveStatMap(meltdownWorkProgress));
+        tag.put("PendingMeltdownPenalties", saveStatMap(pendingMeltdownPenalties));
         return tag;
     }
 
@@ -186,6 +217,8 @@ public class CoreSuppressionData extends SavedData {
         data.seenMiddayTriggerSerial = tag.getInt("SeenMiddayTriggerSerial");
         loadStatMap(tag.getList("HodPenalties", Tag.TAG_COMPOUND), data.hodPenalties);
         loadStatMap(tag.getList("PendingHodRestores", Tag.TAG_COMPOUND), data.pendingHodRestores);
+        loadStatMap(tag.getList("MeltdownWorkProgress", Tag.TAG_COMPOUND), data.meltdownWorkProgress);
+        loadStatMap(tag.getList("PendingMeltdownPenalties", Tag.TAG_COMPOUND), data.pendingMeltdownPenalties);
         return data;
     }
 

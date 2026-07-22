@@ -21,6 +21,7 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> SPECIAL_RECORD = register("special_record");
 	public static final RegistryObject<SoundEvent> YESOD_CORE_STAGE = register("yesod_core_stage");
 	public static final RegistryObject<SoundEvent> NETZACH_CORE_HEAL = register("netzach_core_heal");
+	public static final RegistryObject<SoundEvent> CORE_MELTDOWN_ALARM = register("core_meltdown_alarm");
 	public static final RegistryObject<SoundEvent> BLOODY_DAWN_START = register("bloody_dawn_start");
 	public static final RegistryObject<SoundEvent> BLOODY_DAWN_END = register("bloody_dawn_end");
 	public static final RegistryObject<SoundEvent> GREEN_DAWN_START = register("green_dawn_start");
