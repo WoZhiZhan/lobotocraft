@@ -62,6 +62,8 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
     private static final EntityDataAccessor<Integer> DATA_PHASE =
             SynchedEntityData.defineId(EntitySmilingCorpseMountain.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> ANIM_VERSION =
+            SynchedEntityData.defineId(EntitySmilingCorpseMountain.class, EntityDataSerializers.INT);
 
     private static final UUID SPEED_MODIFIER_UUID = UUID.fromString("6f3d9c1e-2a4b-4c8e-9f10-7c2e5a1b3d40");
 
@@ -118,9 +120,11 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
     private ParticleOptions[] vomitParticles;
 
-    // GeckoLib 动画状态追踪：检测动画名变化时强制重置控制器，避免复用旧状态
+    // GeckoLib 动画状态追踪：检测动画名/版本变化时强制重置，避免 thenPlayAndHold 卡末帧
     private String lastActionAnim = "";
+    private int lastActionAnimVersion = -1;
     private String lastMovementAnim = "";
+    private int lastMovementAnimVersion = -1;
 
     private static int animationTicks(double seconds) {
         return Math.max(1, (int) (seconds * TICKS_PER_SECOND));
@@ -145,7 +149,18 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     public void defineSynchedData() {
         super.defineSynchedData();
         this.entityData.define(DATA_PHASE, 0);
+        this.entityData.define(ANIM_VERSION, 0);
         setAnimation("idle1");
+    }
+
+    @Override
+    public void setAnimation(String name) {
+        super.setAnimation(name);
+        this.entityData.set(ANIM_VERSION, this.entityData.get(ANIM_VERSION) + 1);
+    }
+
+    private int getAnimVersion() {
+        return this.entityData.get(ANIM_VERSION);
     }
 
     // ============================================================
@@ -822,9 +837,11 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
     private PlayState movementPredicate(AnimationState<EntitySmilingCorpseMountain> event) {
         String a = getAnimation();
-        if (!a.equals(lastMovementAnim)) {
+        int v = getAnimVersion();
+        if (!a.equals(lastMovementAnim) || v != lastMovementAnimVersion) {
             event.getController().forceAnimationReset();
             lastMovementAnim = a;
+            lastMovementAnimVersion = v;
         }
         // 攻击/过渡/死亡/容器态待机时，movement 控制器完全让位给 action，避免盖住动作或走路
         boolean actionBusy = a.startsWith("attack") || "phase_two".equals(a) || "phase_three".equals(a)
@@ -845,9 +862,11 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
     private PlayState actionPredicate(AnimationState<EntitySmilingCorpseMountain> event) {
         String anim = getAnimation();
-        if (!anim.equals(lastActionAnim)) {
+        int v = getAnimVersion();
+        if (!anim.equals(lastActionAnim) || v != lastActionAnimVersion) {
             event.getController().forceAnimationReset();
             lastActionAnim = anim;
+            lastActionAnimVersion = v;
         }
         switch (anim) {
             case "ready_run":
