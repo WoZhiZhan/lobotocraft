@@ -121,6 +121,12 @@ public class OrdealData extends SavedData {
         return dawnCompletionsToday;
     }
 
+    public void setCompletionsToday(int dawnCompletions, int middayCompletions) {
+        dawnCompletionsToday = Math.max(0, dawnCompletions);
+        middayCompletionsToday = Math.max(0, middayCompletions);
+        setDirty();
+    }
+
     public void decrementDawnTriggersToday() {
         if (dawnTriggersToday <= 0) return;
         dawnTriggersToday--;

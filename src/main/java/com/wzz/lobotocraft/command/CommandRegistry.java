@@ -20,6 +20,7 @@ public class CommandRegistry {
         registerCommand(new TestCommand());
         registerCommand(new TeleportToEntityCommand());
         registerCommand(new CompleteDailyWorkCommand());
+        registerCommand(new CompleteCoreSuppressionCommand());
         registerCommand(new ReloadCommand());
     }
     
