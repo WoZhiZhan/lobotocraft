@@ -68,5 +68,9 @@ public abstract class ChildrenGalaxyBaseArmor extends BaseEgoArmor {
         }
         tooltip.add(Component.literal("§7无数泪滴仿佛从云端坠落的繁星。"));
         tooltip.add(Component.literal("§7按住<Shift>查看详情"));
+        tooltip.add(Component.literal("§c红色伤害：0.8"));
+        tooltip.add(Component.literal("§f白色伤害：0.8"));
+        tooltip.add(Component.literal("§5黑色伤害：1.2"));
+        tooltip.add(Component.literal("§b蓝色伤害：1.5"));
     }
 }

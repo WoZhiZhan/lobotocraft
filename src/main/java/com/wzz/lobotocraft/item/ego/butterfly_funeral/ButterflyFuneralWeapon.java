@@ -531,6 +531,6 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
         tooltip.add(Component.literal(""));
         tooltip.add(Component.literal("§7这两把枪令人感到严肃。"));
         tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("§7死者之哀，死亡之惧，烙印其上。"));
+        tooltip.add(Component.literal("§7死者之哀，死亡之惧，烙印其上。"));        
     }
 }

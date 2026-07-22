@@ -298,7 +298,7 @@ public class BlueStarWeapon extends BaseEgoWeapon {
             }
         }
 
-        player.displayClientMessage(Component.literal("§b新星之声：群星共鸣！"), true);
+        player.displayClientMessage(Component.literal("§b新星之声"), true);
     }
 
     private boolean isSpecialAttackEnemy(LivingEntity target) {
@@ -384,5 +384,6 @@ public class BlueStarWeapon extends BaseEgoWeapon {
         }
         components.add(Component.literal("§7新星自我们的绝望中闪耀。在它的光芒之下，众生皆为平等。"));
         components.add(Component.literal("§7按住<Shift>查看详情"));
+        components.add(Component.literal("§f白色伤害：8-12"));
     }
 }

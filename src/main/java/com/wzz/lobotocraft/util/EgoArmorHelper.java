@@ -101,7 +101,7 @@ public class EgoArmorHelper {
 
     public static boolean isFullEGO(Player player, String name, boolean lock) {
         if (player == null) return false;
-        if (!isWearingFullSet(player, name))
+        if (!isWearingFullSet(player, name, lock))
             return false;
         boolean hasCurio = false;
         for (ItemStack stack : CuriosUtil.getCuriosItems(player)) {

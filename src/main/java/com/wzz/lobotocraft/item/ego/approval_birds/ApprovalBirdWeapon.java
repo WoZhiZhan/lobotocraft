@@ -220,5 +220,6 @@ public class ApprovalBirdWeapon extends BaseEgoWeapon {
         components.add(Component.literal("§7不要试着移去缠在这把武器上的绷带，它掩盖着那些属于过去的，不应被人所了解的悲哀记忆。"));
         components.add(Component.literal("§7这把武器也在寻求着，渴望着为所有人带来和平与公正，就如同审判鸟的初衷一样..."));
         components.add(Component.literal("§7按住<Shift>查看详情"));
+        components.add(Component.literal("§b蓝色伤害：2-4"));
     }
 }

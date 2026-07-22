@@ -229,7 +229,7 @@ public class EntityRedShoes extends AbstractAbnormality {
                 ResourceUtil.createInstance("textures/gui/ego/red_shoes_weapon.png"),
                 "血之渴望",
                 RiskLevel.HE,
-                "BLUE",
+                "RED",
                 "8",
                 "1.0",
                 "4格",

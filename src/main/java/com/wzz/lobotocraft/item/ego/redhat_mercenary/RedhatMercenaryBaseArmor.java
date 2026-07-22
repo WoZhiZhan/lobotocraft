@@ -97,6 +97,10 @@ public abstract class RedhatMercenaryBaseArmor extends BaseEgoArmor {
         p_41423_.add(Component.literal("§7一位穿戴着血红披风的佣兵唯一热衷的事就是撕烂那匹恶狼！"));
         p_41423_.add(Component.literal("§7似乎只有黑暗才会等待那些从破灭中幸存的人们。"));
         p_41423_.add(Component.literal("§7有时候，抛弃旧日的仇恨并不是一件坏事，就如同放下你肩膀上的重担一样，令人更加轻松。"));
+        p_41423_.add(Component.literal("§c红色伤害：0.6"));
+        p_41423_.add(Component.literal("§f白色伤害：0.6"));
+        p_41423_.add(Component.literal("§5黑色伤害：0.6"));
+        p_41423_.add(Component.literal("§b蓝色伤害：1.5"));
     }
 
     public static class SpeedBoostTimer extends TimerEntry<Player> {

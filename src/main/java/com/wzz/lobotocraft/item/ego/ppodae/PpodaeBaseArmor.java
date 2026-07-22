@@ -65,5 +65,9 @@ public abstract class PpodaeBaseArmor extends BaseEgoArmor {
         p_41423_.add(Component.literal("§7好吧，我错了，这只爪子不仅结实耐用，还很可爱！！！"));
         p_41423_.add(Component.literal("§7咳咳，如果你过度依赖这把武器，你会意识到寄托其中的残暴野性正在你的体内慢慢苏醒。"));
         p_41423_.add(Component.literal("§7但是但是...这些果冻状的爪爪垫摸起来真是让人欲罢不能啊，简直爽到~"));
+        p_41423_.add(Component.literal("§c红色伤害：0.8"));
+        p_41423_.add(Component.literal("§f白色伤害：1.5"));
+        p_41423_.add(Component.literal("§5黑色伤害：0.8"));
+        p_41423_.add(Component.literal("§b蓝色伤害：2.0"));
     }
 }

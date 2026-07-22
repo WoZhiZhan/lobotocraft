@@ -67,5 +67,9 @@ public abstract class ThornBusBaseArmor extends BaseEgoArmor {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         p_41423_.add(Component.literal("§7寻求常人无法承受的快感通常会使人丧失自我。"));
         p_41423_.add(Component.literal("§7如果那些荆棘上落下的粉末散播到了尘世，那么人们恐怕此生都将像陷入泥沼一般难以求生。"));
+        p_41423_.add(Component.literal("§c红色伤害：1.2"));
+        p_41423_.add(Component.literal("§f白色伤害：0.8"));
+        p_41423_.add(Component.literal("§5黑色伤害：0.8"));
+        p_41423_.add(Component.literal("§b蓝色伤害：1.5"));
     }
 }

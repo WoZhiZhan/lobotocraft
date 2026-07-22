@@ -73,5 +73,9 @@ public abstract class LeticiaBaseArmor extends BaseEgoArmor {
         p_41423_.add(Component.literal(""));
         p_41423_.add(Component.literal("§7外套上精美的丝带和蝴蝶结寄托着少女对幸福的向往，"));
         p_41423_.add(Component.literal("§7那个小孩不愿撇下她的朋友，所以，她想出了这个绝妙的主意！"));
+        p_41423_.add(Component.literal("§c红色伤害：0.7"));
+        p_41423_.add(Component.literal("§f白色伤害：0.7"));
+        p_41423_.add(Component.literal("§5黑色伤害：0.7"));
+        p_41423_.add(Component.literal("§b蓝色伤害：1.5"));
     }
 }

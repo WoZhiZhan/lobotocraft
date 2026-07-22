@@ -162,6 +162,7 @@ public class BigBadwolfWeapon extends BaseEgoWeapon {
         p_41423_.add(Component.literal("§7这些爪子曾经撕裂，割破了无数生物的内脏。"));
         p_41423_.add(Component.literal(""));
         p_41423_.add(Component.literal("§7爪子能够削开目标的血肉，让血液喷涌而出。"));
+        p_41423_.add(Component.literal("§c红色伤害：12-17"));
     }
 
     public static class DamageTimer extends TimerEntry<LivingEntity> {

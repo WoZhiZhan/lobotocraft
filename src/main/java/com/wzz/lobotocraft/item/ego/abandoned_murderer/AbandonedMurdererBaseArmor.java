@@ -74,5 +74,9 @@ public abstract class AbandonedMurdererBaseArmor extends BaseEgoArmor {
         p_41423_.add(Component.literal("§7没人会为那些沦为小白鼠的死囚哀悼，他们只能慢慢烂在束缚自己的紧身衣中。"));
         p_41423_.add(Component.literal("§7现在那件紧身衣只是被用作配饰，但过去的悔恨和愤怒依然存在。"));
         p_41423_.add(Component.literal("§7如果穿戴者再也无法忍受这件护甲所带来的压力，那他们必须被送去接受心理咨询。"));
+        p_41423_.add(Component.literal("§c红色伤害：0.7"));
+        p_41423_.add(Component.literal("§f白色伤害：1.2"));
+        p_41423_.add(Component.literal("§5黑色伤害：0.8"));
+        p_41423_.add(Component.literal("§b蓝色伤害：2.0"));
     }
 }

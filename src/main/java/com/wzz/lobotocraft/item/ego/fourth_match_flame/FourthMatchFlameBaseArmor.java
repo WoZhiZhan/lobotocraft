@@ -68,5 +68,9 @@ public abstract class FourthMatchFlameBaseArmor extends BaseEgoArmor {
         p_41423_.add(Component.literal("§7该异想体的核心被提取时烧成灰烬。虽然这些物质视如焦糊，但依旧充满用处。"));
         p_41423_.add(Component.literal("§7这件护甲灰暗的设计能够唤起穿戴者对世上一切光明之物强烈的仇恨。"));
         p_41423_.add(Component.literal("§7然而没人知道这副护甲能否抵御烈焰。"));
+        p_41423_.add(Component.literal("§c红色伤害：0.6"));
+        p_41423_.add(Component.literal("§f白色伤害：1.0"));
+        p_41423_.add(Component.literal("§5黑色伤害：1.2"));
+        p_41423_.add(Component.literal("§b蓝色伤害：2.0"));
     }
 }

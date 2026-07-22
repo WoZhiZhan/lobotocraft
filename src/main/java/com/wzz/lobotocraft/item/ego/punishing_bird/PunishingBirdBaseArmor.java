@@ -62,5 +62,9 @@ public abstract class PunishingBirdBaseArmor extends BaseEgoArmor {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         p_41423_.add(Component.literal("§7这件护甲非常光滑，它最初被制造出来时特别地小，只有小孩才能勉强穿上。"));
         p_41423_.add(Component.literal("§7当它被鲜血浸透时，胸部的红块就会像活着一般开始蠕动。"));
+        p_41423_.add(Component.literal("§c红色伤害：0.7"));
+        p_41423_.add(Component.literal("§f白色伤害：0.8"));
+        p_41423_.add(Component.literal("§5黑色伤害：1.2"));
+        p_41423_.add(Component.literal("§b蓝色伤害：2.0"));
     }
 }

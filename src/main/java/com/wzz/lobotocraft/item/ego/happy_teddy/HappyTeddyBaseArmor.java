@@ -79,6 +79,10 @@ public abstract class HappyTeddyBaseArmor extends BaseEgoArmor {
         p_41423_.add(Component.literal("§7修复它的请求被果断回绝。"));
         p_41423_.add(Component.literal("§7那些在它印象中对拥抱的温暖记忆，伴随着对它的抛弃一并消逝了。"));
         p_41423_.add(Component.literal("§7如果这只熊喜欢你身上被遗忘的童真，那些棉花就会从裂缝中伸出。"));
+        p_41423_.add(Component.literal("§c红色伤害：0.8"));
+        p_41423_.add(Component.literal("§f白色伤害：1.0"));
+        p_41423_.add(Component.literal("§5黑色伤害：1.0"));
+        p_41423_.add(Component.literal("§b蓝色伤害：1.5"));
     }
 
     @Override

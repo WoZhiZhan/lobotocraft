@@ -73,5 +73,9 @@ public abstract class SnowQueenBaseArmor extends BaseEgoArmor {
         p_41423_.add(Component.literal("§7为了使人待在冰雪皇宫中，一件能够保持温暖的斗篷是很有必要的。"));
         p_41423_.add(Component.literal("§7由冰雪所编成的斗篷终有融化之日。"));
         p_41423_.add(Component.literal("§7而当冰雪消融的那天，她冰封的内心也将一并融化。"));
+        p_41423_.add(Component.literal("§c红色伤害：1.3"));
+        p_41423_.add(Component.literal("§f白色伤害：0.6"));
+        p_41423_.add(Component.literal("§5黑色伤害：0.8"));
+        p_41423_.add(Component.literal("§b蓝色伤害：1.5"));
     }
 }

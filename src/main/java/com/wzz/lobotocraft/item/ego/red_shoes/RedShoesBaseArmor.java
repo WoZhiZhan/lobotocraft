@@ -65,5 +65,9 @@ public abstract class RedShoesBaseArmor extends BaseEgoArmor {
         p_41423_.add(Component.literal("§7这件护甲上可爱的蕾丝花边能让人联想起一位面带微笑的美丽女孩。"));
         p_41423_.add(Component.literal("§7一定要对这双舞鞋保持警惕，不要让那些悲剧再度重演。"));
         p_41423_.add(Component.literal("§7也许某一天，这双沾满鲜血的舞鞋将走向只属于它的豪华舞厅。"));
+        p_41423_.add(Component.literal("§c红色伤害：0.5"));
+        p_41423_.add(Component.literal("§f白色伤害：1.2"));
+        p_41423_.add(Component.literal("§5黑色伤害：0.8"));
+        p_41423_.add(Component.literal("§b蓝色伤害：1.5"));
     }
 }

@@ -111,5 +111,9 @@ public abstract class SmilingCorpseMountainBaseArmor extends BaseEgoArmor {
         p_41423_.add(Component.literal("§7护甲上嵌入了一张熟悉的面孔...穿戴者会在瞬间感受到死亡之重。"));
         p_41423_.add(Component.literal("§7死尸们能化解外界的伤害。"));
         p_41423_.add(Component.literal("§7“我经常听到那些怪异的呻吟，但我只能选择忽视，因为我无能为力。”"));
+        p_41423_.add(Component.literal("§c红色伤害：0.5"));
+        p_41423_.add(Component.literal("§f白色伤害：0.5"));
+        p_41423_.add(Component.literal("§5黑色伤害：0.2"));
+        p_41423_.add(Component.literal("§b蓝色伤害：1.0"));
     }
 }
