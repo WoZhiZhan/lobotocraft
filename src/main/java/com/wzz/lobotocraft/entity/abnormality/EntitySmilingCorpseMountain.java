@@ -118,8 +118,12 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
     private ParticleOptions[] vomitParticles;
 
+    // GeckoLib 动画状态追踪：检测动画名变化时强制重置控制器，避免复用旧状态
+    private String lastActionAnim = "";
+    private String lastMovementAnim = "";
+
     private static int animationTicks(double seconds) {
-        return Math.max(1, (int) Math.round(seconds * TICKS_PER_SECOND));
+        return Math.max(1, (int) (seconds * TICKS_PER_SECOND));
     }
 
     private static double animationProgress(int elapsedTicks, double durationSeconds) {
@@ -818,6 +822,10 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
     private PlayState movementPredicate(AnimationState<EntitySmilingCorpseMountain> event) {
         String a = getAnimation();
+        if (!a.equals(lastMovementAnim)) {
+            event.getController().forceAnimationReset();
+            lastMovementAnim = a;
+        }
         // 攻击/过渡/死亡/容器态待机时，movement 控制器完全让位给 action，避免盖住动作或走路
         boolean actionBusy = a.startsWith("attack") || "phase_two".equals(a) || "phase_three".equals(a)
                 || "death1".equals(a)
@@ -837,6 +845,10 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
     private PlayState actionPredicate(AnimationState<EntitySmilingCorpseMountain> event) {
         String anim = getAnimation();
+        if (!anim.equals(lastActionAnim)) {
+            event.getController().forceAnimationReset();
+            lastActionAnim = anim;
+        }
         switch (anim) {
             case "ready_run":
                 return event.setAndContinue(RawAnimation.begin().thenPlayAndHold("ready_run"));
