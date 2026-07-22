@@ -24,7 +24,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraftforge.fml.common.Mod;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import static com.wzz.lobotocraft.event.listener.CrimsonDawnEvent.CRIMSON_MIDDAY_COLOR;
@@ -50,7 +50,12 @@ public class CrimsonNoonEvent {
             return false;
         }
 
-        int spawned = spawnCrimsonNoon(level, spawnPoints);
+        List<ServerPlayer> players = getEligiblePlayers(level);
+        if (players.isEmpty()) {
+            return false;
+        }
+
+        int spawned = spawnCrimsonNoons(level, spawnPoints, players);
         if (spawned <= 0) {
             return false;
         }
@@ -123,25 +128,34 @@ public class CrimsonNoonEvent {
                 .map(pos -> new SpawnPoint(pos, false))
                 .forEach(spawnPoints::add);
 
-        Collections.shuffle(spawnPoints, new java.util.Random(level.getRandom().nextLong()));
         return spawnPoints;
     }
 
-    private static int spawnCrimsonNoon(ServerLevel level, List<SpawnPoint> spawnPoints) {
-        for (int i = 0; i < spawnPoints.size(); i++) {
-            BlockPos spawnPos = chooseSpawnPosition(level, spawnPoints, i);
-            if (spawnCrimsonNoonAt(level, spawnPos)) {
-                return 1;
-            }
-        }
-        return 0;
+    private static List<ServerPlayer> getEligiblePlayers(ServerLevel level) {
+        List<ServerPlayer> players = new ArrayList<>(level.players());
+        players.removeIf(player -> !player.isAlive() || player.isSpectator());
+        return players;
     }
 
-    private static BlockPos chooseSpawnPosition(ServerLevel level, List<SpawnPoint> spawnPoints, int index) {
-        if (spawnPoints.isEmpty()) {
-            return null;
+    private static int spawnCrimsonNoons(ServerLevel level, List<SpawnPoint> spawnPoints,
+                                         List<ServerPlayer> players) {
+        int spawned = 0;
+        for (ServerPlayer player : players) {
+            List<SpawnPoint> nearbySpawnPoints = new ArrayList<>(spawnPoints);
+            nearbySpawnPoints.sort(Comparator.comparingDouble(
+                    point -> point.pos.distSqr(player.blockPosition())));
+
+            for (SpawnPoint point : nearbySpawnPoints) {
+                if (spawnCrimsonNoonAt(level, resolveSpawnPosition(level, point))) {
+                    spawned++;
+                    break;
+                }
+            }
         }
-        SpawnPoint point = spawnPoints.get(index % spawnPoints.size());
+        return spawned;
+    }
+
+    private static BlockPos resolveSpawnPosition(ServerLevel level, SpawnPoint point) {
         return point.reactor
                 ? EntityUtil.findReactorSpawnPositionInCompany(level, point.pos, 4)
                 : EntityUtil.findSafeGroundPositionInCompany(level, point.pos, 4);
