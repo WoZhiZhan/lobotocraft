@@ -612,6 +612,16 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
     }
 
     @Override
+    public boolean isCurrentlyGlowing() {
+        return this.hasEscape() || super.isCurrentlyGlowing();
+    }
+
+    @Override
+    public int getTeamColor() {
+        return this.hasEscape() ? 0xFFFF00 : super.getTeamColor();
+    }
+
+    @Override
     public int getEntityId() {
         return this.getId();
     }

@@ -139,5 +139,9 @@ public abstract class EndBirdBaseArmor extends BaseEgoArmor {
         components.add(Component.literal("§7为了击退黑森林里的可怕“怪物”，三只鸟齐心协力，合为一体。"));
         components.add(Component.literal("§7它能避免很多无辜的人遇害，但在那之前，你必须做好万无一失的准备，去踏入那片黑暗而又绝望的森林。"));
         components.add(Component.literal("§7按住<Shift>查看详情"));
+        components.add(Component.literal("§c红色伤害：0.3"));
+        components.add(Component.literal("§f白色伤害：0.3"));
+        components.add(Component.literal("§5黑色伤害：0.3"));
+        components.add(Component.literal("§b蓝色伤害：0.5"));
     }
 }

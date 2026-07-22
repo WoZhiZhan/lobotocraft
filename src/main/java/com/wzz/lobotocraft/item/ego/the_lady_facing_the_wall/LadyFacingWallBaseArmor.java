@@ -63,5 +63,9 @@ public abstract class LadyFacingWallBaseArmor extends BaseEgoArmor {
         p_41423_.add(Component.literal("§7如果你想隐藏内心中的想法，那就用孤独掩盖他们。"));
         p_41423_.add(Component.literal("§7如果你不愿分享自身的全部，那就将与分享相反的意图置于内心的首位。"));
         p_41423_.add(Component.literal("§7这件护甲能够保护穿戴者脆弱的心灵。"));
+        p_41423_.add(Component.literal("§c红色伤害：1.5"));
+        p_41423_.add(Component.literal("§f白色伤害：0.8"));
+        p_41423_.add(Component.literal("§5黑色伤害：0.8"));
+        p_41423_.add(Component.literal("§b蓝色伤害：2.0"));
     }
 }

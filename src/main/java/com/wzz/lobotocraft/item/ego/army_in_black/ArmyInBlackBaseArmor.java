@@ -85,5 +85,9 @@ public abstract class ArmyInBlackBaseArmor extends BaseEgoArmor {
         p_41423_.add(Component.literal("§7它的口袋能够充分容纳穿戴着所携带的各类弹药。"));
         p_41423_.add(Component.literal("§7这件衣服的粉红色可以抚慰你的心灵，带来一种安全感。"));
         p_41423_.add(Component.literal("§7粉红为许多人带来了心灵上的慰藉。"));
+        p_41423_.add(Component.literal("§c红色伤害：0.5"));
+        p_41423_.add(Component.literal("§f白色伤害：0.3"));
+        p_41423_.add(Component.literal("§5黑色伤害：0.4"));
+        p_41423_.add(Component.literal("§b蓝色伤害：1.0"));
     }
 }

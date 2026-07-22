@@ -7,10 +7,12 @@ import com.wzz.lobotocraft.capability.EmployeeStats;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
 import com.wzz.lobotocraft.command.KillCommand;
+import com.wzz.lobotocraft.entity.abnormality.EntityDarkSkadi;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.event.definition.company.CompanyDayAdvanceEvent;
 import com.wzz.lobotocraft.event.definition.work.WorkCompleteEvent;
 import com.wzz.lobotocraft.event.definition.work.WorkDamageEvent;
+import com.wzz.lobotocraft.event.listener.BlueMiddayEvent;
 import com.wzz.lobotocraft.event.listener.EmployeeStatsApplier;
 import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.init.ModSounds;
@@ -36,6 +38,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
@@ -58,6 +64,7 @@ import java.util.UUID;
 public final class CoreSuppressionManager {
     public static final int REQUIRED_DAY = 26;
     public static final int REQUIRED_FULL_OBSERVATIONS = 26;
+    public static final int REQUIRED_COMPANY_ABNORMALITIES = 26;
     public static final int REQUIRED_DAWNS = 3;
     public static final int REQUIRED_MIDDAYS = 2;
     public static final int MELTDOWN_WORK_INTERVAL = 10;
@@ -74,6 +81,9 @@ public final class CoreSuppressionManager {
     private static final String MELTDOWN_PREVIOUS_TEAM = "lobotocraft:CoreMeltdownPreviousTeam";
     private static final String MELTDOWN_PREVIOUS_GLOW = "lobotocraft:CoreMeltdownPreviousGlow";
     private static final String MELTDOWN_TEAM = "loboto_meltdown";
+    private static final UUID NETZACH_HEALTH_BONUS_UUID =
+            UUID.fromString("5772de32-b59d-4dbf-a0b4-a2f5f4f485f5");
+    private static final double NETZACH_HEALTH_BONUS = 5.0D;
     private static final int WORLD_SEARCH_LIMIT = 30_000_000;
 
     private CoreSuppressionManager() {
@@ -100,6 +110,32 @@ public final class CoreSuppressionManager {
         int observed = getFullyObservedCount(player);
         if (observed < REQUIRED_FULL_OBSERVATIONS) {
             return "开启条件：解锁26只异想体的全部信息。当前 " + observed + "/26。";
+        }
+
+        MinecraftServer server = player.getServer();
+        ServerLevel companyLevel = server.getLevel(ModDimensions.LOBOTO_KEY);
+        if (companyLevel == null) {
+            return "无法读取公司维度。";
+        }
+        OrdealData ordeal = OrdealData.get(server.overworld());
+        if (ordeal.hasActiveOrdeal() || BlueMiddayEvent.isTrialActive()) {
+            return "当前考验尚未结束，无法接取核心抑制。";
+        }
+
+        int abnormalityCount = 0;
+        for (Entity entity : companyLevel.getAllEntities()) {
+            if (!(entity instanceof AbstractAbnormality abnormality)
+                    || !abnormality.isAlive() || abnormality.isRemoved()) {
+                continue;
+            }
+            abnormalityCount++;
+            if (abnormality.hasEscape()) {
+                return "当前有异想体正在出逃，无法接取核心抑制。";
+            }
+        }
+        if (abnormalityCount < REQUIRED_COMPANY_ABNORMALITIES) {
+            return "开启条件：公司维度内至少存在26只异想体实体。当前 "
+                    + abnormalityCount + "/26。";
         }
         return null;
     }
@@ -277,6 +313,9 @@ public final class CoreSuppressionManager {
         }
 
         AbstractAbnormality target = candidates.get(level.getRandom().nextInt(candidates.size()));
+        if (target instanceof EntityDarkSkadi) {
+            return;
+        }
         startMeltdown(target, player);
     }
 
@@ -394,7 +433,7 @@ public final class CoreSuppressionManager {
         if (server.getTickCount() % 100 == 0) {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 applyPendingHodRestore(player);
-                applyNetzachHealthBoost(player);
+                applyNetzachHealthBonus(player);
             }
         }
     }
@@ -504,12 +543,34 @@ public final class CoreSuppressionManager {
         });
     }
 
-    private static void applyNetzachHealthBoost(ServerPlayer player) {
-        if (!hasReward(player, CoreSuppressionType.NETZACH)) return;
-        MobEffectInstance effect = player.getEffect(MobEffects.HEALTH_BOOST);
-        if (effect == null || effect.getAmplifier() < 1 || effect.getDuration() < 200) {
-            player.addEffect(new MobEffectInstance(MobEffects.HEALTH_BOOST, -1, 1, false, false, true));
+    private static void applyNetzachHealthBonus(ServerPlayer player) {
+        AttributeInstance maxHealth = player.getAttribute(Attributes.MAX_HEALTH);
+        if (maxHealth == null) return;
+
+        MobEffectInstance legacyEffect = player.getEffect(MobEffects.HEALTH_BOOST);
+        if (legacyEffect != null && legacyEffect.getAmplifier() == 1
+                && legacyEffect.getDuration() == -1 && !legacyEffect.isVisible()) {
+            player.removeEffect(MobEffects.HEALTH_BOOST);
         }
+
+        AttributeModifier current = maxHealth.getModifier(NETZACH_HEALTH_BONUS_UUID);
+        if (!hasCompletedAdvancement(player, CoreSuppressionType.NETZACH)
+                || getPlayerDay(player) < REQUIRED_DAY) {
+            if (current != null) maxHealth.removeModifier(NETZACH_HEALTH_BONUS_UUID);
+            player.setHealth(Math.min(player.getHealth(), player.getMaxHealth()));
+            return;
+        }
+        if (current == null || current.getAmount() != NETZACH_HEALTH_BONUS
+                || current.getOperation() != AttributeModifier.Operation.ADDITION) {
+            if (current != null) maxHealth.removeModifier(NETZACH_HEALTH_BONUS_UUID);
+            maxHealth.addPermanentModifier(new AttributeModifier(
+                    NETZACH_HEALTH_BONUS_UUID,
+                    "Netzach Core Suppression Health Bonus",
+                    NETZACH_HEALTH_BONUS,
+                    AttributeModifier.Operation.ADDITION
+            ));
+        }
+        player.setHealth(Math.min(player.getHealth(), player.getMaxHealth()));
     }
 
     @SubscribeEvent
@@ -592,8 +653,15 @@ public final class CoreSuppressionManager {
         applyPendingHodRestore(player);
         applyPendingMeltdownPenalty(player);
         grantCompletedAdvancements(player);
-        applyNetzachHealthBoost(player);
+        applyNetzachHealthBonus(player);
         syncTo(player);
+    }
+
+    @SubscribeEvent
+    public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            applyNetzachHealthBonus(player);
+        }
     }
 
     public static void failChallenge(MinecraftServer server, String reason) {
@@ -616,7 +684,7 @@ public final class CoreSuppressionManager {
             KillCommand.queueAllSuppressionTargets(server);
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 grantAdvancement(player, type);
-                applyNetzachHealthBoost(player);
+                applyNetzachHealthBonus(player);
             }
             broadcastTitle(server, type, "核心抑制完成", type.getDisplayName(), reason, type.getColor());
             server.getPlayerList().broadcastSystemMessage(Component.literal(
@@ -639,6 +707,11 @@ public final class CoreSuppressionManager {
     private static void grantAdvancement(ServerPlayer player, CoreSuppressionType type) {
         var advancement = player.getServer().getAdvancements().getAdvancement(type.getAdvancementId());
         if (advancement != null) player.getAdvancements().award(advancement, "completed");
+    }
+
+    private static boolean hasCompletedAdvancement(ServerPlayer player, CoreSuppressionType type) {
+        var advancement = player.getServer().getAdvancements().getAdvancement(type.getAdvancementId());
+        return advancement != null && player.getAdvancements().getOrStartProgress(advancement).isDone();
     }
 
     public static void syncAll(MinecraftServer server) {

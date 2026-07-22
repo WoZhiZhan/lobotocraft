@@ -78,5 +78,9 @@ public abstract class ButterflyFuneralBaseArmor extends BaseEgoArmor {
         p_41423_.add(Component.literal("§7黑色的丧服是为哀悼死者的人准备的。"));
         p_41423_.add(Component.literal("§7葬礼上需要的是严肃，不需要那些色彩斑斓的配饰。"));
         p_41423_.add(Component.literal("§7用蝴蝶为那些长眠于不毛之地的人们献上哀悼吧。"));
+        p_41423_.add(Component.literal("§c红色伤害：1.2"));
+        p_41423_.add(Component.literal("§f白色伤害：0.8"));
+        p_41423_.add(Component.literal("§5黑色伤害：0.5"));
+        p_41423_.add(Component.literal("§b蓝色伤害：1.5"));
     }
 }

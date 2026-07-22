@@ -298,6 +298,7 @@ public class EntityWingBeat extends AbstractAbnormality {
                 if (!this.isSmall()) {
                     clearAllWingBeats();
                     this.player.sendSystemMessage(Component.literal("§a精灵的舞会结束了..."));
+                    this.player.getPersistentData().putBoolean("isInWingBeat", false);
                     setPlayer(null);
                 } else {
                     this.discard();

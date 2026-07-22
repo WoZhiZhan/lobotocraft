@@ -49,7 +49,7 @@ public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnima
      */
     @Override
     public boolean mineBlock(ItemStack stack, Level level, net.minecraft.world.level.block.state.BlockState state,
-                             net.minecraft.core.BlockPos pos, net.minecraft.world.entity.LivingEntity entity) {
+                             net.minecraft.core.BlockPos pos, LivingEntity entity) {
         // 不调用 super 的耐久消耗逻辑
         return true;
     }
@@ -81,7 +81,7 @@ public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnima
     /**
      * 触发攻击动画（子类可以调用）
      */
-    protected void triggerAttackAnimation(net.minecraft.world.entity.player.Player player, ItemStack stack) {
+    protected void triggerAttackAnimation(Player player, ItemStack stack) {
         if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer && hasAnimatable()) {
             triggerAnim(player, GeoItem.getOrAssignId(stack, serverPlayer.serverLevel()), "controller", getAttackName());
         }
@@ -90,7 +90,7 @@ public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnima
     /**
      * 触发自定义动画
      */
-    protected void triggerAnimation(net.minecraft.world.entity.player.Player player, ItemStack stack, String name) {
+    protected void triggerAnimation(Player player, ItemStack stack, String name) {
         if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer && hasAnimatable()) {
             triggerAnim(player, GeoItem.getOrAssignId(stack, serverPlayer.serverLevel()), "controller", name);
         }
@@ -99,7 +99,7 @@ public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnima
     /**
      * 停止自定义触发动画
      */
-    protected void stopAnimation(net.minecraft.world.entity.player.Player player, ItemStack stack, String name) {
+    protected void stopAnimation(Player player, ItemStack stack, String name) {
         if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer && hasAnimatable()) {
             stopTriggeredAnim(player, GeoItem.getOrAssignId(stack, serverPlayer.serverLevel()), "controller", name);
         }

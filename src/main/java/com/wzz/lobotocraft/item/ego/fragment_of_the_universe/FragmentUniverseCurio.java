@@ -31,7 +31,7 @@ public class FragmentUniverseCurio extends BaseEgoCurio {
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("  • 沟通工作成功率 + 3").withStyle(ChatFormatting.GREEN));
+        tooltip.add(Component.literal("  • 沟通工作成功率 + 3%").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal("  • 工作成功率 + 2").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal("  • 工作速度 + 2").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal(""));

@@ -214,7 +214,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
                 "圣宣",
                 getRiskLevel(),
                 1.2f,
-                1.8f,
+                0.8f,
                 0.5f,
                 1.5f,
                 getArmorDevelopmentMaxCount(),

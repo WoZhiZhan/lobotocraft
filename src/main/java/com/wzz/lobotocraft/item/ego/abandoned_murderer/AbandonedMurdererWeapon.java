@@ -55,5 +55,6 @@ public class AbandonedMurdererWeapon extends BaseEgoWeapon {
         components.add(Component.literal("§7看上去连仁慈的Carmen都默许了这一切。"));
         components.add(Component.literal("§7他们再也不能回到正常的生活当中。"));
         components.add(Component.literal("§7对一个连葬礼都没有的人而言，唯有深深的悔恨才是最后的悼唁。"));
+        components.add(Component.literal("§c红色伤害：15"));
     }
 }

@@ -38,7 +38,7 @@ public abstract class BigBadwolfBaseArmor extends BaseEgoArmor {
     @Override
     public boolean onDamaged(Player player, String damageType, float damage) {
         if (!player.getPersistentData().getBoolean("isAddBigBadwolf")) {
-            BigBadwolfBaseArmor.SpeedBoostTimer timer = new BigBadwolfBaseArmor.SpeedBoostTimer();
+            SpeedBoostTimer timer = new SpeedBoostTimer();
             timer.addSkillTimer(player, 0, 7000, 1, true);
         }
         return super.onDamaged(player, damageType, damage);
@@ -95,6 +95,10 @@ public abstract class BigBadwolfBaseArmor extends BaseEgoArmor {
         p_41423_.add(Component.literal("※这件护甲在玩家受伤时会短暂提高玩家移速。").withStyle(ExtendedColor.ORANGE.toStyle()));
         p_41423_.add(Component.literal("§7这件护甲上有许多因为激烈的战斗而留下的痕迹。"));
         p_41423_.add(Component.literal("§7尽管如此，这些伤口最终也不会起到任何有利的作用，它们只会让你的痛觉变得迟钝，但是无法保护你的身体。"));
+        p_41423_.add(Component.literal("§c红色伤害：0.4"));
+        p_41423_.add(Component.literal("§f白色伤害：0.8"));
+        p_41423_.add(Component.literal("§5黑色伤害：0.7"));
+        p_41423_.add(Component.literal("§b蓝色伤害：2.0"));
     }
 
     public static class SpeedBoostTimer extends TimerEntry<Player> {

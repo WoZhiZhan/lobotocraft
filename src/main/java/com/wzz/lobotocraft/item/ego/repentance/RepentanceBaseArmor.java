@@ -94,6 +94,10 @@ public abstract class RepentanceBaseArmor extends BaseEgoArmor {
         } else {
             p_41423_.add(Component.literal("§6当穿戴者受到物理或侵蚀伤害时，有5%的概率恢复10点精神值。"));
             p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
+            p_41423_.add(Component.literal("§c红色伤害：0.9"));
+            p_41423_.add(Component.literal("§f白色伤害：0.8"));
+            p_41423_.add(Component.literal("§5黑色伤害：0.9"));
+            p_41423_.add(Component.literal("§b蓝色伤害：2.0"));
         }
     }
 }

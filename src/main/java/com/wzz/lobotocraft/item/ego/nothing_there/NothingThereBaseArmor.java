@@ -78,5 +78,9 @@ public abstract class NothingThereBaseArmor extends BaseEgoArmor {
         p_41423_.add(Component.literal("§6※这件护甲会给予穿戴者再来一次的机会。"));
         p_41423_.add(Component.literal("§7它可能并不来自于人类，但是它的皮肤却有着人类一样的触感。"));
         p_41423_.add(Component.literal("§7穿上它的员工有可能会失去理智。"));
+        p_41423_.add(Component.literal("§c红色伤害：0.2"));
+        p_41423_.add(Component.literal("§f白色伤害：0.5"));
+        p_41423_.add(Component.literal("§5黑色伤害：0.5"));
+        p_41423_.add(Component.literal("§b蓝色伤害：1.0"));
     }
 }

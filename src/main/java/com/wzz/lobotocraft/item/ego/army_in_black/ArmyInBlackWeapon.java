@@ -264,6 +264,7 @@ public class ArmyInBlackWeapon extends BaseEgoWeapon {
             p_41423_.add(Component.literal(""));
             p_41423_.add(Component.literal("§7伤害他人的工具又该如何传递爱与和平？"));
             p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
+            p_41423_.add(Component.literal("§f白色伤害：24"));
         } else {
             p_41423_.add(Component.literal("§6※当玩家生命值大于50%时，该武器射出的子弹会造成白色伤害，对单个目标造成的伤害提高300%。"));
             p_41423_.add(Component.literal("§6※当玩家生命值小于50%时，武器射出的子弹会造成黑色伤害，对多个目标造成溅射伤害，并提高伤害500%。"));

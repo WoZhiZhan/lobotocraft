@@ -74,5 +74,9 @@ public abstract class ApprovalBirdBaseArmor extends BaseEgoArmor {
         p_41423_.add(Component.literal("§7但如今，对和平的渴望只能潜藏在幼稚的童话里。"));
         p_41423_.add(Component.literal("§7只有公司中最公正无私的人才能穿上这件E.G.O护甲。"));
         p_41423_.add(Component.literal("§7不要试着移去缠在这件护甲上的绷带，它掩盖着那些属于过去的，不应被人所了解的悲哀记忆。"));
+        p_41423_.add(Component.literal("§c红色伤害：0.5"));
+        p_41423_.add(Component.literal("§f白色伤害：0.5"));
+        p_41423_.add(Component.literal("§5黑色伤害：0.5"));
+        p_41423_.add(Component.literal("§b蓝色伤害：0.5"));
     }
 }

@@ -97,6 +97,10 @@ public abstract class BlueStarBaseArmor extends BaseEgoArmor {
         } else {
             tooltip.add(Component.literal("§6每5秒为同一房间内的所有员工（包括自己）恢复5点精神值。（对陷入恐慌玩家无效）"));
             tooltip.add(Component.literal("§7<按Shift查看详细信息>"));
+            tooltip.add(Component.literal("§c红色伤害：0.4"));
+            tooltip.add(Component.literal("§f白色伤害：0.4"));
+            tooltip.add(Component.literal("§5黑色伤害：0.4"));
+            tooltip.add(Component.literal("§b蓝色伤害：1.0"));
         }
     }
 }

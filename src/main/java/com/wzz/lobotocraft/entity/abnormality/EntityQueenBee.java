@@ -205,9 +205,8 @@ public class EntityQueenBee extends AbstractAbnormality {
                 "黄蜂",
                 "特殊",
                 "queen_bee_curio",
-                "压迫工作完成后获得「内在的勇气」。",
-                "持有「内在的勇气」完成三次压迫工作后转化为「匹夫之勇」。",
-                "携带者进行沟通工作时会被处决。"
+                "最大生命值 + 2",
+                "最大精神值 + 4"
         );
     }
 
@@ -217,7 +216,7 @@ public class EntityQueenBee extends AbstractAbnormality {
                 ResourceUtil.createInstance("textures/gui/ego/queen_bee_weapon.png"),
                 "黄蜂",
                 getRiskLevel(),
-                "BLUE",
+                "RED",
                 "8",
                 "1.0",
                 "4格",

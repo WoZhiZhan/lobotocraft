@@ -67,5 +67,9 @@ public abstract class WingBeatBaseArmor extends BaseEgoArmor {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         p_41423_.add(Component.literal("§7这件护甲闪耀着和精灵们身上相同的，苍白的光。"));
         p_41423_.add(Component.literal("§7这件护甲并不像精灵的羽翼那样轻薄，而要沉重许多。"));
+        p_41423_.add(Component.literal("§c红色伤害：0.8"));
+        p_41423_.add(Component.literal("§f白色伤害：0.8"));
+        p_41423_.add(Component.literal("§5黑色伤害：1.0"));
+        p_41423_.add(Component.literal("§b蓝色伤害：2.0"));
     }
 }

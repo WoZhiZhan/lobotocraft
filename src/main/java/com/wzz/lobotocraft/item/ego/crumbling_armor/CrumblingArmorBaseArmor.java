@@ -71,5 +71,9 @@ public abstract class CrumblingArmorBaseArmor extends BaseEgoArmor {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         p_41423_.add(Component.literal("§7为如果让有赴死之心的员工穿上这套护甲，它便会挡下所有的伤害。"));
         p_41423_.add(Component.literal("§7但在这个地方很难找到一个不怕丧命的人。"));
+        p_41423_.add(Component.literal("§c红色伤害：0.6"));
+        p_41423_.add(Component.literal("§f白色伤害：0.9"));
+        p_41423_.add(Component.literal("§5黑色伤害：0.9"));
+        p_41423_.add(Component.literal("§b蓝色伤害：2.0"));
     }
 }

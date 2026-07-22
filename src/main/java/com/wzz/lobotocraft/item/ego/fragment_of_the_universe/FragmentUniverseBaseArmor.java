@@ -65,5 +65,9 @@ public abstract class FragmentUniverseBaseArmor extends BaseEgoArmor {
         p_41423_.add(Component.literal("§7但是没人能确定穿戴者会看到些什么，因为每一位员工都看到了不同的东西。"));
         p_41423_.add(Component.literal("§7该异想体的核心形式在每次提取过程中都发生了变化。"));
         p_41423_.add(Component.literal("§7经过无数次尝试，才稳定成现在的模样。"));
+        p_41423_.add(Component.literal("§c红色伤害：1.0"));
+        p_41423_.add(Component.literal("§f白色伤害：1.2"));
+        p_41423_.add(Component.literal("§5黑色伤害：0.6"));
+        p_41423_.add(Component.literal("§b蓝色伤害：2.0"));
     }
 }

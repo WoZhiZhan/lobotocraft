@@ -74,5 +74,9 @@ public abstract class HelperBaseArmor extends BaseEgoArmor {
         p_41423_.add(Component.literal("§7但是这件护甲上的血迹却来自于对异想体核心本身的提取过程中，"));
         p_41423_.add(Component.literal("§7斑斑血迹不禁让人回想起过去的那些与未来可能到来的灾难。"));
         p_41423_.add(Component.literal("§7然而机械的叛乱早已不再是现代社会的威胁。"));
+        p_41423_.add(Component.literal("§c红色伤害：0.6"));
+        p_41423_.add(Component.literal("§f白色伤害：1.3"));
+        p_41423_.add(Component.literal("§5黑色伤害：0.9"));
+        p_41423_.add(Component.literal("§b蓝色伤害：1.5"));
     }
 }

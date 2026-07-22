@@ -688,5 +688,6 @@ public class EndBirdWeapon extends BaseEgoWeapon {
         components.add(Component.literal("§7大鸟那永不闭合的眼睛、高鸟那能衡量一切罪恶的天平、小鸟那能吞噬一切的巨口，这三者守护着黑森林的和平。"));
         components.add(Component.literal("§7而那些能够同时驾驭这三者的人也能带来和平。"));
         components.add(Component.literal("§7按住<Shift>查看详情"));
+        components.add(Component.literal("§c？？？伤害：12-18"));
     }
 }
