@@ -216,7 +216,7 @@ public class EntityQueenBee extends AbstractAbnormality {
                 ResourceUtil.createInstance("textures/gui/ego/queen_bee_weapon.png"),
                 "黄蜂",
                 getRiskLevel(),
-                "BLUE",
+                "RED",
                 "8",
                 "1.0",
                 "4格",
