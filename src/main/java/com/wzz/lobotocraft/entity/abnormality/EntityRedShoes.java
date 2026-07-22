@@ -217,9 +217,7 @@ public class EntityRedShoes extends AbstractAbnormality {
                 "血之渴望",
                 "特殊",
                 "red_shoes_curio",
-                "压迫工作完成后获得「内在的勇气」。",
-                "持有「内在的勇气」完成三次压迫工作后转化为「匹夫之勇」。",
-                "携带者进行沟通工作时会被处决。"
+                "最大生命值 + 4"
         );
     }
 
