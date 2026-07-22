@@ -217,7 +217,7 @@ public class EntityRedShoes extends AbstractAbnormality {
                 "血之渴望",
                 "特殊",
                 "red_shoes_curio",
-                "最大生命值 + 4"
+                "最大生命值+4"
         );
     }
 
