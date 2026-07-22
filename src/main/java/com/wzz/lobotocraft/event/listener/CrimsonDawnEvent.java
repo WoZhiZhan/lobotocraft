@@ -54,6 +54,7 @@ public class CrimsonDawnEvent {
     public static final int BLOOD_DAWN_COLOR = 0xFF3B3B;   // 血色的黎明
     public static final int GREEN_DAWN_COLOR = 0x6BFF8E;   // 绿色的黎明
     public static final int VIOLET_DAWN_COLOR = 0xC77DFF;  // 紫罗兰的黎明
+    public static final int AMBER_DAWN_COLOR = 0xFFB347;   // 琥珀色的黎明
     public static final int BLUE_MIDDAY_COLOR = 0x5AB4FF;  // 深蓝色的正午
     public static final int VIOLET_MIDDAY_COLOR = 0xC77DFF; // 紫罗兰的正午
     public static final int GREEN_MIDDAY_COLOR = 0x6BFF8E;  // 绿色的正午

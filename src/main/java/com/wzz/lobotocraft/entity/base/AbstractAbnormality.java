@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.api.NameProvider;
 import com.wzz.lobotocraft.block.EscapeBlock;
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
 import com.wzz.lobotocraft.entity.EntityRedShoesClerk;
 import com.wzz.lobotocraft.entity.ai.goal.MoveToBlackForestDoorGoal;
 import com.wzz.lobotocraft.entity.abnormality.EntityIsharmla;
@@ -190,6 +191,7 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
             this.stopRiding();
         }
         if (!this.level().isClientSide) {
+            CoreSuppressionManager.tickMeltdown(this);
             if (this.tickCount == 1 || this.tickCount % 100 == 0) {
                 syncNearbyPlayers();
             }

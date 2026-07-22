@@ -19,6 +19,7 @@ import net.minecraftforge.fml.common.Mod;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import static com.wzz.lobotocraft.event.listener.CrimsonDawnEvent.VIOLET_MIDDAY_COLOR;
@@ -45,13 +46,19 @@ public class VioletNoonEvent {
         }
 
         MinecraftServer server = level.getServer();
+        List<ServerPlayer> players = getEligiblePlayers(level);
+        if (players.isEmpty()) {
+            return false;
+        }
+        Collections.shuffle(players, new java.util.Random(level.getRandom().nextLong()));
+
         int available = MAX_NATURAL_VIOLET_NOONS_PER_DIMENSION - countActiveOrdealVioletNoons(level);
-        int count = Math.min(available, Math.max(1, server.getPlayerList().getPlayers().size()));
+        int count = Math.min(available, players.size());
         if (count <= 0) {
             return false;
         }
 
-        int spawned = spawnVioletNoons(level, reactors, count);
+        int spawned = spawnVioletNoons(level, reactors, players, count);
         if (spawned <= 0) {
             return false;
         }
@@ -87,17 +94,28 @@ public class VioletNoonEvent {
         playGlobalSound(server, ModSounds.VIOLET_NOON_END.get());
     }
 
-    private static int spawnVioletNoons(ServerLevel level, List<BlockPos> reactors, int count) {
+    private static int spawnVioletNoons(ServerLevel level, List<BlockPos> reactors,
+                                        List<ServerPlayer> players, int count) {
         int spawned = 0;
-        for (BlockPos reactor : reactors) {
-            if (spawned >= count) {
-                break;
-            }
-            if (spawnVioletNoonAt(level, reactor)) {
-                spawned++;
+        for (int i = 0; i < count; i++) {
+            ServerPlayer player = players.get(i);
+            List<BlockPos> nearbyReactors = new ArrayList<>(reactors);
+            nearbyReactors.sort(Comparator.comparingDouble(pos -> pos.distSqr(player.blockPosition())));
+
+            for (BlockPos reactor : nearbyReactors) {
+                if (spawnVioletNoonAt(level, reactor)) {
+                    spawned++;
+                    break;
+                }
             }
         }
         return spawned;
+    }
+
+    private static List<ServerPlayer> getEligiblePlayers(ServerLevel level) {
+        List<ServerPlayer> players = new ArrayList<>(level.players());
+        players.removeIf(player -> !player.isAlive() || player.isSpectator());
+        return players;
     }
 
     private static boolean spawnVioletNoonAt(ServerLevel level, BlockPos reactorPos) {
@@ -148,7 +166,6 @@ public class VioletNoonEvent {
                 .map(blockEntity -> blockEntity.getBlockPos().immutable())
                 .filter(pos -> EntityUtil.isInCompany(level, pos))
                 .forEach(reactors::add);
-        Collections.shuffle(reactors, new java.util.Random(level.getRandom().nextLong()));
         return reactors;
     }
 

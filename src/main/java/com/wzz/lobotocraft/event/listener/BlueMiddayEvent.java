@@ -9,13 +9,7 @@ import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.world.data.OrdealData;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -35,6 +29,9 @@ import net.minecraftforge.server.ServerLifecycleHooks;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import static com.wzz.lobotocraft.event.listener.CrimsonDawnEvent.BLUE_MIDDAY_COLOR;
+import static com.wzz.lobotocraft.event.listener.CrimsonDawnEvent.sendOrdealTitle;
 
 /**
  * 深蓝色的正午——大群的意志。
@@ -319,18 +316,7 @@ public class BlueMiddayEvent {
     }
 
     private static void showBlueMiddayTitle(MinecraftServer server, String top, String middle, String bottom) {
-        if (server == null) {
-            return;
-        }
-        Component topLine = Component.literal(top).withStyle(ChatFormatting.DARK_BLUE, ChatFormatting.BOLD);
-        Component title = Component.literal(middle).withStyle(ChatFormatting.BLUE, ChatFormatting.BOLD);
-        Component subtitle = Component.literal(bottom).withStyle(ChatFormatting.AQUA);
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 80, 20));
-            player.connection.send(new ClientboundSetActionBarTextPacket(topLine));
-            player.connection.send(new ClientboundSetTitleTextPacket(title));
-            player.connection.send(new ClientboundSetSubtitleTextPacket(subtitle));
-        }
+        sendOrdealTitle(server, top, middle, bottom, BLUE_MIDDAY_COLOR);
     }
 
     private BlueMiddayEvent() {

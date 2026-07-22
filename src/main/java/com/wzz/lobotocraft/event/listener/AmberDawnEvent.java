@@ -7,13 +7,7 @@ import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.world.data.OrdealData;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -28,6 +22,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import static com.wzz.lobotocraft.event.listener.CrimsonDawnEvent.AMBER_DAWN_COLOR;
+import static com.wzz.lobotocraft.event.listener.CrimsonDawnEvent.sendOrdealTitle;
 
 /**
  * 琥珀色的黎明考验。
@@ -244,16 +241,7 @@ public class AmberDawnEvent {
     }
 
     private static void showAmberDawnTitle(MinecraftServer server, String top, String middle, String bottom) {
-        if (server == null) return;
-        Component topLine = Component.literal(top).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
-        Component title = Component.literal(middle).withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD);
-        Component subtitle = Component.literal(bottom).withStyle(ChatFormatting.GOLD);
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 80, 20));
-            player.connection.send(new ClientboundSetActionBarTextPacket(topLine));
-            player.connection.send(new ClientboundSetTitleTextPacket(title));
-            player.connection.send(new ClientboundSetSubtitleTextPacket(subtitle));
-        }
+        sendOrdealTitle(server, top, middle, bottom, AMBER_DAWN_COLOR);
     }
 
     private static void playGlobalSound(MinecraftServer server, SoundEvent sound) {

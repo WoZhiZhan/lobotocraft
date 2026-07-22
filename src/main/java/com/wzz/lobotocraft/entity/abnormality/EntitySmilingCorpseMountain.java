@@ -848,19 +848,19 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
             case "death1":
                 return event.setAndContinue(RawAnimation.begin().thenPlayAndHold("death1"));
             case "phase_two":
-                return event.setAndContinue(RawAnimation.begin().thenPlay("phase_two"));
+                return event.setAndContinue(RawAnimation.begin().thenPlayAndHold("phase_two"));
             case "phase_three":
-                return event.setAndContinue(RawAnimation.begin().thenPlay("phase_three"));
+                return event.setAndContinue(RawAnimation.begin().thenPlayAndHold("phase_three"));
             case "attack1":
-                return event.setAndContinue(RawAnimation.begin().thenPlay("attack1"));
+                return event.setAndContinue(RawAnimation.begin().thenPlayAndHold("attack1"));
             case "attack2":
-                return event.setAndContinue(RawAnimation.begin().thenPlay("attack2"));
+                return event.setAndContinue(RawAnimation.begin().thenPlayAndHold("attack2"));
             case "attack3-1":
-                return event.setAndContinue(RawAnimation.begin().thenPlay("attack3-1"));
+                return event.setAndContinue(RawAnimation.begin().thenPlayAndHold("attack3-1"));
             case "attack3-2":
-                return event.setAndContinue(RawAnimation.begin().thenPlay("attack3-2"));
+                return event.setAndContinue(RawAnimation.begin().thenPlayAndHold("attack3-2"));
             case "attack3-3":
-                return event.setAndContinue(RawAnimation.begin().thenPlay("attack3-3"));
+                return event.setAndContinue(RawAnimation.begin().thenPlayAndHold("attack3-3"));
             default:
                 return PlayState.STOP;
         }

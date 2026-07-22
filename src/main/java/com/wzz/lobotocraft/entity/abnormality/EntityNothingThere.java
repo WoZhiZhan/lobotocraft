@@ -696,6 +696,7 @@ public class EntityNothingThere extends AbstractAbnormality {
                 List<LivingEntity> targets = this.level().getEntitiesOfClass(LivingEntity.class, box,
                         e -> e != this && e.isAlive());
                 for (LivingEntity t : targets) {
+                    t.invulnerableTime = 0;
                     t.hurt(DamageHelper.getDamage(this, "lobotocraft:red"), damage);
                 }
             }
@@ -704,6 +705,7 @@ public class EntityNothingThere extends AbstractAbnormality {
                 List<LivingEntity> targets = this.level().getEntitiesOfClass(LivingEntity.class, box,
                         e -> e != this && e.isAlive());
                 for (LivingEntity t : targets) {
+                    t.invulnerableTime = 0;
                     t.hurt(DamageHelper.getDamage(this, "lobotocraft:red"), damage);
                 }
             }
@@ -712,6 +714,7 @@ public class EntityNothingThere extends AbstractAbnormality {
                 List<LivingEntity> targets = this.level().getEntitiesOfClass(LivingEntity.class, box,
                         e -> e != this && e.isAlive());
                 for (LivingEntity t : targets) {
+                    t.invulnerableTime = 0;
                     t.hurt(DamageHelper.getDamage(this, "lobotocraft:red"), damage);
                 }
             }
