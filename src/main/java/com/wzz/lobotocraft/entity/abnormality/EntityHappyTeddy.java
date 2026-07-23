@@ -394,6 +394,7 @@ public class EntityHappyTeddy extends AbstractAbnormality {
                     DamageSources damageSources = player.damageSources();
                     DamageSource genericKill = damageSources.fellOutOfWorld();
                     player.hurt(genericKill, Float.MAX_VALUE);
+                    releaseHuggedPlayer(player);
 
                     player.sendSystemMessage(Component.literal(
                             "§c§l" + player.getName().getString() + " 被快乐泰迪勒死了..."
@@ -414,12 +415,23 @@ public class EntityHappyTeddy extends AbstractAbnormality {
                 }
             } else {
                 // 玩家已经死亡或离线，重置状态
+                if (player != null) {
+                    releaseHuggedPlayer(player);
+                }
                 huggedPlayerUUID = null;
                 hugAnimationPhase = 0;
                 hugAnimationTimer = 0;
                 setCurrentAnimation("empty");
             }
         }
+    }
+
+    /** 恢复拥抱机制临时施加的移动状态，兼容免死、复活和限伤效果。 */
+    private void releaseHuggedPlayer(ServerPlayer player) {
+        player.setNoGravity(false);
+        player.setShiftKeyDown(false);
+        player.setDeltaMovement(0.0D, 0.0D, 0.0D);
+        player.fallDistance = 0.0F;
     }
 
     @Override

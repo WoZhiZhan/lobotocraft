@@ -40,7 +40,7 @@ public final class CoreSuppressionClientState {
         tick++;
         if (tick % 20 == 0) {
             ShaderQuality shaderQuality = switch (visualStage) {
-                case 3 -> ShaderQuality.Q36;
+                case 3 -> ShaderQuality.Q72;
                 case 2 -> ShaderQuality.Q144;
                 default -> ShaderQuality.Q720;
             };
