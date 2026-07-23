@@ -155,8 +155,11 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
     @Override
     public void setAnimation(String name) {
+        String old = getAnimation();
         super.setAnimation(name);
-        this.entityData.set(ANIM_VERSION, this.entityData.get(ANIM_VERSION) + 1);
+        if (!name.equals(old)) {
+            this.entityData.set(ANIM_VERSION, this.entityData.get(ANIM_VERSION) + 1);
+        }
     }
 
     private int getAnimVersion() {

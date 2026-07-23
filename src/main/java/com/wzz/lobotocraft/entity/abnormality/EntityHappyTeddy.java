@@ -391,6 +391,8 @@ public class EntityHappyTeddy extends AbstractAbnormality {
                 } else if (hugAnimationPhase == 2 && hugAnimationTimer >= 20) {
                     // 阶段2：处决 → 杀死玩家（1秒）
 
+                    // 标记为异想体机制处决，死亡重生后保留员工属性和天数
+                    player.getPersistentData().putBoolean("lobotocraft_abnormality_executed", true);
                     DamageSources damageSources = player.damageSources();
                     DamageSource genericKill = damageSources.fellOutOfWorld();
                     player.hurt(genericKill, Float.MAX_VALUE);
