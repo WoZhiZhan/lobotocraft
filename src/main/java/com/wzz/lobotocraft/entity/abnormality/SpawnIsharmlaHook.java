@@ -21,6 +21,7 @@ public class SpawnIsharmlaHook {
         EntityIsharmla isharmla = ModEntities.isharmla.get().create(level);
         if (isharmla == null) return;
         BlockPos spawnPos = EntityUtil.findReactorSpawnPositionInCompany(level, reactorPos, 0);
+        if (spawnPos == null) return;
         isharmla.moveTo(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5, 0f, 0f);
         isharmla.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos),
                 MobSpawnType.EVENT, null, null);
