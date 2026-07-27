@@ -80,6 +80,7 @@ public class ModTabs {
 						tabData.accept(ModItems.PUNISHING_BIRD_BLOCK.get());
 						tabData.accept(ModItems.TT2.get());
 						tabData.accept(ModItems.CAPTURE_UNIT.get());
+						tabData.accept(ModItems.ROOM_TERMINAL.get());
 					})
 					.build());
 

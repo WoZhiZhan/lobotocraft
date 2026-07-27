@@ -1,0 +1,7 @@
+{
+  "parent": "block/block",
+  "textures": {
+    "all": "lobotocraft:block/empty",
+    "particle": "lobotocraft:block/empty"
+  }
+}

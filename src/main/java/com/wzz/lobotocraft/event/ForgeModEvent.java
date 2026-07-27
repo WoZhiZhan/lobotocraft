@@ -36,6 +36,7 @@ import com.wzz.lobotocraft.work.WorkManager;
 import com.wzz.lobotocraft.work.WorkType;
 import com.wzz.lobotocraft.world.data.OrdealData;
 import com.wzz.lobotocraft.world.structure.StructureLoader;
+import com.wzz.lobotocraft.world.structure.StructureUpdater;
 import com.wzz.lobotocraft.world.structure.Structures;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -471,21 +472,9 @@ public class ForgeModEvent {
 	public static void onEntityJoinWorld(EntityJoinLevelEvent e) {
 		if (DamageHelper.getDamage() == null)
 			new DamageHelper(e.getLevel());
-		if (e.getEntity() instanceof Player player && e.getLevel().dimension == ModDimensions.LOBOTO_KEY &&
-				e.getLevel() instanceof ServerLevel serverLevel && !Structures.LOBOTO.isGenerated(serverLevel)) {
-			Structures.LOBOTO.setGenerated(serverLevel, 100, 100, 100);
-			StructureLoader.beginLoading(serverLevel, player, Structures.LOBOTO.name(), BlockPos.containing(5,2,0),
-					() -> serverLevel.getServer().execute(() ->  {
-						if (player instanceof ServerPlayer serverPlayer) {
-							serverPlayer.teleportTo(195, 273, 29);
-							serverPlayer.resetFallDistance();
-							BlockPos bedPos = new BlockPos(195, 273, 29);
-							serverPlayer.setRespawnPosition(serverLevel.dimension(), bedPos, 0.0F, true, false);
-						}
-						if (serverLevel.dimension() == ModDimensions.LOBOTO_KEY) {
-							serverLevel.setDefaultSpawnPos(new BlockPos(195, 273, 29), 0.0F);
-						}
-					}));
+		if (e.getEntity() instanceof Player player && e.getLevel() instanceof ServerLevel serverLevel
+				&& e.getLevel().dimension == ModDimensions.LOBOTO_KEY) {
+			StructureUpdater.onPlayerEnter(serverLevel, player);
 		}
 	}
 
@@ -1030,6 +1019,10 @@ public class ForgeModEvent {
 		}
 		if (event.getNewDay() >= 3) {
 			grantOrdealAdvancement(event.getPlayer());
+		}
+		if (event.getNewDay() == 5 && !ItemUtil.hasItem(event.getPlayer(), ModItems.ROOM_TERMINAL.get())) {
+			ItemUtil.addItem(event.getPlayer(), new ItemStack(ModItems.ROOM_TERMINAL.get()));
+			event.getPlayer().displayClientMessage(Component.literal("§a你获得了一个公司终端！"), false);
 		}
 	}
 

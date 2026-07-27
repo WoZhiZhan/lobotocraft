@@ -38,6 +38,7 @@ import com.wzz.lobotocraft.item.ego.the_lady_facing_the_wall.*;
 import com.wzz.lobotocraft.item.ego.thorn_bus.*;
 import com.wzz.lobotocraft.item.ego.wingbeat.*;
 import com.wzz.lobotocraft.item.linkage.StrangeBadgeItem;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -379,4 +380,9 @@ public class ModItems {
     public static final RegistryObject<Item> NOTHING_THERE_BOOTS = REGISTRY.register("nothing_there_boots", NothingThereBoots::new);
     public static final RegistryObject<Item> NOTHING_THERE_WEAPON = REGISTRY.register("nothing_there_weapon", NothingThereWeapon::new);
     public static final RegistryObject<Item> NOTHING_THERE_CURIO = REGISTRY.register("nothing_there_curio", NothingThereCurio::new);
+    public static final RegistryObject<Item> ROOM_MARKER = REGISTRY.register("room_marker", () -> new BlockItem(ModBlocks.ROOM_MARKER.get(), new Item.Properties()));
+    public static final RegistryObject<Item> FLOOR_MARKER = REGISTRY.register("floor_marker",
+            () -> new BlockItem(ModBlocks.FLOOR_MARKER.get(), new Item.Properties()));
+    public static final RegistryObject<Item> ROOM_TERMINAL = REGISTRY.register("room_terminal",
+            RoomTerminalItem::new);
 }

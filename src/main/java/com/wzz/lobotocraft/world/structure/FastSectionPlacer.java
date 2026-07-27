@@ -174,7 +174,7 @@ public class FastSectionPlacer {
             int sectionIndex = chunk.getSectionIndex(y);
             if (sectionIndex < 0 || sectionIndex >= chunk.getSections().length) continue;
             LevelChunkSection section = chunk.getSection(sectionIndex);
-
+            if (!StructureUpdateContext.shouldPlaceBlock(level, chunk, worldPos)) continue;
             section.setBlockState(worldPos.getX() & 15, y & 15, worldPos.getZ() & 15, state, false);
             placed++;
 
@@ -382,6 +382,7 @@ public class FastSectionPlacer {
                         && tag.contains("TileY") && tag.contains("TileZ");
 
                 EntityType.create(tag, level).ifPresent(entity -> {
+                    if (!StructureUpdateContext.shouldSpawnEntity(level, entity)) return;
                     if (!isHanging) {
                         // 普通实体：原版逻辑，旋转/镜像朝向 + 移到目标位置
                         float yaw = entity.rotate(settings.getRotation());

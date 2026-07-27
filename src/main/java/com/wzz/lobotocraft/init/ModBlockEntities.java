@@ -1,11 +1,7 @@
 package com.wzz.lobotocraft.init;
 
 import com.wzz.lobotocraft.ModMain;
-import com.wzz.lobotocraft.block.entity.ElevatorBlockEntity;
-import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
-import com.wzz.lobotocraft.block.entity.PunishingBirdBlockEntity;
-import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
-import com.wzz.lobotocraft.block.entity.TombstoneBlockEntity;
+import com.wzz.lobotocraft.block.entity.*;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -59,4 +55,18 @@ public class ModBlockEntities {
                             ModBlocks.TOMBSTONE.get()
                     ).build(null)
             );
+
+    public static final RegistryObject<BlockEntityType<RoomMarkerBlockEntity>> ROOM_MARKER =
+            BLOCK_ENTITIES.register(
+                    "room_marker",
+                    () -> BlockEntityType.Builder.of(
+                            RoomMarkerBlockEntity::new,
+                            ModBlocks.ROOM_MARKER.get()
+                    ).build(null)
+            );
+
+    public static final RegistryObject<BlockEntityType<FloorMarkerBlockEntity>> FLOOR_MARKER =
+            BLOCK_ENTITIES.register("floor_marker",
+                    () -> BlockEntityType.Builder.of(
+                            FloorMarkerBlockEntity::new, ModBlocks.FLOOR_MARKER.get()).build(null));
 }

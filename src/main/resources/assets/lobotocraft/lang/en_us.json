@@ -316,5 +316,8 @@
   "advancements.lobotocraft.hod_core.description": "Complete Hod Core Suppression",
   "advancements.lobotocraft.netzach_core.title": "The Fearlessness to Keep on Living",
   "advancements.lobotocraft.netzach_core.description": "Complete Netzach Core Suppression",
-  "entity.lobotocraft.text": "Please Input Text"
+  "entity.lobotocraft.text": "Please Input Text",
+  "block.lobotocraft.room_marker": "Room Marker",
+  "item.lobotocraft.room_terminal": "Room Terminal",
+  "item.lobotocraft.floor_marker": "Floor Marker"
 }

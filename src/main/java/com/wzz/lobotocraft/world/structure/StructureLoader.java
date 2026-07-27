@@ -360,7 +360,7 @@ public class StructureLoader {
                                     placedPositions.add(worldPos);
                                 }
                                 fastPlacer.placeTemplate(task.template(), task.placePos());
-                                if (!placedPositions.isEmpty()) {
+                                if (!placedPositions.isEmpty() && !StructureUpdateContext.isIncremental(level)) {
                                     ProtectionHelper.markProtectedBatch(level, placedPositions);
                                 }
                             } else {

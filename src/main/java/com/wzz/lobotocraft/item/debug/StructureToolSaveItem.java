@@ -3,7 +3,6 @@ package com.wzz.lobotocraft.item.debug;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.wzz.lobotocraft.util.EnvironmentUtil;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.world.structure.StructureLoader;
 import net.minecraft.client.Minecraft;
@@ -13,6 +12,9 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtIo;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -32,11 +34,16 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 
-import java.util.UUID;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.*;
 
 import static org.lwjgl.opengl.GL11.GL_LEQUAL;
-import static org.lwjgl.opengl.GL11.GL_LESS;
 
 public class StructureToolSaveItem extends Item {
     private static final String FIRST_POSITION_KEY = "first_position";
@@ -47,9 +54,15 @@ public class StructureToolSaveItem extends Item {
     private static final double MEMORY_WARNING_THRESHOLD = 0.85;
     private static final double MEMORY_CRITICAL_THRESHOLD = 0.95;
 
+    private static final Set<String> AIR_BLOCK_IDS = Set.of(
+            "minecraft:air",
+            "minecraft:cave_air",
+            "minecraft:void_air"
+    );
+
     public StructureToolSaveItem() {
         super(new Properties().fireResistant().rarity(Rarity.EPIC).stacksTo(1));
-        if (EnvironmentUtil.isClient()) {
+        if (FMLEnvironment.dist.isClient()) {
             MinecraftForge.EVENT_BUS.register(this);
         }
     }
@@ -148,6 +161,73 @@ public class StructureToolSaveItem extends Item {
         }
     }
 
+    /**
+     * 优化结构模板 - 直接在NBT层面移除空气方块
+     * @param template 要优化的结构模板
+     * @return 优化后的NBT数据
+     */
+    private CompoundTag optimizeStructureNBT(StructureTemplate template) {
+        try {
+            // 获取模板的NBT数据
+            CompoundTag root = template.save(new CompoundTag());
+            ListTag palette = root.getList("palette", Tag.TAG_COMPOUND);
+
+            // 创建旧索引到新索引的映射
+            Map<Integer, Integer> oldToNewPaletteMap = new HashMap<>();
+            ListTag newPalette = new ListTag();
+
+            // 统计移除的空气方块
+            int airStatesRemoved = 0;
+
+            // 过滤调色板中的空气方块
+            for (int i = 0; i < palette.size(); i++) {
+                CompoundTag state = (CompoundTag) palette.get(i);
+                String blockId = state.getString("Name");
+
+                if (!AIR_BLOCK_IDS.contains(blockId)) {
+                    oldToNewPaletteMap.put(i, newPalette.size());
+                    newPalette.add(state.copy());
+                } else {
+                    airStatesRemoved++;
+                }
+            }
+
+            // 如果没有空气方块需要移除，直接返回原始数据
+            if (airStatesRemoved == 0) {
+                return root;
+            }
+
+            // 过滤方块列表
+            ListTag blocks = root.getList("blocks", Tag.TAG_COMPOUND);
+            ListTag newBlocks = new ListTag();
+
+            int airBlocksRemoved = 0;
+            for (Tag tag : blocks) {
+                CompoundTag block = (CompoundTag) tag;
+                int oldStateIndex = block.getInt("state");
+
+                if (oldToNewPaletteMap.containsKey(oldStateIndex)) {
+                    CompoundTag newBlock = block.copy();
+                    newBlock.putInt("state", oldToNewPaletteMap.get(oldStateIndex));
+                    newBlocks.add(newBlock);
+                } else {
+                    airBlocksRemoved++;
+                }
+            }
+
+            // 更新模板数据
+            root.put("palette", newPalette);
+            root.put("blocks", newBlocks);
+
+            return root;
+
+        } catch (Exception e) {
+            // 如果优化失败，返回null表示使用原始数据
+            System.err.println("结构优化失败: " + e.getMessage());
+            return null;
+        }
+    }
+
     public boolean saveStructure(Level level, Player player, ItemStack stack) {
         if (level.isClientSide) {
             return false;
@@ -183,9 +263,28 @@ public class StructureToolSaveItem extends Item {
 
         ServerLevel serverLevel = (ServerLevel) level;
         StructureTemplateManager manager = serverLevel.getStructureManager();
-        String baseName = stack.getTag().contains(STRUCTURE_NAME_KEY) ?
+        // 输出目录:在铁砧上给这个工具改名,名字就是相对 structures/ 的子目录。
+        //
+        // 【新的二级分类约定】
+        //   改名 "bedwars/frost"  -> data/bedwars/structures/bedwars/frost/custom_xxxxxxxx_main.nbt (起床战争地图)
+        //   改名 "skywars/islands"-> data/bedwars/structures/skywars/islands/...                    (空岛战争地图)
+        //   不改名                -> data/bedwars/structures/custom_xxxxxxxx_main.nbt              (开始大厅)
+        //
+        // 所以斜杠必须保留(以前被正则当非法字符替换成了下划线,存不出多级目录)。
+        String folder = "";
+        if (stack.hasCustomHoverName()) {
+            String raw = stack.getHoverName().getString().trim().toLowerCase(Locale.ROOT);
+            // 允许 a-z 0-9 _ - 和目录分隔符 /
+            String cleaned = raw.replace('\\', '/').replaceAll("[^a-z0-9_/\\-]", "_");
+            // 合并重复斜杠、去掉首尾斜杠,免得拼出 //// 这种非法路径
+            cleaned = cleaned.replaceAll("/{2,}", "/").replaceAll("^/+", "").replaceAll("/+$", "");
+            if (!cleaned.isEmpty()) folder = cleaned + "/";
+        }
+
+        String rawName = stack.getTag().contains(STRUCTURE_NAME_KEY) ?
                 stack.getTag().getString(STRUCTURE_NAME_KEY) :
                 "custom_" + UUID.randomUUID().toString().substring(0, 8);
+        String baseName = folder + rawName;
 
         int xChunks = (int) Math.ceil((double)totalSize.getX() / CHUNK_SIZE);
         int yChunks = (int) Math.ceil((double)totalSize.getY() / CHUNK_SIZE);
@@ -195,7 +294,7 @@ public class StructureToolSaveItem extends Item {
         int savedChunks = 0;
         int totalChunks = xChunks * yChunks * zChunks;
 
-        player.displayClientMessage(Component.literal("§e开始保存大型结构，共 " + totalChunks + " 个分块..."), false);
+        player.displayClientMessage(Component.literal("§e开始保存大型结构（已启用空气过滤），共 " + totalChunks + " 个分块..."), false);
 
         double initialMemory = getMemoryUsagePercent();
         player.displayClientMessage(Component.literal("§e开始时内存使用率: " +
@@ -211,6 +310,9 @@ public class StructureToolSaveItem extends Item {
         mainMetadata.putInt("totalSizeX", totalSize.getX());
         mainMetadata.putInt("totalSizeY", totalSize.getY());
         mainMetadata.putInt("totalSizeZ", totalSize.getZ());
+        mainMetadata.putBoolean("optimized", true); // 标记已优化
+
+        int totalAirBlocksRemoved = 0;
 
         for (int x = 0; x < xChunks; x++) {
             for (int y = 0; y < yChunks; y++) {
@@ -230,21 +332,49 @@ public class StructureToolSaveItem extends Item {
                         String chunkName = baseName + String.format("_part%02d%02d%02d", x, y, z);
                         ResourceLocation structureId = ResourceUtil.createInstance(chunkName);
 
-                        // 正确获取或创建模板
-                        template = manager.getOrCreate(structureId);
+                        // 创建模板并填充世界数据
+                        template = new StructureTemplate();
                         template.fillFromWorld(serverLevel, chunkStart, chunkSize, true, Blocks.STRUCTURE_VOID);
                         template.setAuthor("wzz");
 
-                        // 保存分块元数据
-                        CompoundTag chunkMetadata = new CompoundTag();
-                        chunkMetadata.putString("baseName", baseName);
-                        chunkMetadata.putInt("chunkX", x);
-                        chunkMetadata.putInt("chunkY", y);
-                        chunkMetadata.putInt("chunkZ", z);
-                        StructureLoader.saveMetadata(manager, chunkName, chunkMetadata);
+                        // 获取原始方块数量
+                        int blocksBefore = 0;
+                        if (!template.palettes.isEmpty()) {
+                            blocksBefore = template.palettes.get(0).blocks().size();
+                        }
 
-                        // 保存结构模板
-                        manager.save(structureId);
+                        // 优化NBT数据
+                        CompoundTag optimizedNBT = optimizeStructureNBT(template);
+                        int blocksAfter = blocksBefore;
+
+                        // 【修复】分块元数据必须【合并进结构 NBT】,不能单独写一次文件。
+                        // 原实现随后调用 saveMetadata(manager, chunkName, ...),
+                        // 它和 saveStructureToFile 写的是同一个路径
+                        // (都是 manager.getPathToGeneratedStructure(id, ".nbt")),
+                        // 于是刚写好的 palette/blocks/size 被这份纯元数据整个覆盖 ->
+                        // 表现为"过滤空气把结构也清了"。
+                        CompoundTag finalNBT = (optimizedNBT != null)
+                                ? optimizedNBT
+                                : template.save(new CompoundTag());
+
+                        if (optimizedNBT != null) {
+                            blocksAfter = optimizedNBT.getList("blocks", Tag.TAG_COMPOUND).size();
+                        }
+
+                        // 元数据作为附加键塞进同一份 NBT(加载器只读 size/palette/blocks,多余键无害)
+                        finalNBT.putString("baseName", baseName);
+                        finalNBT.putInt("chunkX", x);
+                        finalNBT.putInt("chunkY", y);
+                        finalNBT.putInt("chunkZ", z);
+                        finalNBT.putBoolean("optimized", optimizedNBT != null);
+                        finalNBT.putInt("blocksBeforeOptimization", blocksBefore);
+                        finalNBT.putInt("blocksAfterOptimization", blocksAfter);
+
+                        // 只写一次
+                        saveStructureToFile(manager, structureId, finalNBT);
+
+                        int removedThisChunk = blocksBefore - blocksAfter;
+                        totalAirBlocksRemoved += removedThisChunk;
 
                         savedChunks++;
 
@@ -275,6 +405,7 @@ public class StructureToolSaveItem extends Item {
 
         // 保存主元数据
         try {
+            mainMetadata.putInt("totalAirBlocksRemoved", totalAirBlocksRemoved);
             StructureLoader.saveMetadata(manager, baseName + "_main", mainMetadata);
             player.displayClientMessage(Component.literal("§a主元数据文件保存成功"), false);
         } catch (Exception e) {
@@ -287,11 +418,41 @@ public class StructureToolSaveItem extends Item {
 
         if (success) {
             player.displayClientMessage(Component.literal("§a结构保存完成! 共 " + savedChunks + " 个分块，主名称: " + baseName), false);
+            if (totalAirBlocksRemoved > 0) {
+                player.displayClientMessage(Component.literal("§a已优化! 共移除 " + totalAirBlocksRemoved + " 个空气方块"), false);
+                player.displayClientMessage(Component.literal("§e优化率: " + String.format("%.1f%%",
+                        (double)totalAirBlocksRemoved / (totalSize.getX() * totalSize.getY() * totalSize.getZ()) * 100)), false);
+            }
         } else {
             player.displayClientMessage(Component.literal("§6结构部分保存完成，但有部分分块保存失败"), false);
         }
 
         return success;
+    }
+
+    /**
+     * 将优化后的NBT直接保存到结构文件
+     */
+    private void saveStructureToFile(StructureTemplateManager manager, ResourceLocation structureId, CompoundTag nbt) {
+        try {
+            // 使用 getPathToGeneratedStructure 获取文件路径
+            Path structurePath = manager.getPathToGeneratedStructure(structureId, ".nbt");
+
+            // 确保父目录存在
+            Files.createDirectories(structurePath.getParent());
+
+            // 直接写入NBT文件
+            try (OutputStream outputStream = new FileOutputStream(structurePath.toFile())) {
+                NbtIo.writeCompressed(nbt, outputStream);
+            }
+
+        } catch (IOException e) {
+            // 【修复】原来兜底调用 manager.save(structureId) 是无效的:
+            // template 是 new 出来的,从未注册进 manager,save 只会写出空结构(或失败)。
+            // 这里如实报错即可,不要写出一个空文件把好数据盖掉。
+            System.err.println("保存结构文件失败: " + structureId + " -> " + e.getMessage());
+            throw new RuntimeException("结构文件写入失败: " + structureId, e);
+        }
     }
 
     /**
@@ -361,7 +522,7 @@ public class StructureToolSaveItem extends Item {
                     false
             );
             if (!level.isClientSide) player.displayClientMessage(
-                    Component.literal("再次右键一个方块保存结构，shift右键方块取消"),
+                    Component.literal("再次右键一个方块保存结构（自动过滤空气），shift右键方块取消"),
                     false
             );
         }

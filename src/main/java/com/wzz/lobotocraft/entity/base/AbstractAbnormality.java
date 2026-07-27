@@ -150,6 +150,7 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
             return;
         }
         AbstractAbnormality newEntity = createNewInstance(serverLevel);
+        if (newEntity == null) return;
         newEntity.moveTo(
                 escapePosition.getX() + 0.5,
                 escapePosition.getY(),
@@ -160,7 +161,6 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         // 重置状态
         newEntity.setEscape(false);
         newEntity.qliphothCounter = newEntity.maxQliphothCounter;
-
         serverLevel.addFreshEntity(newEntity);
     }
 

@@ -316,5 +316,8 @@
   "advancements.lobotocraft.hod_core.description": "完成Hod核心抑制",
   "advancements.lobotocraft.netzach_core.title": "生存下去的勇气",
   "advancements.lobotocraft.netzach_core.description": "完成Netzach核心抑制",
-  "entity.lobotocraft.text": "请输入文本"
+  "entity.lobotocraft.text": "请输入文本",
+  "block.lobotocraft.room_marker": "房间标记",
+  "item.lobotocraft.room_terminal": "监控终端",
+  "item.lobotocraft.floor_marker": "楼层标记"
 }

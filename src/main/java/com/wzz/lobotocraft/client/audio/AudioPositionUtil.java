@@ -24,11 +24,9 @@ public class AudioPositionUtil {
     
     static {
         try {
-            // 获取SoundEngine的instanceToChannel字段
             instanceToChannelField = SoundEngine.class.getDeclaredField("instanceToChannel");
             instanceToChannelField.setAccessible(true);
         } catch (Exception e) {
-            // 尝试其他可能的字段名（不同版本可能不同）
             try {
                 instanceToChannelField = SoundEngine.class.getDeclaredField("f_120226_");
                 instanceToChannelField.setAccessible(true);

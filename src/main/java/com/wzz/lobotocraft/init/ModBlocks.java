@@ -1,11 +1,7 @@
 package com.wzz.lobotocraft.init;
 
 import com.wzz.lobotocraft.ModMain;
-import com.wzz.lobotocraft.block.ElevatorBlock;
-import com.wzz.lobotocraft.block.EscapeBlock;
-import com.wzz.lobotocraft.block.PunishingBirdBlock;
-import com.wzz.lobotocraft.block.RegenerationReactorBlock;
-import com.wzz.lobotocraft.block.TombstoneBlock;
+import com.wzz.lobotocraft.block.*;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -76,6 +72,32 @@ public class ModBlocks {
                             .strength(-1.0F, 3600000.0F)
                             .sound(SoundType.STONE)
                             .noOcclusion()
+            )
+    );
+
+    public static final RegistryObject<Block> ROOM_MARKER = BLOCKS.register(
+            "room_marker",
+            () -> new RoomMarkerBlock(
+                    BlockBehaviour.Properties.of()
+                            .mapColor(MapColor.COLOR_CYAN)
+                            .strength(1.0f, 6.0f)
+                            .sound(SoundType.METAL)
+                            .noOcclusion()
+                            .noCollission()
+                            .lightLevel(state -> 6)
+            )
+    );
+
+    public static final RegistryObject<Block> FLOOR_MARKER = BLOCKS.register(
+            "floor_marker",
+            () -> new FloorMarkerBlock(
+                    BlockBehaviour.Properties.of()
+                            .mapColor(MapColor.COLOR_PURPLE)
+                            .strength(1.0f, 6.0f)
+                            .sound(SoundType.METAL)
+                            .noOcclusion()
+                            .noCollission()
+                            .lightLevel(state -> 6)
             )
     );
 }
