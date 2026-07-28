@@ -134,8 +134,8 @@ public class EntityCrumblingArmor extends AbstractAbnormality {
     public EGOEquipmentData.WeaponData getEGOWeaponData() {
         return new EGOEquipmentData.WeaponData(
                 ResourceUtil.createInstance("textures/gui/ego/crumbling_armor_weapon.png"),
-                "彼方的裂片",
-                RiskLevel.HE,
+                "决死之心",
+                getRiskLevel(),
                 "BLUE",
                 "8",
                 "1.0",
@@ -149,7 +149,7 @@ public class EntityCrumblingArmor extends AbstractAbnormality {
     public EGOEquipmentData.ArmorData getEGOArmorData() {
         return new EGOEquipmentData.ArmorData(
                 ResourceUtil.createInstance("textures/gui/ego/crumbling_armor_armor.png"),
-                "彼方的裂片",
+                "决死之心",
                 getRiskLevel(),
                 0.6f,
                 0.9f,

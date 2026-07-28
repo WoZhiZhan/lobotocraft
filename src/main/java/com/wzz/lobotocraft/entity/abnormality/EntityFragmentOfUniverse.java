@@ -198,7 +198,7 @@ public class EntityFragmentOfUniverse extends AbstractAbnormality {
                 ResourceUtil.createInstance("textures/gui/ego/fragment_of_the_universe_weapon.png"),
                 "彼方的裂片",
                 getRiskLevel(),
-                "RED",
+                "BLACK",
                 "5-9",
                 "1.7",
                 "4格",
