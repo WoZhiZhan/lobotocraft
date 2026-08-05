@@ -30,6 +30,11 @@ public class ElevatorBlockEntity extends BaseGeoBlockEntity {
     private static final int MAX_DESTINATION_PROBES = 64;
     private static final long TELEPORT_COOLDOWN_TICKS = 20L;
     private static final String COOLDOWN_TAG = "LobotocraftElevatorCooldown";
+    private static final int[][] LANDING_OFFSETS = {
+            {0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1},
+            {1, 1}, {1, -1}, {-1, 1}, {-1, -1},
+            {2, 0}, {-2, 0}, {0, 2}, {0, -2}
+    };
 
     private int teleportDistance = 10;
     private boolean teleportUp = true;
@@ -103,25 +108,26 @@ public class ElevatorBlockEntity extends BaseGeoBlockEntity {
         if (!isWithinInteractionRange(entity)) return TravelResult.TOO_FAR;
 
         long currentTick = entityLevel.getGameTime();
-        if (entity.getPersistentData().getLong(COOLDOWN_TAG) > currentTick) {
-            return TravelResult.COOLDOWN;
+        CompoundTag persistentData = entity.getPersistentData();
+        long cooldownUntil = persistentData.getLong(COOLDOWN_TAG);
+        if (cooldownUntil > currentTick) {
+            if (isTeleportCooldownActive(currentTick, cooldownUntil)) {
+                return TravelResult.COOLDOWN;
+            }
+            // Absolute ticks can become stale after a restored backup or a clock reset.
+            persistentData.remove(COOLDOWN_TAG);
         }
 
         BlockPos destination = findDestinationElevatorServer(serverLevel, up);
         if (destination == null) return TravelResult.NO_DESTINATION;
 
-        Vec3 landing = new Vec3(destination.getX() + 0.5D, destination.getY() + 1.0D,
-                destination.getZ() + 0.5D);
-        AABB landingBox = entity.getDimensions(Pose.STANDING).makeBoundingBox(landing);
-        if (!serverLevel.getWorldBorder().isWithinBounds(landingBox)
-                || !serverLevel.noCollision(entity, landingBox)) {
-            return TravelResult.BLOCKED_DESTINATION;
-        }
+        Vec3 landing = findSafeLanding(serverLevel, entity, destination);
+        if (landing == null) return TravelResult.BLOCKED_DESTINATION;
 
         isActive = true;
         activatedTick = currentTick;
         syncToClient();
-        entity.getPersistentData().putLong(COOLDOWN_TAG, currentTick + TELEPORT_COOLDOWN_TICKS);
+        persistentData.putLong(COOLDOWN_TAG, currentTick + TELEPORT_COOLDOWN_TICKS);
         // A passenger's position is owned by its vehicle. Teleporting without
         // dismounting lets the next vehicle tick pull the rider back to the old floor.
         if (entity.isPassenger()) entity.stopRiding();
@@ -152,19 +158,15 @@ public class ElevatorBlockEntity extends BaseGeoBlockEntity {
     }
 
     private BlockPos findDestinationElevatorServer(ServerLevel level, boolean up) {
-        java.util.Set<BlockPos> candidates = new java.util.HashSet<>(ElevatorRegistry.positions(level));
-        CompanyRoomData.get(level).getAreas(level.dimension().location()).stream()
-                .filter(area -> area.type == FacilityAreaType.ELEVATOR)
-                .map(area -> area.markerPos)
-                .forEach(candidates::add);
+        java.util.Set<BlockPos> candidates = ElevatorRegistry.knownPositions(level);
 
         int probes = 0;
         for (BlockPos candidate : rankedPositions(getBlockPos(), candidates, up)) {
             if (level.isOutsideBuildHeight(candidate)) continue;
-            if (++probes > MAX_DESTINATION_PROBES) break;
             // Route discovery is read-only. Loading arbitrary registered chunks here
             // lets repeated navigation requests turn into unbounded chunk generation.
             if (!level.hasChunkAt(candidate)) continue;
+            if (++probes > MAX_DESTINATION_PROBES) break;
             if (level.getBlockEntity(candidate) instanceof ElevatorBlockEntity) {
                 return candidate.immutable();
             }
@@ -206,6 +208,44 @@ public class ElevatorBlockEntity extends BaseGeoBlockEntity {
     public boolean isWithinInteractionRange(LivingEntity entity) {
         Vec3 elevatorCenter = Vec3.atCenterOf(getBlockPos().above());
         return entity.position().distanceToSqr(elevatorCenter) <= INTERACTION_RADIUS_SQR;
+    }
+
+    public static Vec3 findSafeLanding(ServerLevel level, LivingEntity entity,
+                                       BlockPos destination) {
+        if (level == null || entity == null || destination == null) return null;
+        for (BlockPos feet : landingCandidates(destination)) {
+            if (level.isOutsideBuildHeight(feet) || !level.hasChunkAt(feet)
+                    || !hasLandingSupport(level, feet, destination)) continue;
+            Vec3 landing = Vec3.atBottomCenterOf(feet);
+            AABB landingBox = entity.getDimensions(Pose.STANDING).makeBoundingBox(landing);
+            if (level.getWorldBorder().isWithinBounds(landingBox)
+                    && level.noCollision(entity, landingBox)
+                    && level.getEntitiesOfClass(LivingEntity.class, landingBox,
+                            occupant -> occupant != entity && occupant.isAlive()).isEmpty()) {
+                return landing;
+            }
+        }
+        return null;
+    }
+
+    static java.util.List<BlockPos> landingCandidates(BlockPos destination) {
+        java.util.List<BlockPos> candidates = new java.util.ArrayList<>(LANDING_OFFSETS.length);
+        for (int[] offset : LANDING_OFFSETS) {
+            candidates.add(destination.offset(offset[0], 1, offset[1]));
+        }
+        return java.util.List.copyOf(candidates);
+    }
+
+    private static boolean hasLandingSupport(ServerLevel level, BlockPos feet,
+                                             BlockPos destination) {
+        BlockPos support = feet.below();
+        return support.equals(destination)
+                || !level.getBlockState(support).getCollisionShape(level, support).isEmpty();
+    }
+
+    static boolean isTeleportCooldownActive(long currentTick, long cooldownUntil) {
+        long remaining = cooldownUntil - currentTick;
+        return remaining > 0L && remaining <= TELEPORT_COOLDOWN_TICKS;
     }
 
     public enum TravelResult {

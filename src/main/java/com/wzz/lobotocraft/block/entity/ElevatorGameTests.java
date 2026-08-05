@@ -68,6 +68,34 @@ public final class ElevatorGameTests {
     }
 
     @GameTest(template = "navigation_empty", templateNamespace = ModMain.MODID,
+            timeoutTicks = 40, required = true, batch = "elevator_passengers")
+    public static void occupiedCenterUsesAdjacentLanding(GameTestHelper helper) {
+        helper.setBlock(DESTINATION.offset(1, 0, 0), Blocks.STONE);
+        TestActors actors = prepare(helper, false);
+        Pig blocker = EntityType.PIG.create(helper.getLevel());
+        if (blocker == null) {
+            actors.cleanup();
+            helper.fail("destination blocker was not created");
+            return;
+        }
+        Vec3 center = Vec3.atBottomCenterOf(helper.absolutePos(DESTINATION).above());
+        blocker.absMoveTo(center.x, center.y, center.z, 0.0F, 0.0F);
+        helper.getLevel().addFreshEntity(blocker);
+
+        ElevatorBlockEntity.TravelResult result = actors.source.tryTravel(actors.player, true);
+        if (result != ElevatorBlockEntity.TravelResult.SUCCESS
+                || actors.player.position().distanceToSqr(center) < 0.25D) {
+            blocker.discard();
+            actors.cleanup();
+            helper.fail("occupied destination did not use a free adjacent landing: " + result);
+            return;
+        }
+        blocker.discard();
+        actors.cleanup();
+        helper.succeed();
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = ModMain.MODID,
             timeoutTicks = 40, required = true, batch = "elevator_abnormalities")
     public static void abnormalityRouteUsesElevatorForCrossFloorTarget(GameTestHelper helper) {
         helper.setBlock(SOURCE, ModBlocks.ELEVATOR.get());
@@ -168,7 +196,11 @@ public final class ElevatorGameTests {
     private static TestActors prepare(GameTestHelper helper, boolean blockDestination) {
         helper.setBlock(SOURCE, ModBlocks.ELEVATOR.get());
         helper.setBlock(DESTINATION, ModBlocks.ELEVATOR.get());
-        if (blockDestination) helper.setBlock(DESTINATION.above(), Blocks.STONE);
+        if (blockDestination) {
+            for (BlockPos landing : ElevatorBlockEntity.landingCandidates(DESTINATION)) {
+                helper.setBlock(landing, Blocks.STONE);
+            }
+        }
 
         BlockPos absoluteSource = helper.absolutePos(SOURCE);
         BlockPos absoluteDestination = helper.absolutePos(DESTINATION);

@@ -415,7 +415,7 @@ public final class EmployeeNavigator {
         boolean needsUp = target.getY() > player.getY();
         ElevatorChoice best = null;
         double bestScore = Double.MAX_VALUE;
-        for (BlockPos position : ElevatorRegistry.positions(level)) {
+        for (BlockPos position : ElevatorRegistry.knownPositions(level)) {
             if (!(level.getBlockEntity(position) instanceof ElevatorBlockEntity elevatorEntity)) continue;
             if (!ElevatorEntryFloorPolicy.isOnEntityFloor(level, player.blockPosition(), position)
                     && !elevatorEntity.isWithinInteractionRange(player)) continue;
@@ -441,12 +441,7 @@ public final class EmployeeNavigator {
     }
 
     private boolean isUsableElevatorLanding(ServerLevel level, BlockPos destination) {
-        Vec3 landing = new Vec3(destination.getX() + 0.5D, destination.getY() + 1.0D,
-                destination.getZ() + 0.5D);
-        AABB landingBox = player.getDimensions(player.getPose())
-                .makeBoundingBox(landing.x, landing.y, landing.z);
-        return level.getWorldBorder().isWithinBounds(landingBox)
-                && level.noCollision(player, landingBox);
+        return ElevatorBlockEntity.findSafeLanding(level, player, destination) != null;
     }
 
     private PlanResult planCurrentLeg() {
@@ -952,6 +947,7 @@ public final class EmployeeNavigator {
             evaluateRoute();
             return false;
         }
+        resetStuckTracking();
         state = State.WAITING_ELEVATOR;
         waitTicks = 0;
         invalidatePath();
