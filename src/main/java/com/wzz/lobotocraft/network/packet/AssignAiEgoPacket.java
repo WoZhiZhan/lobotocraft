@@ -6,6 +6,7 @@ import com.wzz.lobotocraft.employee.EmployeeRuntimeManager;
 import com.wzz.lobotocraft.employee.FacilityManagementService;
 import com.wzz.lobotocraft.employee.FacilityPersonnelData;
 import com.wzz.lobotocraft.network.IMessage;
+import com.wzz.lobotocraft.util.MentalValueUtil;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -68,6 +69,10 @@ public final class AssignAiEgoPacket implements IMessage {
             sender.sendSystemMessage(Component.literal("§c该AI员工当前未部署。"));
             return;
         }
+        if (MentalValueUtil.isPanic(employee)) {
+            sender.sendSystemMessage(Component.literal("§c恐慌员工无法更改 E.G.O。"));
+            return;
+        }
         AiEgoRepositoryData repository = AiEgoRepositoryData.get(sender.server);
         if (abnormalityCode.isBlank()) {
             EgoLoadoutService.releaseAi(employee, repository, equipmentType);
@@ -94,6 +99,10 @@ public final class AssignAiEgoPacket implements IMessage {
                 return;
             }
             sourceOwner = EmployeeRuntimeManager.activePlayer(sourceOwnerId);
+            if (sourceOwner != null && MentalValueUtil.isPanic(sourceOwner)) {
+                sender.sendSystemMessage(Component.literal("§c恐慌员工无法卸下或转移 E.G.O。"));
+                return;
+            }
             repository.release(sourceOwnerId, equipmentType);
         }
 

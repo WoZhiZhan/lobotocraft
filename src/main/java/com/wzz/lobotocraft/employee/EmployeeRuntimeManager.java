@@ -12,6 +12,7 @@ import com.wzz.lobotocraft.ego.AiEgoRepositoryData;
 import com.wzz.lobotocraft.ego.EgoLoadoutService;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.abnormality.EntityPunishingBird;
+import com.wzz.lobotocraft.entity.data.EgoWeaponDisplayCatalog;
 import com.wzz.lobotocraft.entity.ordeal.OrdealEntity;
 import com.wzz.lobotocraft.event.listener.EmployeeStatsApplier;
 import com.wzz.lobotocraft.event.listener.EgoAttackOwnershipPolicy;
@@ -1024,7 +1025,7 @@ public final class EmployeeRuntimeManager {
                                                    List<FacilityAreaEntry> groupAreas) {
         if (runtime.autonomousTarget == null || !groupId.equals(runtime.autonomousArea)) return null;
         Entity entity = findEntity(runtime.player.server, runtime.autonomousTarget);
-        if (!(entity instanceof LivingEntity living) || !isThreat(living)
+        if (!(entity instanceof LivingEntity living) || !isThreatFor(runtime.player, living)
                 || living.level() != runtime.player.level()
                 || !FacilityAreaGroup.contains(groupAreas, groupId, living.blockPosition())) return null;
         return living;
@@ -1036,7 +1037,7 @@ public final class EmployeeRuntimeManager {
         for (FacilityAreaEntry area : groupAreas) {
             AABB bounds = new AABB(area.minPos, area.maxPos.offset(1, 1, 1));
             for (LivingEntity entity : player.serverLevel().getEntitiesOfClass(
-                    LivingEntity.class, bounds, EmployeeRuntimeManager::isThreat)) {
+                    LivingEntity.class, bounds, target -> isThreatFor(player, target))) {
                 if (FacilityAreaGroup.contains(groupAreas, groupId, entity.blockPosition())) {
                     threats.put(entity.getUUID(), entity);
                 }
@@ -1046,12 +1047,28 @@ public final class EmployeeRuntimeManager {
                 .min(Comparator.comparingDouble(player::distanceToSqr)).orElse(null);
     }
 
-    private static boolean isThreat(LivingEntity entity) {
+    private static boolean isThreatFor(EmployeeServerPlayer observer, LivingEntity entity) {
         if (!entity.isAlive() || entity.isRemoved() || entity instanceof EntityPunishingBird) return false;
+        if (entity instanceof EmployeeServerPlayer employee && MentalValueUtil.isPanic(employee)) {
+            PanicType panicType = employee.getCapability(MentalValueProvider.MENTAL_VALUE)
+                    .map(mental -> mental.getPanicType()).orElse(PanicType.NONE);
+            return shouldCounterPanickingEmployee(panicType, assignedWeaponDamageType(observer));
+        }
         if (entity instanceof AbstractAbnormality abnormality) return abnormality.hasEscape();
         return FacilityCombatRules.isOrdealCombatant(entity)
                 || entity instanceof Enemy
                 || entity.getType().getCategory() == MobCategory.MONSTER;
+    }
+
+    static boolean shouldCounterPanickingEmployee(PanicType panicType, String weaponDamageType) {
+        if (panicType == PanicType.BERSERK) return true;
+        return panicType == PanicType.PRUDENCE && "WHITE".equalsIgnoreCase(weaponDamageType);
+    }
+
+    private static String assignedWeaponDamageType(EmployeeServerPlayer player) {
+        String code = AiEgoRepositoryData.get(player.server).assignedCode(player.getUUID(), "weapon");
+        EgoWeaponDisplayCatalog.WeaponSummary summary = EgoWeaponDisplayCatalog.find(code);
+        return summary == null ? "" : summary.damageType();
     }
 
     private static List<FacilityAreaEntry> currentFacilityAreas(EmployeeServerPlayer player) {

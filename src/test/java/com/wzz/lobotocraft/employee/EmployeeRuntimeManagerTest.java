@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.employee;
 
+import com.wzz.lobotocraft.capability.PanicType;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
 import net.minecraft.util.RandomSource;
 import org.junit.jupiter.api.Test;
@@ -41,5 +42,15 @@ class EmployeeRuntimeManagerTest {
                 true, EmployeeTaskType.SEARCH_AND_SUPPRESS));
         assertFalse(EmployeeRuntimeManager.shouldResetAutonomousSuppressionTask(
                 false, EmployeeTaskType.IDLE));
+    }
+
+    @Test
+    void panicCounterattackUsesPanicTypeAndWeaponColor() {
+        assertTrue(EmployeeRuntimeManager.shouldCounterPanickingEmployee(PanicType.BERSERK, "RED"));
+        assertTrue(EmployeeRuntimeManager.shouldCounterPanickingEmployee(PanicType.BERSERK, ""));
+        assertTrue(EmployeeRuntimeManager.shouldCounterPanickingEmployee(PanicType.PRUDENCE, "WHITE"));
+        assertTrue(EmployeeRuntimeManager.shouldCounterPanickingEmployee(PanicType.PRUDENCE, "white"));
+        assertFalse(EmployeeRuntimeManager.shouldCounterPanickingEmployee(PanicType.PRUDENCE, "BLACK"));
+        assertFalse(EmployeeRuntimeManager.shouldCounterPanickingEmployee(PanicType.NONE, "WHITE"));
     }
 }

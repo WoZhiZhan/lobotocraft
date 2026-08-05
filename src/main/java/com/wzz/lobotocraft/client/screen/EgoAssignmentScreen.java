@@ -473,7 +473,7 @@ public final class EgoAssignmentScreen extends Screen {
         int shown = Math.min(total, visualSlotCount(stock));
         CompoundTag selected = employee(selectedEmployee);
         boolean eligible = selected != null && selectedMeetsRequirements(stock)
-                && selected.getBoolean("Deployed");
+                && selected.getBoolean("Deployed") && !selected.getBoolean("Panicking");
         for (int i = 0; i < shown; i++) {
             int sx = x + i * slotWidth;
             int sw = Math.max(16, slotWidth - 2);
@@ -957,7 +957,7 @@ public final class EgoAssignmentScreen extends Screen {
         }
         CompoundTag selected = employee(selectedEmployee);
         if (selected == null || !snapshot.getBoolean("CanManageAi") || !selected.getBoolean("Deployed")
-                || !selectedMeetsRequirements(stock)) {
+                || selected.getBoolean("Panicking") || !selectedMeetsRequirements(stock)) {
             playClick(0.62F);
             return;
         }
@@ -969,7 +969,12 @@ public final class EgoAssignmentScreen extends Screen {
         if (mouseX >= slotsX) {
             int slot = Mth.floor((mouseX - slotsX) / slotWidth);
             if (slot >= 0 && slot < owners.size()) {
-                UUID owner = owners.get(slot).getUUID("Id");
+                CompoundTag ownerEntry = owners.get(slot);
+                if (ownerEntry.getBoolean("Panicking")) {
+                    playClick(0.62F);
+                    return;
+                }
+                UUID owner = ownerEntry.getUUID("Id");
                 sendAssignment(stock, owner.equals(selectedEmployee) ? selectedEmployee : owner);
                 return;
             }

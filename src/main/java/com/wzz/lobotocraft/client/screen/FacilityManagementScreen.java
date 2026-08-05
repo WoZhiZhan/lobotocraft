@@ -627,8 +627,10 @@ public final class FacilityManagementScreen extends Screen {
             int bx = panelX + panelWidth - 82;
             boolean assigned = entry.getString("Code").equals(selectedAssignedCode(entry.getString("Type")));
             boolean restricted = selectedAiEmployee != null && !meetsRequirements;
+            CompoundTag selectedEmployee = selectedEmployeeEntry();
+            boolean panicking = selectedEmployee != null && selectedEmployee.getBoolean("Panicking");
             boolean enabled = snapshot.getBoolean("CanManageAi") && selectedAiEmployee != null
-                    && meetsRequirements && (entry.getInt("Available") > 0 || assigned);
+                    && !panicking && meetsRequirements && (entry.getInt("Available") > 0 || assigned);
             boolean hovered = enabled && inside(mouseX, mouseY, bx, y + 11, 54, 24);
             LobotomyUiRenderer.drawButton(graphics, font, bx, y + 11, 54, 24,
                     Component.literal(assigned ? "已装备" : "分配"),
@@ -960,6 +962,8 @@ public final class FacilityManagementScreen extends Screen {
             }
         }
         if (activeTab == 2 && snapshot.getBoolean("CanManageAi") && selectedAiEmployee != null) {
+            CompoundTag selectedEmployee = selectedEmployeeEntry();
+            if (selectedEmployee == null || selectedEmployee.getBoolean("Panicking")) return true;
             int top = panelY + HEADER_HEIGHT + 48;
             int row = Mth.floor((mouseY - top + scroll) / EGO_ROW_HEIGHT);
             ListTag entries = snapshot.getList("AiEgo", Tag.TAG_COMPOUND);

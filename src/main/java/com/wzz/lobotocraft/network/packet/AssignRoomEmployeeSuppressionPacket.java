@@ -4,7 +4,6 @@ import com.wzz.lobotocraft.block.entity.RoomMarkerBlockEntity;
 import com.wzz.lobotocraft.employee.EmployeeRecord;
 import com.wzz.lobotocraft.employee.EmployeeRuntimeManager;
 import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
-import com.wzz.lobotocraft.employee.EmployeeTaskType;
 import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.employee.FacilityPersonnelData;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
@@ -81,9 +80,6 @@ public final class AssignRoomEmployeeSuppressionPacket implements IMessage {
         if (employee == null || employee.isRemoved() || !employee.isAlive()) return "员工未部署";
         if (WorkManager.isPlayerWorking(employee)) {
             return "员工正在工作";
-        }
-        if (record.taskType() == EmployeeTaskType.SEARCH_AND_SUPPRESS) {
-            return "员工正在执行镇压";
         }
         if (MentalValueUtil.isPanic(employee)) return "员工处于精神崩溃状态";
         if (!EgoLoadoutService.hasValidAssignedAiWeapon(employee,

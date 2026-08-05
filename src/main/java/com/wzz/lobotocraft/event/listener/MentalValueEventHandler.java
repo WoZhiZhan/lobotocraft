@@ -14,6 +14,7 @@ import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.DamageBorderPacket;
 import com.wzz.lobotocraft.network.packet.MentalValueSyncPacket;
 import com.wzz.lobotocraft.util.DamageHelper;
+import com.wzz.lobotocraft.util.FacilityCombatRules;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
@@ -82,6 +83,12 @@ public class MentalValueEventHandler {
         if (target instanceof Player targetPlayer
                 && (targetPlayer.isCreative() || targetPlayer.isSpectator())) return false;
         return !(target instanceof AbstractAbnormality abnormality) || abnormality.hasEscape();
+    }
+
+    static boolean shouldRecoverPanicFromWhite(boolean targetPanicking,
+                                                boolean hasPlayerAttacker,
+                                                boolean attackerPanicking) {
+        return targetPanicking && hasPlayerAttacker && !attackerPanicking;
     }
 
     public static boolean isPrudencePanic(Player player) {
@@ -175,10 +182,19 @@ public class MentalValueEventHandler {
 
             // 白色伤害：只扣精神值
             if (DamageHelper.isWhiteDamage(source)) {
-                mental.reduceMentalValue(actualDamage, MentalValueEvent.ChangeType.DAMAGE);
+                Player attacker = FacilityCombatRules.resolvePlayerAttacker(source);
+                boolean panicRecovery = shouldRecoverPanicFromWhite(
+                        MentalValueUtil.isPanic(mental), attacker != null,
+                        attacker != null && MentalValueUtil.isPanic(attacker));
+                if (panicRecovery) {
+                    mental.addMentalValue(actualDamage, MentalValueEvent.ChangeType.ADD);
+                } else {
+                    mental.reduceMentalValue(actualDamage, MentalValueEvent.ChangeType.DAMAGE);
+                }
                 event.setCanceled(true); // 取消血量伤害
                 if (player instanceof ServerPlayer serverPlayer) {
-                    syncMentalValue(serverPlayer, MentalValueEvent.ChangeType.DAMAGE);
+                    syncMentalValue(serverPlayer, panicRecovery
+                            ? MentalValueEvent.ChangeType.ADD : MentalValueEvent.ChangeType.DAMAGE);
                 }
             }
             // 黑色伤害：同时扣血量和精神值
