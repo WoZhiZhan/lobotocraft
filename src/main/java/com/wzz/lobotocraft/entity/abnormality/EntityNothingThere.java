@@ -80,6 +80,7 @@ public class EntityNothingThere extends AbstractAbnormality {
     private static final int PHASE3_REGEN_AMOUNT = 50;
     private static final int IDLE_SOUND_INTERVAL = 20 * 53;
     private static final int DIMENSION_RETRY_INTERVAL = 10;
+    private static final int GRAND_COMBO_ANIMATION_TICKS = 115;
 
     private int currentPhase = PHASE_1;
     private int phaseTimer = 0;
@@ -680,10 +681,10 @@ public class EntityNothingThere extends AbstractAbnormality {
 
     private void startGrandCombo() {
         currentAttackType = 5;
-        attackAnimationMaxTimer = 120;
-        attackAnimationTimer = 120;
+        attackAnimationMaxTimer = GRAND_COMBO_ANIMATION_TICKS;
+        attackAnimationTimer = GRAND_COMBO_ANIMATION_TICKS;
         attackCooldown = ATTACK_COOLDOWN_TICKS * 2;
-        setAnimTimed("attack3-2-3-2-3-2-3-2-3", 115);
+        setAnimTimed("attack3-2-3-2-3-2-3-2-3", GRAND_COMBO_ANIMATION_TICKS);
 
         pendingHitCount = 11;
         pendingHitTimestamps = new int[]{
@@ -880,6 +881,8 @@ public class EntityNothingThere extends AbstractAbnormality {
         currentAttackType = -1;
         attackAnimationTimer = 0;
         attackAnimationMaxTimer = 0;
+        animResetTimer = 0;
+        backToIdle();
         pendingHitCount = 0;
         pendingHitIndex = 0;
         pendingHitTimestamps = null;
