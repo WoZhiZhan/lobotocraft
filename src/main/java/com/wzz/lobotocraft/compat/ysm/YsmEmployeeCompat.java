@@ -10,7 +10,10 @@ import org.slf4j.Logger;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -35,6 +38,42 @@ public final class YsmEmployeeCompat {
 
     public static boolean isAvailable() {
         return !activeProvider().isEmpty();
+    }
+
+    public static YsmModelCatalog serverCatalog() {
+        String provider = activeProvider();
+        if (provider.isEmpty()) return YsmModelCatalog.unknown();
+        try {
+            if (provider.equals(MODERN_PROVIDER)) {
+                Optional<?> snapshot = modernSnapshot();
+                if (snapshot.isEmpty()) return YsmModelCatalog.unknown();
+                Map<String, Collection<String>> models = modernModels(snapshot.get());
+                return models.isEmpty() ? YsmModelCatalog.unknown()
+                        : YsmModelCatalog.authoritative(models);
+            }
+            if (legacyMajorVersion() >= 2) {
+                Optional<ReleaseCatalog> catalog = releaseCatalog();
+                if (catalog.isEmpty()) return YsmModelCatalog.unknown();
+                Map<String, Collection<String>> models = new HashMap<>();
+                catalog.get().models().forEach((modelId, model) -> {
+                    if (!catalog.get().authorized().contains(modelId)) {
+                        models.put(modelId, findStringList(model, 2));
+                    }
+                });
+                return YsmModelCatalog.authoritative(models);
+            }
+            Class<?> manager = Class.forName(
+                    "com.elfmcys.yesstevemodel.model.ServerModelManager");
+            Map<?, ?> models = (Map<?, ?>) manager.getField("CACHE_NAME_INFO").get(null);
+            Collection<?> authorized = (Collection<?>) manager.getField("AUTH_MODELS").get(null);
+            Set<String> denied = authorized.stream().map(String::valueOf).collect(
+                    java.util.stream.Collectors.toSet());
+            return YsmModelCatalog.authoritative(models.keySet().stream()
+                    .map(String::valueOf).filter(key -> !denied.contains(key)).toList());
+        } catch (ReflectiveOperationException | LinkageError | RuntimeException error) {
+            reportFailure("server-catalog-" + provider, error);
+            return YsmModelCatalog.unknown();
+        }
     }
 
     public static Optional<EmployeeAppearance> validateRequested(EmployeeAppearance requested) {
@@ -137,6 +176,75 @@ public final class YsmEmployeeCompat {
         Optional<?> service = optional(serviceType.getMethod("current").invoke(null));
         if (service.isEmpty()) return Optional.empty();
         return optional(service.get().getClass().getMethod("snapshot").invoke(service.get()));
+    }
+
+    private static Map<String, Collection<String>> modernModels(Object snapshot) {
+        Map<String, Collection<String>> models = new HashMap<>();
+        for (Method method : snapshot.getClass().getMethods()) {
+            if (Modifier.isStatic(method.getModifiers()) || method.getParameterCount() != 0
+                    || method.getDeclaringClass() == Object.class) continue;
+            Class<?> returnType = method.getReturnType();
+            if (!(Map.class.isAssignableFrom(returnType)
+                    || Collection.class.isAssignableFrom(returnType)
+                    || Iterable.class.isAssignableFrom(returnType))) continue;
+            try {
+                Object value = method.invoke(snapshot);
+                if (value instanceof Map<?, ?> map) {
+                    map.forEach((key, handle) -> addModernModel(models, key, handle));
+                } else if (value instanceof Iterable<?> iterable) {
+                    iterable.forEach(handle -> addModernModel(models, null, handle));
+                }
+            } catch (ReflectiveOperationException | RuntimeException ignored) {
+                // Continue looking for the published model collection.
+            }
+        }
+        return models;
+    }
+
+    private static void addModernModel(Map<String, Collection<String>> models,
+                                       Object mapKey, Object handle) {
+        if (handle == null) return;
+        try {
+            if (authorizationRequired(handle)) return;
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            // Descriptor-only collections do not expose a model location.
+        }
+        Collection<String> textures = modernTextures(handle);
+        Set<String> keys = new HashSet<>();
+        addModernKey(keys, mapKey);
+        try {
+            Object descriptor = handle.getClass().getMethod("descriptor").invoke(handle);
+            addModernKey(keys, descriptor.getClass().getMethod("modelHash").invoke(descriptor));
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            // Some snapshots expose descriptors rather than handles.
+        }
+        try {
+            addModernKey(keys, modelPath(handle));
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            // Hash-only entries can still be matched by the client selection.
+        }
+        keys.forEach(key -> models.put(key, textures));
+    }
+
+    private static Collection<String> modernTextures(Object handle) {
+        try {
+            Object view = handle.getClass().getMethod("view").invoke(handle);
+            Object playerView = view.getClass().getMethod("getPlayer").invoke(view);
+            Object values = playerView.getClass().getMethod("getTextureNames").invoke(playerView);
+            List<String> textures = new ArrayList<>();
+            if (values instanceof Collection<?> collection) {
+                collection.forEach(value -> textures.add(String.valueOf(value)));
+            } else if (values instanceof Iterable<?> iterable) {
+                iterable.forEach(value -> textures.add(String.valueOf(value)));
+            }
+            return textures;
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static void addModernKey(Set<String> keys, Object key) {
+        if (key != null) keys.add(String.valueOf(key));
     }
 
     private static Optional<EmployeeAppearance> validateLegacy(EmployeeAppearance appearance)

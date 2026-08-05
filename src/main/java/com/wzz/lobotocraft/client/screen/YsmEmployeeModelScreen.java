@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.client.ui.LobotomyButton;
 import com.wzz.lobotocraft.client.ui.LobotomyUiRenderer;
 import com.wzz.lobotocraft.client.ui.LobotomyUiTheme;
 import com.wzz.lobotocraft.employee.EmployeeAppearance;
+import com.wzz.lobotocraft.compat.ysm.YsmModelCatalog;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -21,6 +22,7 @@ import java.util.function.Consumer;
 public final class YsmEmployeeModelScreen extends Screen {
     private final Screen parent;
     private final String provider;
+    private final YsmModelCatalog serverCatalog;
     private final Consumer<EmployeeAppearance> selectionHandler;
     private List<YsmClientCompat.ModelOption> allModels;
     private YsmClientCompat.ModelOption selectedModel;
@@ -38,13 +40,15 @@ public final class YsmEmployeeModelScreen extends Screen {
     private Button nextPage;
     private int catalogRefreshTicks;
 
-    public YsmEmployeeModelScreen(Screen parent, String provider, EmployeeAppearance current,
+    public YsmEmployeeModelScreen(Screen parent, String provider,
+                                  YsmModelCatalog serverCatalog, EmployeeAppearance current,
                                   Consumer<EmployeeAppearance> selectionHandler) {
         super(Component.literal("YSM员工外观"));
         this.parent = parent;
         this.provider = provider;
+        this.serverCatalog = serverCatalog == null ? YsmModelCatalog.unknown() : serverCatalog;
         this.selectionHandler = selectionHandler;
-        this.allModels = YsmClientCompat.models(provider);
+        this.allModels = loadModels();
         if (current != null && current.usesYsm()) {
             this.selectedModel = allModels.stream()
                     .filter(model -> model.provider().equals(current.provider())
@@ -175,12 +179,22 @@ public final class YsmEmployeeModelScreen extends Screen {
     public void tick() {
         searchBox.tick();
         if (allModels.isEmpty() && ++catalogRefreshTicks % 20 == 0) {
-            List<YsmClientCompat.ModelOption> refreshed = YsmClientCompat.models(provider);
+            List<YsmClientCompat.ModelOption> refreshed = loadModels();
             if (!refreshed.isEmpty()) {
                 allModels = refreshed;
                 init();
             }
         }
+    }
+
+    private List<YsmClientCompat.ModelOption> loadModels() {
+        return YsmClientCompat.models(provider).stream()
+                .filter(model -> serverCatalog.allows(model.modelId(), model.path()))
+                .map(model -> new YsmClientCompat.ModelOption(model.provider(), model.modelId(),
+                        model.path(), model.displayName(), serverCatalog.allowedTextures(
+                        model.modelId(), model.path(), model.textures())))
+                .filter(model -> !model.textures().isEmpty())
+                .toList();
     }
 
     @Override

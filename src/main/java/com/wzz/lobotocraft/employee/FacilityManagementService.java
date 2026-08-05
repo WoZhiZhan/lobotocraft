@@ -77,6 +77,7 @@ public final class FacilityManagementService {
         String ysmProvider = YsmEmployeeCompat.activeProvider();
         snapshot.putBoolean("YsmAvailable", !ysmProvider.isEmpty());
         snapshot.putString("YsmProvider", ysmProvider);
+        YsmEmployeeCompat.serverCatalog().writeTo(snapshot);
         snapshot.putBoolean("CanConfigureLlm", viewer.hasPermissions(
                 com.wzz.lobotocraft.llm.LlmConfigService.CONFIG_PERMISSION_LEVEL));
         snapshot.put("DepartmentProgress", DepartmentProgressService.snapshot(viewer));

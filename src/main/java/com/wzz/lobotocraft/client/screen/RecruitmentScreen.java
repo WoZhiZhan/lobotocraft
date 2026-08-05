@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.client.ui.LobotomyButton;
 import com.wzz.lobotocraft.client.ui.LobotomyUiRenderer;
 import com.wzz.lobotocraft.client.ui.LobotomyUiTheme;
 import com.wzz.lobotocraft.employee.EmployeeAppearance;
+import com.wzz.lobotocraft.compat.ysm.YsmModelCatalog;
 import com.wzz.lobotocraft.employee.RecruitmentService;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.RecruitEmployeePacket;
@@ -36,6 +37,7 @@ public final class RecruitmentScreen extends Screen {
     private static final int PANEL_HEIGHT = 322;
     private final Screen parent;
     private final CompoundTag resources;
+    private final YsmModelCatalog ysmCatalog;
     private final int[] levels = {1, 1, 1, 1};
     private final Button[] minusButtons = new Button[4];
     private final Button[] plusButtons = new Button[4];
@@ -60,6 +62,7 @@ public final class RecruitmentScreen extends Screen {
         super(Component.literal("员工招募"));
         this.parent = parent;
         this.resources = resources.copy();
+        this.ysmCatalog = YsmModelCatalog.readFrom(this.resources);
     }
 
     @Override
@@ -77,7 +80,8 @@ public final class RecruitmentScreen extends Screen {
         int statStep = compact ? 23 : 29;
         ysmProvider = resources.getString("YsmProvider");
         ysmSelectable = resources.getBoolean("YsmAvailable")
-                && YsmClientCompat.isAvailable(ysmProvider);
+                && YsmClientCompat.isAvailable(ysmProvider)
+                && (!ysmCatalog.authoritative() || !ysmCatalog.keys().isEmpty());
         if (!ysmSelectable) appearance = EmployeeAppearance.DEFAULT;
         int nameRowWidth = panelWidth - 48;
         appearanceButtonWidth = ysmSelectable
@@ -99,7 +103,8 @@ public final class RecruitmentScreen extends Screen {
         if (ysmSelectable) {
             Button appearanceButton = addRenderableWidget(LobotomyButton.create(
                     Component.literal(appearanceButtonText()), button -> minecraft.setScreen(
-                            new YsmEmployeeModelScreen(this, ysmProvider, appearance, selected -> {
+                            new YsmEmployeeModelScreen(this, ysmProvider, ysmCatalog,
+                                    appearance, selected -> {
                                 appearance = selected;
                                 minecraft.setScreen(this);
                             })))
