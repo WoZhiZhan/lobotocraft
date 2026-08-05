@@ -104,8 +104,8 @@ public abstract class CCUniform extends Uniform implements ICCUniform {
                 case 2 -> glUniform2f(f0, f1);
                 case 3 -> glUniform3f(f0, f1, f2);
                 case 4 -> glUniform4f(f0, f1, f2, f3);
+                default -> throw new IllegalStateException("Unexpected type size: " + type);
             }
-            throw new IllegalStateException("Unexpected type size: " + type);
         }
 
         @Override
@@ -116,8 +116,8 @@ public abstract class CCUniform extends Uniform implements ICCUniform {
                 case 2 -> glUniform2i(i0, i1);
                 case 3 -> glUniform3i(i0, i1, i2);
                 case 4 -> glUniform4i(i0, i1, i2, i3);
+                default -> throw new IllegalStateException("Unexpected type size: " + type);
             }
-            throw new IllegalStateException("Unexpected type size: " + type);
         }
 
         @Override

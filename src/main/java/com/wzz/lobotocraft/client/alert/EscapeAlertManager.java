@@ -1,6 +1,9 @@
 package com.wzz.lobotocraft.client.alert;
 
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.client.core.CoreSuppressionClientState;
+import com.wzz.lobotocraft.client.audio.GuiMusicManager;
+import com.wzz.lobotocraft.client.audio.NormalWorkMusicManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.sounds.SoundManager;
 
@@ -32,9 +35,14 @@ public class EscapeAlertManager {
 
     /**
      * 收到服务端警报包时调用
-     * 规则：同等级不重置；高等级覆盖低等级；-1停止一切
+     * 同等级不重置；升级和降级都立即切换；-1恢复正常状态。
      */
     public void onAlertReceived(int newLevel) {
+        if (CoreSuppressionClientState.isActive()) {
+            suspendForCoreSuppression();
+            return;
+        }
+        newLevel = Math.max(-1, Math.min(2, newLevel));
         if (newLevel == -1) {
             stopAll();
             return;
@@ -42,10 +50,7 @@ public class EscapeAlertManager {
 
         // 同等级且BGM正在播放时不重置（避免刷新进度）
         // 但如果BGM已经停止（如玩家刚重生），则重新播放
-        if (newLevel == currentPlayingLevel && currentBGM != null && !currentBGM.isStopped()) return;
-
-        // 低等级不覆盖高等级
-        if (newLevel < currentPlayingLevel) return;
+        if (newLevel == currentPlayingLevel && isCurrentSoundActive()) return;
 
         stopBGM();
         currentPlayingLevel = newLevel;
@@ -57,14 +62,15 @@ public class EscapeAlertManager {
         Minecraft mc = Minecraft.getInstance();
         SoundManager sm = mc.getSoundManager();
 
-        // 停止游戏内所有音乐
+        NormalWorkMusicManager.getInstance().suspend();
+        GuiMusicManager.getInstance().suspendForHigherPriorityBgm();
+        mc.getMusicManager().stopPlaying();
         sm.stop(null, net.minecraft.sounds.SoundSource.MUSIC);
-        sm.stop(null, net.minecraft.sounds.SoundSource.RECORDS);
 
         net.minecraft.sounds.SoundEvent bgmSound = switch (level) {
-            case 0 -> ModSounds.ESCAPE_ALERT_BGM_0.get(); // 任意出逃
-            case 1 -> ModSounds.ESCAPE_ALERT_BGM_1.get(); // WAW/ALEPH <3
-            case 2 -> ModSounds.ESCAPE_ALERT_BGM_2.get(); // ALEPH >3
+            case 0 -> ModSounds.ESCAPE_ALERT_BGM_0.get(); // 紧急等级 I
+            case 1 -> ModSounds.ESCAPE_ALERT_BGM_1.get(); // 紧急等级 II
+            case 2 -> ModSounds.ESCAPE_ALERT_BGM_2.get(); // 紧急等级 III
             default -> null;
         };
 
@@ -95,8 +101,18 @@ public class EscapeAlertManager {
         flashIconIndex = -1;
     }
 
+    /** Called by the core music controller to release the shared record-music channel. */
+    public void suspendForCoreSuppression() {
+        stopAll();
+    }
+
     /** 每客户端tick调用一次 */
     public void tick() {
+        if (CoreSuppressionClientState.isActive()) {
+            suspendForCoreSuppression();
+            return;
+        }
+        if (isBgmActive()) Minecraft.getInstance().getMusicManager().stopPlaying();
         if (flashTicksRemaining > 0) {
             flashTicksRemaining--;
             flashBeatTick++;
@@ -111,5 +127,18 @@ public class EscapeAlertManager {
         if (flashTicksRemaining <= 0) return false;
         // 每10tick切换一次（闪烁效果）
         return (flashBeatTick / 10) % 2 == 0;
+    }
+
+    public boolean isBgmActive() {
+        return currentPlayingLevel >= 0;
+    }
+
+    private boolean isCurrentSoundActive() {
+        return currentBGM != null && !currentBGM.isStopped()
+                && Minecraft.getInstance().getSoundManager().isActive(currentBGM);
+    }
+
+    public void clear() {
+        stopAll();
     }
 }

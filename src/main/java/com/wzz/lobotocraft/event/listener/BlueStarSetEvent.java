@@ -47,8 +47,7 @@ public class BlueStarSetEvent {
         if (wearsBlueStarArmor(player) && now % 100 == 0) {
             for (ServerPlayer p : player.serverLevel().getEntitiesOfClass(ServerPlayer.class,
                     player.getBoundingBox().inflate(16))) {
-                // 恐慌(精神<=0)者无效
-                if (MentalValueUtil.getMentalValue(p) > 0) {
+                if (!MentalValueUtil.isPanic(p)) {
                     MentalValueUtil.addMentalValue(p, 5f);
                 }
             }

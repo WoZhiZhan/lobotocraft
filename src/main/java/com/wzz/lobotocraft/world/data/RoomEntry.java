@@ -21,18 +21,22 @@ public class RoomEntry {
     public static final int STATUS_EMPTY = 0;
     /** 异想体正常收容中 */
     public static final int STATUS_OCCUPIED = 1;
-    /** 异想体已出逃（hasEscape 为真，或已走出房间范围） */
+    /** The bound abnormality is alive and its authoritative hasEscape flag is true. */
     public static final int STATUS_ESCAPED = 2;
     /**
      * 登记过的异想体暂时找不到了 —— 被捕获装进收容单元、死亡等待复活、或者跑进了没加载的区块。
      * 和"出逃"区分开，不然玩家一回收异想体，监控上就一片红色警报。
      */
     public static final int STATUS_LOST = 3;
+    /** The department exists, but this containment slot has not been expanded yet. */
+    public static final int STATUS_UNEXPANDED = 4;
 
     /** 房间所在维度 */
     public ResourceLocation dimension;
     /** 标记方块坐标（同时也是传送目标基准点） */
     public BlockPos pos;
+    /** 所属部门；空串表示尚未分配。 */
+    public String departmentId = "";
 
     /** 异想体代码，例如 O-03-03。空串表示房间里没有异想体 */
     public String abnormalityCode = "";
@@ -42,6 +46,8 @@ public class RoomEntry {
     public String riskName = "";
     /** 风险等级颜色，直接取自 RiskLevel#getColor */
     public int riskColor = 0xFFAAAAAA;
+    /** Snapshot-only classification used by monitor dispatch UI. */
+    public boolean toolType;
 
     public int status = STATUS_EMPTY;
 
@@ -54,6 +60,11 @@ public class RoomEntry {
     public int playersInside = 0;
     /** 出逃时，异想体离信标的直线距离（格）。没出逃就是 0 */
     public int escapeDistance = 0;
+
+    /** Core-suppression Qliphoth meltdown state for this containment unit. */
+    public boolean meltdownActive = false;
+    /** Remaining server ticks; clients render this as a rounded-up second count. */
+    public int meltdownRemainingTicks = 0;
 
     /** 最后一次扫描时的 level.getGameTime() */
     public long lastUpdate = 0L;
@@ -82,6 +93,7 @@ public class RoomEntry {
 
     /** 界面上显示的房间标题 */
     public String resolveTitle() {
+        if (status == STATUS_UNEXPANDED) return "未扩建";
         if (abnormalityName != null && !abnormalityName.isEmpty()) return abnormalityName;
         return "空置收容间";
     }
@@ -92,16 +104,20 @@ public class RoomEntry {
         CompoundTag tag = new CompoundTag();
         tag.putString("Dim", dimension.toString());
         tag.putLong("Pos", pos.asLong());
+        tag.putString("Department", departmentId);
         tag.putString("Code", abnormalityCode);
         tag.putString("AbName", abnormalityName);
         tag.putString("Risk", riskName);
         tag.putInt("RiskColor", riskColor);
+        tag.putBoolean("ToolType", toolType);
         tag.putInt("Status", status);
         tag.putInt("Qliphoth", qliphoth);
         tag.putInt("MaxQliphoth", maxQliphoth);
         tag.putFloat("Health", healthPercent);
         tag.putInt("Players", playersInside);
         tag.putInt("EscapeDist", escapeDistance);
+        tag.putBoolean("MeltdownActive", meltdownActive);
+        tag.putInt("MeltdownRemainingTicks", meltdownRemainingTicks);
         tag.putLong("LastUpdate", lastUpdate);
         return tag;
     }
@@ -110,16 +126,20 @@ public class RoomEntry {
         RoomEntry entry = new RoomEntry();
         entry.dimension = ResourceLocation.tryParse(tag.getString("Dim"));
         entry.pos = BlockPos.of(tag.getLong("Pos"));
+        entry.departmentId = tag.getString("Department");
         entry.abnormalityCode = tag.getString("Code");
         entry.abnormalityName = tag.getString("AbName");
         entry.riskName = tag.getString("Risk");
         entry.riskColor = tag.getInt("RiskColor");
+        entry.toolType = tag.getBoolean("ToolType");
         entry.status = tag.getInt("Status");
         entry.qliphoth = tag.getInt("Qliphoth");
         entry.maxQliphoth = tag.getInt("MaxQliphoth");
         entry.healthPercent = tag.getFloat("Health");
         entry.playersInside = tag.getInt("Players");
         entry.escapeDistance = tag.getInt("EscapeDist");
+        entry.meltdownActive = tag.getBoolean("MeltdownActive");
+        entry.meltdownRemainingTicks = Math.max(0, tag.getInt("MeltdownRemainingTicks"));
         entry.lastUpdate = tag.getLong("LastUpdate");
         return entry;
     }
@@ -129,16 +149,20 @@ public class RoomEntry {
     public void write(FriendlyByteBuf buf) {
         buf.writeResourceLocation(dimension);
         buf.writeBlockPos(pos);
+        buf.writeUtf(departmentId, FacilityAreaEntry.MAX_DEPARTMENT_LENGTH);
         buf.writeUtf(abnormalityCode, 32);
         buf.writeUtf(abnormalityName, 64);
         buf.writeUtf(riskName, 32);
         buf.writeInt(riskColor);
+        buf.writeBoolean(toolType);
         buf.writeByte(status);
         buf.writeVarInt(qliphoth);
         buf.writeVarInt(maxQliphoth);
         buf.writeFloat(healthPercent);
         buf.writeVarInt(playersInside);
         buf.writeVarInt(escapeDistance);
+        buf.writeBoolean(meltdownActive);
+        buf.writeVarInt(Math.max(0, meltdownRemainingTicks));
         buf.writeLong(lastUpdate);
         buf.writeVarInt(floorIndex + 1);
         buf.writeUtf(floorName, 48);
@@ -149,16 +173,20 @@ public class RoomEntry {
         RoomEntry entry = new RoomEntry();
         entry.dimension = buf.readResourceLocation();
         entry.pos = buf.readBlockPos();
+        entry.departmentId = buf.readUtf(FacilityAreaEntry.MAX_DEPARTMENT_LENGTH);
         entry.abnormalityCode = buf.readUtf(32);
         entry.abnormalityName = buf.readUtf(64);
         entry.riskName = buf.readUtf(32);
         entry.riskColor = buf.readInt();
+        entry.toolType = buf.readBoolean();
         entry.status = buf.readByte();
         entry.qliphoth = buf.readVarInt();
         entry.maxQliphoth = buf.readVarInt();
         entry.healthPercent = buf.readFloat();
         entry.playersInside = buf.readVarInt();
         entry.escapeDistance = buf.readVarInt();
+        entry.meltdownActive = buf.readBoolean();
+        entry.meltdownRemainingTicks = Math.max(0, buf.readVarInt());
         entry.lastUpdate = buf.readLong();
         entry.floorIndex = buf.readVarInt() - 1;
         entry.floorName = buf.readUtf(48);

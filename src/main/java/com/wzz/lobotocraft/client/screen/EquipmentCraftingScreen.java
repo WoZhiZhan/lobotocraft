@@ -1,9 +1,12 @@
 package com.wzz.lobotocraft.client.screen;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.wzz.lobotocraft.client.ui.LobotomyUiRenderer;
+import com.wzz.lobotocraft.client.ui.LobotomyUiTheme;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
+import com.wzz.lobotocraft.ego.EgoResearchScope;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.DevelopEquipmentPacket;
@@ -26,12 +29,14 @@ public class EquipmentCraftingScreen extends Screen {
     private final String abnormalityCode;
     private final int abnormalityId;
     private final double scrollOffset;
+    private final EgoResearchScope researchScope;
     
     // 装备数据
     private final ResourceLocation equipmentIcon;
     private final String equipmentName;
     private final RiskLevel riskLevel;
     private final int cost;
+    private final Screen returnScreen;
     
     // 进度相关
     private static final int CRAFTING_DURATION = 100; // 5秒 (100 ticks)
@@ -50,12 +55,31 @@ public class EquipmentCraftingScreen extends Screen {
     public EquipmentCraftingScreen(String craftingType, String abnormalityCode, 
                                    int abnormalityId, double scrollOffset,
                                    IAbnormality abnormality, int cost) {
+        this(craftingType, abnormalityCode, abnormalityId, scrollOffset, abnormality, cost,
+                EgoResearchScope.PERSONAL, null);
+    }
+
+    public EquipmentCraftingScreen(String craftingType, String abnormalityCode,
+                                   int abnormalityId, double scrollOffset,
+                                   IAbnormality abnormality, int cost,
+                                   EgoResearchScope researchScope) {
+        this(craftingType, abnormalityCode, abnormalityId, scrollOffset, abnormality, cost,
+                researchScope, null);
+    }
+
+    public EquipmentCraftingScreen(String craftingType, String abnormalityCode,
+                                   int abnormalityId, double scrollOffset,
+                                   IAbnormality abnormality, int cost,
+                                   EgoResearchScope researchScope,
+                                   Screen returnScreen) {
         super(Component.literal("装备制造中..."));
         this.craftingType = craftingType;
         this.abnormalityCode = abnormalityCode;
         this.abnormalityId = abnormalityId;
         this.scrollOffset = scrollOffset;
         this.cost = cost;
+        this.researchScope = researchScope;
+        this.returnScreen = returnScreen;
         
         // 根据类型获取装备数据
         if ("weapon".equals(craftingType)) {
@@ -119,7 +143,7 @@ public class EquipmentCraftingScreen extends Screen {
 
     private void renderContent(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         // 半透明黑色背景
-        graphics.fill(0, 0, this.width, this.height, 0xD0000000);
+        graphics.fill(0, 0, this.width, this.height, LobotomyUiTheme.BG_SCRIM);
         
         // 计算面板位置（居中）
         int panelX = (this.width - PANEL_WIDTH) / 2;
@@ -139,30 +163,31 @@ public class EquipmentCraftingScreen extends Screen {
         
         // 绘制状态文本
         renderStatusText(graphics, panelX, panelY);
+
+        String scopeText = researchScope == EgoResearchScope.PERSONAL ? "个人授权" : "AI 全局库存";
+        LobotomyUiRenderer.drawTag(graphics, this.font,
+                panelX + (PANEL_WIDTH - this.font.width(scopeText) - 8) / 2, panelY + 8,
+                scopeText,
+                researchScope == EgoResearchScope.PERSONAL
+                        ? LobotomyUiTheme.GOLD : LobotomyUiTheme.ACCENT);
         
         super.render(graphics, mouseX, mouseY, partialTick);
     }
 
     /**
-     * 绘制主面板背景
+     * 绘制主面板背景：外圈青白呼吸光 + 不透底面板
      */
     private void renderMainPanel(GuiGraphics graphics, int x, int y) {
-        // 外边框 - 渐变橙色光效
+        // 外圈呼吸光边（只画面板四周的 2px 环，不透进面板内部）
         int glowColor = getGlowColor();
-        graphics.fill(x - 2, y - 2, x + PANEL_WIDTH + 2, y + PANEL_HEIGHT + 2, glowColor);
-        
-        // 主背景 - 深色半透明
-        graphics.fill(x, y, x + PANEL_WIDTH, y + PANEL_HEIGHT, 0xE0151515);
-        
-        // 顶部装饰条
-        graphics.fill(x, y, x + PANEL_WIDTH, y + 3, 0xFFFF8800);
-        
-        // 底部装饰条
-        graphics.fill(x, y + PANEL_HEIGHT - 3, x + PANEL_WIDTH, y + PANEL_HEIGHT, 0xFF884400);
-        
-        // 内部边框
-        graphics.fill(x + 5, y + 5, x + PANEL_WIDTH - 5, y + 6, 0x60FFAA00);
-        graphics.fill(x + 5, y + PANEL_HEIGHT - 6, x + PANEL_WIDTH - 5, y + PANEL_HEIGHT - 5, 0x60FFAA00);
+        graphics.fill(x - 2, y - 2, x + PANEL_WIDTH + 2, y, glowColor);
+        graphics.fill(x - 2, y + PANEL_HEIGHT, x + PANEL_WIDTH + 2, y + PANEL_HEIGHT + 2, glowColor);
+        graphics.fill(x - 2, y, x, y + PANEL_HEIGHT, glowColor);
+        graphics.fill(x + PANEL_WIDTH, y, x + PANEL_WIDTH + 2, y + PANEL_HEIGHT, glowColor);
+
+        // 不透底主底 + 主题面板（描边/受光上缘/角括号）
+        graphics.fill(x, y, x + PANEL_WIDTH, y + PANEL_HEIGHT, LobotomyUiTheme.BG_PANEL_SOLID);
+        LobotomyUiRenderer.drawPanel(graphics, x, y, PANEL_WIDTH, PANEL_HEIGHT);
     }
 
     /**
@@ -172,16 +197,15 @@ public class EquipmentCraftingScreen extends Screen {
         int iconX = x + (PANEL_WIDTH - ICON_SIZE) / 2;
         int iconY = y + 20;
         
-        // 图标背景 - 脉动光效
-        float pulse = Mth.sin((craftingTicks + partialTick) * 0.1f) * 0.3f + 0.7f;
-        int bgColor = (int)(pulse * 60) << 24 | 0x442200;
-        graphics.fill(iconX - 5, iconY - 5, iconX + ICON_SIZE + 5, iconY + ICON_SIZE + 5, bgColor);
-        
-        // 边框
-        graphics.fill(iconX - 5, iconY - 5, iconX + ICON_SIZE + 5, iconY - 4, 0xFFFFAA00);
-        graphics.fill(iconX - 5, iconY + ICON_SIZE + 4, iconX + ICON_SIZE + 5, iconY + ICON_SIZE + 5, 0xFFFFAA00);
-        graphics.fill(iconX - 5, iconY - 5, iconX - 4, iconY + ICON_SIZE + 5, 0xFFFFAA00);
-        graphics.fill(iconX + ICON_SIZE + 4, iconY - 5, iconX + ICON_SIZE + 5, iconY + ICON_SIZE + 5, 0xFFFFAA00);
+        // 图标底：内嵌盒 + 青白脉动微光 + 角括号
+        LobotomyUiRenderer.drawInsetBox(graphics, iconX - 5, iconY - 5,
+                ICON_SIZE + 10, ICON_SIZE + 10);
+        float pulse = Mth.sin((craftingTicks + partialTick) * 0.1f) * 0.5f + 0.5f;
+        graphics.fill(iconX - 4, iconY - 4, iconX + ICON_SIZE + 4, iconY + ICON_SIZE + 4,
+                LobotomyUiRenderer.withAlpha(LobotomyUiTheme.ACCENT, 0.06f + 0.10f * pulse));
+        LobotomyUiRenderer.drawCorners(graphics, iconX - 5, iconY - 5,
+                ICON_SIZE + 10, ICON_SIZE + 10, LobotomyUiTheme.CORNER_LEN,
+                LobotomyUiTheme.LINE_ACCENT);
         
         // 绘制装备图标
         if (equipmentIcon != null && ResourceUtil.exists(equipmentIcon)) {
@@ -210,7 +234,7 @@ public class EquipmentCraftingScreen extends Screen {
             
             // 绘制小光点
             float alpha = (Mth.sin(particleAnimation + i) * 0.5f + 0.5f);
-            int color = (int)(alpha * 200) << 24 | 0xFFDD00;
+            int color = LobotomyUiRenderer.withAlpha(LobotomyUiTheme.ENERGY_GREEN, alpha * 0.78f);
             graphics.fill(px - 2, py - 2, px + 2, py + 2, color);
         }
     }
@@ -224,11 +248,11 @@ public class EquipmentCraftingScreen extends Screen {
         // 装备类型
         String typeText = "weapon".equals(craftingType) ? "E.G.O 武器" : "E.G.O 护甲";
         graphics.drawCenteredString(this.font, typeText,
-                x + PANEL_WIDTH / 2, infoY, 0xFFAAAAAA);
-        
+                x + PANEL_WIDTH / 2, infoY, LobotomyUiTheme.TEXT_MUTED);
+
         // 装备名称
         graphics.drawCenteredString(this.font, equipmentName,
-                x + PANEL_WIDTH / 2, infoY + 12, 0xFFFFFFFF);
+                x + PANEL_WIDTH / 2, infoY + 12, LobotomyUiTheme.TEXT_TITLE);
         
         // 风险等级
         int riskColor = riskLevel.getColor();
@@ -243,43 +267,28 @@ public class EquipmentCraftingScreen extends Screen {
         int barY = y + 150;
         int barX = x + 30;
         int barWidth = PANEL_WIDTH - 60;
-        int barHeight = 20;
-        
-        // 进度条背景
-        graphics.fill(barX, barY, barX + barWidth, barY + barHeight, 0xFF2A2A2A);
-        
-        // 进度条边框
-        graphics.fill(barX - 1, barY - 1, barX + barWidth + 1, barY, 0xFF666666);
-        graphics.fill(barX - 1, barY + barHeight, barX + barWidth + 1, barY + barHeight + 1, 0xFF666666);
-        graphics.fill(barX - 1, barY, barX, barY + barHeight, 0xFF666666);
-        graphics.fill(barX + barWidth, barY, barX + barWidth + 1, barY + barHeight, 0xFF666666);
-        
+        int barHeight = 16;
+
         // 计算进度
         float progress = (craftingTicks + partialTick) / CRAFTING_DURATION;
         progress = Mth.clamp(progress, 0f, 1f);
+
+        // 主题进度条（条底/描边/光带由 renderer 内建）
+        LobotomyUiRenderer.drawBar(graphics, barX, barY, barWidth, barHeight,
+                progress, 1f, LobotomyUiTheme.ACCENT);
+
+        // 闪烁效果
         int filledWidth = (int)(barWidth * progress);
-        
-        // 进度条填充 - 渐变效果
-        if (filledWidth > 0) {
-            // 底层 - 深橙色
-            graphics.fill(barX, barY, barX + filledWidth, barY + barHeight, 0xFFCC6600);
-            
-            // 顶层光效 - 亮橙色
-            int lightHeight = barHeight / 3;
-            graphics.fill(barX, barY, barX + filledWidth, barY + lightHeight, 0xFFFFAA00);
-            
-            // 闪烁效果
-            if (!isCompleted) {
-                float shine = Mth.sin(glowAnimation) * 0.3f + 0.3f;
-                int shineColor = (int)(shine * 128) << 24 | 0xFFFFFF;
-                graphics.fill(barX, barY, barX + filledWidth, barY + 2, shineColor);
-            }
+        if (!isCompleted && filledWidth > 0) {
+            float shine = Mth.sin(glowAnimation) * 0.25f + 0.25f;
+            graphics.fill(barX, barY, barX + filledWidth, barY + 2,
+                    LobotomyUiRenderer.withAlpha(0xFFFFFFFF, shine));
         }
-        
+
         // 进度百分比文字
         String progressText = String.format("%.0f%%", progress * 100);
         graphics.drawCenteredString(this.font, progressText,
-                barX + barWidth / 2, barY + 6, 0xFFFFFFFF);
+                barX + barWidth / 2, barY + 4, LobotomyUiTheme.TEXT_TITLE);
     }
 
     /**
@@ -289,16 +298,16 @@ public class EquipmentCraftingScreen extends Screen {
         int textY = y + 180;
         
         if (isCompleted) {
-            graphics.drawCenteredString(this.font, "§a§l制造完成！",
-                    x + PANEL_WIDTH / 2, textY, 0xFFFFFFFF);
+            graphics.drawCenteredString(this.font, "制造完成！",
+                    x + PANEL_WIDTH / 2, textY, LobotomyUiTheme.ENERGY_GREEN);
         } else {
             int remainingSeconds = (CRAFTING_DURATION - craftingTicks) / 20 + 1;
             String statusText = String.format("制造中... %d秒", remainingSeconds);
-            
-            // 闪烁效果
+
+            // 呼吸闪烁效果
             float alpha = Mth.sin(glowAnimation * 2) * 0.3f + 0.7f;
-            int textColor = (int)(alpha * 255) << 24 | 0xFFDD00;
-            
+            int textColor = LobotomyUiRenderer.withAlpha(LobotomyUiTheme.WARN_YELLOW, alpha);
+
             graphics.drawCenteredString(this.font, statusText,
                     x + PANEL_WIDTH / 2, textY, textColor);
         }
@@ -317,17 +326,17 @@ public class EquipmentCraftingScreen extends Screen {
         
         // 发送网络包到服务器
         MessageLoader.getLoader().sendToServer(
-            new DevelopEquipmentPacket(abnormalityCode, craftingType, abnormalityId, scrollOffset)
+            new DevelopEquipmentPacket(abnormalityCode, craftingType, abnormalityId, scrollOffset,
+                    researchScope.id())
         );
     }
 
     /**
-     * 获取发光颜色（脉动效果）
+     * 获取发光颜色（青白脉动效果）
      */
     private int getGlowColor() {
-        float pulse = Mth.sin(glowAnimation) * 0.3f + 0.7f;
-        int alpha = (int)(pulse * 180);
-        return (alpha << 24) | 0xFF8800;
+        float pulse = Mth.sin(glowAnimation) * 0.5f + 0.5f;
+        return LobotomyUiRenderer.withAlpha(LobotomyUiTheme.ACCENT, 0.35f + 0.25f * pulse);
     }
 
     @Override
@@ -342,6 +351,10 @@ public class EquipmentCraftingScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    public Screen getReturnScreen() {
+        return returnScreen;
     }
 
     // ==================== 自适应缩放:鼠标坐标逆变换(与渲染变换保持一致,避免点击错位) ====================

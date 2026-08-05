@@ -1,8 +1,11 @@
 package com.wzz.lobotocraft.event.listener;
 
+import com.lobotocraft.facility.OrdealRewardService;
+import com.lobotocraft.facility.data.OrdealTier;
 import com.wzz.lobotocraft.ModMain;
-import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
+import com.wzz.lobotocraft.entity.base.EscapeTracker;
 import com.wzz.lobotocraft.entity.ordeal.EntityGreenDawn;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModSounds;
@@ -32,38 +35,29 @@ public class GreenDawnEvent {
     private static final int MAX_NATURAL_GREEN_DAWNS_PER_DIMENSION = 10;
     private static final int SEARCH_LIMIT = 30_000_000;
 
-    public static void triggerGreenDawn(ServerLevel level) {
+    public static boolean triggerGreenDawn(ServerLevel level) {
         OrdealData data = OrdealData.get(level);
-        if (data.hasActiveDawn()) return;
+        if (data.isGreenDawnActive()) return false;
 
-        List<SpawnPoint> fallbackSpawnPoints = collectSpawnPoints(level);
-        if (fallbackSpawnPoints.isEmpty()) {
-            return;
-        }
-
-        List<ServerPlayer> players = getEligiblePlayers(level);
-        int available = MAX_NATURAL_GREEN_DAWNS_PER_DIMENSION - countActiveOrdealGreenDawns(level);
-        int count = Math.min(available, Math.max(1, players.size()));
-        if (count <= 0) {
-            return;
+        List<OrdealSpawnPointService.DepartmentCorridors> departments =
+                OrdealSpawnPointService.openCorridorsByDepartment(level);
+        if (departments.isEmpty()) {
+            return false;
         }
 
         int spawned = 0;
-        if (players.isEmpty()) {
-            spawned = spawnGreenDawns(level, fallbackSpawnPoints, count);
-        } else {
-            for (ServerPlayer player : players) {
-                if (spawned >= count) {
+        int departmentCount = OrdealSpawnPolicy.dawnDepartmentCount(departments.size());
+        for (int index = 0; index < departmentCount; index++) {
+            for (BlockPos corridor : departments.get(index).corridors()) {
+                BlockPos spawnPos = EntityUtil.findSafeGroundPositionInCompany(level, corridor, 4);
+                if (spawnGreenDawnAt(level, spawnPos)) {
+                    spawned++;
                     break;
                 }
-                if (spawnGreenDawnNearPlayer(level, player, fallbackSpawnPoints)) {
-                    spawned++;
-                }
             }
-            spawned += spawnGreenDawns(level, fallbackSpawnPoints, count - spawned);
         }
         if (spawned <= 0) {
-            return;
+            return false;
         }
 
         data.setDawnChance(0);
@@ -78,6 +72,8 @@ public class GreenDawnEvent {
                 "疑问",
                 "有一天，我们想到一个问题：我们从何而来？我们被给予了生命，却又被不负责任地抛弃。");
         playGlobalSound(server, ModSounds.GREEN_DAWN_START.get());
+        EscapeTracker.getInstance().onOrdealStart(level, OrdealTier.DAWN);
+        return true;
     }
 
     public static void onGreenDawnKilled(ServerLevel level) {
@@ -87,6 +83,7 @@ public class GreenDawnEvent {
 
         data.finishGreenDawn();
         MinecraftServer server = level.getServer();
+        OrdealRewardService.complete(server, OrdealTier.DAWN);
         showGreenDawnTitle(server,
                 "绿色的黎明",
                 "疑问",
@@ -98,13 +95,12 @@ public class GreenDawnEvent {
         List<SpawnPoint> spawnPoints = new ArrayList<>();
         EntityUtil.findBlockEntities(level).stream()
                 .filter(RegenerationReactorBlockEntity.class::isInstance)
-                .filter(blockEntity -> EntityUtil.isInCompany(level, blockEntity.getBlockPos()))
+                .filter(blockEntity -> OrdealSpawnPointService.isOpenMappedArea(
+                        level, blockEntity.getBlockPos()))
                 .map(blockEntity -> new SpawnPoint(blockEntity.getBlockPos(), true))
                 .forEach(spawnPoints::add);
 
-        EscapeBlockEntity.getEscapeBlocks(level.dimension()).stream()
-                .filter(pos -> level.getBlockEntity(pos) instanceof EscapeBlockEntity)
-                .filter(pos -> EntityUtil.isInCompany(level, pos))
+        OrdealSpawnPointService.collectOpenCorridors(level).stream()
                 .map(pos -> new SpawnPoint(pos, false))
                 .forEach(spawnPoints::add);
 
@@ -129,20 +125,17 @@ public class GreenDawnEvent {
         List<SpawnPoint> spawnPoints = new ArrayList<>();
         BlockPos nearestReactor = findNearestPos(EntityUtil.findBlockEntities(level).stream()
                 .filter(RegenerationReactorBlockEntity.class::isInstance)
-                .filter(blockEntity -> EntityUtil.isInCompany(level, blockEntity.getBlockPos()))
+                .filter(blockEntity -> OrdealSpawnPointService.isOpenMappedArea(
+                        level, blockEntity.getBlockPos()))
                 .map(blockEntity -> blockEntity.getBlockPos())
                 .toList(), playerPos);
         if (nearestReactor != null) {
             spawnPoints.add(new SpawnPoint(nearestReactor, true));
         }
 
-        BlockPos nearestEscapeBlock = findNearestPos(EscapeBlockEntity.getEscapeBlocks(level.dimension()).stream()
-                .filter(pos -> level.getBlockEntity(pos) instanceof EscapeBlockEntity)
-                .filter(pos -> EntityUtil.isInCompany(level, pos))
-                .toList(), playerPos);
-        if (nearestEscapeBlock != null
-                && level.getBlockEntity(nearestEscapeBlock) instanceof EscapeBlockEntity
-                && EntityUtil.isInCompany(level, nearestEscapeBlock)) {
+        BlockPos nearestEscapeBlock = findNearestPos(
+                OrdealSpawnPointService.collectOpenCorridors(level), playerPos);
+        if (nearestEscapeBlock != null) {
             spawnPoints.add(new SpawnPoint(nearestEscapeBlock, false));
         }
 
@@ -173,7 +166,8 @@ public class GreenDawnEvent {
     }
 
     private static boolean spawnGreenDawnAt(ServerLevel level, BlockPos spawnPos) {
-        if (spawnPos == null || !EntityUtil.isInCompany(level, spawnPos)) {
+        if (spawnPos == null || !FacilityAccessService.isPositionOpen(level.getServer(),
+                level.dimension().location(), spawnPos)) {
             return false;
         }
 
@@ -214,7 +208,8 @@ public class GreenDawnEvent {
     }
 
     private static boolean canPlaceGreenDawn(ServerLevel level, EntityGreenDawn greenDawn, BlockPos pos) {
-        if (pos == null || !EntityUtil.isInCompany(level, pos)) {
+        if (pos == null || !FacilityAccessService.isPositionOpen(level.getServer(),
+                level.dimension().location(), pos)) {
             return false;
         }
         if (pos.getY() <= level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight() - 1) {

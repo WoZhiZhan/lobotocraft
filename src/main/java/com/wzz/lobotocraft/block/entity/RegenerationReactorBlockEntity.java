@@ -54,6 +54,15 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
     public RegenerationReactorBlockEntity(BlockPos pos, BlockState blockState) {
         super(ModBlockEntities.REGENERATION_REACTOR.get(), pos, blockState);
     }
+
+    @Override
+    public void onLoad() {
+        super.onLoad();
+        if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+            com.wzz.lobotocraft.entity.abnormality.IsharmlaSpawnData.get(serverLevel.getServer())
+                    .registerReactor(serverLevel.dimension().location(), worldPosition);
+        }
+    }
     
     /**
      * 服务端Tick逻辑
@@ -270,7 +279,7 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
             return;
         }
         float maxHealth = player.getMaxHealth();
-        if (MentalValueUtil.getMentalValue(serverPlayer) <= 0) {
+        if (MentalValueUtil.isPanic(serverPlayer)) {
             return;
         }
 

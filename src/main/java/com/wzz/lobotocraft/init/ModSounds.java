@@ -100,6 +100,10 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> ESCAPE_ALERT_BGM_0 = register("escape_alert_bgm_0");
 	public static final RegistryObject<SoundEvent> ESCAPE_ALERT_BGM_1 = register("escape_alert_bgm_1");
 	public static final RegistryObject<SoundEvent> ESCAPE_ALERT_BGM_2 = register("escape_alert_bgm_2");
+	public static final RegistryObject<SoundEvent> NORMAL_WORK_0 = register("normal_work_0");
+	public static final RegistryObject<SoundEvent> NORMAL_WORK_1 = register("normal_work_1");
+	public static final RegistryObject<SoundEvent> NORMAL_WORK_2 = register("normal_work_2");
+	public static final RegistryObject<SoundEvent> NORMAL_WORK_3 = register("normal_work_3");
 	public static final RegistryObject<SoundEvent> SNOW_QUEEN_IDLE = register("snow_queen_idle");
 	public static final RegistryObject<SoundEvent> SNOW_QUEEN_DUEL = register("snow_queen_duel");
 	public static final RegistryObject<SoundEvent> SNOW_QUEEN_DUEL_FAIL = register("snow_queen_duel_fail");

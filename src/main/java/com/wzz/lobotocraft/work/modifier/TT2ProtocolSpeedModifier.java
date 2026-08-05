@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.work.modifier;
 
+import com.lobotocraft.facility.data.FacilityDayData;
 import com.wzz.lobotocraft.work.IWorkSpeedModifier;
 import com.wzz.lobotocraft.work.WorkManager;
 import net.minecraft.server.level.ServerPlayer;
@@ -17,7 +18,7 @@ public class TT2ProtocolSpeedModifier implements IWorkSpeedModifier {
     
     @Override
     public float getSpeedMultiplier(ServerPlayer player, WorkManager.WorkSession session) {
-        if (player.getPersistentData().getBoolean("useTT2")) {
+        if (isEnabled(player)) {
             return 2.0f;
         }
         return 1.0f;
@@ -30,6 +31,10 @@ public class TT2ProtocolSpeedModifier implements IWorkSpeedModifier {
     
     @Override
     public boolean isActive(ServerPlayer player, WorkManager.WorkSession session) {
-        return player.getPersistentData().getBoolean("useTT2");
+        return isEnabled(player);
+    }
+
+    private static boolean isEnabled(ServerPlayer player) {
+        return player != null && FacilityDayData.get(player.server.overworld()).isTt2ProtocolEnabled();
     }
 }

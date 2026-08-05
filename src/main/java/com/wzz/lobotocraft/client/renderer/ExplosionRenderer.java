@@ -6,6 +6,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Axis;
+import com.wzz.lobotocraft.client.performance.ClientPerformanceMonitor;
 import com.wzz.lobotocraft.event.listener.ScreenSnakeEvent;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import net.minecraft.client.Camera;
@@ -29,6 +30,11 @@ import java.util.List;
 
 @OnlyIn(Dist.CLIENT)
 public class ExplosionRenderer {
+    private static final int MAX_ACTIVE_EXPLOSIONS = 8;
+    private static final int MAX_FIREBALLS_PER_EXPLOSION = 96;
+    private static final int MAX_DEBRIS_PER_EXPLOSION = 192;
+    private static final float MAX_EXPLOSION_RADIUS = 64.0F;
+    private static final float MAX_EXPLOSION_DURATION_SECONDS = 10.0F;
     
     public static class UltimateExplosion {
         public Vec3 position;
@@ -51,12 +57,12 @@ public class ExplosionRenderer {
                 shockwaves.add(new ShockwaveRing(pos, radius, i * 0.2f));
             }
             this.fireBalls = new ArrayList<>();
-            int fireballCount = (int)(radius * 1.5f) + 5;
+            int fireballCount = Math.min(MAX_FIREBALLS_PER_EXPLOSION, (int)(radius * 1.5f) + 5);
             for (int i = 0; i < fireballCount; i++) {
                 fireBalls.add(new FireBall(pos, radius));
             }
             this.debris = new ArrayList<>();
-            int debrisCount = (int)(radius * 3) + 10;
+            int debrisCount = Math.min(MAX_DEBRIS_PER_EXPLOSION, (int)(radius * 3) + 10);
             for (int i = 0; i < debrisCount; i++) {
                 debris.add(new DebrisParticle(pos, radius));
             }
@@ -293,7 +299,18 @@ public class ExplosionRenderer {
     );
     
     public static void createExplosion(Vec3 position, float duration, float radius) {
-        explosions.add(new UltimateExplosion(position, duration, radius));
+        if (position == null
+                || !Double.isFinite(position.x) || !Double.isFinite(position.y) || !Double.isFinite(position.z)
+                || !Float.isFinite(duration) || !Float.isFinite(radius)) {
+            return;
+        }
+
+        float safeDuration = Mth.clamp(duration, 0.05F, MAX_EXPLOSION_DURATION_SECONDS);
+        float safeRadius = Mth.clamp(radius, 0.5F, MAX_EXPLOSION_RADIUS);
+        while (explosions.size() >= MAX_ACTIVE_EXPLOSIONS) {
+            explosions.remove(0);
+        }
+        explosions.add(new UltimateExplosion(position, safeDuration, safeRadius));
         Minecraft mc = Minecraft.getInstance();
         if (mc.level != null) {
             mc.level.playLocalSound(
@@ -306,9 +323,23 @@ public class ExplosionRenderer {
             );
         }
     }
+
+    public static int getActiveExplosionCount() {
+        return explosions.size();
+    }
     
     @SubscribeEvent
     public static void onRenderWorldLast(RenderLevelStageEvent event) {
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES || explosions.isEmpty()) return;
+        long sectionStarted = ClientPerformanceMonitor.beginSection("explosion_render");
+        try {
+            renderActiveExplosions(event);
+        } finally {
+            ClientPerformanceMonitor.endSection("explosion_render", sectionStarted);
+        }
+    }
+
+    private static void renderActiveExplosions(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) return;
         if (explosions.isEmpty()) return;
         
@@ -324,6 +355,7 @@ public class ExplosionRenderer {
 
         RenderSystem.enableBlend();
         RenderSystem.depthMask(false);
+        try {
         
         for (UltimateExplosion explosion : explosions) {
             if (explosion.isActive()) {
@@ -338,9 +370,11 @@ public class ExplosionRenderer {
             }
         }
         
-        bufferSource.endBatch();
-        RenderSystem.depthMask(true);
-        RenderSystem.disableBlend();
+            bufferSource.endBatch();
+        } finally {
+            RenderSystem.depthMask(true);
+            RenderSystem.disableBlend();
+        }
         
         // 更新爆炸
         explosions.removeIf(explosion -> {

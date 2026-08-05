@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.AiSpecialEgoWeapon;
 import com.wzz.lobotocraft.util.ClientInputUtil;
 import com.wzz.lobotocraft.util.DamageHelper;
 import net.minecraft.core.particles.ParticleTypes;
@@ -28,10 +29,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class ChildrenGalaxyWeapon extends BaseEgoWeapon {
+public class ChildrenGalaxyWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapon {
     private static final int COOLDOWN = 40;
     private static final float DAMAGE = 15.0f;
     private static final double ATTACK_RANGE = 3.0D;
+    @Override public double aiSpecialAttackRange() { return ATTACK_RANGE; }
     private static final double ATTACK_HALF_WIDTH = 1.5D;
     private static final double ATTACK_HALF_HEIGHT = 1.5D;
 

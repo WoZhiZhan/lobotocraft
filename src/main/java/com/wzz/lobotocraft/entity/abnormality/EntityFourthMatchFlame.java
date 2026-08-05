@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.block.entity.ElevatorBlockEntity;
+import com.wzz.lobotocraft.block.entity.ElevatorEntryFloorPolicy;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
@@ -166,7 +167,9 @@ public class EntityFourthMatchFlame extends AbstractAbnormality {
 
     @Override
     public void stopEscape() {
+        boolean wasEscaped = hasEscape();
         super.stopEscape();
+        if (!wasEscaped || hasEscape()) return;
         setTarget(null);
 
         // 清除目标和自爆状态
@@ -355,9 +358,8 @@ public class EntityFourthMatchFlame extends AbstractAbnormality {
 
         // 在原位置重生新的焦化少女
         respawnAtEscapePosition(serverLevel);
-
-        // 移除当前实体
-        this.discard();
+        setExploding(false);
+        setExplosionTimer(0);
     }
 
     /**
@@ -578,7 +580,7 @@ public class EntityFourthMatchFlame extends AbstractAbnormality {
         }
 
         private BlockPos findBestElevator(ServerPlayer target, double yDiffToTarget) {
-            if (!(entity.level() instanceof ServerLevel)) {
+            if (!(entity.level() instanceof ServerLevel serverLevel)) {
                 return null;
             }
 
@@ -593,10 +595,11 @@ public class EntityFourthMatchFlame extends AbstractAbnormality {
             for (BlockEntity blockEntity : nearbyBlockEntities) {
                 if (blockEntity instanceof ElevatorBlockEntity elevator) {
                     BlockPos elevatorPos = blockEntity.getBlockPos();
-                    if (needGoUp != elevator.isTeleportUp()) {
+                    if (!ElevatorEntryFloorPolicy.isOnEntityFloor(
+                            serverLevel, entityPos, elevatorPos)) {
                         continue;
                     }
-                    BlockPos destinationElevator = elevator.findDestinationElevator(entity.level());
+                    BlockPos destinationElevator = elevator.findDestinationElevator(entity.level(), needGoUp);
                     if (destinationElevator == null) {
                         continue;
                     }
@@ -631,7 +634,10 @@ public class EntityFourthMatchFlame extends AbstractAbnormality {
                     targetElevatorPos.getY() + 1.0D,
                     targetElevatorPos.getZ() + 0.5D
             );
-            if (distToElevator <= 2.5D) {
+            if (distToElevator <= ElevatorBlockEntity.INTERACTION_RADIUS * ElevatorBlockEntity.INTERACTION_RADIUS) {
+                if (entity.level().getBlockEntity(targetElevatorPos) instanceof ElevatorBlockEntity elevator) {
+                    elevator.tryTravel(entity, target.getY() > entity.getY());
+                }
                 state = State.WAITING_ON_ELEVATOR;
                 elevatorWaitTimer = 0;
                 entity.getNavigation().stop();
@@ -667,6 +673,12 @@ public class EntityFourthMatchFlame extends AbstractAbnormality {
             }
 
             elevatorWaitTimer++;
+            if (!(entity.level().getBlockEntity(targetElevatorPos) instanceof ElevatorBlockEntity source)
+                    || !source.isWithinInteractionRange(entity)) {
+                state = State.FINDING_PATH;
+                evaluateState();
+                return;
+            }
             if (Math.abs(target.getY() - entity.getY()) <= 5.0D) {
                 state = State.AFTER_ELEVATOR;
                 elevatorWaitTimer = 0;
@@ -674,9 +686,7 @@ public class EntityFourthMatchFlame extends AbstractAbnormality {
             }
 
             if (elevatorWaitTimer > 100) {
-                if (entity.level().getBlockEntity(targetElevatorPos) instanceof ElevatorBlockEntity elevator) {
-                    elevator.onStep(entity);
-                }
+                source.tryTravel(entity, target.getY() > entity.getY());
                 elevatorWaitTimer = 60;
             }
         }

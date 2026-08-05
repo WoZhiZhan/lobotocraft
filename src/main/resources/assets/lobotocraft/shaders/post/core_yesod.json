@@ -1,0 +1,15 @@
+{
+  "targets": [ "swap_a", "swap_b" ],
+  "passes": [
+    { "name": "lobotocraft:core_pixelisation", "intarget": "minecraft:main", "outtarget": "swap_a" },
+    {
+      "name": "lobotocraft:core_noise_tv",
+      "intarget": "swap_a",
+      "outtarget": "swap_b",
+      "auxtargets": [
+        { "name": "NoiseSampler", "id": "lobotocraft:core/tv_noise", "width": 256, "height": 256, "bilinear": true }
+      ]
+    },
+    { "name": "lobotocraft:core_glitch", "intarget": "swap_b", "outtarget": "minecraft:main" }
+  ]
+}

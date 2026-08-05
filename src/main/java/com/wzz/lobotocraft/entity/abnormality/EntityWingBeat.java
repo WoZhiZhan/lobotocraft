@@ -18,9 +18,8 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -34,8 +33,13 @@ import software.bernie.geckolib.core.object.PlayState;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class EntityWingBeat extends AbstractAbnormality {
+    public static final String ACTIVE_FLAG = "isInWingBeat";
+    public static final String SESSION_KEY = "lobotocraft_wingbeat_session";
+    public static final String SESSION_EXPIRY_KEY = "lobotocraft_wingbeat_expires_at";
+    private static final long SESSION_DURATION_TICKS = 160L;
     private static final EntityDataAccessor<Boolean> DATA_SMALL =
             SynchedEntityData.defineId(EntityWingBeat.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> DATA_IS_LEADER =
@@ -47,6 +51,8 @@ public class EntityWingBeat extends AbstractAbnormality {
 
     private int playerID;
     private Player player;
+    private UUID playerUUID;
+    private UUID sessionUUID;
     private int tick;
     private float orbitAngle = 0.0F;       // 当前角度
     private float orbitRadius = 1.5F;      // 轨道半径
@@ -99,10 +105,12 @@ public class EntityWingBeat extends AbstractAbnormality {
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putBoolean("IsSmall", this.isSmall());
-        if (this.player != null) {
+        if (this.player != null || playerUUID != null) {
             tag.putInt("PlayerID", this.playerID);
             tag.putInt("Tick", this.tick);
         }
+        if (playerUUID != null) tag.putUUID("PlayerUUID", playerUUID);
+        if (sessionUUID != null) tag.putUUID("WingBeatSession", sessionUUID);
         tag.putFloat("OrbitAngle", this.orbitAngle);
         tag.putFloat("OrbitRadius", this.orbitRadius);
         tag.putFloat("OrbitHeight", this.orbitHeight);
@@ -116,18 +124,20 @@ public class EntityWingBeat extends AbstractAbnormality {
         if (tag.contains("IsSmall")) {
             this.setSmall(tag.getBoolean("IsSmall"));
         }
+        playerUUID = tag.hasUUID("PlayerUUID") ? tag.getUUID("PlayerUUID") : null;
+        sessionUUID = tag.hasUUID("WingBeatSession") ? tag.getUUID("WingBeatSession") : null;
+        this.tick = tag.getInt("Tick");
         int savedPlayerID = tag.getInt("PlayerID");
         if (savedPlayerID != 0) {
             this.playerID = savedPlayerID;
             Entity entity = this.level.getEntity(this.playerID);
-            if (entity instanceof Player p) {
-                this.tick = tag.getInt("Tick");
+            if (entity instanceof Player p && (playerUUID == null || playerUUID.equals(p.getUUID()))) {
                 this.player = p;
             } else {
-                setPlayer(null);
+                this.player = null;
             }
         } else {
-            setPlayer(null);
+            this.player = null;
         }
         if (tag.contains("OrbitAngle")) {
             this.orbitAngle = tag.getFloat("OrbitAngle");
@@ -222,7 +232,13 @@ public class EntityWingBeat extends AbstractAbnormality {
     @Override
     public void onGoodWork(ServerPlayer player) {
         player.sendSystemMessage(Component.literal("§a你获得了祝福！"));
-        player.getPersistentData().putBoolean("isInWingBeat", true);
+        clearSession(player);
+        UUID newSession = UUID.randomUUID();
+        player.getPersistentData().putBoolean(ACTIVE_FLAG, true);
+        player.getPersistentData().putUUID(SESSION_KEY, newSession);
+        player.getPersistentData().putLong(SESSION_EXPIRY_KEY,
+                player.server.overworld().getGameTime() + SESSION_DURATION_TICKS);
+        this.sessionUUID = newSession;
         this.setPlayer(player);
         for (int i = 0; i < 3; i++) {
             EntityWingBeat wingBeat = new EntityWingBeat(ModEntities.wingbeat.get(), this.level);
@@ -233,6 +249,7 @@ public class EntityWingBeat extends AbstractAbnormality {
             );
             wingBeat.setSmall(true);
             wingBeat.setPlayer(player);
+            wingBeat.sessionUUID = newSession;
             wingBeat.setNoGravity(true);
             wingBeat.orbitAngle = i * 120.0F;
             wingBeat.orbitRadius = 1.0F + this.random.nextFloat() * 0.5F;
@@ -272,35 +289,169 @@ public class EntityWingBeat extends AbstractAbnormality {
         this.player = player;
         if (player != null) {
             this.playerID = player.getId();
+            this.playerUUID = player.getUUID();
             this.tick = 0;
         }
+    }
+
+    private void clearOwnerBinding() {
+        this.player = null;
+        this.playerID = 0;
+        this.playerUUID = null;
+        this.sessionUUID = null;
+        this.tick = 0;
+    }
+
+    public UUID getWingBeatOwnerUUID() { return playerUUID; }
+
+    public UUID getWingBeatSessionUUID() { return sessionUUID; }
+
+    public static void clearSession(ServerPlayer player) {
+        UUID owner = player.getUUID();
+        List<EntityWingBeat> boundEntities = new ArrayList<>();
+        for (ServerLevel level : player.getServer().getAllLevels()) {
+            for (Entity entity : level.getAllEntities()) {
+                if (entity instanceof EntityWingBeat wingBeat
+                        && owner.equals(wingBeat.getWingBeatOwnerUUID())) {
+                    boundEntities.add(wingBeat);
+                }
+            }
+        }
+        for (EntityWingBeat wingBeat : boundEntities) {
+            if (wingBeat.isSmall()) wingBeat.discard();
+            else wingBeat.clearOwnerBinding();
+        }
+        player.getPersistentData().putBoolean(ACTIVE_FLAG, false);
+        player.getPersistentData().remove(SESSION_KEY);
+        player.getPersistentData().remove(SESSION_EXPIRY_KEY);
+    }
+
+    public static void clearSessionIfMatches(ServerPlayer player, UUID expectedSession) {
+        CompoundTag data = player.getPersistentData();
+        if (expectedSession != null && data.hasUUID(SESSION_KEY)
+                && expectedSession.equals(data.getUUID(SESSION_KEY))) {
+            clearSession(player);
+        }
+    }
+
+    public static boolean expireSessionIfNeeded(ServerPlayer player) {
+        CompoundTag data = player.getPersistentData();
+        UUID session = data.hasUUID(SESSION_KEY) ? data.getUUID(SESSION_KEY) : null;
+        long expiresAt = data.getLong(SESSION_EXPIRY_KEY);
+        long now = player.server.overworld().getGameTime();
+        if (WingBeatSessionPolicy.isActive(data.getBoolean(ACTIVE_FLAG), session, expiresAt, now)) {
+            return false;
+        }
+        if (data.getBoolean(ACTIVE_FLAG) || session != null || data.contains(SESSION_EXPIRY_KEY)) {
+            clearSession(player);
+        }
+        return true;
+    }
+
+    public static boolean recoverOrClearSession(ServerPlayer player) {
+        CompoundTag data = player.getPersistentData();
+        UUID session = data.hasUUID(SESSION_KEY) ? data.getUUID(SESSION_KEY) : null;
+        if (!WingBeatSessionPolicy.isActive(data.getBoolean(ACTIVE_FLAG), session,
+                data.getLong(SESSION_EXPIRY_KEY), player.server.overworld().getGameTime())) {
+            clearSession(player);
+            return false;
+        }
+        List<EntityWingBeat> staleEntities = new ArrayList<>();
+        for (ServerLevel level : player.getServer().getAllLevels()) {
+            for (Entity entity : level.getAllEntities()) {
+                if (entity instanceof EntityWingBeat wingBeat && wingBeat.isSmall()
+                        && player.getUUID().equals(wingBeat.getWingBeatOwnerUUID())) {
+                    if (session.equals(wingBeat.getWingBeatSessionUUID()) && wingBeat.isAlive()) {
+                    } else {
+                        staleEntities.add(wingBeat);
+                    }
+                }
+            }
+        }
+        staleEntities.forEach(Entity::discard);
+        return true;
+    }
+
+    private static void clearPlayerSessionFlag(Player player) {
+        player.getPersistentData().putBoolean(ACTIVE_FLAG, false);
+        player.getPersistentData().remove(SESSION_KEY);
+        player.getPersistentData().remove(SESSION_EXPIRY_KEY);
+    }
+
+    private boolean matchesPlayerSession(Player candidate) {
+        CompoundTag data = candidate.getPersistentData();
+        UUID activeSession = data.hasUUID(SESSION_KEY) ? data.getUUID(SESSION_KEY) : null;
+        long now = candidate instanceof ServerPlayer serverPlayer
+                ? serverPlayer.server.overworld().getGameTime() : Long.MIN_VALUE;
+        return WingBeatSessionPolicy.canRebind(sessionUUID, data.getBoolean(ACTIVE_FLAG), activeSession)
+                && data.getLong(SESSION_EXPIRY_KEY) > now;
+    }
+
+    @Override
+    public void remove(Entity.RemovalReason reason) {
+        if (!level().isClientSide && !isSmall() && reason.shouldDestroy()
+                && playerUUID != null && sessionUUID != null
+                && level() instanceof ServerLevel serverLevel) {
+            ServerPlayer owner = serverLevel.getServer().getPlayerList().getPlayer(playerUUID);
+            if (owner != null) clearSessionIfMatches(owner, sessionUUID);
+        }
+        super.remove(reason);
+    }
+
+    private void finishSession(boolean notifyPlayer) {
+        Player owner = this.player;
+        if (owner != null) {
+            if (owner instanceof ServerPlayer serverPlayer) clearSession(serverPlayer);
+            else {
+                clearAllWingBeats();
+                clearPlayerSessionFlag(owner);
+            }
+            if (notifyPlayer) {
+                owner.sendSystemMessage(Component.literal("§a精灵的舞会结束了..."));
+            }
+        }
+        clearOwnerBinding();
     }
 
     @Override
     public void tick() {
         super.tick();
+        if (!this.level.isClientSide && this.player == null && playerUUID != null
+                && this.level instanceof ServerLevel serverLevel) {
+            ServerPlayer candidate = serverLevel.getServer().getPlayerList().getPlayer(playerUUID);
+            if (candidate != null) {
+                if (!matchesPlayerSession(candidate)) {
+                    if (this.isSmall()) this.discard();
+                    else clearOwnerBinding();
+                    return;
+                }
+                this.player = candidate;
+                this.playerID = candidate.getId();
+            }
+        }
+        if (!this.level.isClientSide && this.player != null && !matchesPlayerSession(this.player)) {
+            if (this.isSmall()) this.discard();
+            else clearOwnerBinding();
+            return;
+        }
         boolean canRun = false;
         if (!this.level.isClientSide && this.player != null) {
             if (this.player.isDeadOrDying()) {
-                this.player.getPersistentData().putBoolean("isInWingBeat", false);
                 if (!this.isSmall()) {
-                    clearAllWingBeats();
-                    this.player.sendSystemMessage(Component.literal("§a精灵的舞会结束了..."));
-                }
-                setPlayer(null);
-                if (this.isSmall()) {
+                    finishSession(true);
+                } else {
+                    clearPlayerSessionFlag(this.player);
+                    clearOwnerBinding();
                     this.discard();
                 }
                 return;
             }
             if (this.player.level() != this.level || this.player.distanceToSqr(this) > 64 * 64) {
-                this.player.getPersistentData().putBoolean("isInWingBeat", false);
                 if (!this.isSmall()) {
-                    clearAllWingBeats();
-                    this.player.sendSystemMessage(Component.literal("§a精灵的舞会结束了..."));
-                    this.player.getPersistentData().putBoolean("isInWingBeat", false);
-                    setPlayer(null);
+                    finishSession(true);
                 } else {
+                    clearPlayerSessionFlag(this.player);
+                    clearOwnerBinding();
                     this.discard();
                 }
                 return;
@@ -316,16 +467,8 @@ public class EntityWingBeat extends AbstractAbnormality {
                     this.discard();
                 }
             } else {
-                if (this.tick >= 100) {
-                    this.player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 10, 255));
-                    this.player.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 10, 255));
-                }
                 if (this.tick >= 160) {
-                    clearAllWingBeats();
-                    this.player.sendSystemMessage(Component.literal("§a精灵的舞会结束了..."));
-                    this.player.getPersistentData().putBoolean("isInWingBeat", false);
-                    this.tick = 0;
-                    setPlayer(null);
+                    finishSession(true);
                 }
             }
         }
@@ -344,7 +487,9 @@ public class EntityWingBeat extends AbstractAbnormality {
      */
     private void clearAllWingBeats() {
         for (Entity entity : EntityUtil.findAllEntities(this, 100)) {
-            if (entity instanceof EntityWingBeat wingBeat && wingBeat.isSmall()) {
+            if (entity instanceof EntityWingBeat wingBeat && wingBeat.isSmall()
+                    && playerUUID != null && playerUUID.equals(wingBeat.playerUUID)
+                    && sessionUUID != null && sessionUUID.equals(wingBeat.sessionUUID)) {
                 wingBeat.discard();
             }
         }

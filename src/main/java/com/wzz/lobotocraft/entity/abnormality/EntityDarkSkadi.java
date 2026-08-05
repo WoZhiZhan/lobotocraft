@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.MentalValueUtil;
+import com.wzz.lobotocraft.event.listener.SkadiBlessingManager;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.nbt.CompoundTag;
@@ -27,6 +28,7 @@ import software.bernie.geckolib.core.object.PlayState;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 浊心斯卡蒂 (S-03-07) —— ALEPH 级异想体。
@@ -43,6 +45,8 @@ public class EntityDarkSkadi extends AbstractAbnormality {
     private int chatCooldown = 0;
     // 玩家死亡复活后需要触发的"复活台词"标记,由死亡事件设置后下一tick消费
     private int reviveLineTimer = 0;
+    private boolean isharmlaTransitionPending;
+    private UUID blessingEpoch = UUID.randomUUID();
 
     public EntityDarkSkadi(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -134,15 +138,18 @@ public class EntityDarkSkadi extends AbstractAbnormality {
     }
 
     private void grantBlessing(ServerPlayer player) {
+        if (qliphothCounter <= 0 || isRemoved()) return;
         player.addEffect(new MobEffectInstance(
                 ModMobEffects.WISH_WITHOUT_LIGHT.get(),
                 -1, 0, false, false, true
         ));
+        SkadiBlessingManager.bind(player, this);
         player.sendSystemMessage(Component.literal("§9你获得了「同葬无光之愿」。"));
     }
 
     @Override
     public void onQliphothMeltdown() {
+        isharmlaTransitionPending = true;
         onCounterZero();
     }
 
@@ -152,6 +159,11 @@ public class EntityDarkSkadi extends AbstractAbnormality {
     public void tick() {
         super.tick();
         if (this.level().isClientSide) return;
+
+        if (isharmlaTransitionPending && this.tickCount % 20 == 0) {
+            onCounterZero();
+            if (this.isRemoved()) return;
+        }
 
         if (chatCooldown > 0) chatCooldown--;
         if (reviveLineTimer > 0) {
@@ -227,27 +239,43 @@ public class EntityDarkSkadi extends AbstractAbnormality {
      */
     private void onCounterZero() {
         if (!(this.level() instanceof ServerLevel serverLevel)) return;
-
-        // 移除所有玩家身上的"同葬无光之愿"(祝福失效)
-        for (Player p : serverLevel.players()) {
-            p.removeEffect(ModMobEffects.WISH_WITHOUT_LIGHT.get());
-        }
-
-        // 对所有玩家播放出逃音频
-        for (ServerPlayer p : serverLevel.players()) {
-            serverLevel.playSound(null, p.blockPosition(),
-                    ModSounds.SKADI_ESCAPE.get(),
+        isharmlaTransitionPending = true;
+        IsharmlaSpawnData.get(serverLevel.getServer()).enqueue(
+                getUUID(), serverLevel.dimension().location(), blockPosition());
+        SkadiBlessingManager.revokeSource(serverLevel.getServer(), getUUID());
+        for (ServerPlayer online : serverLevel.players()) {
+            serverLevel.playSound(null, online.blockPosition(), ModSounds.SKADI_ESCAPE.get(),
                     net.minecraft.sounds.SoundSource.HOSTILE, 1.0f, 1.0f);
         }
-
-        // 记录斯卡蒂当前位置,供镇压伊莎玛拉后让斯卡蒂归位(项3修复)
         com.wzz.lobotocraft.item.SkadiBanishData.get(serverLevel)
-                .setSkadiOrigin(this.getX(), this.getY(), this.getZ());
+                .setSkadiOrigin(getX(), getY(), getZ());
+        discard();
+    }
 
-        // 在最近的再生反应堆处生成"伊莎玛拉"(EntityIsharmla)
-        SpawnIsharmlaHook.trySpawnIsharmlaAtNearestReactor(serverLevel, this.blockPosition());
+    public UUID getBlessingEpoch() {
+        return blessingEpoch;
+    }
 
-        this.discard();
+    public void invalidateBlessings() {
+        blessingEpoch = UUID.randomUUID();
+        if (level() instanceof ServerLevel serverLevel) {
+            SkadiBlessingManager.revokeSource(serverLevel.getServer(), getUUID());
+        }
+    }
+
+    @Override
+    public void discard() {
+        if (level() instanceof ServerLevel serverLevel) {
+            blessingEpoch = UUID.randomUUID();
+            SkadiBlessingManager.revokeSource(serverLevel.getServer(), getUUID());
+        }
+        super.discard();
+    }
+
+    public boolean tryConsumeBlessingCharge(ServerPlayer player) {
+        if (qliphothCounter <= 0 || isRemoved() || !(level() instanceof ServerLevel)) return false;
+        onBlessedPlayerRevive(player);
+        return true;
     }
 
     // ==================== 环境音效 ====================
@@ -311,11 +339,15 @@ public class EntityDarkSkadi extends AbstractAbnormality {
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putInt("ChatCooldown", chatCooldown);
+        tag.putBoolean("IsharmlaTransitionPending", isharmlaTransitionPending);
+        tag.putUUID("BlessingEpoch", blessingEpoch);
     }
 
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
         chatCooldown = tag.getInt("ChatCooldown");
+        isharmlaTransitionPending = tag.getBoolean("IsharmlaTransitionPending") || qliphothCounter <= 0;
+        blessingEpoch = tag.hasUUID("BlessingEpoch") ? tag.getUUID("BlessingEpoch") : UUID.randomUUID();
     }
 }

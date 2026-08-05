@@ -30,6 +30,8 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import software.bernie.geckolib.core.animation.AnimatableManager;
@@ -291,6 +293,12 @@ public class EntityLadyFacingTheWall extends AbstractAbnormality {
         super.die(source);
     }
 
+    @Override
+    public void remove(Entity.RemovalReason reason) {
+        PUNISHED_PLAYERS.values().removeIf(data -> data.ladyUuid.equals(this.getUUID()));
+        super.remove(reason);
+    }
+
     private void startPunishment(ServerPlayer player) {
         PunishmentData data = new PunishmentData(
                 player.level().dimension(),
@@ -381,6 +389,16 @@ public class EntityLadyFacingTheWall extends AbstractAbnormality {
             PUNISHED_PLAYERS.remove(player.getUUID());
             player.sendSystemMessage(Component.literal("§7沉默终于散去，你重新取回了行动能力。"));
         }
+    }
+
+    @SubscribeEvent
+    public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        PUNISHED_PLAYERS.remove(event.getEntity().getUUID());
+    }
+
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        PUNISHED_PLAYERS.clear();
     }
 
     private static void spawnBlackSmoke(ServerLevel level, double x, double y, double z,

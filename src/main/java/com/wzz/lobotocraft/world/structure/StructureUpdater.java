@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.world.structure;
 
 import com.wzz.lobotocraft.init.ModDimensions;
+import com.wzz.lobotocraft.init.ModBlocks;
 import com.wzz.lobotocraft.logger.ModLogger;
 import com.wzz.lobotocraft.world.data.StructureVersionData;
 import net.minecraft.ChatFormatting;
@@ -29,6 +30,8 @@ public final class StructureUpdater {
     private static final BlockPos SPAWN = new BlockPos(195, 273, 29);
     /** 结构放置的起点，沿用原来的 (5,2,0) */
     private static final BlockPos PLACE_ORIGIN = new BlockPos(5, 2, 0);
+    /** This obsolete reactor is removed only after a new world's first full generation. */
+    private static final BlockPos REMOVED_INITIAL_REACTOR = new BlockPos(196, 48, 34);
 
     private static boolean running = false;
 
@@ -74,6 +77,7 @@ public final class StructureUpdater {
 
         boolean started = StructureLoader.beginLoading(level, player, name, PLACE_ORIGIN,
                 () -> level.getServer().execute(() -> {
+                    removeObsoleteInitialReactor(level);
                     StructureUpdateContext.end(level);
                     versionData.setVersion(name, StructureVersions.LOBOTO);
                     running = false;
@@ -89,6 +93,21 @@ public final class StructureUpdater {
         if (!started) {
             StructureUpdateContext.end(level);
             running = false;
+        }
+    }
+
+    private static void removeObsoleteInitialReactor(ServerLevel level) {
+        if (!level.getBlockState(REMOVED_INITIAL_REACTOR).is(ModBlocks.REGENERATION_REACTOR.get())) {
+            ModLogger.getLogger().warn("Skipped initial facility reactor removal at {}: expected block was absent",
+                    REMOVED_INITIAL_REACTOR);
+            return;
+        }
+
+        ProtectionHelper.removeProtection(level, REMOVED_INITIAL_REACTOR);
+        if (!level.destroyBlock(REMOVED_INITIAL_REACTOR, false)) {
+            ProtectionHelper.markProtected(level, REMOVED_INITIAL_REACTOR);
+            ModLogger.getLogger().error("Failed to remove initial facility reactor at {}",
+                    REMOVED_INITIAL_REACTOR);
         }
     }
 

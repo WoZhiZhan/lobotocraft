@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.punishing_bird;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.AiRangedEgoWeapon;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.ParticleUtil;
@@ -26,9 +27,13 @@ import java.util.Set;
 import static com.wzz.lobotocraft.item.ego.base.IAnimatablePerspective.Perspective.FIRST_PERSON_LEFT;
 import static com.wzz.lobotocraft.item.ego.base.IAnimatablePerspective.Perspective.FIRST_PERSON_RIGHT;
 
-public class PunishingBirdWeapon extends BaseEgoWeapon {
+public class PunishingBirdWeapon extends BaseEgoWeapon implements AiRangedEgoWeapon {
 
     private static final double ATTACK_RANGE = 10.0;
+    @Override public double aiAttackRange() { return ATTACK_RANGE; }
+    @Override public double aiMinSpacing() { return 5.0D; }
+    @Override public double aiMaxSpacing() { return 9.0D; }
+    @Override public double aiPreferredSpacing() { return 7.0D; }
 
     public PunishingBirdWeapon() {
         super(

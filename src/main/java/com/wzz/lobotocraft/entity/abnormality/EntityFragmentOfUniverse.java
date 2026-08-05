@@ -116,7 +116,7 @@ public class EntityFragmentOfUniverse extends AbstractAbnormality {
             decreaseQliphothCounter(1);
         }
         // Ⅲ:工作员工恐慌→立刻减少
-        if (MentalValueUtil.getMentalValue(player) <= 0) {
+        if (MentalValueUtil.isPanic(player)) {
             decreaseQliphothCounter(1);
         }
     }
@@ -141,6 +141,26 @@ public class EntityFragmentOfUniverse extends AbstractAbnormality {
             transformed = false;
             setAnimation("transform");
         }
+    }
+
+    @Override
+    public void stopEscape() {
+        boolean wasEscaped = hasEscape();
+        super.stopEscape();
+        if (!wasEscaped || hasEscape()) return;
+        resetContainmentState();
+    }
+
+    private void resetContainmentState() {
+        attackCooldown = 0;
+        pendingHit = 0;
+        attackAnimationTimer = 0;
+        pendingTarget = null;
+        singTimer = 0;
+        transformed = false;
+        setAnimation("idle");
+        setTarget(null);
+        getNavigation().stop();
     }
 
     @Override

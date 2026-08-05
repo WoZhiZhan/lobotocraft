@@ -70,10 +70,11 @@ public class PpodaeWeapon extends BaseEgoWeapon {
                 p -> p.broadcastBreakEvent(EquipmentSlot.MAINHAND)
         );
         float secondHit = 5;
+        var damageSource = DamageHelper.getDamage(player, "red");
         EntityUtil.clearHurtTime(target, () -> {
-                    target.hurt(player.damageSources().playerAttack(player), secondHit);
+                    target.hurt(damageSource, secondHit);
                     EntityUtil.clearHurtTime(target, () ->
-                            target.hurt(player.damageSources().playerAttack(player), secondHit)
+                            target.hurt(damageSource, secondHit)
                     );
                 }
         );

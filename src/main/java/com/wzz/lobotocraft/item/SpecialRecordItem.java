@@ -3,11 +3,13 @@ package com.wzz.lobotocraft.item;
 import com.wzz.lobotocraft.entity.abnormality.EntityDarkSkadi;
 import com.wzz.lobotocraft.entity.abnormality.EntityIsharmla;
 import com.wzz.lobotocraft.entity.abnormality.EntityIsharmlaTear;
+import com.wzz.lobotocraft.ego.EgoAuthorizationService;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModSounds;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
@@ -89,6 +91,10 @@ public class SpecialRecordItem extends Item {
         // 斯卡蒂回归后不再标记为 banished,使其可继续正常运作
         banishData.setBanished(false);
 
+        if (player instanceof ServerPlayer serverPlayer) {
+            grantSkadiEgoReward(serverPlayer);
+        }
+
         player.displayClientMessage(Component.literal(
                 "§9伊莎玛拉归于沉寂,浊心斯卡蒂回到了她原本的位置。"), false);
 
@@ -96,6 +102,18 @@ public class SpecialRecordItem extends Item {
             stack.shrink(1);
         }
         return InteractionResultHolder.success(stack);
+    }
+
+    public static void grantSkadiEgoReward(ServerPlayer player) {
+        EgoAuthorizationService.SuppressionGrantResult reward =
+                EgoAuthorizationService.grantSuppressionReward(player, "S-03-07");
+        if (!reward.definitionFound()) {
+            player.sendSystemMessage(Component.literal(
+                    "§e镇压已完成，但斯卡蒂 E.G.O 尚未注册，权限奖励暂无法发放。"));
+            return;
+        }
+        player.sendSystemMessage(Component.literal(
+                "§b已获得斯卡蒂 E.G.O 的个人使用权限；全服 AI 研发权限已同步。"));
     }
 
     @Override

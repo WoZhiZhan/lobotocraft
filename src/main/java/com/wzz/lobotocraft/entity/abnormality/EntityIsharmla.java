@@ -1,5 +1,7 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
+import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
@@ -11,6 +13,7 @@ import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.TriggerShakePacket;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.MentalValueUtil;
+import com.wzz.lobotocraft.util.SafeTransformationUtil;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -56,6 +59,8 @@ public class EntityIsharmla extends AbstractAbnormality {
             SynchedEntityData.defineId(EntityIsharmla.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<Integer> DATA_FORM =
             SynchedEntityData.defineId(EntityIsharmla.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_COLLISION_FORM =
+            SynchedEntityData.defineId(EntityIsharmla.class, EntityDataSerializers.INT);
 
     // 巨兽形态独立血量
     private float monsterHealth = 5000f;
@@ -97,6 +102,7 @@ public class EntityIsharmla extends AbstractAbnormality {
     private static final int SEARCH_LIMIT = 30_000_000;
     private static final double REACTOR_ACTIVITY_RADIUS = 24.0D;
     private static final double REACTOR_ACTIVITY_RADIUS_SQR = REACTOR_ACTIVITY_RADIUS * REACTOR_ACTIVITY_RADIUS;
+    private static final int DIMENSION_RETRY_INTERVAL = 10;
     private int monsterForcedEscapeTimer = MONSTER_FORCED_ESCAPE_INTERVAL;
     private java.util.UUID protectedForcedEscapeId = null;
     private BlockPos anchorReactorPos;
@@ -110,6 +116,7 @@ public class EntityIsharmla extends AbstractAbnormality {
         super.defineSynchedData();
         this.entityData.define(DATA_ANIM, "idle_human");
         this.entityData.define(DATA_FORM, Form.HUMAN.ordinal());
+        this.entityData.define(DATA_COLLISION_FORM, Form.HUMAN.ordinal());
     }
 
     @Override
@@ -162,8 +169,8 @@ public class EntityIsharmla extends AbstractAbnormality {
     private void setForm(Form form) {
         Form old = getForm();
         this.entityData.set(DATA_FORM, form.ordinal());
-        if (old != form) {
-            this.refreshDimensions(); // 项4②:切换形态时刷新碰撞箱
+        if (old != form && this.level() instanceof ServerLevel level) {
+            tryApplyCollisionForm(level, form);
         }
     }
 
@@ -175,7 +182,62 @@ public class EntityIsharmla extends AbstractAbnormality {
 
     @Override
     public net.minecraft.world.entity.EntityDimensions getDimensions(net.minecraft.world.entity.Pose pose) {
-        return getForm() == Form.MONSTER ? MONSTER_SIZE : HUMAN_SIZE;
+        return getCollisionForm() == Form.MONSTER ? MONSTER_SIZE : HUMAN_SIZE;
+    }
+
+    @Override
+    public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+        super.onSyncedDataUpdated(key);
+        if (DATA_COLLISION_FORM.equals(key) && this.level().isClientSide) {
+            this.refreshDimensions();
+        }
+    }
+
+    private Form getCollisionForm() {
+        int ordinal = this.entityData.get(DATA_COLLISION_FORM);
+        return ordinal == Form.MONSTER.ordinal() ? Form.MONSTER : Form.HUMAN;
+    }
+
+    private boolean tryApplyCollisionForm(ServerLevel level, Form desiredForm) {
+        Form appliedForm = getCollisionForm();
+        if (appliedForm == desiredForm) return true;
+
+        net.minecraft.world.entity.EntityDimensions current =
+                appliedForm == Form.MONSTER ? MONSTER_SIZE : HUMAN_SIZE;
+        net.minecraft.world.entity.EntityDimensions target =
+                desiredForm == Form.MONSTER ? MONSTER_SIZE : HUMAN_SIZE;
+        Vec3 safePosition;
+        if (SafeTransformationUtil.isPureShrink(current, target)) {
+            safePosition = this.position();
+        } else {
+            safePosition = SafeTransformationUtil.findPositionForDimensions(level, this, target, 12, 4);
+            if (safePosition == null) {
+                if (desiredForm == Form.MONSTER) this.setNoAi(true);
+                return false;
+            }
+        }
+
+        if (safePosition.distanceToSqr(this.position()) > 1.0E-6D) {
+            this.moveTo(safePosition.x, safePosition.y, safePosition.z, this.getYRot(), this.getXRot());
+            this.getNavigation().stop();
+            this.setDeltaMovement(Vec3.ZERO);
+        }
+        this.entityData.set(DATA_COLLISION_FORM, desiredForm.ordinal());
+        this.refreshDimensions();
+        this.setNoAi(false);
+        return true;
+    }
+
+    private void retryPendingDimensions(ServerLevel level) {
+        if (getCollisionForm() == getForm()) return;
+        if (this.tickCount % DIMENSION_RETRY_INTERVAL == 0) {
+            tryApplyCollisionForm(level, getForm());
+        }
+        if (getForm() == Form.MONSTER && getCollisionForm() != Form.MONSTER) {
+            this.setNoAi(true);
+            this.getNavigation().stop();
+            this.setDeltaMovement(Vec3.ZERO);
+        }
     }
 
     private void setAnim(String anim) {
@@ -207,13 +269,9 @@ public class EntityIsharmla extends AbstractAbnormality {
     }
 
     /** 由斯卡蒂生成时调用:瞬移到最近的再生反应堆,并初始化为人形态 */
-    public void onSpawnFromSkadi(ServerLevel level) {
-        BlockPos reactor = SpawnIsharmlaHook.findNearestReactorPublic(level, this.blockPosition());
-        if (reactor != null) {
-            anchorReactorPos = reactor.immutable();
-            BlockPos spawnPos = EntityUtil.findReactorSpawnPositionInCompany(level, anchorReactorPos, 4);
-            this.teleportTo(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
-        }
+    public void onSpawnFromSkadi(ServerLevel level, BlockPos reactor) {
+        // The spawn hook already validated this reactor and the initial entity AABB.
+        anchorReactorPos = reactor.immutable();
         // 机制2:若正处于"深蓝色正午"考验,立刻结束考验,场上海嗣集体瞬移到身边并死亡,每只供给+50点生命值
         if (BlueMiddayEvent.isTrialActive()) {
             BlueMiddayEvent.endTrial();
@@ -242,9 +300,12 @@ public class EntityIsharmla extends AbstractAbnormality {
     }
 
     private void ensureAnchorReactor(ServerLevel level) {
-        if (anchorReactorPos != null) {
+        if (anchorReactorPos != null
+                && level.getBlockEntity(anchorReactorPos) instanceof RegenerationReactorBlockEntity
+                && isOpenFacilityPosition(level, anchorReactorPos)) {
             return;
         }
+        anchorReactorPos = null;
         BlockPos reactor = SpawnIsharmlaHook.findNearestReactorPublic(level, this.blockPosition());
         if (reactor != null) {
             anchorReactorPos = reactor.immutable();
@@ -271,9 +332,24 @@ public class EntityIsharmla extends AbstractAbnormality {
             return;
         }
         BlockPos spawnPos = EntityUtil.findReactorSpawnPositionInCompany(level, anchorReactorPos, 4);
-        this.teleportTo(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D);
+        if (spawnPos == null || !isOpenFacilityPosition(level, spawnPos)) {
+            // The room may be temporarily unavailable; keep the entity in place and retry later.
+            return;
+        }
+        double x = spawnPos.getX() + 0.5D;
+        double y = spawnPos.getY();
+        double z = spawnPos.getZ() + 0.5D;
+        if (!level.noCollision(this, this.getDimensions(this.getPose()).makeBoundingBox(x, y, z))) {
+            return;
+        }
+        this.teleportTo(x, y, z);
         this.getNavigation().stop();
         this.setDeltaMovement(Vec3.ZERO);
+    }
+
+    private boolean isOpenFacilityPosition(ServerLevel level, BlockPos pos) {
+        return FacilityAccessService.isPositionOpen(level.getServer(),
+                level.dimension().location(), pos);
     }
 
     // ==================== 形态切换 ====================
@@ -282,6 +358,7 @@ public class EntityIsharmla extends AbstractAbnormality {
         clearActiveAttack();
         resetMonsterNoTargetBeam();
         setForm(Form.HUMAN);
+        this.setNoAi(false);
         setHealth(getMaxHealth());
         humanPhaseTimer = HUMAN_DURATION;
         transitioning = true;
@@ -296,6 +373,7 @@ public class EntityIsharmla extends AbstractAbnormality {
         clearActiveAttack();
         resetMonsterNoTargetBeam();
         setForm(Form.MONSTER);
+        this.setNoAi(getCollisionForm() != Form.MONSTER);
         if (this.level() instanceof ServerLevel level) {
             keepNearReactor(level);
         }
@@ -332,6 +410,7 @@ public class EntityIsharmla extends AbstractAbnormality {
         super.tick();
         if (this.level().isClientSide) return;
         ServerLevel level = (ServerLevel) this.level();
+        retryPendingDimensions(level);
         keepNearReactor(level);
 
         // 瞬时动画到期切回待机(项4①:防止停在无效默认动画/最后一帧)
@@ -586,6 +665,12 @@ public class EntityIsharmla extends AbstractAbnormality {
     }
 
     private void tickMonsterForm(ServerLevel level) {
+        if (getCollisionForm() != Form.MONSTER) {
+            if (monsterPhaseTimer > 0 && --monsterPhaseTimer == 0) {
+                enterHumanForm(false);
+            }
+            return;
+        }
         tickMonsterForcedEscape(level);
         if (monsterPhaseTimer > 0) {
             monsterPhaseTimer--;
@@ -881,7 +966,24 @@ public class EntityIsharmla extends AbstractAbnormality {
     @Override
     public void die(DamageSource source) {
         // 只有人形态血量耗尽才真正死亡
+        net.minecraft.world.entity.LivingEntity killCredit = getKillCredit();
+        ServerPlayer suppressionPlayer = null;
+        if (source.getEntity() instanceof ServerPlayer directPlayer) {
+            suppressionPlayer = directPlayer;
+        } else if (killCredit instanceof ServerPlayer creditedPlayer) {
+            suppressionPlayer = creditedPlayer;
+        }
+        if (suppressionPlayer instanceof com.wzz.lobotocraft.employee.EmployeeServerPlayer) {
+            suppressionPlayer = null;
+        }
         super.die(source);
+
+        if (suppressionPlayer != null) {
+            com.wzz.lobotocraft.item.SpecialRecordItem.grantSkadiEgoReward(suppressionPlayer);
+        } else if (level() instanceof ServerLevel serverLevel) {
+            com.wzz.lobotocraft.ego.EgoAuthorizationService.grantSuppressionReward(
+                    serverLevel.getServer(), null, "S-03-07");
+        }
         
         if (level() instanceof ServerLevel sl) {
             SkadiBanishData data = com.wzz.lobotocraft.item.SkadiBanishData.get(sl);
@@ -901,6 +1003,11 @@ public class EntityIsharmla extends AbstractAbnormality {
             	sl.addFreshEntity(newEntity);
             }
         }
+    }
+
+    @Override
+    protected boolean usesContainmentReturnOnDeath() {
+        return false;
     }
 
     // ==================== 工作系统(不可工作) ====================
@@ -982,6 +1089,7 @@ public class EntityIsharmla extends AbstractAbnormality {
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putInt("Form", getForm().ordinal());
+        tag.putInt("CollisionForm", getCollisionForm().ordinal());
         tag.putFloat("MonsterHealth", monsterHealth);
         tag.putInt("HumanPhaseTimer", humanPhaseTimer);
         tag.putInt("MonsterPhaseTimer", monsterPhaseTimer);
@@ -1001,7 +1109,13 @@ public class EntityIsharmla extends AbstractAbnormality {
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
-        setForm(Form.values()[tag.getInt("Form")]);
+        Form savedForm = tag.getInt("Form") == Form.MONSTER.ordinal() ? Form.MONSTER : Form.HUMAN;
+        Form savedCollisionForm = tag.contains("CollisionForm")
+                && tag.getInt("CollisionForm") == Form.MONSTER.ordinal() ? Form.MONSTER : Form.HUMAN;
+        this.entityData.set(DATA_FORM, savedForm.ordinal());
+        this.entityData.set(DATA_COLLISION_FORM, savedCollisionForm.ordinal());
+        this.refreshDimensions();
+        this.setNoAi(savedForm == Form.MONSTER && savedCollisionForm != Form.MONSTER);
         monsterHealth = tag.getFloat("MonsterHealth");
         humanPhaseTimer = tag.getInt("HumanPhaseTimer");
         monsterPhaseTimer = tag.getInt("MonsterPhaseTimer");

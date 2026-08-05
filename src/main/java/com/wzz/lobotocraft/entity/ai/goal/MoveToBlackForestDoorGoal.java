@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.entity.ai.goal;
 
 import com.wzz.lobotocraft.block.entity.ElevatorBlockEntity;
+import com.wzz.lobotocraft.block.entity.ElevatorEntryFloorPolicy;
 import com.wzz.lobotocraft.entity.abnormality.EntityBlackForestDoor;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.util.EntityUtil;
@@ -160,7 +161,7 @@ public class MoveToBlackForestDoorGoal extends Goal {
      * 查找最佳电梯
      */
     private BlockPos findBestElevator(double yDiffToDoor) {
-        if (!(bird.level() instanceof ServerLevel)) return null;
+        if (!(bird.level() instanceof ServerLevel serverLevel)) return null;
 
         BlockPos birdPos = bird.blockPosition();
         boolean needGoUp = yDiffToDoor > 0;  // 门在上方
@@ -179,11 +180,11 @@ public class MoveToBlackForestDoorGoal extends Goal {
         for (BlockEntity blockEntity : nearbyBlockEntities) {
             if (blockEntity instanceof ElevatorBlockEntity elevator) {
                 BlockPos elevatorPos = blockEntity.getBlockPos();
-                if (needGoUp != elevator.isTeleportUp()) {
-                    // 方向不匹配，跳过
+                if (!ElevatorEntryFloorPolicy.isOnEntityFloor(
+                        serverLevel, birdPos, elevatorPos)) {
                     continue;
                 }
-                BlockPos destinationElevator = elevator.findDestinationElevator(bird.level());
+                BlockPos destinationElevator = elevator.findDestinationElevator(bird.level(), needGoUp);
                 if (destinationElevator == null) {
                     continue;
                 }
@@ -230,7 +231,10 @@ public class MoveToBlackForestDoorGoal extends Goal {
                 targetElevatorPos.getZ() + 0.5
         );
 
-        if (distToElevator <= 2.5) {
+        if (distToElevator <= ElevatorBlockEntity.INTERACTION_RADIUS * ElevatorBlockEntity.INTERACTION_RADIUS) {
+            if (bird.level().getBlockEntity(targetElevatorPos) instanceof ElevatorBlockEntity elevator) {
+                elevator.tryTravel(bird, door.getY() > bird.getY());
+            }
             // 到达电梯，站上去
             state = State.WAITING_ON_ELEVATOR;
             elevatorWaitTimer = 0;
@@ -268,6 +272,12 @@ public class MoveToBlackForestDoorGoal extends Goal {
      */
     private void tickWaitingOnElevator() {
         elevatorWaitTimer++;
+        if (!(bird.level().getBlockEntity(targetElevatorPos) instanceof ElevatorBlockEntity source)
+                || !source.isWithinInteractionRange(bird)) {
+            state = State.FINDING_PATH;
+            evaluateState();
+            return;
+        }
 
         // 等待电梯生效（电梯有30tick延迟）
         // 检查是否已经传送到新楼层
@@ -283,9 +293,7 @@ public class MoveToBlackForestDoorGoal extends Goal {
         // 如果等待超过5秒还没传送，可能是电梯没触发
         if (elevatorWaitTimer > 100) {
             // 尝试重新触发电梯
-            if (bird.level().getBlockEntity(targetElevatorPos) instanceof ElevatorBlockEntity elevator) {
-                elevator.onStep(bird);
-            }
+            source.tryTravel(bird, door.getY() > bird.getY());
             elevatorWaitTimer = 60;  // 再等3秒
         }
     }

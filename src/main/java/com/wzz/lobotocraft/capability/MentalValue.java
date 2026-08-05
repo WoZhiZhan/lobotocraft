@@ -14,6 +14,7 @@ public class MentalValue implements IMentalValue {
     private float mentalValue = 20.0F;
     private float maxMentalValue = 20.0F;  // 基础最大精神值
     private float extraMentalValue = 0.0F;  // 额外精神值（字段备份，当玩家为null时使用）
+    private PanicType panicType = PanicType.NONE;
     private Player player;
 
     // Bug fix 3: setExtraMentalValue 需要通过此 UUID 操控 attribute，
@@ -147,6 +148,16 @@ public class MentalValue implements IMentalValue {
     }
 
     @Override
+    public PanicType getPanicType() {
+        return panicType;
+    }
+
+    @Override
+    public void setPanicType(PanicType panicType) {
+        this.panicType = panicType == null ? PanicType.NONE : panicType;
+    }
+
+    @Override
     public void addMentalValue(float amount) {
       addMentalValue(amount, MentalValueEvent.ChangeType.ADD);
     }
@@ -223,6 +234,7 @@ public class MentalValue implements IMentalValue {
         this.mentalValue = source.getMentalValue();
         this.maxMentalValue = source.getMaxMentalValue();
         this.extraMentalValue = source.getExtraMentalValue();
+        this.panicType = source.getPanicType();
     }
 
     @Override
@@ -231,6 +243,7 @@ public class MentalValue implements IMentalValue {
         nbt.putFloat("MaxMentalValue", maxMentalValue);
         // Bug fix 3: 保存字段值（attribute 会随装备动态变化，不应持久化）
         nbt.putFloat("ExtraMentalValue", extraMentalValue);
+        nbt.putString("PanicType", panicType.name());
     }
 
     @Override
@@ -247,6 +260,7 @@ public class MentalValue implements IMentalValue {
             // （player 此时可能还未绑定，setExtraMentalValue 中的 attribute 操作在
             //  player != null 时才生效，所以放在 setPlayer 中二次处理）
         }
+        panicType = PanicType.byName(nbt.getString("PanicType"));
 
         if (maxMentalValue < 20) {
             maxMentalValue = 20;
@@ -258,6 +272,9 @@ public class MentalValue implements IMentalValue {
         float effectiveMax = maxMentalValue + extraMentalValue;
         if (mentalValue > effectiveMax) {
             mentalValue = effectiveMax;
+        }
+        if (!PanicType.isActive(panicType, mentalValue, effectiveMax)) {
+            panicType = PanicType.NONE;
         }
     }
 

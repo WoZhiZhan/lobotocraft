@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.network.packet;
 
 import com.wzz.lobotocraft.network.IMessage;
+import com.wzz.lobotocraft.network.RequestThrottle;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
@@ -26,6 +27,7 @@ public class RequestRoomDataPacket implements IMessage {
     public void run(NetworkEvent.Context ctx) {
         ServerPlayer player = ctx.getSender();
         if (player == null) return;
+        if (!RequestThrottle.allowSnapshot(player, "room-map")) return;
         OpenRoomMapPacket.sendTo(player, true);
     }
 

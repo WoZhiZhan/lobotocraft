@@ -2,14 +2,11 @@ package com.wzz.lobotocraft.block;
 
 import com.wzz.lobotocraft.block.entity.ElevatorBlockEntity;
 import com.wzz.lobotocraft.init.ModBlockEntities;
-import com.wzz.lobotocraft.network.MessageLoader;
-import com.wzz.lobotocraft.network.packet.OpenElevatorScreenPacket;
+import com.wzz.lobotocraft.network.packet.ElevatorTravelPacket;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -63,48 +60,12 @@ public class ElevatorBlock extends BaseEntityBlock {
     @Override
     public InteractionResult use(BlockState state, Level level, BlockPos pos,
                                  Player player, InteractionHand hand, BlockHitResult hit) {
-        if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
-            if (level.getBlockEntity(pos) instanceof ElevatorBlockEntity be) {
-                MessageLoader.getLoader().sendToPlayer(serverPlayer, new OpenElevatorScreenPacket(pos, be.getTeleportDistance(), be.isTeleportUp()));
-            }
-            return InteractionResult.SUCCESS;
+        if (!level.isClientSide()
+                && level.getBlockEntity(pos) instanceof ElevatorBlockEntity elevator) {
+            boolean up = !player.isShiftKeyDown();
+            ElevatorTravelPacket.sendFeedback(player, elevator.tryTravel(player, up), up);
         }
-        return InteractionResult.CONSUME;
-    }
-
-    @Override
-    public void stepOn(Level level, BlockPos pos, BlockState state, Entity entity) {
-        super.stepOn(level, pos, state, entity);
-        if (entity instanceof LivingEntity living) {
-            if (level.getBlockEntity(pos) instanceof ElevatorBlockEntity be) {
-                be.onStep(living);
-            }
-        }
-    }
-
-    @Override
-    public void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
-        super.entityInside(state, level, pos, entity);
-        if (!level.isClientSide && entity instanceof LivingEntity living) {
-            if (level.getBlockEntity(pos) instanceof ElevatorBlockEntity be) {
-                if (isEntityOnElevator(living, pos)) {
-                    be.onStep(living);
-                }
-            }
-        }
-    }
-
-    private boolean isEntityOnElevator(LivingEntity entity, BlockPos pos) {
-        double entityFeetY = entity.getY();
-        double blockTopY = pos.getY() + 1.0;
-
-        if (entityFeetY >= blockTopY - 0.1 && entityFeetY <= blockTopY + 0.3) {
-            double entityX = entity.getX();
-            double entityZ = entity.getZ();
-            return entityX >= pos.getX() && entityX <= pos.getX() + 1.0
-                    && entityZ >= pos.getZ() && entityZ <= pos.getZ() + 1.0;
-        }
-        return false;
+        return InteractionResult.sidedSuccess(level.isClientSide());
     }
 
     @Override

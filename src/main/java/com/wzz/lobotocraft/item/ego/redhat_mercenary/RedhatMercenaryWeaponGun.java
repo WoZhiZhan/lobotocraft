@@ -4,12 +4,15 @@ import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.event.listener.SheepskinSetHandler;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.item.ego.bigbadwolf.BigBadwolfWeapon;
+import com.wzz.lobotocraft.item.ego.base.AiRangedEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -37,9 +40,19 @@ import java.util.concurrent.ConcurrentHashMap;
  * ※ 持有者对猎物造成的红色伤害 +2~3
  * ※ 猎物同时只能有一只，再次开火会刷新/转移
  */
-public class RedhatMercenaryWeaponGun extends RedhatMercenaryWeapon {
+public class RedhatMercenaryWeaponGun extends RedhatMercenaryWeapon implements AiRangedEgoWeapon {
+    /** Clears transient prey tags before a server writes its final save. */
+    public static void clearRuntimePrey(MinecraftServer server) {
+        Prey.clearAll(server);
+    }
+
     /** 射程：15格 */
     private static final double ATTACK_RANGE = 15;
+    @Override public double aiAttackRange() { return ATTACK_RANGE; }
+    @Override public double aiMinSpacing() { return 6.0D; }
+    @Override public double aiMaxSpacing() { return 12.0D; }
+    @Override public double aiPreferredSpacing() { return 9.0D; }
+    @Override public boolean aiRequiresCrouch() { return true; }
     /** 冷却：3秒 */
     private static final int USE_COOLDOWN_TICKS = 3 * 20;
     /** 粒子拖尾的采样间隔（格） */
@@ -77,6 +90,7 @@ public class RedhatMercenaryWeaponGun extends RedhatMercenaryWeapon {
         spawnBlackTrail(level, player);
 
         float damage = 11f + player.getRandom().nextInt(3); // 11~13
+        DamageSource source = DamageHelper.getDamage(player, "red");
         LivingEntity nearest = null;
         double nearestDist = Double.MAX_VALUE;
 
@@ -88,7 +102,7 @@ public class RedhatMercenaryWeaponGun extends RedhatMercenaryWeapon {
             // 贯穿：清掉无敌帧，保证路径上每个目标都吃到伤害
             float finalDamage = damage;
             EntityUtil.clearHurtTime(target,
-                    () -> target.hurt(target.damageSources().playerAttack(player), finalDamage));
+                    () -> target.hurt(source, finalDamage));
             if (EgoArmorHelper.isFullEGO(player, "redhat_mercenary")) {
                 SlowTimer.applySlowEffect(target);
             }
@@ -223,6 +237,21 @@ public class RedhatMercenaryWeaponGun extends RedhatMercenaryWeapon {
             target.getPersistentData().remove(TAG_OWNER);
             target.getPersistentData().remove(TAG_EXPIRE);
             target.setGlowingTag(false);
+        }
+
+        private static void clearAll(MinecraftServer server) {
+            if (server != null) {
+                for (ServerLevel level : server.getAllLevels()) {
+                    for (Entity entity : level.getAllEntities()) {
+                        if (entity instanceof LivingEntity living
+                                && living.getPersistentData().hasUUID(TAG_OWNER)) {
+                            INSTANCE.removeTimer(living.getUUID());
+                            release(living);
+                        }
+                    }
+                }
+            }
+            PREY_BY_OWNER.clear();
         }
 
         @Override

@@ -1,17 +1,16 @@
 package com.wzz.lobotocraft.entity.ai.goal;
 
 import com.wzz.lobotocraft.block.entity.ElevatorBlockEntity;
+import com.wzz.lobotocraft.block.entity.ElevatorEntryFloorPolicy;
+import com.wzz.lobotocraft.employee.ElevatorRegistry;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
-import com.wzz.lobotocraft.util.EntityUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.ai.goal.Goal;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.EnumSet;
-import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
@@ -98,7 +97,7 @@ public class MoveToBlockPosWithElevatorGoal extends Goal {
         }
 
         stateCheckTimer++;
-        if (stateCheckTimer >= 40) {
+        if (stateCheckTimer >= 40 && state != State.WAITING_ON_ELEVATOR) {
             stateCheckTimer = 0;
             evaluateState();
         }
@@ -155,7 +154,7 @@ public class MoveToBlockPosWithElevatorGoal extends Goal {
     }
 
     private BlockPos findBestElevator(double yDiffToTarget) {
-        if (!(mob.level() instanceof ServerLevel)) {
+        if (!(mob.level() instanceof ServerLevel serverLevel)) {
             return null;
         }
 
@@ -164,24 +163,22 @@ public class MoveToBlockPosWithElevatorGoal extends Goal {
         int targetY = targetPos.getY();
         int currentY = mobPos.getY();
 
-        List<BlockEntity> nearbyBlockEntities = EntityUtil.findBlockEntities(mob.level(), mobPos, 30);
         BlockPos bestElevator = null;
         double bestScore = Double.MAX_VALUE;
 
-        for (BlockEntity blockEntity : nearbyBlockEntities) {
-            if (!(blockEntity instanceof ElevatorBlockEntity elevator)) {
+        for (BlockPos elevatorPos : ElevatorRegistry.positions(serverLevel)) {
+            if (!(serverLevel.getBlockEntity(elevatorPos) instanceof ElevatorBlockEntity elevator)) {
                 continue;
             }
-
-            BlockPos elevatorPos = blockEntity.getBlockPos();
-            if (needGoUp != elevator.isTeleportUp()) {
+            if (!ElevatorEntryFloorPolicy.isOnEntityFloor(serverLevel, mobPos, elevatorPos)) {
                 continue;
             }
-
-            BlockPos destinationElevator = elevator.findDestinationElevator(mob.level());
+            BlockPos destinationElevator = elevator.findDestinationElevator(mob.level(), needGoUp);
             if (destinationElevator == null) {
                 continue;
             }
+            if (!isSafeEntityPosition(serverLevel, elevatorPos.above())
+                    || !isSafeEntityPosition(serverLevel, destinationElevator.above())) continue;
 
             int destY = destinationElevator.getY() + 1;
             int diffAfterRide = Math.abs(targetY - destY);
@@ -200,6 +197,13 @@ public class MoveToBlockPosWithElevatorGoal extends Goal {
         return bestElevator;
     }
 
+    private boolean isSafeEntityPosition(ServerLevel level, BlockPos position) {
+        return level.noCollision(mob, mob.getBoundingBox().move(
+                position.getX() + 0.5D - mob.getX(),
+                position.getY() - mob.getY(),
+                position.getZ() + 0.5D - mob.getZ()));
+    }
+
     private void tickMovingToElevator() {
         if (targetElevatorPos == null) {
             evaluateState();
@@ -213,7 +217,10 @@ public class MoveToBlockPosWithElevatorGoal extends Goal {
                 targetElevatorPos.getZ() + 0.5D
         );
 
-        if (distToElevator <= 2.5D) {
+        if (distToElevator <= ElevatorBlockEntity.INTERACTION_RADIUS * ElevatorBlockEntity.INTERACTION_RADIUS) {
+            if (mob.level().getBlockEntity(targetElevatorPos) instanceof ElevatorBlockEntity elevator) {
+                elevator.tryTravel(mob, targetPos.getY() > mob.getY());
+            }
             state = State.WAITING_ON_ELEVATOR;
             elevatorWaitTimer = 0;
             mob.getNavigation().stop();
@@ -226,24 +233,17 @@ public class MoveToBlockPosWithElevatorGoal extends Goal {
         }
 
         Path path = mob.getNavigation().getPath();
-        if (path == null || path.isDone()) {
-            stuckTimer++;
-            if (stuckTimer > 40) {
-                stuckTimer = 0;
-                Vec3 dir = new Vec3(
-                        targetElevatorPos.getX() + 0.5D - mob.getX(),
-                        targetElevatorPos.getY() + 1.0D - mob.getY(),
-                        targetElevatorPos.getZ() + 0.5D - mob.getZ()
-                ).normalize();
-                mob.setDeltaMovement(dir.scale(speed * 0.4D));
-            }
-        } else {
-            stuckTimer = 0;
-        }
+        if (path == null || path.isDone()) evaluateState();
     }
 
     private void tickWaitingOnElevator() {
         elevatorWaitTimer++;
+        if (!(mob.level().getBlockEntity(targetElevatorPos) instanceof ElevatorBlockEntity source)
+                || !source.isWithinInteractionRange(mob)) {
+            state = State.FINDING_PATH;
+            evaluateState();
+            return;
+        }
         double currentYDiff = Math.abs(targetPos.getY() - mob.getY());
 
         if (currentYDiff <= 5.0D) {
@@ -252,12 +252,10 @@ public class MoveToBlockPosWithElevatorGoal extends Goal {
             return;
         }
 
-        if (elevatorWaitTimer > 100) {
-            if (mob.level().getBlockEntity(targetElevatorPos) instanceof ElevatorBlockEntity elevator) {
-                elevator.onStep(mob);
-            }
-            elevatorWaitTimer = 60;
+        if (elevatorWaitTimer % 10 == 0) {
+            source.tryTravel(mob, targetPos.getY() > mob.getY());
         }
+        if (elevatorWaitTimer > 100) evaluateState();
     }
 
     private void tickAfterElevator() {
@@ -286,14 +284,7 @@ public class MoveToBlockPosWithElevatorGoal extends Goal {
             stuckTimer++;
             if (stuckTimer > 60) {
                 stuckTimer = 0;
-                Vec3 dir = Vec3.atCenterOf(targetPos).subtract(mob.position()).normalize();
-                mob.setDeltaMovement(dir.scale(speed * 0.3D));
-                mob.getNavigation().moveTo(
-                        targetPos.getX() + 0.5D,
-                        targetPos.getY(),
-                        targetPos.getZ() + 0.5D,
-                        speed
-                );
+                navigateDirectlyToTarget();
             }
         } else {
             stuckTimer = 0;

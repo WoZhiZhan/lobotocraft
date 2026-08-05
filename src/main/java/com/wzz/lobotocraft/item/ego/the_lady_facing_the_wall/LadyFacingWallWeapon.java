@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.the_lady_facing_the_wall;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.AiRangedEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -20,8 +21,12 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 import java.util.Random;
 
-public class LadyFacingWallWeapon extends BaseEgoWeapon {
+public class LadyFacingWallWeapon extends BaseEgoWeapon implements AiRangedEgoWeapon {
     private static final double ATTACK_RANGE = 10.0;
+    @Override public double aiAttackRange() { return ATTACK_RANGE; }
+    @Override public double aiMinSpacing() { return 5.0D; }
+    @Override public double aiMaxSpacing() { return 9.0D; }
+    @Override public double aiPreferredSpacing() { return 7.0D; }
     public LadyFacingWallWeapon() {
         super(
                 new ModTier.WeaponTier(),

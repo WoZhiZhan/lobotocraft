@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
+import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -19,32 +20,79 @@ public final class CoreSuppressionOverlay {
     public static void render(RenderGuiOverlayEvent.Post event) {
         if (!event.getOverlay().id().equals(VanillaGuiOverlay.HOTBAR.id())) return;
         Minecraft minecraft = Minecraft.getInstance();
-        if (!CoreSuppressionClientState.isActive() || minecraft.player == null
-                || minecraft.options.hideGui || minecraft.options.renderDebug || minecraft.screen != null) {
-            return;
-        }
-        GuiGraphics graphics = event.getGuiGraphics();
+        if (!CoreSuppressionClientState.isActive() || minecraft.player == null) return;
+        if (minecraft.screen == null) renderColorFilter(event.getGuiGraphics());
+        if (minecraft.options.hideGui || minecraft.options.renderDebug || minecraft.screen != null) return;
+        renderObjective(event.getGuiGraphics(), CoreSuppressionClientState.getType());
+    }
+
+    @SubscribeEvent
+    public static void renderScreenFilter(ScreenEvent.Render.Post event) {
+        if (!CoreSuppressionClientState.isActive()
+                || !usesColorOnlyFilter()) return;
+        fillColorFilter(event.getGuiGraphics(), event.getGuiGraphics().guiWidth(),
+                event.getGuiGraphics().guiHeight());
+    }
+
+    private static void renderColorFilter(GuiGraphics graphics) {
+        if (!usesColorOnlyFilter()) return;
+        fillColorFilter(graphics, graphics.guiWidth(), graphics.guiHeight());
+    }
+
+    private static boolean usesColorOnlyFilter() {
         CoreSuppressionType type = CoreSuppressionClientState.getType();
-        renderObjective(graphics, type);
+        return !CoreSuppressionClientState.usesFullVisualEffects()
+                || type == CoreSuppressionType.MALKUTH
+                || type == CoreSuppressionType.YESOD;
+    }
+
+    private static void fillColorFilter(GuiGraphics graphics, int width, int height) {
+        CoreSuppressionType type = CoreSuppressionClientState.getType();
+        if (type == null) return;
+        int color = switch (type) {
+            case MALKUTH -> 0x24B64A2A;
+            case YESOD -> 0x204F2870;
+            case HOD -> 0x24B58A52;
+            case NETZACH -> 0x243B7A28;
+            default -> 0x18000000;
+        };
+        graphics.fill(0, 0, width, height, color);
     }
 
     private static void renderObjective(GuiGraphics graphics, CoreSuppressionType type) {
         Minecraft minecraft = Minecraft.getInstance();
         int y = graphics.guiHeight() - 50;
         String title = type.getDisplayName() + " 核心抑制";
-        String ordeal = "黎明 " + Math.min(3, CoreSuppressionClientState.getDawnCompleted())
-                + "/3  正午 " + Math.min(2, CoreSuppressionClientState.getMiddayCompleted()) + "/2";
-        String work = "接取者 " + CoreSuppressionClientState.getOwnerName() + "：工作 "
-                + CoreSuppressionClientState.getWorkCompleted() + "/"
-                + CoreSuppressionClientState.getWorkRequired();
-        int width = Math.max(minecraft.font.width(title), Math.max(minecraft.font.width(ordeal), minecraft.font.width(work))) + 12;
+        String energy = "能源 " + CoreSuppressionClientState.getEnergy()
+                + "/" + CoreSuppressionClientState.getEnergyQuota();
+        String meltdown = "逆卡巴拉熔毁 " + roman(CoreSuppressionClientState.getMeltdownLevel())
+                + "/" + roman(CoreSuppressionClientState.getRequiredMeltdownLevel());
+        int width = Math.max(minecraft.font.width(title),
+                Math.max(minecraft.font.width(energy), minecraft.font.width(meltdown))) + 12;
         graphics.fill(7, y - 5, 7 + width, y + 31, 0xB0000000);
         graphics.fill(7, y - 5, 9, y + 31, 0xFF000000 | type.getColor());
         graphics.drawString(minecraft.font, title, 13, y, 0xFF000000 | type.getColor(), false);
-        graphics.drawString(minecraft.font, ordeal, 13, y + 10, 0xFFFFFF, false);
-        graphics.drawString(minecraft.font, work, 13, y + 20, 0xD0D0D0, false);
+        graphics.drawString(minecraft.font, energy, 13, y + 10, 0xFFFFFF, false);
+        graphics.drawString(minecraft.font, meltdown, 13, y + 20, 0xD0D0D0, false);
         if (CoreSuppressionClientState.requirementsMet()) {
-            graphics.drawString(minecraft.font, "目标完成：接取者可以休息了。", 13, y - 15, 0x7CFF8C, true);
+            graphics.drawString(minecraft.font, "目标完成：可以结束当天。",
+                    13, y - 15, 0x7CFF8C, true);
         }
+    }
+
+    private static String roman(int level) {
+        return switch (level) {
+            case 1 -> "I";
+            case 2 -> "II";
+            case 3 -> "III";
+            case 4 -> "IV";
+            case 5 -> "V";
+            case 6 -> "VI";
+            case 7 -> "VII";
+            case 8 -> "VIII";
+            case 9 -> "IX";
+            case 10 -> "X";
+            default -> "-";
+        };
     }
 }

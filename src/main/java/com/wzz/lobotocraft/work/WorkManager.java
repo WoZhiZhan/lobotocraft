@@ -1,6 +1,8 @@
 package com.wzz.lobotocraft.work;
 
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
+import com.wzz.lobotocraft.capability.EmployeeLevelCalculator;
+import com.wzz.lobotocraft.capability.EmployeeStats;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
@@ -14,6 +16,7 @@ import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.item.PEBoxItem;
 import com.wzz.lobotocraft.item.WorkDeviceItem;
 import com.wzz.lobotocraft.item.ego.base.IWorkBonusItem;
+import com.wzz.lobotocraft.logger.ModLogger;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.OpenWorkProgressPacket;
 import com.wzz.lobotocraft.network.packet.WorkExtractionPacket;
@@ -28,6 +31,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import top.theillusivec4.curios.api.CuriosApi;
@@ -50,12 +55,22 @@ public class WorkManager {
     private static final int BASE_EXTRACTION_INTERVAL = 40;
     private static final int SUPPRESSION_WORK_COOLDOWN_TICKS = 5 * 20;
 
+    private enum SessionState {
+        ACTIVE,
+        COMPLETING,
+        CANCELED,
+        COMPLETED
+    }
+
     /**
      * 工作会话数据（含自律加成、观察等级加成和异想体特殊逻辑）
      */
     public static class WorkSession {
         public final ServerPlayer player;
         public final AbstractAbnormality abnormality;
+        /** The command slot selected by the player or dispatcher. */
+        public final WorkType requestedWorkType;
+        /** The server-authoritative work type after Malkuth's mapping is applied. */
         public final WorkType workType;
         public final float baseSuccessRate;
         public final float actualSuccessRate;  // 含所有加成和异想体修改
@@ -67,6 +82,9 @@ public class WorkManager {
         public final float itemSuccessBonus;       // 饰品成功率加成（百分比）
         public final String itemBonusMessage;      // 饰品加成显示信息
         public final boolean continuousMode;
+        /** Snapshot used by the original LC attribute-growth formula. */
+        public final float startingHealth;
+        public final float startingMental;
 
         public int workDuration = 0; // 总工作时间
         public int currentTick = 0;
@@ -78,6 +96,7 @@ public class WorkManager {
         public boolean completeImmediately = false;
         public WorkResult forcedResult = null;
         public String forcedEndReason = "恐慌";
+        private final AtomicReference<SessionState> state = new AtomicReference<>(SessionState.ACTIVE);
 
         private float currentSpeedMultiplier = 1.0f;
         private int currentExtractionInterval;
@@ -86,11 +105,35 @@ public class WorkManager {
         private int lastMultiplierCalcTick = 0;
         private static final int MULTIPLIER_CALC_INTERVAL = 10; // 每10tick重新计算一次倍率
 
+        private boolean beginCompletion() {
+            return state.compareAndSet(SessionState.ACTIVE, SessionState.COMPLETING);
+        }
+
+        private boolean cancel() {
+            return state.compareAndSet(SessionState.ACTIVE, SessionState.CANCELED);
+        }
+
+        private void finishCompletion() {
+            state.compareAndSet(SessionState.COMPLETING, SessionState.COMPLETED);
+        }
+
+        private boolean isCompleting() {
+            return state.get() == SessionState.COMPLETING;
+        }
+
         public WorkSession(ServerPlayer player, AbstractAbnormality abnormality, WorkType workType, boolean continuousMode) {
+            this(player, abnormality, workType, workType, continuousMode);
+        }
+
+        public WorkSession(ServerPlayer player, AbstractAbnormality abnormality,
+                           WorkType requestedWorkType, WorkType workType, boolean continuousMode) {
             this.player = player;
             this.abnormality = abnormality;
+            this.requestedWorkType = requestedWorkType;
             this.workType = workType;
             this.continuousMode = continuousMode;
+            this.startingHealth = player.getHealth();
+            this.startingMental = MentalValueUtil.getMentalValue(player);
             final int[] empLevel = {1};
             player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS)
                     .ifPresent(stats -> empLevel[0] = stats.getEmployeeLevel());
@@ -211,9 +254,23 @@ public class WorkManager {
                 .anyMatch(session -> session.abnormality.getUUID().equals(abnormalityUuid));
     }
 
+    /**
+     * AI reservation is intentionally narrower than the list of all active
+     * work sessions. Human players never reserve an abnormality against other
+     * players or against an AI employee.
+     */
+    public static boolean isAiEmployeeWorking(AbstractAbnormality abnormality) {
+        if (abnormality == null) return false;
+        UUID abnormalityUuid = abnormality.getUUID();
+        return activeWorks.values().stream()
+                .anyMatch(session -> AbnormalityWorkRules.isAiEmployee(session.player)
+                        && session.abnormality.getUUID().equals(abnormalityUuid));
+    }
+
     private static String getSuppressionWorkDenial(ServerPlayer player, AbstractAbnormality abnormality) {
         if (!CoreSuppressionManager.isSuppressionActive(player.level())) return null;
-        if (isAbnormalityBeingWorked(abnormality)) {
+        if (AbnormalityWorkRules.hasAiReservationConflict(
+                AbnormalityWorkRules.isAiEmployee(player), isAiEmployeeWorking(abnormality))) {
             return "核心抑制期间，同一异想体不能由多人同时工作。";
         }
         long gameTime = player.serverLevel().getGameTime();
@@ -239,10 +296,37 @@ public class WorkManager {
         return startWork(player, abnormality, workType, WorkDeviceItem.hasEnabledDevice(player), true);
     }
 
+    /** Starts an AI order whose Malkuth mapping was fixed when the order was issued. */
+    public static boolean startResolvedWork(ServerPlayer player, AbstractAbnormality abnormality,
+                                            WorkType requestedWorkType, WorkType resolvedWorkType) {
+        return startWork(player, abnormality, requestedWorkType, resolvedWorkType,
+                WorkDeviceItem.hasEnabledDevice(player), true);
+    }
+
     private static boolean startWork(ServerPlayer player, AbstractAbnormality entity, WorkType workType,
+                                     boolean continuousMode, boolean openClientScreen) {
+        return startWork(player, entity, workType, null, continuousMode, openClientScreen);
+    }
+
+    private static boolean startWork(ServerPlayer player, AbstractAbnormality entity,
+                                     WorkType requestedWorkType, WorkType resolvedWorkType,
                                      boolean continuousMode, boolean openClientScreen) {
         if (!entity.isAlive() || entity.isRemoved()) {
             player.sendSystemMessage(Component.literal("§c异想体不存在或已消失"));
+            return false;
+        }
+        String registrationDenial = AbnormalityWorkRules.registrationDenial(entity);
+        if (registrationDenial != null) {
+            player.sendSystemMessage(Component.literal("§c" + registrationDenial));
+            return false;
+        }
+        if (isPlayerWorking(player)) {
+            player.sendSystemMessage(Component.literal("§c你正在进行其他工作"));
+            return false;
+        }
+        if (AbnormalityWorkRules.hasAiReservationConflict(
+                AbnormalityWorkRules.isAiEmployee(player), isAiEmployeeWorking(entity))) {
+            player.sendSystemMessage(Component.literal("§c该异想体已有 AI 员工正在工作"));
             return false;
         }
         if (player.distanceToSqr(entity) > 100.0) {
@@ -255,19 +339,13 @@ public class WorkManager {
             return false;
         }
 
-        workType = CoreSuppressionManager.randomizeWorkType(player, workType);
+        WorkType workType = resolvedWorkType == null
+                ? CoreSuppressionManager.randomizeWorkType(player, requestedWorkType)
+                : resolvedWorkType;
 
-        // 检查精神值是否为空
-        final boolean[] mentalEmpty = {false};
-        player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
-            if (mental.isMentalValueEmpty()) {
-                mentalEmpty[0] = true;
-            }
-        });
-
-        if (mentalEmpty[0]) {
-            player.sendSystemMessage(Component.literal("§c你的精神值已经耗尽，无法进行工作！"));
-            player.sendSystemMessage(Component.literal("§e提示：你可以去一罪与百善那里祈祷恢复精神值。"));
+        if (MentalValueUtil.isPanic(player)) {
+            player.sendSystemMessage(Component.literal("§c你仍处于恐慌状态，无法进行工作！"));
+            player.sendSystemMessage(Component.literal("§e精神值恢复至上限的一半以上后才能恢复正常。"));
             return false;
         }
 
@@ -293,16 +371,23 @@ public class WorkManager {
             }
             return false;
         }
+        if (isPlayerWorking(player) || !isStartContextValid(player, entity)) return false;
         // 调用异想体的工作开始回调
         if (!entity.onWorkStart(player, workType)) {
             // 异想体阻止了工作开始
             player.sendSystemMessage(Component.literal("§c无法开始工作！"));
             return false;
         }
+        if (isPlayerWorking(player) || !isStartContextValid(player, entity)) {
+            entity.onWorkInterrupted(player, workType, "Work start context changed");
+            return false;
+        }
 
-        WorkSession session = new WorkSession(player, entity, workType, continuousMode);
-        activeWorks.put(player.getUUID(), session);
+        WorkSession session = new WorkSession(
+                player, entity, requestedWorkType, workType, continuousMode);
+        if (activeWorks.putIfAbsent(player.getUUID(), session) != null) return false;
         CoreSuppressionManager.resolveMeltdownOnWorkStart(entity, player);
+        if (!validateAfterCallback(session)) return false;
 
         // 显示自律加成信息
         if (session.temperance > 20) {
@@ -333,24 +418,25 @@ public class WorkManager {
             player.sendSystemMessage(Component.literal(bonusMsg.toString()));
         }
 
-        if (!session.itemBonusMessage.isEmpty()) {
+        boolean malkuthScramble = CoreSuppressionManager.isMalkuthWorkScrambled(player.level());
+        if (!malkuthScramble && !session.itemBonusMessage.isEmpty()) {
             player.sendSystemMessage(Component.literal(session.itemBonusMessage));
         }
 
-        // 显示最终的工作间隔和成功率
-        player.sendSystemMessage(Component.literal(
-                String.format("§7工作间隔: %dtick (基础: %dtick)",
-                        session.extractionInterval, BASE_EXTRACTION_INTERVAL)
-        ));
+        if (!malkuthScramble) {
+            player.sendSystemMessage(Component.literal(
+                    String.format("§7工作间隔: %dtick (基础: %dtick)",
+                            session.extractionInterval, BASE_EXTRACTION_INTERVAL)
+            ));
+            player.sendSystemMessage(Component.literal(
+                    String.format("§7成功率: %.1f%% (基础: %.1f%%)",
+                            session.actualSuccessRate * 100,
+                            session.baseSuccessRate * 100)
+            ));
+        }
 
         player.sendSystemMessage(Component.literal(
-                String.format("§7成功率: %.1f%% (基础: %.1f%%)",
-                        session.actualSuccessRate * 100,
-                        session.baseSuccessRate * 100)
-        ));
-
-        player.sendSystemMessage(Component.literal(
-                "§a开始进行" + workType.getDisplayName() + "工作..."
+                "§a开始进行" + (malkuthScramble ? "???" : workType.getDisplayName()) + "工作..."
         ));
 
         if (continuousMode) {
@@ -361,8 +447,8 @@ public class WorkManager {
             MessageLoader.getLoader().sendToPlayer(player,
                     new OpenWorkProgressPacket(
                             entity.getEntityId(),
-                            workType,
-                            session.actualSuccessRate,
+                            requestedWorkType,
+                            malkuthScramble ? -1.0F : session.actualSuccessRate,
                             entity.getMaxPEOutput(),
                             entity.getEntityId(),
                             session.observationLevel,
@@ -374,8 +460,13 @@ public class WorkManager {
     }
 
     public static void cancelWork(ServerPlayer player, String reason) {
-        WorkSession session = activeWorks.remove(player.getUUID());
-        if (session != null) {
+        cancelWork(activeWorks.get(player.getUUID()), reason, true);
+    }
+
+    private static void cancelWork(WorkSession session, String reason, boolean notifyPlayer) {
+        if (session == null || !activeWorks.remove(session.player.getUUID(), session) || !session.cancel()) return;
+        ServerPlayer player = session.player;
+        try {
             MinecraftForge.EVENT_BUS.post(new WorkInterruptEvent(
                     player,
                     session.abnormality,
@@ -385,40 +476,64 @@ public class WorkManager {
             ));
             // 调用异想体的工作中断回调
             session.abnormality.onWorkInterrupted(player, session.workType, reason);
+        } catch (Exception exception) {
+            ModLogger.getLogger().error("Work interruption callback failed", exception);
         }
-        player.sendSystemMessage(Component.literal("§c工作中断：" + reason));
-        player.closeContainer();
+        if (notifyPlayer) {
+            player.sendSystemMessage(Component.literal("§c工作中断：" + reason));
+            player.closeContainer();
+        }
     }
 
     @SubscribeEvent
     public static void onServerTick(TickEvent.ServerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
 
-        Iterator<Map.Entry<UUID, WorkSession>> iterator = activeWorks.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<UUID, WorkSession> entry = iterator.next();
-            WorkSession session = entry.getValue();
+        // Snapshot iteration allows cancellation callbacks to manipulate the
+        // live map safely.  In particular, never call Iterator.remove after
+        // cancelWork: a listener can legally issue a replacement order for
+        // the same UUID, and an unconditional iterator removal would delete
+        // that replacement session.
+        for (WorkSession session : new ArrayList<>(activeWorks.values())) {
+            // A callback earlier in this server tick can replace this
+            // player's session. Never let the stale snapshot keep extracting
+            // PE or apply failure damage after the replacement has won.
+            if (activeWorks.get(session.player.getUUID()) != session) continue;
 
             if (!session.player.isAlive() || session.player.isRemoved() || session.player.isDeadOrDying()) {
-                cancelWork(session.player, "死亡中断对异想体的工作！");
-                iterator.remove();
+                cancelWork(session, "死亡中断对异想体的工作！", true);
+                continue;
+            }
+
+            if (!session.abnormality.isAlive() || session.abnormality.isRemoved()
+                    || session.abnormality.level() != session.player.level()) {
+                cancelWork(session, "Invalid work target", true);
                 continue;
             }
 
             if (session.player.distanceToSqr((Entity) session.abnormality) > 100.0) {
-                cancelWork(session.player, "你离异想体太远了");
-                iterator.remove();
+                cancelWork(session, "你离异想体太远了", true);
                 continue;
             }
 
             // 检查玩家是否恐慌
             boolean isPanic = checkPlayerPanic(session.player);
-            if (isPanic && !session.forcedEnd) {
-                session.forcedEnd = true;
-                session.forcedEndReason = "恐慌";
-                session.player.sendSystemMessage(Component.literal("§c你因为恐慌而无法继续工作！"));
+            if (isPanic) {
+                cancelWork(session, "Work interrupted by panic", true);
+                continue;
             }
-
+            if (session.completeImmediately) {
+                if (!claimForCompletion(session)) continue;
+                boolean restartContinuous = completeWork(session);
+                if (restartContinuous) {
+                    startWork(session.player, session.abnormality, session.requestedWorkType, true, true);
+                }
+                continue;
+            }
+            if (session.forcedEnd) {
+                cancelWork(session, session.forcedEndReason, true);
+                continue;
+            }
             if (session.continuousMode && !session.stopContinuousAfterCurrent) {
                 String stopReason = getContinuousStopReason(session);
                 if (stopReason != null) {
@@ -433,11 +548,12 @@ public class WorkManager {
             session.workDuration++;
 
             session.abnormality.onWorkTick(session.player, session, session.workType);
+            if (!validateAfterCallback(session)) continue;
             if (session.completeImmediately) {
+                if (!claimForCompletion(session)) continue;
                 boolean restartContinuous = completeWork(session);
-                iterator.remove();
                 if (restartContinuous) {
-                    startWork(session.player, session.abnormality, session.workType, true, true);
+                    startWork(session.player, session.abnormality, session.requestedWorkType, true, true);
                 }
                 continue;
             }
@@ -449,15 +565,16 @@ public class WorkManager {
                     session.currentExtractionInterval,  // 使用动态间隔
                     session
             ));
+            if (!validateAfterCallback(session)) continue;
 
             if (session.currentTick >= session.currentExtractionInterval) {
                 session.currentTick = 0;
-                performExtraction(session);
+                if (!performExtraction(session)) continue;
                 if (session.isComplete()) {
+                    if (!claimForCompletion(session)) continue;
                     boolean restartContinuous = completeWork(session);
-                    iterator.remove();
                     if (restartContinuous) {
-                        startWork(session.player, session.abnormality, session.workType, true, true);
+                        startWork(session.player, session.abnormality, session.requestedWorkType, true, true);
                     }
                 }
             }
@@ -465,11 +582,7 @@ public class WorkManager {
     }
 
     private static boolean checkPlayerPanic(ServerPlayer player) {
-        final boolean[] isPanic = {false};
-        player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
-            isPanic[0] = mental.isMentalValueEmpty();
-        });
-        return isPanic[0];
+        return MentalValueUtil.isPanic(player);
     }
 
     public static void requestStopContinuousWork(ServerPlayer player, String reason) {
@@ -537,7 +650,7 @@ public class WorkManager {
         return true;
     }
 
-    private static void performExtraction(WorkSession session) {
+    private static boolean performExtraction(WorkSession session) {
         ServerPlayer player = session.player;
         AbstractAbnormality abnormality = session.abnormality;
 
@@ -553,8 +666,9 @@ public class WorkManager {
             if (!preEvent.getCancelReason().isEmpty()) {
                 player.sendSystemMessage(Component.literal("§c" + preEvent.getCancelReason()));
             }
-            return;
+            return isActive(session);
         }
+        if (!validateAfterCallback(session)) return false;
 
         // 使用事件中可能被修改的成功率
         float effectiveSuccessRate = preEvent.getSuccessRate();
@@ -577,6 +691,7 @@ public class WorkManager {
                     player.sendSystemMessage(Component.literal(damageEvent.getCancelMessage()));
                 }
             }
+            if (!validateAfterCallback(session)) return false;
         }
 
         session.extractionCount++;
@@ -585,11 +700,12 @@ public class WorkManager {
                 player, abnormality, session.workType,
                 success, session.extractionCount, session
         ));
+        if (!validateAfterCallback(session)) return false;
 
         MessageLoader.getLoader().sendToPlayer(player,
                 new WorkExtractionPacket(
                         abnormality.getEntityId(),
-                        session.workType,
+                        session.requestedWorkType,
                         success,
                         session.extractionCount,
                         session.successCount,
@@ -597,6 +713,7 @@ public class WorkManager {
                         session.currentSpeedMultiplier
                 )
         );
+        return isActive(session);
     }
 
     private static void applyDamage(ServerPlayer player, IAbnormality abnormality) {
@@ -630,6 +747,7 @@ public class WorkManager {
                 session,
                 session.forcedEnd
         ));
+        if (!isCompletionValid(session)) return finishCompletion(session, false);
         if (!session.forcedEnd) {
             beginSuppressionWorkCooldown(session.abnormality);
         }
@@ -642,6 +760,8 @@ public class WorkManager {
                         "§dYesod核心抑制奖励：额外获得 " + independentBonus + " 个独立PE-BOX。"));
             }
         }
+        if (!isCompletionValid(session)) return finishCompletion(session, false);
+        giveGift(player, abnormality);
         if (session.continuousMode && !session.stopContinuousAfterCurrent) {
             String stopReason = getContinuousStopReason(session);
             if (stopReason != null) {
@@ -649,8 +769,10 @@ public class WorkManager {
             }
         }
         handleWorkResult(player, abnormality, workType, result);
-        applyAttributeGain(player, abnormality, workType);
+        if (!isCompletionValid(session)) return finishCompletion(session, false);
+        applyAttributeGain(player, abnormality, workType, session);
         abnormality.onWorkComplete(player, workType, result);
+        if (!isCompletionValid(session)) return finishCompletion(session, false);
         if (session.continuousMode && !session.stopContinuousAfterCurrent) {
             String stopReason = getContinuousStopReason(session);
             if (stopReason != null) {
@@ -671,7 +793,7 @@ public class WorkManager {
 
                 if (data.hasCompletedTodayWork()) {
                     player.sendSystemMessage(Component.literal(
-                            "§6今日工作已完成！你现在可以去睡觉了。"
+                            "§6今日工作已完成！长按“结束当天”按键（默认 N）即可进入下一天。"
                     ).withStyle(ChatFormatting.GOLD));
                 }
                 MessageLoader.getLoader().sendToPlayer(player,
@@ -687,7 +809,7 @@ public class WorkManager {
         MessageLoader.getLoader().sendToPlayer(player,
                 new WorkCompletePacket(
                         abnormality.getEntityId(),
-                        workType,
+                        session.requestedWorkType,
                         result,
                         peOutput,
                         session.successCount,
@@ -708,25 +830,40 @@ public class WorkManager {
                     String.format("工作完成！时长：%s，结果：%s，获得 %d PE-BOX", session.getFormattedDuration(), resultText, peOutput)
             ));
         }
-        return shouldRestartContinuous(session);
+        return finishCompletion(session, shouldRestartContinuous(session));
+    }
+
+    private static boolean isCompletionValid(WorkSession session) {
+        // Distance and same-dimension checks belong to work start / extraction only. A result
+        // callback may legitimately make the abnormality escape, teleport or replace itself.
+        // Rejecting completion after that callback skips WorkCompletePacket and strands the
+        // client on WorkProgressScreen forever.
+        ServerPlayer player = session.player;
+        return session.isCompleting() && player != null && player.isAlive() && !player.isRemoved();
+    }
+
+    private static boolean finishCompletion(WorkSession session, boolean restart) {
+        session.finishCompletion();
+        return restart;
     }
 
     /**
      * 提升员工属性
      */
-    private static void applyAttributeGain(ServerPlayer player, IAbnormality abnormality, WorkType workType) {
+    private static void applyAttributeGain(ServerPlayer player, IAbnormality abnormality, WorkType workType,
+                                            WorkSession session) {
         player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(stats -> {
-            String riskLevel = abnormality.getRiskLevel().name();
-            int increase = stats.calculateAttributeIncrease(riskLevel, workType.name());
-            increase *= CoreSuppressionManager.getAttributeGrowthMultiplier(player);
+            int increase = WorkAttributeExperience.calculateIncrease(
+                    player, stats, abnormality.getRiskLevel().name(), workType, session);
             if (increase > 0) {
                 switch (workType) {
                     case INSTINCT -> {
                         int added = stats.addFortitude(increase);
                         if (added > 0) {
                             player.sendSystemMessage(Component.literal(
-                                    "§c▲ 勇气 +" + added + " §7(Lv." + stats.getFortitudeLevel() +
-                                            " " + stats.getFortitude() + "/100)"
+                                    "§c▲ 勇气 +" + added + " §7(Lv."
+                                            + EmployeeLevelCalculator.statGrade(stats.getFortitude())
+                                            + " " + stats.getFortitude() + "/" + EmployeeStats.MAX_STAT + ")"
                             ));
                             EmployeeStatsApplier.applyAllAttributes(player);
                         }
@@ -735,8 +872,9 @@ public class WorkManager {
                         int added = stats.addPrudence(increase);
                         if (added > 0) {
                             player.sendSystemMessage(Component.literal(
-                                    "§b▲ 谨慎 +" + added + " §7(Lv." + stats.getPrudenceLevel() +
-                                            " " + stats.getPrudence() + "/100)"
+                                    "§b▲ 谨慎 +" + added + " §7(Lv."
+                                            + EmployeeLevelCalculator.statGrade(stats.getPrudence())
+                                            + " " + stats.getPrudence() + "/" + EmployeeStats.MAX_STAT + ")"
                             ));
                             EmployeeStatsApplier.applyAllAttributes(player);
                         }
@@ -745,8 +883,9 @@ public class WorkManager {
                         int added = stats.addTemperance(increase);
                         if (added > 0) {
                             player.sendSystemMessage(Component.literal(
-                                    "§a▲ 自律 +" + added + " §7(Lv." + stats.getTemperanceLevel() +
-                                            " " + stats.getTemperance() + "/100)"
+                                    "§a▲ 自律 +" + added + " §7(Lv."
+                                            + EmployeeLevelCalculator.statGrade(stats.getTemperance())
+                                            + " " + stats.getTemperance() + "/" + EmployeeStats.MAX_STAT + ")"
                             ));
                             EmployeeStatsApplier.applyAllAttributes(player);
                         }
@@ -755,8 +894,9 @@ public class WorkManager {
                         int added = stats.addJustice(increase);
                         if (added > 0) {
                             player.sendSystemMessage(Component.literal(
-                                    "§6▲ 正义 +" + added + " §7(Lv." + stats.getJusticeLevel() +
-                                            " " + stats.getJustice() + "/100)"
+                                    "§6▲ 正义 +" + added + " §7(Lv."
+                                            + EmployeeLevelCalculator.statGrade(stats.getJustice())
+                                            + " " + stats.getJustice() + "/" + EmployeeStats.MAX_STAT + ")"
                             ));
                             EmployeeStatsApplier.applyAllAttributes(player);
                         }
@@ -785,6 +925,41 @@ public class WorkManager {
         if (!player.addItem(peBox)) {
             player.drop(peBox, false);
         }
+    }
+
+    private static boolean isStartContextValid(ServerPlayer player, AbstractAbnormality abnormality) {
+        return player != null && player.isAlive() && !player.isRemoved()
+                && abnormality != null && abnormality.isAlive() && !abnormality.isRemoved()
+                && player.level() == abnormality.level() && player.distanceToSqr(abnormality) <= 100.0;
+    }
+
+    private static boolean isActive(WorkSession session) {
+        return session != null && session.state.get() == SessionState.ACTIVE
+                && activeWorks.get(session.player.getUUID()) == session;
+    }
+
+    private static boolean validateAfterCallback(WorkSession session) {
+        if (!isActive(session)) return false;
+        if (isStartContextValid(session.player, session.abnormality)) return true;
+        cancelWork(session, "Work context changed during callback", true);
+        return false;
+    }
+
+    private static boolean claimForCompletion(WorkSession session) {
+        if (!isActive(session) || !activeWorks.remove(session.player.getUUID(), session)) return false;
+        return session.beginCompletion();
+    }
+
+    /** Gifts are rolled exclusively after a completed server-side work session. */
+    private static void giveGift(ServerPlayer player, IAbnormality abnormality) {
+        var gift = abnormality.getEGOGiftData();
+        if (gift == null) return;
+        float probability = abnormality.getGiftProbability();
+        if (!(probability > 0.0F) || player.getRandom().nextFloat() >= Math.min(1.0F, probability)) return;
+        ItemStack giftStack = com.wzz.lobotocraft.entity.data.EGOEquipmentData.stack(gift.itemId());
+        if (giftStack.isEmpty()) return;
+        if (!player.addItem(giftStack)) player.drop(giftStack, false);
+        player.sendSystemMessage(Component.literal("§a获得 E.G.O 饰品：§6" + gift.name()));
     }
 
     private static void handleWorkResult(ServerPlayer player, IAbnormality abnormality,
@@ -871,5 +1046,19 @@ public class WorkManager {
     public static IAbnormality getWorkingAbnormality(ServerPlayer player) {
         WorkSession session = activeWorks.get(player.getUUID());
         return session != null ? session.abnormality : null;
+    }
+
+    @SubscribeEvent
+    public static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            cancelWork(activeWorks.get(player.getUUID()), "Player disconnected", false);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        for (WorkSession session : activeWorks.values()) session.cancel();
+        activeWorks.clear();
+        suppressionWorkCooldowns.clear();
     }
 }

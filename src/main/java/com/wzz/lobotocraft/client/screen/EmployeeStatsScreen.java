@@ -1,17 +1,22 @@
 package com.wzz.lobotocraft.client.screen;
 
 import com.wzz.lobotocraft.capability.EmployeeStats;
+import com.wzz.lobotocraft.capability.EmployeeLevelCalculator;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
+import com.wzz.lobotocraft.client.ui.LobotomyUiRenderer;
+import com.wzz.lobotocraft.client.ui.LobotomyUiTheme;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.item.AttributeEntry;
 import com.wzz.lobotocraft.item.ego.base.IAttributeItem;
 import com.wzz.lobotocraft.item.ego.base.IMentalValueItem;
 import com.wzz.lobotocraft.item.ego.base.IWorkBonusItem;
 import com.wzz.lobotocraft.util.CuriosUtil;
+import com.wzz.lobotocraft.util.ResourceUtil;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import org.lwjgl.glfw.GLFW;
@@ -23,6 +28,17 @@ import java.util.List;
  * 显示四大属性：勇气、谨慎、自律、正义
  */
 public class EmployeeStatsScreen extends Screen {
+    private static final int[] STAT_GRADE_THRESHOLDS = {30, 45, 65, 85, 100};
+
+    // 四维主题图标（theme 贴图不存在时降级为纯色标）
+    private static final ResourceLocation ICON_FORTITUDE =
+            ResourceUtil.createInstance("textures/gui/theme/stat_fortitude.png");
+    private static final ResourceLocation ICON_PRUDENCE =
+            ResourceUtil.createInstance("textures/gui/theme/stat_prudence.png");
+    private static final ResourceLocation ICON_TEMPERANCE =
+            ResourceUtil.createInstance("textures/gui/theme/stat_temperance.png");
+    private static final ResourceLocation ICON_JUSTICE =
+            ResourceUtil.createInstance("textures/gui/theme/stat_justice.png");
 
     private final Screen previousScreen;
 
@@ -184,27 +200,21 @@ public class EmployeeStatsScreen extends Screen {
         int panelX = centerX - panelWidth / 2;
         int panelY = centerY - panelHeight / 2;
 
-        // 面板背景
-        graphics.fill(panelX - 3, panelY - 3,
-                panelX + panelWidth + 3, panelY + panelHeight + 3, 0xFF8B4513);
-        graphics.fill(panelX, panelY,
-                panelX + panelWidth, panelY + panelHeight, 0xFF2C1810);
-
-        // 标题
-        graphics.drawCenteredString(this.font, "§l§6员工属性",
-                centerX, panelY + 15, 0xFFD700);
-
-        // 分隔线
-        graphics.fill(panelX + 20, panelY + 35,
-                panelX + panelWidth - 20, panelY + 37, 0xFF8B4513);
+        // 面板背景（脑叶主题：深底 + 描边 + 角括号 + 头部）
+        LobotomyUiRenderer.drawPanel(graphics, panelX, panelY, panelWidth, panelHeight);
+        LobotomyUiRenderer.drawPanelHeader(graphics, this.font, panelX, panelY, panelWidth,
+                "AGENT STATUS", "员工属性");
 
         // 员工等级
-        int employeeLevel = Math.min(Math.min(
-                        calculateLevel(fortitude), calculateLevel(prudence)),
-                Math.min(calculateLevel(temperance), calculateLevel(justice)));
-
-        graphics.drawCenteredString(this.font, "§e员工等级: §f" + employeeLevel,
-                centerX, panelY + 50, 0xFFFFFF);
+        int employeeLevel = EmployeeLevelCalculator.fromStatValues(
+                fortitude, prudence, temperance, justice);
+        String levelLabel = "员工等级: ";
+        String levelValue = Integer.toString(employeeLevel);
+        int levelX = centerX - (this.font.width(levelLabel) + this.font.width(levelValue)) / 2;
+        graphics.drawString(this.font, levelLabel, levelX, panelY + 50,
+                LobotomyUiTheme.TEXT_BODY, false);
+        graphics.drawString(this.font, levelValue, levelX + this.font.width(levelLabel),
+                panelY + 50, LobotomyUiTheme.GOLD, false);
 
         // 精神值显示
         renderMentalValue(graphics, panelX + 30, panelY + 70);
@@ -214,38 +224,39 @@ public class EmployeeStatsScreen extends Screen {
         int attrSpacing = 55;
 
         // 勇气（显示生命值、护甲加成）
-        renderAttributeWithFortitudeBonus(graphics, panelX + 30, attrY,
-                "§c勇气 (Fortitude)", fortitude, 0xFF8B0000,
-                "影响最大生命值");
+        renderAttribute(graphics, panelX + 30, attrY,
+                "勇气 (Fortitude)", ICON_FORTITUDE, fortitude,
+                LobotomyUiTheme.STAT_FORTITUDE, "影响最大生命值", buildFortitudeBonusText());
 
         // 谨慎（显示精神值加成）
-        renderAttributeWithPrudenceBonus(graphics, panelX + 30, attrY + attrSpacing,
-                "§b谨慎 (Prudence)", prudence, 0xFF4169E1,
-                "影响最大精神值");
+        renderAttribute(graphics, panelX + 30, attrY + attrSpacing,
+                "谨慎 (Prudence)", ICON_PRUDENCE, prudence,
+                LobotomyUiTheme.STAT_PRUDENCE, "影响最大精神值", buildPrudenceBonusText());
 
         // 自律（显示工作加成）
-        renderAttributeWithWorkBonus(graphics, panelX + 30, attrY + attrSpacing * 2,
-                "§a自律 (Temperance)", temperance, 0xFF228B22,
-                "影响工作成功率和工作速度");
+        renderAttribute(graphics, panelX + 30, attrY + attrSpacing * 2,
+                "自律 (Temperance)", ICON_TEMPERANCE, temperance,
+                LobotomyUiTheme.STAT_TEMPERANCE, "影响工作成功率和工作速度", buildTemperanceBonusText());
 
         // 正义（显示速度加成）
-        renderAttributeWithJusticeBonus(graphics, panelX + 30, attrY + attrSpacing * 3,
-                "§6正义 (Justice)", justice, 0xFFDAA520,
-                "影响攻击速度和移动速度");
+        renderAttribute(graphics, panelX + 30, attrY + attrSpacing * 3,
+                "正义 (Justice)", ICON_JUSTICE, justice,
+                LobotomyUiTheme.STAT_JUSTICE, "影响攻击速度和移动速度", buildJusticeBonusText());
 
         // 返回提示
-        graphics.drawCenteredString(this.font, "§7按 ESC 或 E 返回",
-                centerX, panelY + panelHeight - 20, 0xAAAAAA);
+        String backHint = "按 ESC 或 E 返回";
+        graphics.drawString(this.font, backHint, centerX - this.font.width(backHint) / 2,
+                panelY + panelHeight - 20, LobotomyUiTheme.TEXT_MUTED, false);
 
         super.render(graphics, mouseX, mouseY, partialTick);
     }
 
     /**
-     * 渲染精神值条
+     * 渲染精神值条（SP 语义：白 → <50% 黄 → <25% 红）
      */
     private void renderMentalValue(GuiGraphics graphics, int x, int y) {
         // 标题
-        graphics.drawString(this.font, "§d精神值 (Mental)", x, y, 0xFFFFFF);
+        graphics.drawString(this.font, "精神值 (Mental)", x, y, LobotomyUiTheme.BAR_SP, false);
 
         // 获取实际的最大精神值（包括加成）
         float actualMaxMental = maxMental + maxMentalBonus;
@@ -254,14 +265,12 @@ public class EmployeeStatsScreen extends Screen {
         float displayMental = Math.min(currentMental, actualMaxMental);
 
         // 数值显示
-        String mentalText;
+        String mentalText = String.format("%.1f / %.0f", displayMental, actualMaxMental);
+        graphics.drawString(this.font, mentalText, x + 260, y, LobotomyUiTheme.TEXT_TITLE, false);
         if (maxMentalBonus > 0) {
-            mentalText = String.format("%.1f / %.0f §a(+%.0f)§f",
-                    displayMental, actualMaxMental, maxMentalBonus);
-        } else {
-            mentalText = String.format("%.1f / %.0f", displayMental, actualMaxMental);
+            graphics.drawString(this.font, String.format(" (+%.0f)", maxMentalBonus),
+                    x + 260 + this.font.width(mentalText), y, LobotomyUiTheme.ENERGY_GREEN, false);
         }
-        graphics.drawString(this.font, "§f" + mentalText, x + 260, y, 0xFFFFFF);
 
         // 进度条 - 使用实际最大值
         int barX = x;
@@ -269,30 +278,27 @@ public class EmployeeStatsScreen extends Screen {
         int barWidth = 340;
         int barHeight = 12;
 
-        // 背景
-        graphics.fill(barX, barY, barX + barWidth, barY + barHeight, 0xFF000000);
-        graphics.fill(barX + 1, barY + 1, barX + barWidth - 1, barY + barHeight - 1, 0xFF1A1A1A);
-
-        // 填充
+        // 根据精神值比例改变颜色（对齐全 mod SP 语义）
         float fillRatio = displayMental / actualMaxMental;
-        int fillWidth = (int)(fillRatio * (barWidth - 4));
-
-        // 根据精神值比例改变颜色
         int fillColor;
-        if (fillRatio > 0.5f) {
-            fillColor = 0xFFDA70D6; // 紫色（正常）
-        } else if (fillRatio > 0.25f) {
-            fillColor = 0xFFFFA500; // 橙色（警告）
+        if (fillRatio >= 0.5f) {
+            fillColor = LobotomyUiTheme.BAR_SP;      // 白（正常）
+        } else if (fillRatio >= 0.25f) {
+            fillColor = LobotomyUiTheme.WARN_YELLOW; // 黄（警告）
         } else {
-            fillColor = 0xFFFF0000; // 红色（危险）
+            fillColor = LobotomyUiTheme.BAR_SP_LOW;  // 红（濒临恐慌）
         }
-
-        graphics.fill(barX + 2, barY + 2, barX + 2 + fillWidth, barY + barHeight - 2, fillColor);
+        LobotomyUiRenderer.drawBar(graphics, barX, barY, barWidth, barHeight,
+                displayMental, actualMaxMental, fillColor);
 
         // 添加精神值恢复速度显示
         if (mentalRegenPerSecond > 0) {
-            graphics.drawString(this.font, "§a恢复速度: " + String.format("%.1f", mentalRegenPerSecond) + "/秒",
-                    x + 200, y + 30, 0xAAAAAA);
+            String regenLabel = "恢复速度: ";
+            graphics.drawString(this.font, regenLabel, x + 200, y + 30,
+                    LobotomyUiTheme.TEXT_MUTED, false);
+            graphics.drawString(this.font, String.format("%.1f", mentalRegenPerSecond) + "/秒",
+                    x + 200 + this.font.width(regenLabel), y + 30,
+                    LobotomyUiTheme.ENERGY_GREEN, false);
         }
     }
 
@@ -314,207 +320,93 @@ public class EmployeeStatsScreen extends Screen {
     }
 
     /**
-     * 渲染勇气属性 - 显示生命值、护甲加成
+     * 渲染单项属性行：图标 + 名称（STAT_* 色）+ 等级（GOLD）+ 数值 + 主题条 + 说明/加成
      */
-    private void renderAttributeWithFortitudeBonus(GuiGraphics graphics, int x, int y,
-                                                   String name, int value, int barColor, String baseDescription) {
-        graphics.drawString(this.font, name, x, y, 0xFFFFFF);
+    private void renderAttribute(GuiGraphics graphics, int x, int y,
+                                 String name, ResourceLocation icon, int value, int statColor,
+                                 String baseDescription, String bonusText) {
+        int nameX = x;
+        if (LobotomyUiRenderer.textureExists(icon)) {
+            LobotomyUiRenderer.blitScaled(graphics, icon, x, y, 8, 8, 16, 16);
+            nameX = x + 12;
+        }
+        graphics.drawString(this.font, name, nameX, y, statColor, false);
 
-        int level = calculateLevel(value);
-        String levelText = "Lv." + level;
-        graphics.drawString(this.font, "§e" + levelText, x + 200, y, 0xFFD700);
+        graphics.drawString(this.font, "Lv." + EmployeeLevelCalculator.statGrade(value),
+                x + 200, y, LobotomyUiTheme.GOLD, false);
 
         String valueText = value + " / " + EmployeeStats.MAX_STAT;
-        graphics.drawString(this.font, "§f" + valueText, x + 260, y, 0xFFFFFF);
+        graphics.drawString(this.font, valueText, x + 260, y, LobotomyUiTheme.TEXT_TITLE, false);
 
         int barX = x;
         int barY = y + 13;
         int barWidth = 340;
         int barHeight = 12;
 
-        graphics.fill(barX, barY, barX + barWidth, barY + barHeight, 0xFF000000);
-        graphics.fill(barX + 1, barY + 1, barX + barWidth - 1, barY + barHeight - 1, 0xFF1A1A1A);
+        LobotomyUiRenderer.drawBar(graphics, barX, barY, barWidth, barHeight,
+                value, EmployeeStats.MAX_STAT, statColor);
 
-        int fillWidth = (int)((value / 100.0f) * (barWidth - 4));
-        graphics.fill(barX + 2, barY + 2, barX + 2 + fillWidth, barY + barHeight - 2, barColor);
-
-        for (int i = 1; i < 5; i++) {
-            int dividerX = barX + (int)((i * 20 / 100.0f) * (barWidth - 4)) + 2;
-            graphics.fill(dividerX, barY, dividerX + 1, barY + barHeight, 0xFF000000);
+        // Original grade boundaries, including the EX boundary at 100.
+        for (int threshold : STAT_GRADE_THRESHOLDS) {
+            int dividerX = barX + (int) ((threshold / (float) EmployeeStats.MAX_STAT)
+                    * (barWidth - 4)) + 2;
+            graphics.fill(dividerX, barY + 1, dividerX + 1, barY + barHeight - 1,
+                    LobotomyUiTheme.LINE_FAINT);
         }
 
-        StringBuilder descBuilder = new StringBuilder();
-        descBuilder.append(baseDescription);
-
-        if (fortitudeHealthBonus > 0 || fortitudeArmorBonus > 0 || fortitudeToughnessBonus > 0) {
-            descBuilder.append(" ");
-            boolean hasBonus = false;
-
-            if (fortitudeHealthBonus > 0) {
-                descBuilder.append("§c(+").append(String.format("%.0f", fortitudeHealthBonus)).append("生命值)");
-                hasBonus = true;
-            }
-            if (fortitudeArmorBonus > 0) {
-                if (hasBonus) descBuilder.append(" ");
-                descBuilder.append("§c(+").append(String.format("%.0f", fortitudeArmorBonus)).append("护甲)");
-                hasBonus = true;
-            }
-            if (fortitudeToughnessBonus > 0) {
-                if (hasBonus) descBuilder.append(" ");
-                descBuilder.append("§c(+").append(String.format("%.0f", fortitudeToughnessBonus)).append("韧性)");
-            }
+        graphics.drawString(this.font, baseDescription, x, y + 28,
+                LobotomyUiTheme.TEXT_MUTED, false);
+        if (!bonusText.isEmpty()) {
+            graphics.drawString(this.font, bonusText,
+                    x + this.font.width(baseDescription + " "), y + 28, statColor, false);
         }
-
-        graphics.drawString(this.font, "§7" + descBuilder.toString(), x, y + 28, 0x888888);
     }
 
-    /**
-     * 渲染谨慎属性 - 显示精神值加成
-     */
-    private void renderAttributeWithPrudenceBonus(GuiGraphics graphics, int x, int y,
-                                                  String name, int value, int barColor, String baseDescription) {
-        graphics.drawString(this.font, name, x, y, 0xFFFFFF);
-
-        int level = calculateLevel(value);
-        String levelText = "Lv." + level;
-        graphics.drawString(this.font, "§e" + levelText, x + 200, y, 0xFFD700);
-
-        String valueText = value + " / " + EmployeeStats.MAX_STAT;
-        graphics.drawString(this.font, "§f" + valueText, x + 260, y, 0xFFFFFF);
-
-        int barX = x;
-        int barY = y + 13;
-        int barWidth = 340;
-        int barHeight = 12;
-
-        graphics.fill(barX, barY, barX + barWidth, barY + barHeight, 0xFF000000);
-        graphics.fill(barX + 1, barY + 1, barX + barWidth - 1, barY + barHeight - 1, 0xFF1A1A1A);
-
-        int fillWidth = (int)((value / 100.0f) * (barWidth - 4));
-        graphics.fill(barX + 2, barY + 2, barX + 2 + fillWidth, barY + barHeight - 2, barColor);
-
-        for (int i = 1; i < 5; i++) {
-            int dividerX = barX + (int)((i * 20 / 100.0f) * (barWidth - 4)) + 2;
-            graphics.fill(dividerX, barY, dividerX + 1, barY + barHeight, 0xFF000000);
+    private String buildFortitudeBonusText() {
+        StringBuilder builder = new StringBuilder();
+        if (fortitudeHealthBonus > 0) {
+            builder.append("(+").append(String.format("%.0f", fortitudeHealthBonus)).append("生命值)");
         }
+        if (fortitudeArmorBonus > 0) {
+            if (builder.length() > 0) builder.append(" ");
+            builder.append("(+").append(String.format("%.0f", fortitudeArmorBonus)).append("护甲)");
+        }
+        if (fortitudeToughnessBonus > 0) {
+            if (builder.length() > 0) builder.append(" ");
+            builder.append("(+").append(String.format("%.0f", fortitudeToughnessBonus)).append("韧性)");
+        }
+        return builder.toString();
+    }
 
-        StringBuilder descBuilder = new StringBuilder();
-        descBuilder.append(baseDescription);
-
+    private String buildPrudenceBonusText() {
         if (prudenceMentalBonus > 0) {
-            descBuilder.append(" §b(+").append(String.format("%.0f", prudenceMentalBonus)).append("精神值)");
+            return "(+" + String.format("%.0f", prudenceMentalBonus) + "精神值)";
         }
-
-        graphics.drawString(this.font, "§7" + descBuilder.toString(), x, y + 28, 0x888888);
+        return "";
     }
 
-    /**
-     * 渲染自律属性 - 显示工作加成
-     */
-    private void renderAttributeWithWorkBonus(GuiGraphics graphics, int x, int y,
-                                              String name, int value, int barColor, String baseDescription) {
-        graphics.drawString(this.font, name, x, y, 0xFFFFFF);
-
-        int level = calculateLevel(value);
-        String levelText = "Lv." + level;
-        graphics.drawString(this.font, "§e" + levelText, x + 200, y, 0xFFD700);
-
-        String valueText = value + " / " + EmployeeStats.MAX_STAT;
-        graphics.drawString(this.font, "§f" + valueText, x + 260, y, 0xFFFFFF);
-
-        int barX = x;
-        int barY = y + 13;
-        int barWidth = 340;
-        int barHeight = 12;
-
-        graphics.fill(barX, barY, barX + barWidth, barY + barHeight, 0xFF000000);
-        graphics.fill(barX + 1, barY + 1, barX + barWidth - 1, barY + barHeight - 1, 0xFF1A1A1A);
-
-        int fillWidth = (int)((value / 100.0f) * (barWidth - 4));
-        graphics.fill(barX + 2, barY + 2, barX + 2 + fillWidth, barY + barHeight - 2, barColor);
-
-        for (int i = 1; i < 5; i++) {
-            int dividerX = barX + (int)((i * 20 / 100.0f) * (barWidth - 4)) + 2;
-            graphics.fill(dividerX, barY, dividerX + 1, barY + barHeight, 0xFF000000);
+    private String buildTemperanceBonusText() {
+        StringBuilder builder = new StringBuilder();
+        if (temperanceSuccessBonus > 0) {
+            builder.append("(+").append(String.format("%.0f", temperanceSuccessBonus * 100)).append("%成功率)");
         }
-
-        StringBuilder descBuilder = new StringBuilder();
-        descBuilder.append(baseDescription);
-
-        if (temperanceSuccessBonus > 0 || temperanceWorkSpeedBonus > 0) {
-            boolean hasBonus = false;
-
-            if (temperanceSuccessBonus > 0) {
-                descBuilder.append(" §a(+").append(String.format("%.0f", temperanceSuccessBonus * 100)).append("%成功率)");
-                hasBonus = true;
-            }
-            if (temperanceWorkSpeedBonus > 0) {
-                if (hasBonus) descBuilder.append(" ");
-                descBuilder.append("§a(+").append((int)temperanceWorkSpeedBonus).append("tick速度)");
-            }
+        if (temperanceWorkSpeedBonus > 0) {
+            if (builder.length() > 0) builder.append(" ");
+            builder.append("(+").append((int) temperanceWorkSpeedBonus).append("tick速度)");
         }
-
-        graphics.drawString(this.font, "§7" + descBuilder.toString(), x, y + 28, 0x888888);
+        return builder.toString();
     }
 
-    /**
-     * 渲染正义属性 - 显示速度加成
-     */
-    private void renderAttributeWithJusticeBonus(GuiGraphics graphics, int x, int y,
-                                                 String name, int value, int barColor, String baseDescription) {
-        graphics.drawString(this.font, name, x, y, 0xFFFFFF);
-
-        int level = calculateLevel(value);
-        String levelText = "Lv." + level;
-        graphics.drawString(this.font, "§e" + levelText, x + 200, y, 0xFFD700);
-
-        String valueText = value + " / " + EmployeeStats.MAX_STAT;
-        graphics.drawString(this.font, "§f" + valueText, x + 260, y, 0xFFFFFF);
-
-        int barX = x;
-        int barY = y + 13;
-        int barWidth = 340;
-        int barHeight = 12;
-
-        graphics.fill(barX, barY, barX + barWidth, barY + barHeight, 0xFF000000);
-        graphics.fill(barX + 1, barY + 1, barX + barWidth - 1, barY + barHeight - 1, 0xFF1A1A1A);
-
-        int fillWidth = (int)((value / 100.0f) * (barWidth - 4));
-        graphics.fill(barX + 2, barY + 2, barX + 2 + fillWidth, barY + barHeight - 2, barColor);
-
-        for (int i = 1; i < 5; i++) {
-            int dividerX = barX + (int)((i * 20 / 100.0f) * (barWidth - 4)) + 2;
-            graphics.fill(dividerX, barY, dividerX + 1, barY + barHeight, 0xFF000000);
+    private String buildJusticeBonusText() {
+        StringBuilder builder = new StringBuilder();
+        if (justiceAttackSpeedBonus > 0) {
+            builder.append("(+").append(String.format("%.0f", justiceAttackSpeedBonus * 100)).append("%攻击速度)");
         }
-
-        StringBuilder descBuilder = new StringBuilder();
-        descBuilder.append(baseDescription);
-
-        if (justiceAttackSpeedBonus > 0 || justiceMoveSpeedBonus > 0) {
-            boolean hasBonus = false;
-
-            if (justiceAttackSpeedBonus > 0) {
-                descBuilder.append(" §6(+").append(String.format("%.0f", justiceAttackSpeedBonus * 100)).append("%攻击速度)");
-                hasBonus = true;
-            }
-            if (justiceMoveSpeedBonus > 0) {
-                if (hasBonus) descBuilder.append(" ");
-                descBuilder.append("§6(+").append(String.format("%.0f", justiceMoveSpeedBonus * 100)).append("%移动速度)");
-            }
+        if (justiceMoveSpeedBonus > 0) {
+            if (builder.length() > 0) builder.append(" ");
+            builder.append("(+").append(String.format("%.0f", justiceMoveSpeedBonus * 100)).append("%移动速度)");
         }
-
-        graphics.drawString(this.font, "§7" + descBuilder.toString(), x, y + 28, 0x888888);
-    }
-
-    /**
-     * 计算属性等级
-     */
-    private int calculateLevel(int stat) {
-        if (stat >= 100) return 5;
-        if (stat >= 80) return 4;
-        if (stat >= 60) return 3;
-        if (stat >= 40) return 2;
-        return 1;
+        return builder.toString();
     }
 
     @Override

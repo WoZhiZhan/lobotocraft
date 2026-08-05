@@ -76,20 +76,29 @@ public class ThornBusWeapon extends BaseEgoWeapon {
         boolean leftClick = super.onLeftClickEntity(stack, player, entity);
         if (!leftClick) return false;
         if (stack.getOrCreateTag().getBoolean("isInAnimatable")) {
-            return false;
+            return true;
         }
         if (!canUseItem(player))
-            return false;
-        if (entity instanceof LivingEntity target && player.getAttackStrengthScale(0.0f) == 1.0f) {
+            return true;
+        if (entity instanceof LivingEntity target) {
             markThornBusHit(target, player);
             player.playSound(ModSounds.THORN_BUS_WEAPON.get());
             triggerAttackAnimation(player, stack);
             if (!player.level.isClientSide) {
+                float damageMultiplier = BaseEgoWeapon.currentLeftClickDamageMultiplier(player);
+                target.hurt(DamageHelper.getDamage(player, "black"),
+                        rollBlackDamage(player, damageMultiplier));
                 DotHelper.applyDot(DotHelper.THORN_BUS_DOT, player, target,
-                        DOT_DAMAGE, "white", DOT_INTERVAL_TICKS, DOT_DURATION_TICKS, DOT_MAX_STACKS);
+                        DOT_DAMAGE * damageMultiplier,
+                        "white", DOT_INTERVAL_TICKS, DOT_DURATION_TICKS, DOT_MAX_STACKS);
             }
         }
         return true;
+    }
+
+    static float rollBlackDamage(Player player, float damageMultiplier) {
+        return ThornBusCombatRules.scaleBlackDamage(1 + player.getRandom().nextInt(4),
+                damageMultiplier);
     }
 
     public static void tryAwardKillTulip(LivingEntity dead, DamageSource source) {

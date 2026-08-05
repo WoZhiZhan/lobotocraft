@@ -23,17 +23,19 @@ public class ObtainGiftPacket implements IMessage {
     @Override
     public void fromBytes(FriendlyByteBuf buf) {
         this.abnormalityId = buf.readInt();
-        this.giftItemId = buf.readUtf();
+        this.giftItemId = buf.readUtf(128);
     }
 
     @Override
     public void toBytes(FriendlyByteBuf buf) {
         buf.writeInt(this.abnormalityId);
-        buf.writeUtf(this.giftItemId);
+        buf.writeUtf(this.giftItemId, 128);
     }
 
     @Override
     public void run(NetworkEvent.Context ctx) {
+        // Compatibility-only packet. Server-side work completion owns gift grants.
+        if (ctx != null) return;
         ctx.enqueueWork(() -> {
             ServerPlayer player = ctx.getSender();
             if (player == null) return;

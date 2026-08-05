@@ -5,7 +5,12 @@ import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.client.ScreenDistortionEffect;
 import com.wzz.lobotocraft.client.ScreenDistortionState;
 import com.wzz.lobotocraft.client.audio.GuiMusicManager;
+import com.wzz.lobotocraft.client.audio.NormalWorkMusicManager;
+import com.wzz.lobotocraft.client.alert.EscapeAlertManager;
 import com.wzz.lobotocraft.client.core.CoreSuppressionClientState;
+import com.wzz.lobotocraft.client.core.CoreSuppressionPostProcessor;
+import com.wzz.lobotocraft.client.core.CoreSuppressionWarningClientState;
+import com.wzz.lobotocraft.client.performance.ClientPerformanceMonitor;
 import com.wzz.lobotocraft.client.renderer.ExplosionRenderer;
 import com.wzz.lobotocraft.entity.abnormality.EntityLargeBird;
 import com.wzz.lobotocraft.init.ModShaders;
@@ -27,6 +32,7 @@ import net.minecraftforge.client.event.RenderGuiOverlayEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.client.event.ViewportEvent;
+import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.level.LevelEvent;
@@ -51,6 +57,7 @@ public class ForgeModClientEvent {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null && !mc.isPaused()) {
                 GuiMusicManager.getInstance().tick();
+                NormalWorkMusicManager.getInstance().tick();
             }
             ClientPacketHandler.tick();
             ++ModShaders.renderTime;
@@ -73,8 +80,12 @@ public class ForgeModClientEvent {
     public static void onWorldUnload(LevelEvent.Unload event) {
         if (event.getLevel().isClientSide()) {
             GuiMusicManager.getInstance().clearAll();
+            NormalWorkMusicManager.getInstance().clear();
+            EscapeAlertManager.getInstance().clear();
             active_charms.clear();
-            CoreSuppressionClientState.update(false, -1, "", 0, 0, 0, 0, 0, 0);
+            CoreSuppressionClientState.update(false, -1, "", 0, 0, 0, 0, 0, 0, false);
+            CoreSuppressionWarningClientState.clear();
+            CoreSuppressionPostProcessor.clear();
         }
     }
 
@@ -134,7 +145,19 @@ public class ForgeModClientEvent {
 
     @SubscribeEvent
     public static void onRenderGuiOverlay(RenderGuiOverlayEvent.Post event) {
+        if (!event.getOverlay().id().equals(VanillaGuiOverlay.HOTBAR.id())) return;
         if (Minecraft.getInstance().player == null) return;
+        if (active_charms.isEmpty() && !ScreenDistortionState.isActive()) return;
+
+        long sectionStarted = ClientPerformanceMonitor.beginSection("overlay_effects_render");
+        try {
+            renderOverlayEffects(event);
+        } finally {
+            ClientPerformanceMonitor.endSection("overlay_effects_render", sectionStarted);
+        }
+    }
+
+    private static void renderOverlayEffects(RenderGuiOverlayEvent.Post event) {
         active_charms.removeIf(LargeBirdCharmEffect::isExpired);
         GuiGraphics guiGraphics = event.getGuiGraphics();
         int screenWidth = event.getWindow().getGuiScaledWidth();

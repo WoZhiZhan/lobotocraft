@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.event.listener;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.event.definition.company.CompanyDayAdvanceEvent;
+import com.lobotocraft.facility.day.PlayerEnteredFacilityDayEvent;
 import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.item.ego.smiling_corpse_mountain.SmilingCorpseMountainBaseArmor;
 import com.wzz.lobotocraft.network.MessageLoader;
@@ -216,7 +217,7 @@ public class SmilingCorpseMountainEvent {
     }
 
     @SubscribeEvent
-    public static void onDayAdvance(CompanyDayAdvanceEvent event) {
+    public static void onDayAdvance(PlayerEnteredFacilityDayEvent event) {
         ServerPlayer player = event.getPlayer();
         if (player != null) {
             resetSmiling(player);

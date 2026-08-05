@@ -1,5 +1,11 @@
 .gradle/
+.gradle-user-home/
+.tmp/
 build/
 run/
+run*/
+logs/
 .idea/
+/*.log
+/*.png
 /src/main/java/com/wzz/lobotocraft/StructureNBTOptimizer.java

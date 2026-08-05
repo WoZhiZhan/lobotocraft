@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.AiRangedEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -24,8 +25,13 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
-public class LeticiaWeapon extends BaseEgoWeapon {
+public class LeticiaWeapon extends BaseEgoWeapon implements AiRangedEgoWeapon {
     private static final double ATTACK_RANGE = 25.0;
+
+    @Override public double aiAttackRange() { return ATTACK_RANGE; }
+    @Override public double aiMinSpacing() { return 8.0D; }
+    @Override public double aiMaxSpacing() { return 22.0D; }
+    @Override public double aiPreferredSpacing() { return 15.0D; }
     public LeticiaWeapon() {
         super(
                 new ModTier.WeaponTier(),

@@ -1,0 +1,7 @@
+{
+  "targets": [ "swap" ],
+  "passes": [
+    { "name": "lobotocraft:core_psycho", "intarget": "minecraft:main", "outtarget": "swap" },
+    { "name": "lobotocraft:core_aura", "intarget": "swap", "outtarget": "minecraft:main" }
+  ]
+}

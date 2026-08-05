@@ -7,6 +7,8 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.entity.Entity;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
+import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
+import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -16,20 +18,47 @@ import net.minecraftforge.fml.common.Mod;
  */
 @Mod.EventBusSubscriber(value = Dist.CLIENT)
 public class ExecutionCountdownRenderer {
+    private static final int TARGET_SCAN_INTERVAL_TICKS = 5;
+    private static EntityNothingThere cachedTarget;
+    private static int scanCooldown;
 
     @SubscribeEvent
-    public static void onRenderGui(RenderGuiOverlayEvent.Post event) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.level == null) return;
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
 
-        // 查找附近处于伪装出逃状态的一无所有
-        EntityNothingThere target = null;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || mc.player == null) {
+            cachedTarget = null;
+            scanCooldown = 0;
+            return;
+        }
+
+        if (cachedTarget != null
+                && !cachedTarget.isRemoved()
+                && cachedTarget.level() == mc.level
+                && cachedTarget.isEscapedDisguised()) {
+            if (scanCooldown > 0) scanCooldown--;
+            return;
+        }
+
+        cachedTarget = null;
+        if (scanCooldown-- > 0) return;
+        scanCooldown = TARGET_SCAN_INTERVAL_TICKS;
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (entity instanceof EntityNothingThere nt && nt.isEscapedDisguised()) {
-                target = nt;
+                cachedTarget = nt;
                 break;
             }
         }
+    }
+
+    @SubscribeEvent
+    public static void onRenderGui(RenderGuiOverlayEvent.Post event) {
+        if (!event.getOverlay().id().equals(VanillaGuiOverlay.HOTBAR.id())) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) return;
+
+        EntityNothingThere target = cachedTarget;
         if (target == null) return;
 
         int countdown = target.getExecutionCountdownSeconds();

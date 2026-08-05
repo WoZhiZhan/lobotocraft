@@ -43,6 +43,15 @@ public class RegenerationReactorBlock extends BaseEntityBlock {
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new RegenerationReactorBlockEntity(pos, state);
     }
+
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean moving) {
+        if (!state.is(newState.getBlock()) && level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+            com.wzz.lobotocraft.entity.abnormality.IsharmlaSpawnData.get(serverLevel.getServer())
+                    .unregisterReactor(serverLevel.dimension().location(), pos);
+        }
+        super.onRemove(state, level, pos, newState, moving);
+    }
     
     @Nullable
     @Override

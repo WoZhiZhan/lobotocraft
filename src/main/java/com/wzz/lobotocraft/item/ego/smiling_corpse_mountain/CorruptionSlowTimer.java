@@ -21,12 +21,13 @@ import java.util.UUID;
 public class CorruptionSlowTimer extends TimerEntry<LivingEntity> {
 
     private static final UUID SLOW_UUID = UUID.fromString("c0ffee00-5111-4000-8000-000000005111");
+    private static final CorruptionSlowTimer INSTANCE = new CorruptionSlowTimer();
     private static final double SLOW_AMOUNT = -0.70D; // -70%
 
     /** 减速 5 秒并刷新 */
     public static void apply(LivingEntity target) {
         // delay=0, duration=5000ms, exec/s=1, refresh=true
-        new CorruptionSlowTimer().addSkillTimer(target, 0, 5000, 1, true);
+        INSTANCE.addSkillTimer(target, 0, 5000, 1, true);
     }
 
     @Override

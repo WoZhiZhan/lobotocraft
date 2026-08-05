@@ -6,6 +6,7 @@ import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.network.IMessage;
 import com.wzz.lobotocraft.work.AbnormalityWorkHandler;
 import com.wzz.lobotocraft.world.RoomChunkTickets;
+import com.wzz.lobotocraft.world.data.CompanyRoomData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
@@ -56,14 +57,14 @@ public class OpenRoomAbnormalityInfoPacket implements IMessage {
         ServerPlayer player = ctx.getSender();
         if (player == null) return;
 
+        if (CompanyRoomData.get(player.serverLevel()).findRoom(dimension, roomPos) == null) return;
         ServerLevel target = player.server.getLevel(ResourceKey.create(Registries.DIMENSION, dimension));
         if (target == null) {
             player.displayClientMessage(Component.literal("§c目标维度未加载。"), true);
             return;
         }
         // 先把区块拉起来，这样离得再远也能查资料
-        RoomChunkTickets.keepAlive(target, roomPos);
-        target.getChunk(roomPos.getX() >> 4, roomPos.getZ() >> 4);
+        if (!target.isLoaded(roomPos)) return;
 
         if (!(target.getBlockEntity(roomPos) instanceof RoomMarkerBlockEntity be)) {
             player.displayClientMessage(

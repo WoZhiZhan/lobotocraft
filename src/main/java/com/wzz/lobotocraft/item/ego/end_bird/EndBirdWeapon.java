@@ -3,12 +3,15 @@ package com.wzz.lobotocraft.item.ego.end_bird;
 import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
+import com.wzz.lobotocraft.ego.SpecialEgoCatalog;
+import com.wzz.lobotocraft.ego.SpecialEgoRegistryData;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -21,7 +24,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -46,7 +51,7 @@ import java.util.*;
  *   三阶(3-4→3-5)：对身前 5x5 造成 红/白/黑/蓝 四段 100 点(蓝段+20%HP≤30)；
  *                  播放特殊音效1/2/3，造成伤害时播放特殊音效4；结束后蓄力攻击进入 30 秒冷却。
  * ※特殊攻击命中生物后给予其最高等级缓慢 1 秒。
- * ※持有此武器时终末鸟不会出现(见 hasWeaponHolder，由黑森林之门召唤处检查)。
+ * ※全服解锁薄暝后终末鸟不会再次出现(见 hasWeaponHolder，由黑森林之门召唤处检查)。
  * 隐藏机制：蓄力进行与后摇期间无法左键普攻；蓄力期间移动速度大幅降低(约80%)。
  *
  * ─── 动画对照表 ─────────────────────────────
@@ -55,6 +60,8 @@ import java.util.*;
  *  "3-4"                三阶蓄力   "3-5" 三阶攻击
  * ─────────────────────────────────────────────
  */
+// Deferred EGO-06: this legacy weapon owns persistence, animation, damage and
+// networking in one class. Keep behavior changes local until EgoActionState.
 public class EndBirdWeapon extends BaseEgoWeapon {
 
     // ───────────── 蓄力阶段 ─────────────
@@ -133,8 +140,10 @@ public class EndBirdWeapon extends BaseEgoWeapon {
     @Override protected boolean hasIdle()       { return false; }
     @Override public boolean hasAnimatable()    { return true; }
 
-    /** 持有此武器时终末鸟不会出现(黑森林之门召唤前调用此检查) */
+    /** 薄暝已解锁时终末鸟不会再次出现（并兼容迁移前的实体武器）。 */
     public static boolean hasWeaponHolder(ServerLevel level) {
+        if (SpecialEgoRegistryData.get(level.getServer()).isUnlocked(
+                SpecialEgoCatalog.THIN_DUSK_ID)) return true;
         for (net.minecraft.server.level.ServerPlayer p : level.getServer().getPlayerList().getPlayers()) {
             for (ItemStack st : p.getInventory().items) {
                 if (st.getItem() instanceof EndBirdWeapon) return true;
@@ -420,6 +429,15 @@ public class EndBirdWeapon extends BaseEgoWeapon {
                     // 传送目标至玩家身前6格
                     Vec3 lookH = new Vec3(p.getLookAngle().x, 0, p.getLookAngle().z).normalize();
                     Vec3 dest = p.position().add(lookH.scale(6.0));
+                    dest = new Vec3(dest.x, p.getY(), dest.z);
+                    if (!canPullStage2Target(p, target, dest)) {
+                        p.level().playSound(null, p.blockPosition(),
+                                net.minecraft.sounds.SoundEvents.SHIELD_BLOCK, SoundSource.PLAYERS, 1.0F, 0.7F);
+                        openComboWindow(p, stack, STAGE_2);
+                        endAnimation(stack);
+                        this.removeTimer(p.getUUID());
+                        return;
+                    }
                     target.teleportTo(dest.x, p.getY(), dest.z);
                     frozenPos = new Vec3(dest.x, p.getY(), dest.z);
                     // 锁定玩家视角 + 最高级缓慢
@@ -539,6 +557,30 @@ public class EndBirdWeapon extends BaseEgoWeapon {
         if (entities.isEmpty()) return null;
         Vec3 pos = player.position();
         return entities.stream().min(Comparator.comparingDouble(e -> e.distanceToSqr(pos))).orElse(null);
+    }
+
+    /** Stage two is a straight pull: walls block it instead of being searched around or clipped through. */
+    private boolean canPullStage2Target(Player player, LivingEntity target, Vec3 destination) {
+        Level level = player.level();
+        if (level.clip(new ClipContext(player.getEyePosition(), target.getEyePosition(),
+                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player)).getType() != HitResult.Type.MISS) {
+            return false;
+        }
+        if (level.clip(new ClipContext(player.getEyePosition(), destination.add(0.0D, target.getEyeHeight(), 0.0D),
+                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player)).getType() != HitResult.Type.MISS) {
+            return false;
+        }
+
+        Vec3 start = target.position();
+        Vec3 delta = destination.subtract(start);
+        int samples = Math.max(1, Mth.ceil(delta.length() * 4.0D));
+        AABB original = target.getBoundingBox();
+        for (int i = 1; i <= samples; i++) {
+            Vec3 sample = start.add(delta.scale(i / (double) samples));
+            AABB moved = original.move(sample.x - start.x, sample.y - start.y, sample.z - start.z);
+            if (!level.noCollision(target, moved)) return false;
+        }
+        return true;
     }
 
     /** 特殊攻击命中:给予目标最高等级缓慢 1 秒 */

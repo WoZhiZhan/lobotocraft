@@ -10,6 +10,7 @@ import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.item.ego.butterfly_funeral.ButterflyFuneralWeapon;
 import com.wzz.lobotocraft.util.DamageHelper;
+import com.wzz.lobotocraft.util.FacilityCombatRules;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.WorkResult;
@@ -283,6 +284,10 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     @Override
     public boolean hurt(DamageSource source, float amount) {
         if (this.level().isClientSide) return false;
+        if (!FacilityCombatRules.canDamageProtectedCombatant(source)) {
+            if (FacilityCombatRules.isImmuneEnvironment(source)) clearFire();
+            return false;
+        }
         if (dyingTimer > 0) return false; // 濒死动画期间不再受伤
         if (hasEscape()) {
             float m = 1.0f;
@@ -331,7 +336,6 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
                 // 死亡动画播放完毕,正式死亡(基类die会回到出逃位置重置)
                 this.setHealth(0f);
                 this.die(this.damageSources().fellOutOfWorld());
-                this.discard();
             }
             return;
         }
@@ -513,7 +517,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     }
 
     private boolean isPanicking(ServerPlayer player) {
-        return MentalValueUtil.getMentalValue(player) <= 0;
+        return MentalValueUtil.isPanic(player);
     }
 
     /** 处决:蝴蝶缠身 */

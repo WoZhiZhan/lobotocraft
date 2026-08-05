@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.fourth_match_flame;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.AiSpecialEgoWeapon;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.FallBackCameraPacket;
 import com.wzz.lobotocraft.network.packet.TriggerShakePacket;
@@ -22,7 +23,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
-public class FourthMatchFlameWeapon extends BaseEgoWeapon {
+public class FourthMatchFlameWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapon {
+    @Override public double aiSpecialAttackRange() { return 15.0D; }
     public FourthMatchFlameWeapon() {
         super(
                 new ModTier.WeaponTier(),

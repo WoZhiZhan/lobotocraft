@@ -10,18 +10,22 @@ import java.util.Map;
  */
 public class EmployeeStats implements IEmployeeStats {
     
-    // 四大属性值 (20-100)
+    // 四大属性值 (20-110)
     private int fortitude = 20;    // 勇气
     private int prudence = 20;     // 谨慎
     private int temperance = 20;   // 自律
     private int justice = 20;      // 正义
+
+    /** Temporary Hod suppression overlay. It is deliberately not serialized here;
+     * CoreSuppressionData is the authoritative owner of its lifetime. */
+    private int hodPenalty;
     
     // 各风险等级的工作次数
     private final Map<String, Integer> workCounts = new HashMap<>();
     
     // 常量
     public static final int MIN_STAT = 20;
-    public static final int MAX_STAT = 100;
+    public static final int MAX_STAT = 110;
     
     public EmployeeStats() {
         // 初始化工作计数
@@ -36,23 +40,47 @@ public class EmployeeStats implements IEmployeeStats {
     
     @Override
     public int getFortitude() {
-        return fortitude;
+        return effective(fortitude);
     }
     
     @Override
     public int getPrudence() {
-        return prudence;
+        return effective(prudence);
     }
     
     @Override
     public int getTemperance() {
-        return temperance;
+        return effective(temperance);
     }
     
     @Override
     public int getJustice() {
-        return justice;
+        return effective(justice);
     }
+
+    private int effective(int base) {
+        return Math.max(1, base - hodPenalty);
+    }
+
+    /** Applies the same temporary Hod reduction to all four displayed stats. */
+    public void setHodPenalty(int penalty) {
+        hodPenalty = Math.max(0, Math.min(30, penalty));
+    }
+
+    public int getHodPenalty() {
+        return hodPenalty;
+    }
+
+    public void clearHodPenalty() {
+        hodPenalty = 0;
+    }
+
+    /** Base values are used for persistence so a temporary suppression can never
+     * become permanent through an AI runtime save. */
+    public int getBaseFortitude() { return fortitude; }
+    public int getBasePrudence() { return prudence; }
+    public int getBaseTemperance() { return temperance; }
+    public int getBaseJustice() { return justice; }
     
     // ==================== 属性值设置 ====================
     
@@ -110,46 +138,43 @@ public class EmployeeStats implements IEmployeeStats {
     
     @Override
     public int getFortitudeLevel() {
-        return calculateLevel(fortitude);
+        return calculateLevel(getFortitude());
     }
     
     @Override
     public int getPrudenceLevel() {
-        return calculateLevel(prudence);
+        return calculateLevel(getPrudence());
     }
     
     @Override
     public int getTemperanceLevel() {
-        return calculateLevel(temperance);
+        return calculateLevel(getTemperance());
     }
     
     @Override
     public int getJusticeLevel() {
-        return calculateLevel(justice);
+        return calculateLevel(getJustice());
     }
     
     /**
      * 计算属性等级
-     * 20-39: 1级
-     * 40-59: 2级
-     * 60-79: 3级
-     * 80-99: 4级
-     * 100: 5级
+     * 20-29: I
+     * 30-44: II
+     * 45-64: III
+     * 65-84: IV
+     * 85-99: V
+     * 100-110: EX（运行时仍按 V 参与判定）
      */
     private int calculateLevel(int stat) {
-        if (stat >= 100) return 5;
-        if (stat >= 80) return 4;
-        if (stat >= 60) return 3;
-        if (stat >= 40) return 2;
-        return 1;
+        return EmployeeLevelCalculator.statLevel(stat);
     }
     
     @Override
     public int getEmployeeLevel() {
-        // 员工等级 = 四个属性等级的最小值
-        // 这样确保只有四个属性都达到某个等级，员工才会达到该等级
-        return Math.min(Math.min(getFortitudeLevel(), getPrudenceLevel()),
-                       Math.min(getTemperanceLevel(), getJusticeLevel()));
+        // AgentModel sums the four attribute levels and applies the original
+        // <6/<9/<12/<16 thresholds; it does not use the minimum attribute.
+        return EmployeeLevelCalculator.fromStatLevels(getFortitudeLevel(), getPrudenceLevel(),
+                getTemperanceLevel(), getJusticeLevel());
     }
     
     // ==================== 工作计数 ====================
@@ -195,10 +220,10 @@ public class EmployeeStats implements IEmployeeStats {
     }
     
     public void loadFromNBT(CompoundTag tag) {
-        fortitude = tag.getInt("Fortitude");
-        prudence = tag.getInt("Prudence");
-        temperance = tag.getInt("Temperance");
-        justice = tag.getInt("Justice");
+        setFortitude(tag.getInt("Fortitude"));
+        setPrudence(tag.getInt("Prudence"));
+        setTemperance(tag.getInt("Temperance"));
+        setJustice(tag.getInt("Justice"));
         
         // 加载工作计数
         if (tag.contains("WorkCounts")) {
@@ -213,11 +238,12 @@ public class EmployeeStats implements IEmployeeStats {
     }
     
     public void copyFrom(EmployeeStats source) {
-        this.fortitude = source.fortitude;
-        this.prudence = source.prudence;
-        this.temperance = source.temperance;
-        this.justice = source.justice;
+        setFortitude(source.fortitude);
+        setPrudence(source.prudence);
+        setTemperance(source.temperance);
+        setJustice(source.justice);
         this.workCounts.clear();
         this.workCounts.putAll(source.workCounts);
+        this.hodPenalty = source.hodPenalty;
     }
 }

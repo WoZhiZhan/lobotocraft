@@ -3,7 +3,9 @@ package com.wzz.lobotocraft.client.screen;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.wzz.lobotocraft.client.screen.api.AbnormalityMusicScreen;
 import com.wzz.lobotocraft.client.screen.config.EncyclopediaGUIConfig;
+import com.wzz.lobotocraft.client.ui.LobotomyUiRenderer;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
+import com.wzz.lobotocraft.entity.data.AbnormalityEncyclopediaData;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModSounds;
@@ -13,6 +15,8 @@ import com.wzz.lobotocraft.network.packet.UnlockManualPacket;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -20,10 +24,71 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.List;
+import java.util.ArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import static com.wzz.lobotocraft.client.screen.config.EncyclopediaGUIConfig.Layout.RightColumn.ENTRY_HEIGHT;
 import static com.wzz.lobotocraft.client.screen.config.EncyclopediaGUIConfig.Layout.RightColumn.ENTRY_SPACING;
 
 public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
+
+    private record SensitiveResistance(String type, float value) {
+    }
+
+    private static final int CANVAS_W = 1920;
+    private static final int CANVAS_H = 1080;
+    private static final int PANEL_BLACK = 0xF2070907;
+    private static final int PANEL_INNER = 0xD90C100C;
+    private static final int ARCHIVE_GOLD = 0xFFC98A36;
+    private static final int ARCHIVE_GOLD_DIM = 0xFF72552C;
+    private static final int ARCHIVE_PALE = 0xFFE7E3A1;
+    private static final int ARCHIVE_DIM = 0xFF88876B;
+    private static final int ARCHIVE_RED = 0xFFFF3D43;
+
+    private static final int BASIC_X = 430;
+    private static final int BASIC_Y = 210;
+    private static final int BASIC_W = 390;
+    private static final int BASIC_H = 830;
+    private static final int MANUAL_X = 840;
+    private static final int MANUAL_Y = 34;
+    private static final int MANUAL_W = 470;
+    private static final int MANUAL_H = 548;
+    private static final int MANUAL_VIEW_X = 856;
+    private static final int MANUAL_VIEW_Y = 92;
+    private static final int MANUAL_VIEW_W = 438;
+    private static final int MANUAL_VIEW_H = 470;
+    private static final int WORK_X = 840;
+    private static final int WORK_Y = 602;
+    private static final int WORK_W = 470;
+    private static final int WORK_H = 438;
+    private static final int SENSITIVE_X = 1330;
+    private static final int SENSITIVE_Y = 42;
+    private static final int SENSITIVE_W = 540;
+    private static final int SENSITIVE_H = 196;
+    private static final int GIFT_X = 1330;
+    private static final int GIFT_Y = 254;
+    private static final int GIFT_W = 540;
+    private static final int GIFT_H = 158;
+    private static final int EGO_Y = 422;
+    private static final int EGO_W = 260;
+    private static final int EGO_H = 472;
+    private static final int WEAPON_X = 1330;
+    private static final int ARMOR_X = 1610;
+    private static final int EXIT_X = 1700;
+    private static final int EXIT_Y = 986;
+    private static final int EXIT_W = 200;
+    private static final int EXIT_H = 76;
+    private static final int HEADER_INFO_TAB_X = 72;
+    private static final int HEADER_STORY_TAB_X = 382;
+    private static final int HEADER_TAB_Y = 112;
+    private static final int HEADER_TAB_W = 286;
+    private static final int HEADER_TAB_H = 56;
+    private static final int STORY_VIEW_X = 510;
+    private static final int STORY_VIEW_Y = 278;
+    private static final int STORY_VIEW_W = 1328;
+    private static final int STORY_VIEW_H = 700;
 
     private static final ResourceLocation INSTINCT_ICON =
             ResourceUtil.createInstance("textures/gui/work_pref_instinct.png");
@@ -45,6 +110,10 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
     private static final ResourceLocation QUESTION_MARK =
             ResourceUtil.createInstance("textures/gui/question_mark.png");
+    private static final Pattern SENSITIVE_RESISTANCE_PATTERN = Pattern.compile(
+            "(红色|白色|黑色|蓝色|苍白|RED|WHITE|BLACK|PALE|BLUE)\\s*\\(\\s*([0-9]+(?:\\.[0-9]+)?)");
+    private static final Pattern SENSITIVE_RESISTANCE_CLAUSE_PATTERN = Pattern.compile(
+            "(?:红色|白色|黑色|蓝色|苍白|RED|WHITE|BLACK|PALE|BLUE)\\s*\\([^)]*\\)");
 
     private ResourceLocation abnormalityImage;
 
@@ -59,7 +128,10 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
     private final boolean isToolType;  // 是否为工具类异想体
 
     private final String[] manualTexts;  // 动态数量的管理须知
+    private final AbnormalityEncyclopediaData.StoryEntry[] storyEntries;
     private final String sensitiveInfoText;
+    private final Screen returnScreen;
+    private boolean showingStories;
 
     private boolean basicInfoUnlocked;       // 基础信息（包含图片）
     private final boolean[] workPreferencesUnlocked; // 工作偏好
@@ -76,7 +148,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
     private final int developmentArmorCount;
     private final int developmentWeaponCount;
 
-    // 滚动相关
+    // 管理须知面板的独立滚动状态。
     private double scrollOffset;
     private double targetScrollOffset;
 
@@ -88,6 +160,10 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
     private int realMouseX;
     private int realMouseY;
 
+    private float canvasScale = 1.0F;
+    private float canvasX;
+    private float canvasY;
+
     private String message;
     private int showTick;
     private int maxShowTick = 40;
@@ -95,7 +171,9 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
     public AbnormalityEncyclopediaScreen(int abnormalityId, String code, String name,
                                          RiskLevel riskLevel, String damageType, int maxPEOutput,
                                          float[][] workPreferences, int observationLevel,
-                                         String[] manualTexts, String sensitiveInfoText,
+                                         String[] manualTexts,
+                                         AbnormalityEncyclopediaData.StoryEntry[] storyTexts,
+                                         String sensitiveInfoText, Screen returnScreen,
                                          boolean basicInfo, boolean[] workPrefsUnlocked, boolean sensitiveInfo,
                                          boolean[] manualsUnlocked,
                                          int basicInfoCost, int workPreferencesCost,
@@ -111,7 +189,10 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         this.workPreferences = workPreferences;
         this.observationLevel = observationLevel;
         this.manualTexts = manualTexts;
+        this.storyEntries = storyTexts == null
+                ? new AbnormalityEncyclopediaData.StoryEntry[0] : storyTexts;
         this.sensitiveInfoText = sensitiveInfoText;
+        this.returnScreen = returnScreen;
         this.basicInfoUnlocked = basicInfo;
         this.workPreferencesUnlocked = workPrefsUnlocked;
         this.sensitiveInfoUnlocked = sensitiveInfo;
@@ -168,26 +249,793 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         }
     }
 
-    // ==================== 界面自适应缩放(只缩不放,正常分辨率下显示样式完全不变) ====================
-    private static final int MIN_UI_WIDTH = 500;
-    private static final int MIN_UI_HEIGHT = 300;
-    private float uiScale = 1f;
-
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        uiScale = com.wzz.lobotocraft.client.screen.api.AutoScaleHelper.fitScale(this.width, this.height, MIN_UI_WIDTH, MIN_UI_HEIGHT);
-        if (uiScale < 1f) {
-            // 先铺满与图鉴背景同色的纯黑底,缩小后四周与界面背景视觉无缝
-            graphics.fill(0, 0, this.width, this.height, EncyclopediaGUIConfig.Colors.BACKGROUND_BLACK);
+        graphics.fill(0, 0, width, height, EncyclopediaGUIConfig.Colors.BACKGROUND_BLACK);
+        updateCanvasTransform();
+        double logicalMouseX = toLogicalX(mouseX);
+        double logicalMouseY = toLogicalY(mouseY);
+        realMouseX = Mth.floor(logicalMouseX);
+        realMouseY = Mth.floor(logicalMouseY);
+
+        int maxScroll = manualMaxScroll();
+        targetScrollOffset = Mth.clamp(targetScrollOffset, 0.0D, maxScroll);
+        scrollOffset += (targetScrollOffset - scrollOffset)
+                * EncyclopediaGUIConfig.Animation.SCROLL_SMOOTHNESS;
+        scrollOffset = Mth.clamp(scrollOffset, 0.0D, maxScroll);
+
+        graphics.pose().pushPose();
+        graphics.pose().translate(canvasX, canvasY, 0.0F);
+        graphics.pose().scale(canvasScale, canvasScale, 1.0F);
+        renderArchiveLayout(graphics, logicalMouseX, logicalMouseY);
+        graphics.pose().popPose();
+
+        super.render(graphics, mouseX, mouseY, partialTick);
+    }
+
+    private void updateCanvasTransform() {
+        canvasScale = Math.min((float) width / CANVAS_W, (float) height / CANVAS_H);
+        canvasX = (width - CANVAS_W * canvasScale) * 0.5F;
+        canvasY = (height - CANVAS_H * canvasScale) * 0.5F;
+    }
+
+    private void renderArchiveLayout(GuiGraphics graphics, double mouseX, double mouseY) {
+        graphics.fill(0, 0, CANVAS_W, CANVAS_H, 0xFF010302);
+        renderArchiveHeader(graphics, mouseX, mouseY);
+        if (showingStories) {
+            renderStoryPage(graphics, mouseX, mouseY);
+            renderExitButton(graphics, mouseX, mouseY);
+            renderArchiveMessage(graphics);
+            return;
         }
-        int mx = com.wzz.lobotocraft.client.screen.api.AutoScaleHelper.mouseX(mouseX, this.width, uiScale);
-        int my = com.wzz.lobotocraft.client.screen.api.AutoScaleHelper.mouseY(mouseY, this.height, uiScale);
-        com.wzz.lobotocraft.client.screen.api.AutoScaleHelper.begin(graphics, this.width, this.height, uiScale);
-        try {
-            renderContent(graphics, mx, my, partialTick);
-        } finally {
-            com.wzz.lobotocraft.client.screen.api.AutoScaleHelper.end(graphics, uiScale);
+        renderObservationPanel(graphics);
+        renderBasicPanel(graphics, mouseX, mouseY);
+        renderManualPanel(graphics, mouseX, mouseY);
+        renderWorkPreferencePanel(graphics, mouseX, mouseY);
+        renderSensitivePanel(graphics, mouseX, mouseY);
+        renderGiftPanel(graphics);
+        renderEgoPanels(graphics);
+        renderPeStorage(graphics);
+        renderExitButton(graphics, mouseX, mouseY);
+        renderArchiveMessage(graphics);
+    }
+
+    private void renderArchiveHeader(GuiGraphics graphics, double mouseX, double mouseY) {
+        graphics.fill(0, 0, 820, 8, ARCHIVE_RED);
+        graphics.fill(0, 8, 620, 92, 0xEFFF363D);
+        for (int row = 0; row < 92; row++) {
+            int right = 620 + row * 2;
+            graphics.fill(620, 8 + row, right, 9 + row, 0xEFFF363D);
         }
+        drawScaledText(graphics, "异想体的图鉴", 32, 23, 5.0F, 0xFF080A08, 540);
+        renderHeaderArchiveTab(graphics, HEADER_INFO_TAB_X, "异想体图鉴",
+                !showingStories, mouseX, mouseY);
+        renderHeaderArchiveTab(graphics, HEADER_STORY_TAB_X, "异想体故事",
+                showingStories, mouseX, mouseY);
+        drawRightAlignedScaledText(graphics,
+                abnormalityCode,
+                818, 128, 2.0F, ARCHIVE_PALE, 160);
+        graphics.fill(28, 188, 812, 190, ARCHIVE_RED);
+    }
+
+    private void renderHeaderArchiveTab(GuiGraphics graphics, int x, String label,
+                                        boolean selected, double mouseX, double mouseY) {
+        boolean hovered = inside(mouseX, mouseY, x, HEADER_TAB_Y, HEADER_TAB_W, HEADER_TAB_H);
+        int color = selected ? ARCHIVE_PALE : hovered ? ARCHIVE_GOLD : ARCHIVE_DIM;
+        graphics.fill(x, HEADER_TAB_Y, x + HEADER_TAB_W, HEADER_TAB_Y + HEADER_TAB_H,
+                selected ? 0xD91C2118 : 0xB9070907);
+        graphics.fill(x, HEADER_TAB_Y + HEADER_TAB_H - 3,
+                x + HEADER_TAB_W, HEADER_TAB_Y + HEADER_TAB_H, color);
+        graphics.fill(x + 14, HEADER_TAB_Y + 13, x + 42, HEADER_TAB_Y + 41,
+                selected ? ARCHIVE_GOLD : ARCHIVE_GOLD_DIM);
+        drawScaledText(graphics, label, x + 58, HEADER_TAB_Y + 14,
+                2.5F, color, HEADER_TAB_W - 72);
+    }
+
+    private void renderStoryPage(GuiGraphics graphics, double mouseX, double mouseY) {
+        int portraitX = 34;
+        int portraitY = 220;
+        int portraitW = 438;
+        int portraitH = 758;
+        drawArchivePanel(graphics, portraitX, portraitY, portraitW, portraitH, ARCHIVE_PALE);
+        drawPanelTitle(graphics, "异想体档案", portraitX, portraitY, portraitW);
+        int imageX = portraitX + 28;
+        int imageY = portraitY + 76;
+        int imageSize = portraitW - 56;
+        graphics.fill(imageX - 2, imageY - 2, imageX + imageSize + 2,
+                imageY + imageSize + 2, ARCHIVE_GOLD_DIM);
+        if (basicInfoUnlocked) {
+            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+            graphics.blit(abnormalityImage, imageX, imageY, 0, 0,
+                    imageSize, imageSize, imageSize, imageSize);
+        } else {
+            graphics.fill(imageX, imageY, imageX + imageSize, imageY + imageSize,
+                    0xEC050706);
+            drawCenteredScaledText(graphics, "基础信息尚未解锁",
+                    portraitX + portraitW / 2, imageY + imageSize / 2 - 12,
+                    2.0F, ARCHIVE_DIM, imageSize - 40);
+        }
+        int nameY = imageY + imageSize + 30;
+        drawCenteredScaledText(graphics, basicInfoUnlocked ? abnormalityName : "???",
+                portraitX + portraitW / 2, nameY, 3.0F, ARCHIVE_PALE, portraitW - 50);
+        drawCenteredScaledText(graphics, abnormalityCode + " / " + riskLevel.name(),
+                portraitX + portraitW / 2, nameY + 50, 2.0F,
+                riskLevel.getColor(), portraitW - 50);
+        drawCenteredScaledText(graphics, "观察等级 " + observationLevel,
+                portraitX + portraitW / 2, nameY + 102, 2.5F,
+                ARCHIVE_GOLD, portraitW - 50);
+
+        int panelX = 492;
+        int panelY = 220;
+        int panelW = 1378;
+        int panelH = 758;
+        drawArchivePanel(graphics, panelX, panelY, panelW, panelH, ARCHIVE_GOLD);
+        drawPanelTitle(graphics, "异想体的故事", panelX, panelY, panelW);
+        graphics.fill(STORY_VIEW_X, STORY_VIEW_Y,
+                STORY_VIEW_X + STORY_VIEW_W, STORY_VIEW_Y + STORY_VIEW_H, 0xC9050705);
+        enableLogicalScissor(graphics, STORY_VIEW_X, STORY_VIEW_Y,
+                STORY_VIEW_W, STORY_VIEW_H);
+        int y = STORY_VIEW_Y + 14 - Mth.floor(scrollOffset);
+        for (int index = 0; index < storyEntries.length; index++) {
+            int height = storyEntryHeight(index);
+            if (y + height >= STORY_VIEW_Y && y <= STORY_VIEW_Y + STORY_VIEW_H) {
+                renderOriginalStoryEntry(graphics, index, y, height);
+            }
+            y += height + 18;
+        }
+        graphics.disableScissor();
+        renderStoryScrollbar(graphics, mouseX, mouseY);
+    }
+
+    private void renderOriginalStoryEntry(GuiGraphics graphics, int index, int y, int height) {
+        AbnormalityEncyclopediaData.StoryEntry entry = storyEntries[index];
+        int x = STORY_VIEW_X + 18;
+        int width = STORY_VIEW_W - 50;
+        boolean unlocked = entry.isUnlockedAt(observationLevel);
+        drawArchivePanel(graphics, x, y, width, height,
+                unlocked ? ARCHIVE_GOLD_DIM : 0xFF3D3E35);
+        drawScaledText(graphics, "档案 " + toRoman(index + 1), x + 20, y + 14,
+                2.0F, unlocked ? ARCHIVE_GOLD : ARCHIVE_DIM, 180);
+        drawRightAlignedScaledText(graphics, "观察等级 " + entry.openLevel(),
+                x + width - 20, y + 14, 2.0F,
+                unlocked ? ARCHIVE_DIM : ARCHIVE_RED, 260);
+        graphics.fill(x + 18, y + 43, x + width - 18, y + 44,
+                unlocked ? ARCHIVE_GOLD_DIM : 0xFF30312B);
+        if (unlocked) {
+            drawWrappedScaledText(graphics, entry.text(), x + 22, y + 58,
+                    2.0F, ARCHIVE_PALE, width - 44, Integer.MAX_VALUE);
+        } else {
+            drawCenteredScaledText(graphics,
+                    "提高观察等级后可阅览该档案",
+                    x + width / 2, y + 71, 2.0F, ARCHIVE_DIM, width - 80);
+        }
+    }
+
+    private void renderStoryScrollbar(GuiGraphics graphics, double mouseX, double mouseY) {
+        int maximum = manualMaxScroll();
+        if (maximum <= 0) return;
+        int trackX = STORY_VIEW_X + STORY_VIEW_W - 10;
+        int handleHeight = manualScrollbarHeight();
+        int handleY = STORY_VIEW_Y + Mth.floor((STORY_VIEW_H - handleHeight)
+                * (scrollOffset / maximum));
+        graphics.fill(trackX, STORY_VIEW_Y, trackX + 6,
+                STORY_VIEW_Y + STORY_VIEW_H, 0x663E3D2B);
+        int color = isDraggingScrollbar || inside(mouseX, mouseY, trackX - 4,
+                handleY, 14, handleHeight) ? ARCHIVE_PALE : ARCHIVE_GOLD;
+        graphics.fill(trackX, handleY, trackX + 6, handleY + handleHeight, color);
+    }
+
+    private void renderObservationPanel(GuiGraphics graphics) {
+        int x = 26;
+        int y = 218;
+        int w = 374;
+        int h = 776;
+        drawArchivePanel(graphics, x, y, w, h, ARCHIVE_PALE);
+        drawPanelTitle(graphics, "观察等级加成", x, y, w);
+
+        IAbnormality current = abnormality;
+        String[] bonuses = current == null ? new String[0] : current.getObservationBonusTexts();
+        if (isToolType) {
+            drawWrappedScaledText(graphics, "工具型异想体不提供常规工作偏好与观察加成。",
+                    x + 24, y + 78, 2.0F, ARCHIVE_DIM, w - 48, 5);
+        } else {
+            for (int level = 0; level < 4; level++) {
+                int lineY = y + 78 + level * 112;
+                int color = level < observationLevel ? ARCHIVE_PALE : 0xFF4A4B3D;
+                drawScaledText(graphics, toRoman(level + 1), x + 24, lineY,
+                        3.0F, color, 46);
+                String bonus = level < bonuses.length
+                        ? cleanObservationBonus(bonuses[level]) : "未配置观察加成";
+                drawWrappedScaledText(graphics, bonus, x + 82, lineY + 4,
+                        2.0F, color, w - 108, 3);
+                graphics.fill(x + 22, lineY + 84, x + w - 22, lineY + 85,
+                        level < observationLevel ? ARCHIVE_GOLD_DIM : 0xFF24261F);
+            }
+        }
+
+        drawCenteredScaledText(graphics, "观察等级", x + w / 2, y + h - 176,
+                3.0F, ARCHIVE_GOLD, w - 40);
+        drawCenteredScaledText(graphics, String.valueOf(observationLevel),
+                x + w / 2, y + h - 110, 6.0F, ARCHIVE_PALE, 160);
+    }
+
+    private void renderBasicPanel(GuiGraphics graphics, double mouseX, double mouseY) {
+        drawArchivePanel(graphics, BASIC_X, BASIC_Y, BASIC_W, BASIC_H,
+                basicInfoUnlocked ? ARCHIVE_PALE : ARCHIVE_GOLD_DIM);
+        drawPanelTitle(graphics, "异想体的基础信息", BASIC_X, BASIC_Y, BASIC_W);
+
+        int imageX = BASIC_X + 25;
+        int imageY = BASIC_Y + 60;
+        int imageSize = BASIC_W - 50;
+        graphics.fill(imageX - 2, imageY - 2, imageX + imageSize + 2,
+                imageY + imageSize + 2, ARCHIVE_GOLD_DIM);
+        graphics.fill(imageX, imageY, imageX + imageSize, imageY + imageSize, 0xFF050706);
+        if (basicInfoUnlocked) {
+            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+            graphics.blit(abnormalityImage, imageX, imageY, 0, 0,
+                    imageSize, imageSize, imageSize, imageSize);
+        } else {
+            renderLockedArea(graphics, imageX, imageY, imageSize, imageSize,
+                    basicInfoCost, 0, mouseX, mouseY);
+        }
+
+        int nameY = imageY + imageSize + 6;
+        graphics.fill(imageX, nameY, imageX + imageSize, nameY + 72, 0xE72A2B1D);
+        drawCenteredScaledText(graphics, basicInfoUnlocked ? abnormalityName : "???",
+                BASIC_X + BASIC_W / 2, nameY + 8, 3.0F,
+                basicInfoUnlocked ? ARCHIVE_PALE : ARCHIVE_DIM, imageSize - 20);
+        drawScaledText(graphics, abnormalityCode, imageX + 14, nameY + 43,
+                2.0F, ARCHIVE_PALE, 180);
+        drawRightAlignedScaledText(graphics, riskLevel.name(), imageX + imageSize - 14,
+                nameY + 38, 3.0F, riskLevel.getColor(), 150);
+
+        int infoY = nameY + 92;
+        if (!basicInfoUnlocked) {
+            renderLockedArea(graphics, imageX, infoY, imageSize, 245,
+                    basicInfoCost, 0, mouseX, mouseY);
+            return;
+        }
+
+        drawArchivePanel(graphics, imageX, infoY, 160, 120, ARCHIVE_GOLD_DIM);
+        drawCenteredScaledText(graphics, "伤害类型", imageX + 80, infoY + 9,
+                2.0F, ARCHIVE_PALE, 145);
+        ResourceLocation damageIcon = getDamageTypeIcon();
+        graphics.blit(damageIcon, imageX + 18, infoY + 43, 0, 0, 42, 42, 42, 42);
+        drawScaledText(graphics, damageType, imageX + 72, infoY + 53,
+                3.0F, EncyclopediaGUIConfig.Colors.getDamageTypeColor(damageType), 78);
+
+        drawArchivePanel(graphics, imageX + 180, infoY, 160, 120, ARCHIVE_GOLD_DIM);
+        drawCenteredScaledText(graphics, "最大产量", imageX + 260, infoY + 9,
+                2.0F, ARCHIVE_PALE, 145);
+        drawCenteredScaledText(graphics, maxPEOutput < 0 ? "/" : String.valueOf(maxPEOutput),
+                imageX + 260, infoY + 45, 5.0F, ARCHIVE_PALE, 120);
+
+        int rangeY = infoY + 138;
+        drawArchivePanel(graphics, imageX, rangeY, imageSize, 122, ARCHIVE_GOLD_DIM);
+        drawCenteredScaledText(graphics, "工作结果对应 PE-BOX 产量", BASIC_X + BASIC_W / 2,
+                rangeY + 8, 2.0F, ARCHIVE_PALE, imageSize - 20);
+        if (!isToolType && maxPEOutput >= 0) {
+            int goodMin = getDisplayedGoodWorkResultMin();
+            int normalMin = getDisplayedNormalWorkResultMin();
+            drawScaledText(graphics, "优", imageX + 18, rangeY + 43,
+                    3.0F, EncyclopediaGUIConfig.Colors.STATUS_GREEN, 40);
+            drawRightAlignedScaledText(graphics, goodMin + " - " + maxPEOutput,
+                    imageX + imageSize - 16, rangeY + 46, 2.0F,
+                    EncyclopediaGUIConfig.Colors.STATUS_GREEN, 160);
+            drawScaledText(graphics, "良", imageX + 18, rangeY + 70,
+                    3.0F, EncyclopediaGUIConfig.Colors.STATUS_YELLOW, 40);
+            drawRightAlignedScaledText(graphics, normalMin + " - " + (goodMin - 1),
+                    imageX + imageSize - 16, rangeY + 73, 2.0F,
+                    EncyclopediaGUIConfig.Colors.STATUS_YELLOW, 160);
+            drawScaledText(graphics, "差", imageX + 18, rangeY + 97,
+                    3.0F, EncyclopediaGUIConfig.Colors.STATUS_RED, 40);
+            drawRightAlignedScaledText(graphics, "0 - " + (normalMin - 1),
+                    imageX + imageSize - 16, rangeY + 100, 2.0F,
+                    EncyclopediaGUIConfig.Colors.STATUS_RED, 160);
+        } else {
+            drawCenteredScaledText(graphics, "工具型异想体无常规产量区间",
+                    BASIC_X + BASIC_W / 2, rangeY + 62, 2.0F, ARCHIVE_DIM, imageSize - 30);
+        }
+    }
+
+    private void renderManualPanel(GuiGraphics graphics, double mouseX, double mouseY) {
+        drawArchivePanel(graphics, MANUAL_X, MANUAL_Y, MANUAL_W, MANUAL_H, ARCHIVE_GOLD);
+        drawPanelTitle(graphics, "异想体的管理须知", MANUAL_X, MANUAL_Y, MANUAL_W);
+        graphics.fill(MANUAL_VIEW_X, MANUAL_VIEW_Y,
+                MANUAL_VIEW_X + MANUAL_VIEW_W, MANUAL_VIEW_Y + MANUAL_VIEW_H, 0xC9050705);
+
+        enableLogicalScissor(graphics, MANUAL_VIEW_X, MANUAL_VIEW_Y,
+                MANUAL_VIEW_W, MANUAL_VIEW_H);
+        int itemY = MANUAL_VIEW_Y + 8 - Mth.floor(scrollOffset);
+        for (int index = 0; index < manualsUnlocked.length; index++) {
+            int itemHeight = manualEntryHeight(index);
+            if (itemY + itemHeight >= MANUAL_VIEW_Y
+                    && itemY <= MANUAL_VIEW_Y + MANUAL_VIEW_H) {
+                renderManualEntry(graphics, index, itemY, itemHeight, mouseX, mouseY);
+            }
+            itemY += itemHeight + 12;
+        }
+        graphics.disableScissor();
+        renderManualScrollbar(graphics, mouseX, mouseY);
+    }
+
+    private void renderManualEntry(GuiGraphics graphics, int index, int y, int height,
+                                   double mouseX, double mouseY) {
+        int x = MANUAL_VIEW_X + 8;
+        int width = MANUAL_VIEW_W - 28;
+        boolean hovered = inside(mouseX, mouseY, x, Math.max(y, MANUAL_VIEW_Y), width,
+                Math.min(height, MANUAL_VIEW_Y + MANUAL_VIEW_H - Math.max(y, MANUAL_VIEW_Y)));
+        int border = hovered ? ARCHIVE_PALE : ARCHIVE_GOLD_DIM;
+        drawArchivePanel(graphics, x, y, width, height, border);
+        drawCenteredScaledText(graphics, "管理须知 " + toRoman(index + 1),
+                x + width / 2, y + 10, 2.5F, ARCHIVE_GOLD, width - 24);
+        graphics.fill(x + 16, y + 38, x + width - 16, y + 39, ARCHIVE_GOLD_DIM);
+
+        if (manualsUnlocked[index]) {
+            String content = index < manualTexts.length ? manualTexts[index] : "未知";
+            drawWrappedScaledText(graphics, content, x + 16, y + 52,
+                    2.0F, ARCHIVE_PALE, width - 32, Integer.MAX_VALUE);
+        } else {
+            renderUnlockPrompt(graphics, x + 16, y + 52, width - 32,
+                    1, manualCost, hovered);
+        }
+    }
+
+
+    private void renderManualScrollbar(GuiGraphics graphics, double mouseX, double mouseY) {
+        int maximum = manualMaxScroll();
+        if (maximum <= 0) return;
+        int trackX = MANUAL_VIEW_X + MANUAL_VIEW_W - 9;
+        int handleHeight = manualScrollbarHeight();
+        int handleY = MANUAL_VIEW_Y + Mth.floor((MANUAL_VIEW_H - handleHeight)
+                * (scrollOffset / maximum));
+        graphics.fill(trackX, MANUAL_VIEW_Y, trackX + 5,
+                MANUAL_VIEW_Y + MANUAL_VIEW_H, 0x663E3D2B);
+        int color = isDraggingScrollbar || inside(mouseX, mouseY, trackX - 4, handleY,
+                13, handleHeight) ? ARCHIVE_PALE : ARCHIVE_GOLD;
+        graphics.fill(trackX, handleY, trackX + 5, handleY + handleHeight, color);
+    }
+
+    private void renderWorkPreferencePanel(GuiGraphics graphics, double mouseX, double mouseY) {
+        drawArchivePanel(graphics, WORK_X, WORK_Y, WORK_W, WORK_H, ARCHIVE_PALE);
+        drawPanelTitle(graphics, "异想体的工作偏好", WORK_X, WORK_Y, WORK_W);
+        if (isToolType) {
+            drawCenteredScaledText(graphics, "工具型异想体无常规工作偏好",
+                    WORK_X + WORK_W / 2, WORK_Y + 205, 3.0F, ARCHIVE_DIM, WORK_W - 50);
+            return;
+        }
+
+        ResourceLocation[] icons = {INSTINCT_ICON, INSIGHT_ICON, ATTACHMENT_ICON, REPRESSION_ICON};
+        String[] names = {"本能", "洞察", "沟通", "压迫"};
+        for (int work = 0; work < 4; work++) {
+            int col = work % 2;
+            int row = work / 2;
+            int x = WORK_X + 16 + col * 224;
+            int y = WORK_Y + 62 + row * 181;
+            int w = 214;
+            int h = 166;
+            boolean hovered = inside(mouseX, mouseY, x, y, w, h);
+            int border = workPreferencesUnlocked[work]
+                    ? (hovered ? ARCHIVE_PALE : ARCHIVE_GOLD_DIM) : 0xFF47473C;
+            drawArchivePanel(graphics, x, y, w, h, border);
+            graphics.blit(icons[work], x + 10, y + 46, 0, 0, 62, 62, 62, 62);
+            drawScaledText(graphics, names[work] + " 偏好", x + 12, y + 11,
+                    2.5F, workPreferencesUnlocked[work] ? ARCHIVE_PALE : ARCHIVE_DIM, w - 24);
+            if (!workPreferencesUnlocked[work]) {
+                graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0xA9000000);
+                renderUnlockPrompt(graphics, x + 18, y + 57, w - 36,
+                        0, workPreferencesCost, hovered);
+                continue;
+            }
+            for (int level = 0; level < 5; level++) {
+                int lineY = y + 45 + level * 22;
+                float rate = work < workPreferences.length
+                        && workPreferences[work] != null
+                        && level < workPreferences[work].length
+                        ? workPreferences[work][level] : -1.0F;
+                drawScaledText(graphics, toRoman(level + 1), x + 82, lineY,
+                        2.0F, ARCHIVE_DIM, 32);
+                int barX = x + 116;
+                int barW = 60;
+                graphics.fill(barX, lineY + 7, barX + barW, lineY + 11, 0xFF282A25);
+                if (rate >= 0.0F) {
+                    graphics.fill(barX, lineY + 7, barX + Mth.clamp((int) (barW * rate), 0, barW),
+                            lineY + 11, EncyclopediaGUIConfig.Colors.getWorkRateColor(rate));
+                }
+                drawRightAlignedScaledText(graphics,
+                        rate < 0.0F ? "/" : String.format("%.0f%%", rate * 100.0F),
+                        x + w - 10, lineY, 2.0F,
+                        rate < 0.0F ? ARCHIVE_DIM : ARCHIVE_PALE, 54);
+            }
+        }
+    }
+
+    private void renderSensitivePanel(GuiGraphics graphics, double mouseX, double mouseY) {
+        drawArchivePanel(graphics, SENSITIVE_X, SENSITIVE_Y, SENSITIVE_W, SENSITIVE_H,
+                isToolType ? ARCHIVE_GOLD_DIM : ARCHIVE_GOLD);
+        drawPanelTitle(graphics, "异想体的敏感信息", SENSITIVE_X, SENSITIVE_Y, SENSITIVE_W);
+        if (isToolType) {
+            drawCenteredScaledText(graphics, "工具型异想体无敏感信息",
+                    SENSITIVE_X + SENSITIVE_W / 2, SENSITIVE_Y + 105,
+                    3.0F, ARCHIVE_DIM, SENSITIVE_W - 40);
+            return;
+        }
+        boolean hovered = inside(mouseX, mouseY, SENSITIVE_X + 18, SENSITIVE_Y + 66,
+                SENSITIVE_W - 36, SENSITIVE_H - 82);
+        drawScaledText(graphics, "逆卡巴拉计数极值", SENSITIVE_X + 26,
+                SENSITIVE_Y + 82, 2.0F, ARCHIVE_GOLD, 230);
+        if (sensitiveInfoUnlocked) {
+            drawWrappedScaledText(graphics, compactSensitiveBehavior(), SENSITIVE_X + 26,
+                    SENSITIVE_Y + 112, 1.8F, ARCHIVE_PALE, 225, 3);
+            renderSensitiveResistances(graphics, SENSITIVE_X + 282, SENSITIVE_Y + 68);
+        } else {
+            renderUnlockPrompt(graphics, SENSITIVE_X + 282, SENSITIVE_Y + 70,
+                    230, EncyclopediaGUIConfig.UnlockCosts.SENSITIVE_INFO_LEVEL,
+                    sensitiveInfoCost, hovered);
+        }
+    }
+
+    private void renderGiftPanel(GuiGraphics graphics) {
+        drawArchivePanel(graphics, GIFT_X, GIFT_Y, GIFT_W, GIFT_H, ARCHIVE_PALE);
+        IAbnormality current = abnormality;
+        if (isToolType || current == null || current.getEGOGiftData() == null) {
+            drawPanelTitle(graphics, "E.G.O 饰品", GIFT_X, GIFT_Y, GIFT_W);
+            drawCenteredScaledText(graphics, "无可用饰品资料", GIFT_X + GIFT_W / 2,
+                    GIFT_Y + 84, 2.0F, ARCHIVE_DIM, GIFT_W - 40);
+            return;
+        }
+        float probability = current.getGiftProbability() * 100.0F;
+        String suffix = probability < 0.0F ? "获得率未知"
+                : String.format("获得率 %.1f%%", probability);
+        drawPanelTitle(graphics, "E.G.O 饰品 / " + suffix, GIFT_X, GIFT_Y, GIFT_W);
+        if (canUnlockGift(current, observationLevel)) {
+            renderArchiveGift(graphics, current);
+        } else {
+            drawCenteredScaledText(graphics,
+                    "观察等级 " + getRequiredLevelForGift(current) + " 解锁",
+                    GIFT_X + GIFT_W / 2, GIFT_Y + 86, 2.5F, ARCHIVE_DIM, GIFT_W - 40);
+        }
+    }
+
+    private void renderEgoPanels(GuiGraphics graphics) {
+        renderEgoPanel(graphics, WEAPON_X, true);
+        renderEgoPanel(graphics, ARMOR_X, false);
+    }
+
+    private void renderEgoPanel(GuiGraphics graphics, int x, boolean weapon) {
+        drawArchivePanel(graphics, x, EGO_Y, EGO_W, EGO_H, ARCHIVE_PALE);
+        drawPanelTitle(graphics, weapon ? "E.G.O 武器" : "E.G.O 护甲", x, EGO_Y, EGO_W);
+        IAbnormality current = abnormality;
+        boolean available = !isToolType && current != null
+                && (weapon ? current.getEGOWeaponData() != null : current.getEGOArmorData() != null);
+        if (!available) {
+            drawCenteredScaledText(graphics, "无资料", x + EGO_W / 2,
+                    EGO_Y + 220, 3.0F, ARCHIVE_DIM, EGO_W - 30);
+            return;
+        }
+        boolean unlocked = weapon ? canUnlockWeapon(current, observationLevel)
+                : canUnlockArmor(current, observationLevel);
+        if (!unlocked) {
+            int required = weapon ? getRequiredLevelForWeapon(current)
+                    : getRequiredLevelForArmor(current);
+            drawCenteredScaledText(graphics, "观察等级 " + required + " 解锁",
+                    x + EGO_W / 2, EGO_Y + 220, 2.5F, ARCHIVE_DIM, EGO_W - 30);
+            return;
+        }
+        if (weapon) renderArchiveWeapon(graphics, x, current);
+        else renderArchiveArmor(graphics, x, current);
+    }
+
+    private void renderArchiveGift(GuiGraphics graphics, IAbnormality current) {
+        EGOEquipmentData.GiftData gift = current.getEGOGiftData();
+        if (gift == null) return;
+        int iconX = GIFT_X + 18;
+        int iconY = GIFT_Y + 57;
+        int iconSize = 72;
+        ResourceLocation texture = current.renderCurio() ? gift.iconTexture() : QUESTION_MARK;
+        graphics.fill(iconX - 2, iconY - 2, iconX + iconSize + 2,
+                iconY + iconSize + 2, 0xFF3C3B2C);
+        if (texture != null && ResourceUtil.exists(texture)) {
+            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+            graphics.blit(texture, iconX, iconY, 0, 0,
+                    iconSize, iconSize, iconSize, iconSize);
+        }
+        drawScaledText(graphics, gift.name(), GIFT_X + 112, GIFT_Y + 59,
+                2.0F, ARCHIVE_PALE, 400);
+        drawScaledText(graphics, gift.part(), GIFT_X + 112, GIFT_Y + 87,
+                2.0F, ARCHIVE_DIM, 400);
+        drawWrappedScaledText(graphics, String.join(" / ", gift.effects()),
+                GIFT_X + 112, GIFT_Y + 103, 1.5F, ARCHIVE_PALE, 400, 2);
+    }
+
+    private void renderArchiveWeapon(GuiGraphics graphics, int x, IAbnormality current) {
+        EGOEquipmentData.WeaponData weapon = current.getEGOWeaponData();
+        if (weapon == null) return;
+        int iconX = x + 20;
+        int iconY = EGO_Y + 58;
+        int iconW = EGO_W - 40;
+        int iconH = 164;
+        graphics.fill(iconX, iconY, iconX + iconW, iconY + iconH, 0xFF210B0B);
+        if (weapon.iconTexture() != null && ResourceUtil.exists(weapon.iconTexture())) {
+            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+            graphics.blit(weapon.iconTexture(), iconX + 10, iconY + 7, 0, 0,
+                    iconW - 20, iconH - 14, iconW - 20, iconH - 14);
+        }
+        drawCenteredScaledText(graphics, weapon.riskLevel().name(), x + EGO_W / 2,
+                EGO_Y + 236, 2.0F, weapon.riskLevel().getColor(), EGO_W - 28);
+        drawCenteredScaledText(graphics, weapon.name(), x + EGO_W / 2,
+                EGO_Y + 263, 2.0F, ARCHIVE_PALE, EGO_W - 28);
+        renderEgoMetric(graphics, x, EGO_Y + 302, "属性", weapon.damageType(),
+                EncyclopediaGUIConfig.Colors.getDamageTypeColor(
+                        "ALL".equals(weapon.damageType()) ? "WHITE" : weapon.damageType()));
+        renderEgoMetric(graphics, x, EGO_Y + 334, "攻击力", weapon.attackPower(), ARCHIVE_PALE);
+        renderEgoMetric(graphics, x, EGO_Y + 366, "攻击速度", weapon.attackSpeed(), ARCHIVE_PALE);
+        renderEgoMetric(graphics, x, EGO_Y + 398, "攻击距离", weapon.attackRange(), ARCHIVE_PALE);
+        renderDevelopmentBar(graphics, x, developmentWeaponCount,
+                weapon.developmentMaxCount());
+    }
+
+    private void renderArchiveArmor(GuiGraphics graphics, int x, IAbnormality current) {
+        EGOEquipmentData.ArmorData armor = current.getEGOArmorData();
+        if (armor == null) return;
+        int iconX = x + 20;
+        int iconY = EGO_Y + 58;
+        int iconW = EGO_W - 40;
+        int iconH = 164;
+        graphics.fill(iconX, iconY, iconX + iconW, iconY + iconH, 0xFF071D1D);
+        if (armor.iconTexture() != null && ResourceUtil.exists(armor.iconTexture())) {
+            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+            graphics.blit(armor.iconTexture(), iconX + 28, iconY + 5, 0, 0,
+                    iconW - 56, iconH - 10, iconW - 56, iconH - 10);
+        }
+        drawCenteredScaledText(graphics, armor.riskLevel().name(), x + EGO_W / 2,
+                EGO_Y + 236, 2.0F, armor.riskLevel().getColor(), EGO_W - 28);
+        drawCenteredScaledText(graphics, armor.name(), x + EGO_W / 2,
+                EGO_Y + 263, 2.0F, ARCHIVE_PALE, EGO_W - 28);
+        renderResistanceMetric(graphics, x, EGO_Y + 302, "RED", armor.redResistance(),
+                0xFFFF5A5A);
+        renderResistanceMetric(graphics, x, EGO_Y + 334, "WHITE", armor.whiteResistance(),
+                0xFFFFFFFF);
+        renderResistanceMetric(graphics, x, EGO_Y + 366, "BLACK", armor.blackResistance(),
+                0xFFC06DDE);
+        renderResistanceMetric(graphics, x, EGO_Y + 398, "PALE", armor.paleResistance(),
+                0xFF58DDEB);
+        renderDevelopmentBar(graphics, x, developmentArmorCount,
+                armor.developmentMaxCount());
+    }
+
+    private void renderEgoMetric(GuiGraphics graphics, int x, int y,
+                                 String label, String value, int valueColor) {
+        drawScaledText(graphics, label, x + 18, y, 2.0F, ARCHIVE_DIM, 104);
+        drawRightAlignedScaledText(graphics, value, x + EGO_W - 18, y,
+                2.0F, valueColor, 128);
+        graphics.fill(x + 18, y + 24, x + EGO_W - 18, y + 25, 0xFF25271F);
+    }
+
+    private void renderResistanceMetric(GuiGraphics graphics, int x, int y,
+                                        String type, float value, int color) {
+        drawScaledText(graphics, type + " " + String.format("%.1f", value),
+                x + 18, y, 2.0F, color, 130);
+        drawRightAlignedScaledText(graphics, getResistanceLevel(value), x + EGO_W - 18,
+                y, 1.5F, ARCHIVE_DIM, 112);
+        graphics.fill(x + 18, y + 24, x + EGO_W - 18, y + 25, 0xFF25271F);
+    }
+
+    private void renderDevelopmentBar(GuiGraphics graphics, int x, int developed, int maximum) {
+        int barY = EGO_Y + EGO_H - 42;
+        boolean complete = developed >= maximum;
+        graphics.fill(x + 12, barY, x + EGO_W - 12, barY + 30,
+                complete ? 0xB53C5224 : 0xB5293A1B);
+        drawScaledText(graphics, developed + "/" + maximum, x + 22, barY + 8,
+                2.0F, complete ? ARCHIVE_GOLD : ARCHIVE_PALE, 100);
+        drawRightAlignedScaledText(graphics, "研发", x + EGO_W - 22, barY + 8,
+                2.0F, ARCHIVE_GOLD, 82);
+    }
+
+    private String cleanObservationBonus(String text) {
+        if (text == null || text.isBlank()) return "未配置观察加成";
+        return text.replaceFirst("^\\s*(?:VIII|VII|VI|IV|V|III|II|I)\\s*[.、:-]?\\s*", "");
+    }
+
+    private String compactSensitiveInfo() {
+        if (sensitiveInfoText == null || sensitiveInfoText.isBlank()) return "未知";
+        return sensitiveInfoText
+                .replaceFirst("^\\s*计数器极限\\s*[：:]?\\s*", "")
+                .replace(" | ", "\n")
+                .replace("|", "\n")
+                .trim();
+    }
+
+    private String compactSensitiveBehavior() {
+        if (sensitiveInfoText == null || sensitiveInfoText.isBlank()) return "未知";
+        String text = SENSITIVE_RESISTANCE_CLAUSE_PATTERN.matcher(sensitiveInfoText)
+                .replaceAll("");
+        text = text.replaceAll("\\([^)]*抗性[^)]*\\)", "")
+                .replaceAll("\\|\\s*\\|", "|")
+                .replaceAll("^\\s*\\|+|\\|+\\s*$", "")
+                .replace(" | ", "\n")
+                .replace("|", "\n")
+                .trim();
+        return text.isBlank() ? "未知" : text;
+    }
+
+    private List<SensitiveResistance> sensitiveResistances() {
+        if (sensitiveInfoText == null || sensitiveInfoText.isBlank()) return List.of();
+        List<SensitiveResistance> result = new ArrayList<>();
+        Matcher matcher = SENSITIVE_RESISTANCE_PATTERN.matcher(sensitiveInfoText);
+        while (matcher.find()) {
+            String type = switch (matcher.group(1).toUpperCase(java.util.Locale.ROOT)) {
+                case "红色", "RED" -> "RED";
+                case "白色", "WHITE" -> "WHITE";
+                case "黑色", "BLACK" -> "BLACK";
+                default -> "PALE";
+            };
+            try {
+                result.add(new SensitiveResistance(type, Float.parseFloat(matcher.group(2))));
+            } catch (NumberFormatException ignored) {
+                // Ignore malformed legacy text and keep rendering the other entries.
+            }
+        }
+        return result;
+    }
+
+    private void renderSensitiveResistances(GuiGraphics graphics, int x, int y) {
+        List<SensitiveResistance> resistances = sensitiveResistances();
+        if (resistances.isEmpty()) {
+            drawWrappedScaledText(graphics, compactSensitiveInfo(), x, y + 8,
+                    1.8F, ARCHIVE_PALE, 230, 4);
+            return;
+        }
+        String[] order = {"RED", "WHITE", "BLACK", "PALE"};
+        for (int index = 0; index < order.length; index++) {
+            String type = order[index];
+            SensitiveResistance resistance = resistances.stream()
+                    .filter(entry -> entry.type().equals(type)).findFirst().orElse(null);
+            if (resistance == null) continue;
+            int rowY = y + index * 31;
+            ResourceLocation icon = getDamageTypeIcon(type);
+            graphics.blit(icon, x, rowY, 0, 0, 20, 20, 20, 20);
+            int color = EncyclopediaGUIConfig.Colors.getDamageTypeColor(type);
+            drawScaledText(graphics, type, x + 28, rowY + 2, 1.8F, color, 74);
+            drawRightAlignedScaledText(graphics, String.format("%.1f", resistance.value()),
+                    x + 226, rowY + 2, 1.8F, color, 64);
+            drawRightAlignedScaledText(graphics, getResistanceLevel(resistance.value()),
+                    x + 226, rowY + 17, 1.2F, ARCHIVE_DIM, 170);
+        }
+    }
+
+    private void renderPeStorage(GuiGraphics graphics) {
+        int x = 1330;
+        int y = 914;
+        int w = 340;
+        int h = 126;
+        drawArchivePanel(graphics, x, y, w, h, ARCHIVE_GOLD);
+        drawCenteredScaledText(graphics, "独立 PE-BOX 储量", x + w / 2, y + 12,
+                3.0F, ARCHIVE_PALE, w - 28);
+        drawCenteredScaledText(graphics, String.valueOf(playerEnergy), x + w / 2,
+                y + 55, 5.0F, playerEnergy > 0 ? ARCHIVE_PALE : ARCHIVE_DIM, w - 50);
+    }
+
+    private void renderExitButton(GuiGraphics graphics, double mouseX, double mouseY) {
+        boolean hovered = inside(mouseX, mouseY, EXIT_X, EXIT_Y, EXIT_W, EXIT_H);
+        graphics.fill(EXIT_X, EXIT_Y, EXIT_X + EXIT_W, EXIT_Y + EXIT_H,
+                hovered ? 0xFFFF4B50 : ARCHIVE_RED);
+        drawCenteredScaledText(graphics, "退出", EXIT_X + EXIT_W / 2, EXIT_Y + 15,
+                5.0F, 0xFF090A08, EXIT_W - 24);
+    }
+
+    private void renderLockedArea(GuiGraphics graphics, int x, int y, int width, int height,
+                                  int cost, int requiredLevel,
+                                  double mouseX, double mouseY) {
+        boolean hovered = inside(mouseX, mouseY, x, y, width, height);
+        graphics.fill(x, y, x + width, y + height, hovered ? 0xE0191A15 : 0xE0080908);
+        renderUnlockPrompt(graphics, x + 20, y + height / 2 - 34, width - 40,
+                requiredLevel, cost, hovered);
+    }
+
+    private void renderUnlockPrompt(GuiGraphics graphics, int x, int y, int width,
+                                    int requiredLevel, int cost, boolean hovered) {
+        if (requiredLevel > 0 && observationLevel < requiredLevel) {
+            drawCenteredScaledText(graphics, "需要观察等级 " + requiredLevel,
+                    x + width / 2, y, 2.0F, ARCHIVE_RED, width);
+            return;
+        }
+        int color = playerEnergy >= cost ? ARCHIVE_PALE : ARCHIVE_RED;
+        drawCenteredScaledText(graphics, "消耗 " + cost + " PE-BOX 解锁",
+                x + width / 2, y, 2.0F, color, width);
+        if (hovered && playerEnergy >= cost) {
+            drawCenteredScaledText(graphics, "点击解锁", x + width / 2,
+                    y + 28, 2.0F, ARCHIVE_GOLD, width);
+        }
+    }
+
+    private void renderArchiveMessage(GuiGraphics graphics) {
+        if (message == null || message.isEmpty()) return;
+        int x = 540;
+        int y = 1000;
+        int w = 760;
+        graphics.fill(x, y, x + w, y + 46, 0xEF171916);
+        drawArchivePanel(graphics, x, y, w, 46, ARCHIVE_RED);
+        drawCenteredScaledText(graphics, message, x + w / 2, y + 11,
+                2.5F, 0xFFFFFFFF, w - 28);
+    }
+
+    private int manualEntryHeight(int index) {
+        if (index < 0 || index >= manualsUnlocked.length || !manualsUnlocked[index]) return 96;
+        String content = index < manualTexts.length ? manualTexts[index] : "未知";
+        int lines = Math.max(1, wrapScaledText(content, 2.0F, MANUAL_VIEW_W - 60).size());
+        return Math.max(96, 66 + lines * scaledLineAdvance(2.0F));
+    }
+
+    private int manualContentHeight() {
+        int height = 8;
+        for (int index = 0; index < manualsUnlocked.length; index++) {
+            height += manualEntryHeight(index);
+            if (index + 1 < manualsUnlocked.length) height += 12;
+        }
+        return height + 8;
+    }
+
+    private int storyEntryHeight(int index) {
+        if (index < 0 || index >= storyEntries.length) return 112;
+        AbnormalityEncyclopediaData.StoryEntry entry = storyEntries[index];
+        if (!entry.isUnlockedAt(observationLevel)) return 112;
+        int lines = Math.max(1, wrapScaledText(entry.text(), 2.0F,
+                STORY_VIEW_W - 94).size());
+        return Math.max(112, 76 + lines * scaledLineAdvance(2.0F));
+    }
+
+    private int storyContentHeight() {
+        int height = 14;
+        for (int index = 0; index < storyEntries.length; index++) {
+            height += storyEntryHeight(index);
+            if (index + 1 < storyEntries.length) height += 18;
+        }
+        return height + 14;
+    }
+
+    private int activeArchiveContentHeight() {
+        return showingStories ? storyContentHeight() : manualContentHeight();
+    }
+
+    private int manualMaxScroll() {
+        return Math.max(0, activeArchiveContentHeight() - activeArchiveViewportHeight());
+    }
+
+    private int manualScrollbarHeight() {
+        int viewportHeight = activeArchiveViewportHeight();
+        int contentHeight = Math.max(viewportHeight, activeArchiveContentHeight());
+        return Mth.clamp(viewportHeight * viewportHeight / contentHeight, 38, viewportHeight);
+    }
+
+    private int activeArchiveViewportX() {
+        return showingStories ? STORY_VIEW_X : MANUAL_VIEW_X;
+    }
+
+    private int activeArchiveViewportY() {
+        return showingStories ? STORY_VIEW_Y : MANUAL_VIEW_Y;
+    }
+
+    private int activeArchiveViewportWidth() {
+        return showingStories ? STORY_VIEW_W : MANUAL_VIEW_W;
+    }
+
+    private int activeArchiveViewportHeight() {
+        return showingStories ? STORY_VIEW_H : MANUAL_VIEW_H;
+    }
+
+    private int manualEntryAt(double mouseX, double mouseY) {
+        if (showingStories) return -1;
+        if (!inside(mouseX, mouseY, MANUAL_VIEW_X, MANUAL_VIEW_Y,
+                MANUAL_VIEW_W, MANUAL_VIEW_H)) return -1;
+        double contentY = mouseY - MANUAL_VIEW_Y - 8 + scrollOffset;
+        int cursor = 0;
+        for (int index = 0; index < manualsUnlocked.length; index++) {
+            int height = manualEntryHeight(index);
+            if (contentY >= cursor && contentY < cursor + height) return index;
+            cursor += height + 12;
+        }
+        return -1;
     }
 
     private void renderContent(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
@@ -1319,6 +2167,130 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
     // ==================== 辅助方法 ====================
 
+    private static void drawArchivePanel(GuiGraphics graphics, int x, int y,
+                                         int width, int height, int color) {
+        graphics.fill(x + 1, y + 1, x + width - 1, y + height - 1, PANEL_INNER);
+        graphics.fill(x, y, x + width, y + 1, color);
+        graphics.fill(x, y + height - 1, x + width, y + height, color);
+        graphics.fill(x, y, x + 1, y + height, color);
+        graphics.fill(x + width - 1, y, x + width, y + height, color);
+        graphics.fill(x + 7, y + 7, x + 44, y + 8,
+                LobotomyUiRenderer.withAlpha(color, 0.52F));
+        graphics.fill(x + width - 44, y + height - 8, x + width - 7, y + height - 7,
+                LobotomyUiRenderer.withAlpha(color, 0.52F));
+    }
+
+    private void drawPanelTitle(GuiGraphics graphics, String title,
+                                int x, int y, int width) {
+        graphics.fill(x + 1, y + 1, x + width - 1, y + 49, PANEL_BLACK);
+        for (int stripe = 0; stripe < Math.min(width - 24, 210); stripe += 28) {
+            graphics.fill(x + 12 + stripe, y + 7, x + 29 + stripe, y + 13, ARCHIVE_GOLD_DIM);
+        }
+        drawRightAlignedScaledText(graphics, title, x + width - 14, y + 19,
+                3.0F, ARCHIVE_GOLD, width - 32);
+    }
+
+    private void drawScaledText(GuiGraphics graphics, String text, int x, int y,
+                                float scale, int color, int maxWidth) {
+        int snappedScale = Math.max(1, Mth.floor(scale * canvasScale + 0.001F));
+        int screenX = Math.round(canvasX + x * canvasScale);
+        int screenY = Math.round(canvasY + y * canvasScale);
+        int screenMaxWidth = Math.max(1, Math.round(maxWidth * canvasScale));
+        String fitted = LobotomyUiRenderer.fitText(font, text,
+                Math.max(1, screenMaxWidth / snappedScale));
+        graphics.pose().pushPose();
+        graphics.pose().scale(1.0F / canvasScale, 1.0F / canvasScale, 1.0F);
+        graphics.pose().translate(screenX - canvasX, screenY - canvasY, 3.0F);
+        graphics.pose().scale(snappedScale, snappedScale, 1.0F);
+        graphics.drawString(font, fitted, 0, 0, color, false);
+        graphics.pose().popPose();
+    }
+
+    private void drawCenteredScaledText(GuiGraphics graphics, String text, int centerX, int y,
+                                        float scale, int color, int maxWidth) {
+        int snappedScale = Math.max(1, Mth.floor(scale * canvasScale + 0.001F));
+        int screenX = Math.round(canvasX + centerX * canvasScale);
+        int screenY = Math.round(canvasY + y * canvasScale);
+        int screenMaxWidth = Math.max(1, Math.round(maxWidth * canvasScale));
+        String fitted = LobotomyUiRenderer.fitText(font, text,
+                Math.max(1, screenMaxWidth / snappedScale));
+        graphics.pose().pushPose();
+        graphics.pose().scale(1.0F / canvasScale, 1.0F / canvasScale, 1.0F);
+        graphics.pose().translate(screenX - canvasX, screenY - canvasY, 3.0F);
+        graphics.pose().scale(snappedScale, snappedScale, 1.0F);
+        graphics.drawString(font, fitted, -font.width(fitted) / 2, 0, color, false);
+        graphics.pose().popPose();
+    }
+
+    private void drawRightAlignedScaledText(GuiGraphics graphics, String text, int rightX, int y,
+                                            float scale, int color, int maxWidth) {
+        int snappedScale = Math.max(1, Mth.floor(scale * canvasScale + 0.001F));
+        int screenX = Math.round(canvasX + rightX * canvasScale);
+        int screenY = Math.round(canvasY + y * canvasScale);
+        int screenMaxWidth = Math.max(1, Math.round(maxWidth * canvasScale));
+        String fitted = LobotomyUiRenderer.fitText(font, text,
+                Math.max(1, screenMaxWidth / snappedScale));
+        graphics.pose().pushPose();
+        graphics.pose().scale(1.0F / canvasScale, 1.0F / canvasScale, 1.0F);
+        graphics.pose().translate(screenX - canvasX, screenY - canvasY, 3.0F);
+        graphics.pose().scale(snappedScale, snappedScale, 1.0F);
+        graphics.drawString(font, fitted, -font.width(fitted), 0, color, false);
+        graphics.pose().popPose();
+    }
+
+    private void drawWrappedScaledText(GuiGraphics graphics, String text, int x, int y,
+                                       float scale, int color, int maxWidth, int maxLines) {
+        List<FormattedCharSequence> lines = wrapScaledText(text, scale, maxWidth);
+        int count = Math.min(maxLines, lines.size());
+        int advance = scaledLineAdvance(scale);
+        int snappedScale = Math.max(1, Mth.floor(scale * canvasScale + 0.001F));
+        int screenX = Math.round(canvasX + x * canvasScale);
+        for (int index = 0; index < count; index++) {
+            int screenY = Math.round(canvasY + (y + index * advance) * canvasScale);
+            graphics.pose().pushPose();
+            graphics.pose().scale(1.0F / canvasScale, 1.0F / canvasScale, 1.0F);
+            graphics.pose().translate(screenX - canvasX, screenY - canvasY, 3.0F);
+            graphics.pose().scale(snappedScale, snappedScale, 1.0F);
+            graphics.drawString(font, lines.get(index), 0, 0, color, false);
+            graphics.pose().popPose();
+        }
+    }
+
+    private List<FormattedCharSequence> wrapScaledText(String text, float scale, int maxWidth) {
+        int snappedScale = Math.max(1, Mth.floor(scale * canvasScale + 0.001F));
+        int screenMaxWidth = Math.max(1, Math.round(maxWidth * canvasScale));
+        int wrapWidth = Math.max(1, screenMaxWidth / snappedScale);
+        return font.split(Component.literal(text == null ? "" : text), wrapWidth);
+    }
+
+    private int scaledLineAdvance(float scale) {
+        int snappedScale = Math.max(1, Mth.floor(scale * canvasScale + 0.001F));
+        return Math.max(14, Math.round((font.lineHeight + 2) * snappedScale
+                / Math.max(0.0001F, canvasScale)));
+    }
+
+    private void enableLogicalScissor(GuiGraphics graphics, int x, int y,
+                                      int width, int height) {
+        int screenX = Math.round(canvasX + x * canvasScale);
+        int screenY = Math.round(canvasY + y * canvasScale);
+        int screenRight = Math.round(canvasX + (x + width) * canvasScale);
+        int screenBottom = Math.round(canvasY + (y + height) * canvasScale);
+        graphics.enableScissor(screenX, screenY, screenRight, screenBottom);
+    }
+
+    private double toLogicalX(double screenX) {
+        return (screenX - canvasX) / Math.max(0.0001F, canvasScale);
+    }
+
+    private double toLogicalY(double screenY) {
+        return (screenY - canvasY) / Math.max(0.0001F, canvasScale);
+    }
+
+    private static boolean inside(double mouseX, double mouseY,
+                                  double x, double y, double width, double height) {
+        return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
+    }
+
     private void drawDashedBorder(GuiGraphics graphics, int x, int y, int w, int h) {
         int dashLength = EncyclopediaGUIConfig.Animation.DASH_LENGTH;
         int color = EncyclopediaGUIConfig.Colors.THEME_ORANGE;
@@ -1361,224 +2333,103 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollDelta) {
-        mouseX = com.wzz.lobotocraft.client.screen.api.AutoScaleHelper.mouseX(mouseX, this.width, uiScale);
-        mouseY = com.wzz.lobotocraft.client.screen.api.AutoScaleHelper.mouseY(mouseY, this.height, uiScale);
-        int viewportHeight = this.height - EncyclopediaGUIConfig.Layout.TOP_BAR_HEIGHT -
-                EncyclopediaGUIConfig.Layout.BOTTOM_BAR_HEIGHT;
-        int maxScroll = Math.max(0, EncyclopediaGUIConfig.Layout.CONTENT_HEIGHT - viewportHeight);
-
-        targetScrollOffset -= scrollDelta * EncyclopediaGUIConfig.Layout.SCROLL_SPEED;
-        targetScrollOffset = Mth.clamp(targetScrollOffset, 0, maxScroll);
-
-        return true;
+        updateCanvasTransform();
+        double logicalX = toLogicalX(mouseX);
+        double logicalY = toLogicalY(mouseY);
+        if (inside(logicalX, logicalY, activeArchiveViewportX(), activeArchiveViewportY(),
+                activeArchiveViewportWidth(), activeArchiveViewportHeight())) {
+            targetScrollOffset = Mth.clamp(targetScrollOffset - scrollDelta * 54.0D,
+                    0.0D, manualMaxScroll());
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollDelta);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        mouseX = com.wzz.lobotocraft.client.screen.api.AutoScaleHelper.mouseX(mouseX, this.width, uiScale);
-        mouseY = com.wzz.lobotocraft.client.screen.api.AutoScaleHelper.mouseY(mouseY, this.height, uiScale);
         if (button != 0) return super.mouseClicked(mouseX, mouseY, button);
+        updateCanvasTransform();
+        double logicalX = toLogicalX(mouseX);
+        double logicalY = toLogicalY(mouseY);
 
-        // 检查滚动条点击
-        int viewportTop = EncyclopediaGUIConfig.Layout.TOP_BAR_HEIGHT;
-        int viewportHeight = this.height - EncyclopediaGUIConfig.Layout.TOP_BAR_HEIGHT -
-                EncyclopediaGUIConfig.Layout.BOTTOM_BAR_HEIGHT;
-        int maxScroll = Math.max(0, EncyclopediaGUIConfig.Layout.CONTENT_HEIGHT - viewportHeight);
+        if (inside(logicalX, logicalY, EXIT_X, EXIT_Y, EXIT_W, EXIT_H)) {
+            onClose();
+            return true;
+        }
 
-        if (maxScroll > 0) {
-            int barX = this.width - EncyclopediaGUIConfig.Layout.SCROLLBAR_OFFSET_X;
-            float scrollPercent = (float) scrollOffset / maxScroll;
-            int barHeight = Math.max(
-                    EncyclopediaGUIConfig.Layout.SCROLLBAR_MIN_HEIGHT,
-                    (int)(viewportHeight * ((float)viewportHeight / EncyclopediaGUIConfig.Layout.CONTENT_HEIGHT)));
-            int barY = viewportTop + (int)((viewportHeight - barHeight) * scrollPercent);
+        if (inside(logicalX, logicalY, HEADER_INFO_TAB_X, HEADER_TAB_Y,
+                HEADER_TAB_W, HEADER_TAB_H)) {
+            switchArchiveTab(false);
+            return true;
+        }
+        if (inside(logicalX, logicalY, HEADER_STORY_TAB_X, HEADER_TAB_Y,
+                HEADER_TAB_W, HEADER_TAB_H)) {
+            switchArchiveTab(true);
+            return true;
+        }
 
-            if (isMouseOver((int)mouseX, (int)mouseY, barX, barY,
-                    EncyclopediaGUIConfig.Layout.SCROLLBAR_WIDTH, barHeight)) {
+        int maximum = manualMaxScroll();
+        if (maximum > 0) {
+            int viewportX = activeArchiveViewportX();
+            int viewportY = activeArchiveViewportY();
+            int viewportWidth = activeArchiveViewportWidth();
+            int viewportHeight = activeArchiveViewportHeight();
+            int trackX = showingStories
+                    ? viewportX + viewportWidth - 14
+                    : viewportX + viewportWidth - 13;
+            int handleHeight = manualScrollbarHeight();
+            int handleY = viewportY + Mth.floor((viewportHeight - handleHeight)
+                    * (scrollOffset / maximum));
+            if (inside(logicalX, logicalY, trackX, handleY, 16, handleHeight)) {
                 isDraggingScrollbar = true;
-                dragStartY = (int)mouseY;
+                dragStartY = Mth.floor(logicalY);
                 dragStartScroll = scrollOffset;
                 return true;
             }
-        }
-
-        // 调整鼠标坐标以匹配滚动内容
-        int adjustedMouseY = (int)(mouseY + scrollOffset);
-        IAbnormality abnormality = this.abnormality;
-
-        // ========== E.G.O 装备研发点击（仅在非工具类型时处理）==========
-        if (abnormality != null && !isToolType) {
-            // 计算右侧栏的基础坐标
-            int startY = EncyclopediaGUIConfig.Layout.TOP_BAR_HEIGHT + 5;
-            int x = this.width - EncyclopediaGUIConfig.Layout.RightColumn.OFFSET_FROM_RIGHT;
-            int y = startY + EncyclopediaGUIConfig.Layout.RightColumn.START_Y_OFFSET;
-
-            // 跳过管理须知部分
-            y += EncyclopediaGUIConfig.Layout.CenterColumn.TITLE_SPACING;
-            for (int i = 0; i < manualsUnlocked.length; i++) {
-                y += ENTRY_HEIGHT + ENTRY_SPACING;
-            }
-
-            // 跳过敏感信息部分
-            y += EncyclopediaGUIConfig.Layout.CenterColumn.TITLE_SPACING;
-            y += ENTRY_HEIGHT + 25;
-
-            // 跳过E.G.O饰品部分（如果有）
-            if (abnormality.getEGOGiftData() != null) {
-                y += EncyclopediaGUIConfig.Layout.CenterColumn.TITLE_SPACING + 85;
-            }
-
-            // E.G.O护甲的研发区域（动态判断解锁状态）
-            boolean armorUnlocked = canUnlockArmor(abnormality, observationLevel);
-            if (armorUnlocked && abnormality.getEGOArmorData() != null) {
-                int armorX = x;
-                int armorWidth = 150;
-                int armorHeight = 230;
-
-                // "研发"整行区域
-                int devBarX = armorX + 5;
-                int devBarY = y + armorHeight - 20;
-                int devBarWidth = armorWidth - 10;
-                int devBarHeight = 15;
-
-                if (isMouseOver((int) mouseX, adjustedMouseY, devBarX, devBarY, devBarWidth, devBarHeight)) {
-                    onArmorDevelopmentClicked(abnormality);
-                    return true;
-                }
-            }
-
-            // E.G.O武器的研发区域（动态判断解锁状态）
-            boolean weaponUnlocked = canUnlockWeapon(abnormality, observationLevel);
-            if (weaponUnlocked && abnormality.getEGOWeaponData() != null) {
-                int weaponX = x + 165;
-                int weaponWidth = 150;
-                int weaponHeight = 230;
-
-                // "研发"整行区域
-                int devBarX = weaponX + 5;
-                int devBarY = y + weaponHeight - 20;
-                int devBarWidth = weaponWidth - 10;
-                int devBarHeight = 15;
-
-                if (isMouseOver((int) mouseX, adjustedMouseY, devBarX, devBarY, devBarWidth, devBarHeight)) {
-                    onWeaponDevelopmentClicked(abnormality);
-                    return true;
-                }
-            }
-        }
-
-        // ========== 基础信息、工作偏好、管理须知、敏感信息的解锁点击 ==========
-        int centerX = EncyclopediaGUIConfig.Layout.CenterColumn.X;
-        int imgY = EncyclopediaGUIConfig.Layout.TOP_BAR_HEIGHT + 20;
-        int imgSize = EncyclopediaGUIConfig.Layout.CenterColumn.IMAGE_SIZE;
-
-        // 基础信息解锁（图片 + 详情）
-        if (!basicInfoUnlocked) {
-            // 1. 异想体图片区域
-            if (isMouseOver((int)mouseX, adjustedMouseY, centerX, imgY, imgSize, imgSize)) {
-                if (playerEnergy < basicInfoCost) {
-                    showErrorMessage("§cPE-BOX不足！需要 " + basicInfoCost + " 个，当前只有 " + playerEnergy + " 个", 30);
-                    return true;
-                }
-                unlockEntry(0, basicInfoCost);
-                return true;
-            }
-
-            // 2. 基础信息详情区域
-            int infoY = imgY + imgSize + EncyclopediaGUIConfig.Layout.CenterColumn.BASIC_INFO_Y_OFFSET - imgSize;
-            int basicInfoHeight = 120;
-            int basicInfoWidth = 180;
-
-            if (isMouseOver((int)mouseX, adjustedMouseY, centerX, infoY, basicInfoWidth, basicInfoHeight)) {
-                if (playerEnergy < basicInfoCost) {
-                    showErrorMessage("§cPE-BOX不足！需要 " + basicInfoCost + " 个，当前只有 " + playerEnergy + " 个", 30);
-                    return true;
-                }
-                unlockEntry(0, basicInfoCost);
+            if (inside(logicalX, logicalY, trackX, viewportY, 16, viewportHeight)) {
+                double ratio = (logicalY - viewportY - handleHeight / 2.0D)
+                        / Math.max(1.0D, viewportHeight - handleHeight);
+                targetScrollOffset = Mth.clamp(ratio * maximum, 0.0D, maximum);
                 return true;
             }
         }
 
-        // 工作偏好解锁（仅非工具类型）
+        int manual = manualEntryAt(logicalX, logicalY);
+        if (manual >= 0 && !manualsUnlocked[manual]) {
+            return tryUnlock(manual + 3, manualCost, 1);
+        }
+
+        if (!basicInfoUnlocked && inside(logicalX, logicalY,
+                BASIC_X, BASIC_Y, BASIC_W, BASIC_H)) {
+            return tryUnlock(0, basicInfoCost, 0);
+        }
+
         if (!isToolType) {
-            int infoY = imgY + imgSize + EncyclopediaGUIConfig.Layout.CenterColumn.BASIC_INFO_Y_OFFSET - imgSize;
-            int workPrefY = infoY + EncyclopediaGUIConfig.Layout.CenterColumn.WORK_PREF_Y_OFFSET - 240;
-
-            // 检查4个工作类型的点击
             for (int work = 0; work < 4; work++) {
-                if (!workPreferencesUnlocked[work]) {
-                    int col = work % 2;
-                    int row = work / 2;
-
-                    int workX = centerX + col * 180;
-                    int workY = workPrefY + EncyclopediaGUIConfig.Layout.CenterColumn.TITLE_SPACING + row * 90;
-                    int lockWidth = 170;
-                    int lockHeight = 70;
-
-                    if (isMouseOver((int)mouseX, adjustedMouseY, workX, workY, lockWidth, lockHeight)) {
-                        if (playerEnergy < workPreferencesCost) {
-                            showErrorMessage("§cPE-BOX不足！需要 " + workPreferencesCost + " 个，当前只有 " + playerEnergy + " 个", 30);
-                            return true;
-                        }
-                        // entryIndex: 基础信息=0, 敏感信息=2, 管理须知=3+
-                        // 工作偏好使用 100+work (100, 101, 102, 103)
-                        unlockEntry(100 + work, workPreferencesCost);
-                        return true;
-                    }
+                int x = WORK_X + 16 + (work % 2) * 224;
+                int y = WORK_Y + 62 + (work / 2) * 181;
+                if (!workPreferencesUnlocked[work]
+                        && inside(logicalX, logicalY, x, y, 214, 166)) {
+                    return tryUnlock(100 + work, workPreferencesCost, 0);
                 }
             }
-        }
-
-        // 右侧栏：管理须知和敏感信息
-        int startY = EncyclopediaGUIConfig.Layout.TOP_BAR_HEIGHT + 5;
-        int x = this.width - EncyclopediaGUIConfig.Layout.RightColumn.OFFSET_FROM_RIGHT;
-        int y = startY + EncyclopediaGUIConfig.Layout.RightColumn.START_Y_OFFSET;
-
-        // 跳过"管理须知"标题
-        y += EncyclopediaGUIConfig.Layout.CenterColumn.TITLE_SPACING;
-
-        // 检查所有管理须知解锁点击
-        for (int i = 0; i < manualsUnlocked.length; i++) {
-            if (!manualsUnlocked[i]) {
-                if (isMouseOver((int)mouseX, adjustedMouseY, x, y,
-                        EncyclopediaGUIConfig.Layout.RightColumn.ENTRY_WIDTH, ENTRY_HEIGHT)) {
-                    int reqLevel = 1;
-
-                    if (observationLevel < reqLevel) {
-                        showErrorMessage("§c需要观察等级 " + reqLevel + "，当前等级 " + observationLevel, 40);
-                        return true;
-                    }
-                    if (playerEnergy < manualCost) {
-                        showErrorMessage("§cPE-BOX不足！需要 " + manualCost + " 个，当前只有 " + playerEnergy + " 个", 30);
-                        return true;
-                    }
-
-                    unlockEntry(i + 3, manualCost);
-                    return true;
-                }
+            if (!sensitiveInfoUnlocked && inside(logicalX, logicalY,
+                    SENSITIVE_X, SENSITIVE_Y + 58, SENSITIVE_W, SENSITIVE_H - 58)) {
+                return tryUnlock(2, sensitiveInfoCost,
+                        EncyclopediaGUIConfig.UnlockCosts.SENSITIVE_INFO_LEVEL);
             }
-            y += ENTRY_HEIGHT + ENTRY_SPACING;
-        }
 
-        // 跳过"异想体的敏感信息"标题
-        y += EncyclopediaGUIConfig.Layout.CenterColumn.TITLE_SPACING;
-
-        // 检查敏感信息解锁点击（仅非工具类型）
-        if (!isToolType && !sensitiveInfoUnlocked) {
-            if (isMouseOver((int)mouseX, adjustedMouseY, x, y,
-                    EncyclopediaGUIConfig.Layout.RightColumn.ENTRY_WIDTH, ENTRY_HEIGHT)) {
-                int reqLevel = EncyclopediaGUIConfig.UnlockCosts.SENSITIVE_INFO_LEVEL;
-
-                if (observationLevel < reqLevel) {
-                    showErrorMessage("§c需要观察等级 " + reqLevel + "，当前等级 " + observationLevel, 40);
-                    return true;
-                }
-                if (playerEnergy < sensitiveInfoCost) {
-                    showErrorMessage("§cPE-BOX不足！需要 " + sensitiveInfoCost + " 个，当前只有 " + playerEnergy + " 个", 30);
-                    return true;
-                }
-
-                unlockEntry(2, sensitiveInfoCost);
+            IAbnormality current = abnormality;
+            if (current != null && egoDevelopmentBarAt(logicalX, logicalY, WEAPON_X)
+                    && current.getEGOWeaponData() != null
+                    && canUnlockWeapon(current, observationLevel)) {
+                onWeaponDevelopmentClicked(current);
+                return true;
+            }
+            if (current != null && egoDevelopmentBarAt(logicalX, logicalY, ARMOR_X)
+                    && current.getEGOArmorData() != null
+                    && canUnlockArmor(current, observationLevel)) {
+                onArmorDevelopmentClicked(current);
                 return true;
             }
         }
@@ -1588,27 +2439,16 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        mouseX = com.wzz.lobotocraft.client.screen.api.AutoScaleHelper.mouseX(mouseX, this.width, uiScale);
-        mouseY = com.wzz.lobotocraft.client.screen.api.AutoScaleHelper.mouseY(mouseY, this.height, uiScale);
-        dragX = dragX / Math.max(uiScale, 0.0001f);
-        dragY = dragY / Math.max(uiScale, 0.0001f);
         if (isDraggingScrollbar && button == 0) {
-            int viewportTop = EncyclopediaGUIConfig.Layout.TOP_BAR_HEIGHT;
-            int viewportHeight = this.height - EncyclopediaGUIConfig.Layout.TOP_BAR_HEIGHT -
-                    EncyclopediaGUIConfig.Layout.BOTTOM_BAR_HEIGHT;
-            int maxScroll = Math.max(0, EncyclopediaGUIConfig.Layout.CONTENT_HEIGHT - viewportHeight);
-
-            int barHeight = Math.max(
-                    EncyclopediaGUIConfig.Layout.SCROLLBAR_MIN_HEIGHT,
-                    (int)(viewportHeight * ((float)viewportHeight / EncyclopediaGUIConfig.Layout.CONTENT_HEIGHT)));
-
-            int deltaY = (int)mouseY - dragStartY;
-            double scrollRange = viewportHeight - barHeight;
-            double scrollDelta = (deltaY / scrollRange) * maxScroll;
-
-            targetScrollOffset = Mth.clamp(dragStartScroll + scrollDelta, 0, maxScroll);
-            scrollOffset = targetScrollOffset; // 直接设置，不平滑
-
+            updateCanvasTransform();
+            double logicalY = toLogicalY(mouseY);
+            int maximum = manualMaxScroll();
+            int handleHeight = manualScrollbarHeight();
+            double trackRange = Math.max(1.0D,
+                    activeArchiveViewportHeight() - handleHeight);
+            double deltaScroll = (logicalY - dragStartY) / trackRange * maximum;
+            targetScrollOffset = Mth.clamp(dragStartScroll + deltaScroll, 0.0D, maximum);
+            scrollOffset = targetScrollOffset;
             return true;
         }
         return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
@@ -1616,8 +2456,6 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        mouseX = com.wzz.lobotocraft.client.screen.api.AutoScaleHelper.mouseX(mouseX, this.width, uiScale);
-        mouseY = com.wzz.lobotocraft.client.screen.api.AutoScaleHelper.mouseY(mouseY, this.height, uiScale);
         if (button == 0 && isDraggingScrollbar) {
             isDraggingScrollbar = false;
             return true;
@@ -1625,11 +2463,39 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         return super.mouseReleased(mouseX, mouseY, button);
     }
 
-    private void onWeaponDevelopmentClicked(IAbnormality abnormality) {
-        if (developmentWeaponCount >= abnormality.getWeaponDevelopmentMaxCount()) {
-            showErrorMessage("§c研发武器失败！已达到最大研发上限", 30);
-            return;
+    private void switchArchiveTab(boolean stories) {
+        if (showingStories == stories) return;
+        showingStories = stories;
+        scrollOffset = 0.0D;
+        targetScrollOffset = 0.0D;
+        isDraggingScrollbar = false;
+        if (minecraft != null && minecraft.player != null) {
+            minecraft.player.playSound(ModSounds.UNLOCK_INFORMATION.get(), 0.35F, 1.15F);
         }
+    }
+
+    private boolean tryUnlock(int entryIndex, int cost, int requiredLevel) {
+        if (requiredLevel > 0 && observationLevel < requiredLevel) {
+            showErrorMessage("§c需要观察等级 " + requiredLevel
+                    + "，当前等级 " + observationLevel, 40);
+            return true;
+        }
+        if (playerEnergy < cost) {
+            showErrorMessage("§cPE-BOX不足！需要 " + cost
+                    + " 个，当前只有 " + playerEnergy + " 个", 30);
+            return true;
+        }
+        unlockEntry(entryIndex, cost);
+        targetScrollOffset = Mth.clamp(targetScrollOffset, 0.0D, manualMaxScroll());
+        return true;
+    }
+
+    private boolean egoDevelopmentBarAt(double mouseX, double mouseY, int panelX) {
+        return inside(mouseX, mouseY, panelX + 12,
+                EGO_Y + EGO_H - 42, EGO_W - 24, 30);
+    }
+
+    private void onWeaponDevelopmentClicked(IAbnormality abnormality) {
         if (abnormality.getWeaponDevelopmentCost() == -1) {
             showErrorMessage("§c研发武器失败，无法研究！", 30);
             return;
@@ -1641,22 +2507,19 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
         // 打开制造界面
         if (minecraft != null) {
-            minecraft.setScreen(new EquipmentCraftingScreen(
+            minecraft.setScreen(new EgoResearchChoiceScreen(
                     "weapon",
                     abnormalityCode,
                     abnormalityId,
                     targetScrollOffset,
                     abnormality,
-                    abnormality.getWeaponDevelopmentCost()
+                    abnormality.getWeaponDevelopmentCost(),
+                    this
             ));
         }
     }
 
     private void onArmorDevelopmentClicked(IAbnormality abnormality) {
-        if (developmentArmorCount >= abnormality.getArmorDevelopmentMaxCount()) {
-            showErrorMessage("§c研发装备失败！已达到最大研发上限", 30);
-            return;
-        }
         if (abnormality.getArmorDevelopmentCost() == -1) {
             showErrorMessage("§c研发装备失败，无法研究！", 30);
             return;
@@ -1668,13 +2531,14 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
         // 打开制造界面
         if (minecraft != null) {
-            minecraft.setScreen(new EquipmentCraftingScreen(
+            minecraft.setScreen(new EgoResearchChoiceScreen(
                     "armor",
                     abnormalityCode,
                     abnormalityId,
                     targetScrollOffset,
                     abnormality,
-                    abnormality.getArmorDevelopmentCost()
+                    abnormality.getArmorDevelopmentCost(),
+                    this
             ));
         }
     }
@@ -1763,6 +2627,19 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public void onClose() {
+        if (returnScreen != null && minecraft != null) {
+            minecraft.setScreen(returnScreen);
+            return;
+        }
+        super.onClose();
+    }
+
+    public Screen getReturnScreen() {
+        return returnScreen;
     }
 
     @Override

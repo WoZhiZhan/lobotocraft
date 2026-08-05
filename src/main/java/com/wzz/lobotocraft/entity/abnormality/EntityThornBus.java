@@ -37,10 +37,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class EntityThornBus extends AbstractAbnormality {
+    private static final int ATTACK_SEQUENCE_TICKS = 40;
+    private static final double ATTACK_REACH = 3.1D;
+
     private final Random random = new Random();
+    private LivingEntity activeAttackTarget;
+    private int attackSequenceTick = -1;
+    private int nextAttackHit;
 
     public EntityThornBus(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -173,6 +178,18 @@ public class EntityThornBus extends AbstractAbnormality {
         super.die(damageSource);
     }
 
+    @Override
+    public void stopEscape() {
+        boolean wasEscaped = hasEscape();
+        super.stopEscape();
+        if (!wasEscaped || hasEscape()) return;
+        activeAttackTarget = null;
+        attackSequenceTick = -1;
+        nextAttackHit = 0;
+        setAnimation("idle");
+        setTarget(null);
+    }
+
     private void killMob(LivingEntity living) {
         if (getAnimation().contains("attack")) return;
         new AnimationTimerEntry(this, "attack", "idle", 2000, () -> {
@@ -198,6 +215,13 @@ public class EntityThornBus extends AbstractAbnormality {
                     playSound(ModSounds.THORN_BUS_PARTICLE.get());
                 }
             }
+
+            @Override
+            public void onCancelled(@NotNull LivingEntity living, @NotNull CancellationReason reason) {
+                if (reason == CancellationReason.LOGOUT && living instanceof ServerPlayer player) {
+                    PendingPlayerExecution.mark(player);
+                }
+            }
         };
         timerEntry.addSkillTimer(living, 0, 1200, 1);
     }
@@ -213,42 +237,48 @@ public class EntityThornBus extends AbstractAbnormality {
     }
 
     private void attackMob(LivingEntity living) {
-        if (getAnimation().contains("attack2")) return;
-        new AnimationTimerEntry(this, "attack2", "idle", 2000);
+        if (attackSequenceTick >= 0 || getAnimation().contains("attack2")) return;
+        setAnimation("attack2");
+        activeAttackTarget = living;
+        attackSequenceTick = 0;
+        nextAttackHit = 0;
         if (random.nextInt(2) == 0) {
             playSound(ModSounds.THORN_BUS_FACE_ATTACK_1.get());
         } else playSound(ModSounds.THORN_BUS_FACE_ATTACK_2.get());
-        TimerEntry<LivingEntity> timerEntry = new TimerEntry<>() {
-            @Override
-            public void onRunning(@NotNull LivingEntity living) {
-                if (getExecutions() == 8) {
-                    attack(living);
-                }
-                if (getExecutions() == 14) {
-                    attack(living);
-                }
-                if (getExecutions() == 25) {
-                    attack(living);
-                }
-            }
-        };
-        timerEntry.addSkillTimer(living, 0, 1200, 20);
     }
 
     private void attack(@NotNull LivingEntity living) {
-        AtomicReference<Float> damage = new AtomicReference<>(9f);
+        float[] damage = {9.0F};
         living.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(data -> {
-            if (data.getTemperanceLevel() <= 3) {
-                damage.set(9f + random.nextInt(16));
-            }
-            if (data.getTemperanceLevel() <= 4) {
-                damage.set(3f + random.nextInt(6));
-            }
-            if (data.getTemperanceLevel() <= 5) {
-                damage.set(1f + random.nextInt(3));
-            }
+            ThornBusCombatRules.DamageBand band = ThornBusCombatRules.damageBandForTemperance(
+                    data.getTemperanceLevel());
+            damage[0] = band.minimum() + random.nextInt(band.maximum() - band.minimum() + 1);
         });
-        living.hurt(DamageHelper.getDamage(EntityThornBus.this, "black"), damage.get());
+        living.hurt(DamageHelper.getDamage(EntityThornBus.this, "black"), damage[0]);
+    }
+
+    private void tickAttackSequence() {
+        if (attackSequenceTick < 0) return;
+        attackSequenceTick++;
+        while (nextAttackHit < ThornBusCombatRules.attackHitCount()
+                && attackSequenceTick >= ThornBusCombatRules.attackHitTick(nextAttackHit)) {
+            if (canHitActiveAttackTarget()) attack(activeAttackTarget);
+            nextAttackHit++;
+        }
+        if (attackSequenceTick < ATTACK_SEQUENCE_TICKS) return;
+        activeAttackTarget = null;
+        attackSequenceTick = -1;
+        nextAttackHit = 0;
+        if (getAnimation().contains("attack2")) setAnimation("idle");
+    }
+
+    private boolean canHitActiveAttackTarget() {
+        return activeAttackTarget != null
+                && activeAttackTarget.isAlive()
+                && !activeAttackTarget.isRemoved()
+                && activeAttackTarget.level() == level()
+                && getBoundingBox().inflate(ATTACK_REACH)
+                .intersects(activeAttackTarget.getBoundingBox());
     }
 
     @Override
@@ -287,6 +317,7 @@ public class EntityThornBus extends AbstractAbnormality {
         if (level().isClientSide) {
             return;
         }
+        tickAttackSequence();
         if (hasEscape() && this.tickCount % 40 == 0) {
             if (getAnimation().contains("idle")) {
                 for (LivingEntity e : EntityUtil.findAllEntities(this, 1.8D)) {
@@ -295,7 +326,7 @@ public class EntityThornBus extends AbstractAbnormality {
                         break;
                     }
                     if (e instanceof Player player) {
-                        if (MentalValueUtil.getMentalValue(player) <= 0f) {
+                        if (MentalValueUtil.isPanic(player)) {
                             playSound(ModSounds.THORN_BUS_USE_PUT_TO_DEATH.get());
                             killMob(player);
                             break;

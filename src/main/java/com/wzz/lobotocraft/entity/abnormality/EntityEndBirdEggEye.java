@@ -11,7 +11,6 @@ import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.WorkType;
-import com.wzz.lobotocraft.world.data.EndBirdEggTracker;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
@@ -43,16 +42,6 @@ public class EntityEndBirdEggEye extends AbstractAbnormality {
         // 本能60%，洞察30%，沟通80%，压迫40%
         initializeWorkPreferences(basePreferences);
         initializeQliphothCounter();
-    }
-
-    @Override
-    public void onAddedToWorld() {
-        super.onAddedToWorld();
-        if (!level().isClientSide && level() instanceof ServerLevel serverLevel) {
-            EndBirdEggTracker tracker = EndBirdEggTracker.get(serverLevel);
-            String eggType = EndBirdEggTracker.EGG_EYE;
-            tracker.registerEgg(this.getStringUUID(), eggType);
-        }
     }
 
     @Override
@@ -88,7 +77,10 @@ public class EntityEndBirdEggEye extends AbstractAbnormality {
     @Override
     public void die(DamageSource damageSource) {
         setAnimation("death");
-        for (ServerPlayer player : EntityUtil.findAllPlayer(this)) {
+        boolean eventEgg = EntityEndBird.endBirdEggDie(level, getUUID(),
+                com.wzz.lobotocraft.world.data.EndBirdEggTracker.EGG_EYE,
+                damageSource.getEntity() instanceof ServerPlayer player ? player : null);
+        if (eventEgg) for (ServerPlayer player : EntityUtil.findAllPlayer(this)) {
             FullScreenRenderMessage msg = FullScreenRenderMessage.builder()
                     .showDuration(4000)
                     .fade(500, 1000)
@@ -96,9 +88,16 @@ public class EntityEndBirdEggEye extends AbstractAbnormality {
                     .build();
             MessageLoader.getLoader().sendToPlayer(player, msg);
         }
-        EntityEndBird.endBirdEggDie(level,
-                damageSource.getEntity() instanceof ServerPlayer player ? player : null);
         super.die(damageSource);
+    }
+
+    @Override
+    public void remove(net.minecraft.world.entity.Entity.RemovalReason reason) {
+        if (!level().isClientSide && reason.shouldDestroy() && !isDeadOrDying()) {
+            EntityEndBird.endBirdEggDie(level(), getUUID(),
+                    com.wzz.lobotocraft.world.data.EndBirdEggTracker.EGG_EYE, null);
+        }
+        super.remove(reason);
     }
 
     @Override
@@ -125,6 +124,8 @@ public class EntityEndBirdEggEye extends AbstractAbnormality {
     public void tick() {
         super.tick();
         if (level.isClientSide) return;
+        EndBirdMeltdownService.tick(this,
+                com.wzz.lobotocraft.world.data.EndBirdEggTracker.EGG_EYE);
         if (tickCount % 20 == 0 && !this.isDeadOrDying()) {
             if (getHealth() <= getMaxHealth() / 2) {
                 setAnimation("idle2");

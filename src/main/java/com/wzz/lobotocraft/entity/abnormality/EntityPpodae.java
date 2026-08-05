@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.ai.goal.MoveToBlockPosWithElevatorGoal;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModSounds;
@@ -25,7 +26,6 @@ import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
@@ -40,6 +40,12 @@ public class EntityPpodae extends AbstractAbnormality {
     // ========== 数据同步器 ==========
     private static final EntityDataAccessor<Boolean> DATA_RETURNING =
             SynchedEntityData.defineId(EntityPpodae.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Boolean> DATA_COLLISION_ESCAPED =
+            SynchedEntityData.defineId(EntityPpodae.class, EntityDataSerializers.BOOLEAN);
+
+    private static final EntityDimensions CONTAINED_SIZE = EntityDimensions.scalable(0.6F, 0.9F);
+    private static final EntityDimensions ESCAPED_SIZE = EntityDimensions.scalable(1.8F, 2.7F);
+    private static final int DIMENSION_RETRY_INTERVAL = 10;
 
     // ========== 状态追踪 ==========
     private int attackCooldown = 0;
@@ -65,6 +71,63 @@ public class EntityPpodae extends AbstractAbnormality {
     public void defineSynchedData() {
         super.defineSynchedData();
         this.entityData.define(DATA_RETURNING, false);
+        this.entityData.define(DATA_COLLISION_ESCAPED, false);
+    }
+
+    @Override
+    public EntityDimensions getDimensions(Pose pose) {
+        return this.entityData.get(DATA_COLLISION_ESCAPED) ? ESCAPED_SIZE : CONTAINED_SIZE;
+    }
+
+    @Override
+    public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+        super.onSyncedDataUpdated(key);
+        if (DATA_COLLISION_ESCAPED.equals(key) && this.level().isClientSide) {
+            this.refreshDimensions();
+        }
+    }
+
+    private boolean tryApplyEscapeDimensions(ServerLevel level, boolean escaped) {
+        boolean appliedEscaped = this.entityData.get(DATA_COLLISION_ESCAPED);
+        if (appliedEscaped == escaped) return true;
+
+        EntityDimensions current = appliedEscaped ? ESCAPED_SIZE : CONTAINED_SIZE;
+        EntityDimensions target = escaped ? ESCAPED_SIZE : CONTAINED_SIZE;
+        Vec3 safePosition;
+        if (SafeTransformationUtil.isPureShrink(current, target)) {
+            safePosition = this.position();
+        } else {
+            safePosition = SafeTransformationUtil.findPositionForDimensions(level, this, target, 10, 3);
+            if (safePosition == null) {
+                this.setNoAi(true);
+                return false;
+            }
+        }
+
+        if (safePosition.distanceToSqr(this.position()) > 1.0E-6D) {
+            this.moveTo(safePosition.x, safePosition.y, safePosition.z, this.getYRot(), this.getXRot());
+            this.getNavigation().stop();
+            this.setDeltaMovement(Vec3.ZERO);
+        }
+        this.entityData.set(DATA_COLLISION_ESCAPED, escaped);
+        this.refreshDimensions();
+        this.setNoAi(!escaped);
+        return true;
+    }
+
+    private boolean retryPendingDimensions(ServerLevel level) {
+        boolean desiredEscaped = hasEscape();
+        if (this.entityData.get(DATA_COLLISION_ESCAPED) == desiredEscaped) return true;
+        if (this.tickCount % DIMENSION_RETRY_INTERVAL == 0) {
+            tryApplyEscapeDimensions(level, desiredEscaped);
+        }
+        boolean ready = this.entityData.get(DATA_COLLISION_ESCAPED) == desiredEscaped;
+        if (!ready) {
+            this.setNoAi(true);
+            this.getNavigation().stop();
+            this.setDeltaMovement(Vec3.ZERO);
+        }
+        return ready;
     }
 
     @Override
@@ -100,7 +163,9 @@ public class EntityPpodae extends AbstractAbnormality {
     protected void registerGoals() {
         super.registerGoals();
         this.goalSelector.addGoal(0, new FloatGoal(this));
-        this.goalSelector.addGoal(1, new ReturnToNestGoal());
+        this.goalSelector.addGoal(1, new MoveToBlockPosWithElevatorGoal(
+                this, 1.0D, () -> nestPosition, this::isReturning,
+                this::finishReturningToNest));
         this.goalSelector.addGoal(2, new MeleeAttackGoal(this, 1.0D, true));
         this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 0.8D));
         this.goalSelector.addGoal(4, new LookAtPlayerGoal(this, Player.class, 16.0F));
@@ -133,9 +198,15 @@ public class EntityPpodae extends AbstractAbnormality {
             return;
         }
 
+        boolean dimensionsReady = retryPendingDimensions((ServerLevel) level());
+
         if (!hasEscape()) {
             setNoAi(true);
             nestPosition = this.blockPosition(); // 记录收容位置
+            return;
+        }
+
+        if (!dimensionsReady) {
             return;
         }
 
@@ -229,7 +300,12 @@ public class EntityPpodae extends AbstractAbnormality {
 
     @Override
     public void stopEscape() {
+        boolean wasEscaped = hasEscape();
         super.stopEscape();
+        if (!wasEscaped || hasEscape()) return;
+        if (this.level() instanceof ServerLevel level) {
+            tryApplyEscapeDimensions(level, hasEscape());
+        }
         noPhysics = false;
         setReturning(false);
         setAnimation("idle");
@@ -242,6 +318,13 @@ public class EntityPpodae extends AbstractAbnormality {
         attackAnimationTimer = 0;
         attackCooldown = 0;
         pendingAttackTarget = null;
+    }
+
+    @Override
+    protected void prepareForContainmentReturn() {
+        if (this.level() instanceof ServerLevel level) {
+            tryApplyEscapeDimensions(level, false);
+        }
     }
 
     private void onKillTarget(LivingEntity killed) {
@@ -263,21 +346,21 @@ public class EntityPpodae extends AbstractAbnormality {
         double distance = currentVec.distanceTo(nestVec);
 
         if (distance < 1.5D) {
-            this.teleportTo(nestPosition.getX() + 0.5, nestPosition.getY(), nestPosition.getZ() + 0.5);
-            stopEscape();
+            finishReturningToNest();
             return;
         }
 
-        // 移动到巢穴
-        Vec3 direction = nestVec.subtract(currentVec).normalize();
-        double speed = 0.3;
-        this.setDeltaMovement(direction.x * speed, direction.y * speed, direction.z * speed);
         setAnimation("walk");
+    }
+
+    private void finishReturningToNest() {
+        noPhysics = false;
+        stopEscape();
     }
 
     private void startReturningToNest() {
         setReturning(true);
-        noPhysics = true;
+        noPhysics = false;
         setTarget(null);
         setAnimation("walk");
         this.playSound(ModSounds.PPODAE_RETURN.get(), 1.0F, 1.0F);
@@ -310,15 +393,9 @@ public class EntityPpodae extends AbstractAbnormality {
     @Override
     public void triggerEscape() {
         super.triggerEscape();
-        Vec3 centerPos = this.position();
-        EntityDimensions dimensions = this.getDimensions(Pose.STANDING);
-        float scale = 3.0f;
-        double newWidth = dimensions.width * scale;
-        double newHeight = dimensions.height * scale;
-        double newDepth = dimensions.width * scale;
-        AABB newBoundingBox = AABB.ofSize(centerPos, newWidth, newHeight, newDepth);
-        this.setBoundingBox(newBoundingBox);
-        this.refreshDimensions();
+        if (this.level() instanceof ServerLevel level && hasEscape()) {
+            tryApplyEscapeDimensions(level, true);
+        }
         if (!this.level.isClientSide) {
             for (ServerPlayer player : EntityUtil.findAllPlayer(this)) {
                 if (EgoArmorHelper.isFullEGO(player, "ppodae")) {
@@ -337,28 +414,6 @@ public class EntityPpodae extends AbstractAbnormality {
     @Override
     public boolean doHurtTarget(Entity entity) {
         return entity instanceof LivingEntity;
-    }
-
-    // ========== 返回巢穴AI Goal ==========
-    private class ReturnToNestGoal extends Goal {
-        public ReturnToNestGoal() {
-            this.setFlags(EnumSet.of(Flag.MOVE, Flag.JUMP, Flag.LOOK));
-        }
-
-        @Override
-        public boolean canUse() {
-            return isReturning() && nestPosition != null;
-        }
-
-        @Override
-        public boolean canContinueToUse() {
-            return isReturning() && nestPosition != null;
-        }
-
-        @Override
-        public void tick() {
-            // tick方法已经处理了移动逻辑
-        }
     }
 
     // ========== 数据同步器 Getter/Setter ==========
@@ -493,9 +548,9 @@ public class EntityPpodae extends AbstractAbnormality {
 
     @Override
     public void die(DamageSource p_21809_) {
-        super.die(p_21809_);
         setAnimation("die");
         playSound(ModSounds.PPODAE_DEATH.get());
+        super.die(p_21809_);
     }
 
     @Override
@@ -541,6 +596,7 @@ public class EntityPpodae extends AbstractAbnormality {
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
+        tag.putBoolean("CollisionEscaped", this.entityData.get(DATA_COLLISION_ESCAPED));
         tag.putBoolean("Returning", isReturning());
         tag.putInt("AttackCooldown", attackCooldown);
         tag.putInt("AttackAnimationTimer", attackAnimationTimer);
@@ -561,6 +617,10 @@ public class EntityPpodae extends AbstractAbnormality {
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        boolean collisionEscaped = tag.contains("CollisionEscaped") && tag.getBoolean("CollisionEscaped");
+        this.entityData.set(DATA_COLLISION_ESCAPED, collisionEscaped);
+        this.refreshDimensions();
+        this.setNoAi(collisionEscaped != hasEscape() || !hasEscape());
         setReturning(tag.getBoolean("Returning"));
         attackCooldown = tag.getInt("AttackCooldown");
         attackAnimationTimer = tag.getInt("AttackAnimationTimer");

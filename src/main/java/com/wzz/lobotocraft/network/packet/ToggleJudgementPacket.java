@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.network.packet;
 
 import com.wzz.lobotocraft.item.ego.butterfly_funeral.ButterflyFuneralWeapon;
 import com.wzz.lobotocraft.network.IMessage;
+import com.wzz.lobotocraft.network.RequestThrottle;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
@@ -28,6 +29,7 @@ public class ToggleJudgementPacket implements IMessage {
     public void run(NetworkEvent.Context ctx) {
         ServerPlayer player = ctx.getSender();
         if (player == null) return;
+        if (!RequestThrottle.allow(player, "toggle-judgement", 200L)) return;
         ButterflyFuneralWeapon.toggleJudgement(player);
     }
 

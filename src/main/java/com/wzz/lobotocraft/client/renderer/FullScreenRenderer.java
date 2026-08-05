@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.client.renderer;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.wzz.lobotocraft.ModMain;
+import com.wzz.lobotocraft.client.performance.ClientPerformanceMonitor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
@@ -308,6 +309,16 @@ public class FullScreenRenderer {
         if (currentState == RenderState.HIDDEN) {
             return;
         }
+
+        long sectionStarted = ClientPerformanceMonitor.beginSection("fullscreen_render");
+        try {
+            renderActive(guiGraphics);
+        } finally {
+            ClientPerformanceMonitor.endSection("fullscreen_render", sectionStarted);
+        }
+    }
+
+    private void renderActive(GuiGraphics guiGraphics) {
 
         updateState();
 

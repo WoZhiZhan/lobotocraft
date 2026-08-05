@@ -9,6 +9,8 @@ import com.wzz.lobotocraft.entity.ordeal.EntityBloodySmall;
 import com.wzz.lobotocraft.entity.ordeal.EntityCrimsonNoon;
 import com.wzz.lobotocraft.entity.ordeal.EntityGreenDawn;
 import com.wzz.lobotocraft.entity.ordeal.EntityGreenNoon;
+import com.wzz.lobotocraft.entity.ordeal.EntityLateOrdeal;
+import com.wzz.lobotocraft.entity.ordeal.LateOrdealVariant;
 import com.wzz.lobotocraft.entity.ordeal.EntityVioletDawn;
 import com.wzz.lobotocraft.entity.ordeal.EntityVioletNoon;
 import net.minecraft.world.entity.EntityType;
@@ -238,6 +240,48 @@ public class ModEntities {
                             .clientTrackingRange(8)
                             .updateInterval(3)
                             .build("amber_dawn"));
+
+    public static final RegistryObject<EntityType<EntityLateOrdeal>> crimson_dusk =
+            ENTITIES.register("crimson_dusk", () -> EntityType.Builder.<EntityLateOrdeal>of(
+                    (type, level) -> new EntityLateOrdeal(type, level, LateOrdealVariant.CRIMSON_DUSK),
+                            MobCategory.MONSTER)
+                    .sized(2.2F, 2.4F).clientTrackingRange(16).updateInterval(2).fireImmune()
+                    .build("crimson_dusk"));
+
+    public static final RegistryObject<EntityType<EntityLateOrdeal>> green_dusk =
+            ENTITIES.register("green_dusk", () -> EntityType.Builder.<EntityLateOrdeal>of(
+                    (type, level) -> new EntityLateOrdeal(type, level, LateOrdealVariant.GREEN_DUSK),
+                            MobCategory.MONSTER)
+                    .sized(2.4F, 3.4F).clientTrackingRange(16).updateInterval(2).fireImmune()
+                    .build("green_dusk"));
+
+    public static final RegistryObject<EntityType<EntityLateOrdeal>> amber_dusk =
+            ENTITIES.register("amber_dusk", () -> EntityType.Builder.<EntityLateOrdeal>of(
+                    (type, level) -> new EntityLateOrdeal(type, level, LateOrdealVariant.AMBER_DUSK),
+                            MobCategory.MONSTER)
+                    .sized(1.5F, 1.2F).clientTrackingRange(16).updateInterval(2).fireImmune()
+                    .build("amber_dusk"));
+
+    public static final RegistryObject<EntityType<EntityLateOrdeal>> green_midnight =
+            ENTITIES.register("green_midnight", () -> EntityType.Builder.<EntityLateOrdeal>of(
+                    (type, level) -> new EntityLateOrdeal(type, level, LateOrdealVariant.GREEN_MIDNIGHT),
+                            MobCategory.MONSTER)
+                    .sized(3.0F, 4.0F).clientTrackingRange(24).updateInterval(2).fireImmune()
+                    .build("green_midnight"));
+
+    public static final RegistryObject<EntityType<EntityLateOrdeal>> violet_midnight =
+            ENTITIES.register("violet_midnight", () -> EntityType.Builder.<EntityLateOrdeal>of(
+                    (type, level) -> new EntityLateOrdeal(type, level, LateOrdealVariant.VIOLET_MIDNIGHT),
+                            MobCategory.MONSTER)
+                    .sized(2.0F, 5.0F).clientTrackingRange(24).updateInterval(2).fireImmune()
+                    .build("violet_midnight"));
+
+    public static final RegistryObject<EntityType<EntityLateOrdeal>> amber_midnight =
+            ENTITIES.register("amber_midnight", () -> EntityType.Builder.<EntityLateOrdeal>of(
+                    (type, level) -> new EntityLateOrdeal(type, level, LateOrdealVariant.AMBER_MIDNIGHT),
+                            MobCategory.MONSTER)
+                    .sized(2.8F, 3.0F).clientTrackingRange(24).updateInterval(2).fireImmune()
+                    .build("amber_midnight"));
 
     // ============ 海嗣(深蓝色正午——大群的意志) ============
     public static final RegistryObject<EntityType<com.wzz.lobotocraft.entity.seaborn.EntityShellSeaRunner>> shell_sea_runner =

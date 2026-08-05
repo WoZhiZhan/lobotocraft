@@ -6,8 +6,6 @@ import com.wzz.lobotocraft.entity.base.EscapeTracker;
 import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.logger.ModLogger;
-import com.wzz.lobotocraft.network.MessageLoader;
-import com.wzz.lobotocraft.network.packet.EscapeAlertPacket;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.world.structure.ProtectionHelper;
 import net.minecraft.core.BlockPos;
@@ -182,8 +180,7 @@ public class PlayerSpawnAndDimensionHandler {
     }
 
     private static void syncAlertToPlayer(ServerPlayer player) {
-        int level = EscapeTracker.getInstance().getCurrentAlertLevel();
-        MessageLoader.getLoader().sendToPlayer(player, new EscapeAlertPacket(level));
+        EscapeTracker.getInstance().syncToPlayer(player);
     }
 
     /**

@@ -1,0 +1,21 @@
+{
+  "targets": [ "swap_a", "swap_b" ],
+  "passes": [
+    {
+      "name": "lobotocraft:core_water_drop",
+      "intarget": "minecraft:main",
+      "outtarget": "swap_a",
+      "auxtargets": [
+        { "name": "WaterSampler", "id": "lobotocraft:core/water_drop", "width": 512, "height": 512, "bilinear": true }
+      ]
+    },
+    {
+      "name": "lobotocraft:core_fog",
+      "intarget": "swap_a",
+      "outtarget": "minecraft:main",
+      "auxtargets": [
+        { "name": "DepthSampler", "id": "minecraft:main:depth" }
+      ]
+    }
+  ]
+}

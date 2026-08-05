@@ -34,9 +34,12 @@ import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
@@ -49,7 +52,7 @@ import java.util.Comparator;
 /**
  * 绿色的正午 - 理解的过程。
  */
-public class EntityGreenNoon extends BaseGeoEntity {
+public class EntityGreenNoon extends BaseGeoEntity implements OrdealEntity {
     private static final EntityDataAccessor<String> ANIM =
             SynchedEntityData.defineId(EntityGreenNoon.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<Integer> ANIM_VERSION =
@@ -232,7 +235,7 @@ public class EntityGreenNoon extends BaseGeoEntity {
     }
 
     private void tickShooting(ServerLevel level) {
-        LivingEntity target = findNearestTarget(SHOOT_RANGE);
+        LivingEntity target = findNearestTarget(SHOOT_RANGE, candidate -> hasClearShot(level, candidate));
         if (target == null) {
             shootRateAccumulator = SHOOT_RATE_SCALE;
             return;
@@ -249,6 +252,8 @@ public class EntityGreenNoon extends BaseGeoEntity {
         faceTarget(target);
         setAnimIfChanged("shoot");
 
+        // Recheck at damage time so later animation/timing changes cannot revive wall shots.
+        if (!hasClearShot(level, target)) return;
         EntityUtil.clearHurtTime(target);
         if (target.hurt(DamageHelper.getDamage(this, "red"), 1.0F)) {
             level.playSound(null, this.blockPosition(), ModSounds.GREEN_NOON_SHOOT.get(),
@@ -323,14 +328,34 @@ public class EntityGreenNoon extends BaseGeoEntity {
     }
 
     private LivingEntity findNearestTarget(double horizontalRange) {
+        return findNearestTarget(horizontalRange, target -> true);
+    }
+
+    private LivingEntity findNearestTarget(double horizontalRange,
+                                           java.util.function.Predicate<LivingEntity> extraFilter) {
         if (!(this.level() instanceof ServerLevel level)) {
             return null;
         }
         AABB range = this.getBoundingBox().inflate(horizontalRange, 8.0D, horizontalRange);
         return level.getEntitiesOfClass(LivingEntity.class, range, this::isValidAttackTarget).stream()
                 .filter(target -> this.distanceToSqr(target) <= horizontalRange * horizontalRange)
+                .filter(extraFilter)
                 .min(Comparator.comparingDouble(this::distanceToSqr))
                 .orElse(null);
+    }
+
+    boolean hasClearShot(ServerLevel level, LivingEntity target) {
+        if (level == null || target == null || target.level() != level) return false;
+        Vec3 origin = this.getEyePosition();
+        Vec3 bodyCenter = target.getBoundingBox().getCenter();
+        return isUnobstructed(level, origin, target.getEyePosition())
+                || isUnobstructed(level, origin, bodyCenter);
+    }
+
+    private boolean isUnobstructed(ServerLevel level, Vec3 origin, Vec3 destination) {
+        return level.clip(new ClipContext(origin, destination,
+                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this)).getType()
+                == HitResult.Type.MISS;
     }
 
     private boolean isWithinChainsawRange(LivingEntity target) {
@@ -351,7 +376,7 @@ public class EntityGreenNoon extends BaseGeoEntity {
     }
 
     private boolean isGreenOrdealUnit(LivingEntity target) {
-        return target instanceof EntityGreenDawn || target instanceof EntityGreenNoon;
+        return target instanceof OrdealEntity;
     }
 
     private void faceTarget(LivingEntity target) {

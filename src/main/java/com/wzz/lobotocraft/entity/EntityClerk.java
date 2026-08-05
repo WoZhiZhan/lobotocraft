@@ -55,6 +55,16 @@ public class EntityClerk extends PathfinderMob {
     }
 
     @Override
+    public boolean requiresCustomPersistence() {
+        return true;
+    }
+
+    @Override
+    public boolean removeWhenFarAway(double distanceToClosestPlayer) {
+        return false;
+    }
+
+    @Override
     public void defineSynchedData() {
         super.defineSynchedData();
         this.entityData.define(DATA_TEXTURE_VARIANT, 0);

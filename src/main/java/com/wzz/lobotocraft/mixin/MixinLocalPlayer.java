@@ -1,6 +1,8 @@
 package com.wzz.lobotocraft.mixin;
 
 import com.wzz.lobotocraft.item.api.IProhibitDiscarding;
+import com.wzz.lobotocraft.ego.EgoLoadoutService;
+import com.wzz.lobotocraft.ego.EgoProjectionRules;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -16,11 +18,11 @@ public abstract class MixinLocalPlayer {
             at = @At("HEAD"), cancellable = true)
     private void onDrop(boolean dropAll, CallbackInfoReturnable<Boolean> cir) {
         Player self = (Player)(Object)this;
-        if (!self.isCreative()) {
-            ItemStack stack = self.getInventory().getSelected();
-            if (!stack.isEmpty() && stack.getItem() instanceof IProhibitDiscarding) {
-                cir.setReturnValue(false);
-            }
+        ItemStack stack = self.getInventory().getSelected();
+        if (!EgoProjectionRules.mayDiscard(EgoLoadoutService.isProjection(stack), self.isCreative())
+                || !self.isCreative() && !stack.isEmpty()
+                && stack.getItem() instanceof IProhibitDiscarding) {
+            cir.setReturnValue(false);
         }
     }
 }

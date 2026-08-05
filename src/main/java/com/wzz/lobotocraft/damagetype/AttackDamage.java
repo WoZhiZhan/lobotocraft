@@ -17,8 +17,11 @@ public class AttackDamage extends DamageSource {
     }
 
     @Override
-    public @NotNull Component getLocalizedDeathMessage(LivingEntity p_19343_) {
-        return Component.empty();
+    public @NotNull Component getLocalizedDeathMessage(LivingEntity victim) {
+        if (attacker != null) {
+            return Component.translatable("death.attack.mob", victim.getDisplayName(), attacker.getDisplayName());
+        }
+        return Component.translatable("death.attack.generic", victim.getDisplayName());
     }
 
     @Override

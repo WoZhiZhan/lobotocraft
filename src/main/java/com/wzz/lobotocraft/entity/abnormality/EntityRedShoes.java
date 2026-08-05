@@ -1,9 +1,9 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.ModMain;
-import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.EntityRedShoesClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
@@ -351,6 +351,7 @@ public class EntityRedShoes extends AbstractAbnormality {
 
     private void consumeClerkAndSpawnSpecial(ServerLevel serverLevel, EntityClerk clerk) {
         BlockPos spawnPos = findNearestEscapeBlock(serverLevel, clerk.blockPosition());
+        if (spawnPos == null) return;
         EntityClerk.markNoTombstone(clerk);
         clerk.hurt(clerk.damageSources().genericKill(), Float.MAX_VALUE);
         if (clerk.isAlive()) {
@@ -368,10 +369,11 @@ public class EntityRedShoes extends AbstractAbnormality {
         serverLevel.addFreshEntity(specialClerk);
     }
 
+    @javax.annotation.Nullable
     private BlockPos findNearestEscapeBlock(ServerLevel serverLevel, BlockPos origin) {
-        return EscapeBlockEntity.getEscapeBlocks(serverLevel.dimension()).stream()
+        return FacilityAccessService.openEscapeBlocks(serverLevel).stream()
                 .min(Comparator.comparingDouble(pos -> pos.distSqr(origin)))
-                .orElse(origin);
+                .orElse(null);
     }
 
     private static boolean isCharmEligiblePlayer(ServerPlayer player) {
@@ -591,14 +593,13 @@ public class EntityRedShoes extends AbstractAbnormality {
             return;
         }
 
-        Set<BlockPos> escapeBlocks = EscapeBlockEntity.getEscapeBlocks(serverLevel.dimension());
-        BlockPos nearest = escapeBlocks.stream()
+        BlockPos nearest = FacilityAccessService.openEscapeBlocks(serverLevel).stream()
                 .min(Comparator.comparingDouble(pos -> pos.distSqr(target.blockPosition())))
                 .orElse(null);
         if (nearest != null) {
             target.teleportTo(nearest.getX() + 0.5D, nearest.getY() + 1.0D, nearest.getZ() + 0.5D);
+            data.putBoolean(BLOODLUST_TELEPORTED_TAG, true);
         }
-        data.putBoolean(BLOODLUST_TELEPORTED_TAG, true);
     }
 
     private static void applyBloodlustAttributes(LivingEntity target) {

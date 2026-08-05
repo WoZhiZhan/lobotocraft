@@ -44,6 +44,6 @@ public class StartCoreSuppressionPacket implements IMessage {
                 || player.distanceToSqr(npc) > 64.0D) {
             return;
         }
-        CoreSuppressionManager.startChallenge(player, requested);
+        CoreSuppressionManager.requestChallenge(player, requested);
     }
 }

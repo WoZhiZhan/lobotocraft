@@ -3,6 +3,8 @@ package com.wzz.lobotocraft.command;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import com.wzz.lobotocraft.capability.EmployeeLevelCalculator;
+import com.wzz.lobotocraft.capability.EmployeeStats;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.event.listener.EmployeeStatsApplier;
 import com.wzz.lobotocraft.network.MessageLoader;
@@ -37,25 +39,29 @@ public class EmployeeStatsCommand implements ICommand {
                         .then(Commands.argument("player", EntityArgument.player())
                                 // 勇气
                                 .then(Commands.literal("fortitude")
-                                        .then(Commands.argument("value", IntegerArgumentType.integer(20, 100))
+                                        .then(Commands.argument("value", IntegerArgumentType.integer(
+                                                        EmployeeStats.MIN_STAT, EmployeeStats.MAX_STAT))
                                                 .executes(context -> setFortitude(context,
                                                         EntityArgument.getPlayer(context, "player"),
                                                         IntegerArgumentType.getInteger(context, "value")))))
                                 // 谨慎
                                 .then(Commands.literal("prudence")
-                                        .then(Commands.argument("value", IntegerArgumentType.integer(20, 100))
+                                        .then(Commands.argument("value", IntegerArgumentType.integer(
+                                                        EmployeeStats.MIN_STAT, EmployeeStats.MAX_STAT))
                                                 .executes(context -> setPrudence(context,
                                                         EntityArgument.getPlayer(context, "player"),
                                                         IntegerArgumentType.getInteger(context, "value")))))
                                 // 自律
                                 .then(Commands.literal("temperance")
-                                        .then(Commands.argument("value", IntegerArgumentType.integer(20, 100))
+                                        .then(Commands.argument("value", IntegerArgumentType.integer(
+                                                        EmployeeStats.MIN_STAT, EmployeeStats.MAX_STAT))
                                                 .executes(context -> setTemperance(context,
                                                         EntityArgument.getPlayer(context, "player"),
                                                         IntegerArgumentType.getInteger(context, "value")))))
                                 // 正义
                                 .then(Commands.literal("justice")
-                                        .then(Commands.argument("value", IntegerArgumentType.integer(20, 100))
+                                        .then(Commands.argument("value", IntegerArgumentType.integer(
+                                                        EmployeeStats.MIN_STAT, EmployeeStats.MAX_STAT))
                                                 .executes(context -> setJustice(context,
                                                         EntityArgument.getPlayer(context, "player"),
                                                         IntegerArgumentType.getInteger(context, "value")))))))
@@ -104,8 +110,9 @@ public class EmployeeStatsCommand implements ICommand {
             // 重新应用属性效果
             EmployeeStatsApplier.applyAllAttributes(player);
             context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("§a设置 %s 的勇气值为 %d (等级 %d)",
-                            player.getName().getString(), value, stats.getFortitudeLevel())), true);
+                    String.format("§a设置 %s 的勇气值为 %d (等级 %s)",
+                            player.getName().getString(), value,
+                            EmployeeLevelCalculator.statGrade(stats.getFortitude()))), true);
         });
         return 1;
     }
@@ -117,8 +124,9 @@ public class EmployeeStatsCommand implements ICommand {
             // 重新应用属性效果
             EmployeeStatsApplier.applyAllAttributes(player);
             context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("§a设置 %s 的谨慎值为 %d (等级 %d)",
-                            player.getName().getString(), value, stats.getPrudenceLevel())), true);
+                    String.format("§a设置 %s 的谨慎值为 %d (等级 %s)",
+                            player.getName().getString(), value,
+                            EmployeeLevelCalculator.statGrade(stats.getPrudence()))), true);
         });
         return 1;
     }
@@ -130,8 +138,9 @@ public class EmployeeStatsCommand implements ICommand {
             // 重新应用属性效果
             EmployeeStatsApplier.applyAllAttributes(player);
             context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("§a设置 %s 的自律值为 %d (等级 %d)",
-                            player.getName().getString(), value, stats.getTemperanceLevel())), true);
+                    String.format("§a设置 %s 的自律值为 %d (等级 %s)",
+                            player.getName().getString(), value,
+                            EmployeeLevelCalculator.statGrade(stats.getTemperance()))), true);
         });
         return 1;
     }
@@ -143,8 +152,9 @@ public class EmployeeStatsCommand implements ICommand {
             // 重新应用属性效果
             EmployeeStatsApplier.applyAllAttributes(player);
             context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("§a设置 %s 的正义值为 %d (等级 %d)",
-                            player.getName().getString(), value, stats.getJusticeLevel())), true);
+                    String.format("§a设置 %s 的正义值为 %d (等级 %s)",
+                            player.getName().getString(), value,
+                            EmployeeLevelCalculator.statGrade(stats.getJustice()))), true);
         });
         return 1;
     }
@@ -158,12 +168,12 @@ public class EmployeeStatsCommand implements ICommand {
             // 重新应用属性效果
             EmployeeStatsApplier.applyAllAttributes(player);
             context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("§a为 %s %s %d 勇气值，当前: %d (等级 %d)",
+                    String.format("§a为 %s %s %d 勇气值，当前: %d (等级 %s)",
                             player.getName().getString(),
                             amount > 0 ? "增加" : "减少",
                             Math.abs(actualIncrease),
                             stats.getFortitude(),
-                            stats.getFortitudeLevel())), true);
+                            EmployeeLevelCalculator.statGrade(stats.getFortitude()))), true);
         });
         return 1;
     }
@@ -175,12 +185,12 @@ public class EmployeeStatsCommand implements ICommand {
             // 重新应用属性效果
             EmployeeStatsApplier.applyAllAttributes(player);
             context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("§a为 %s %s %d 谨慎值，当前: %d (等级 %d)",
+                    String.format("§a为 %s %s %d 谨慎值，当前: %d (等级 %s)",
                             player.getName().getString(),
                             amount > 0 ? "增加" : "减少",
                             Math.abs(actualIncrease),
                             stats.getPrudence(),
-                            stats.getPrudenceLevel())), true);
+                            EmployeeLevelCalculator.statGrade(stats.getPrudence()))), true);
         });
         return 1;
     }
@@ -192,12 +202,12 @@ public class EmployeeStatsCommand implements ICommand {
             // 重新应用属性效果
             EmployeeStatsApplier.applyAllAttributes(player);
             context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("§a为 %s %s %d 自律值，当前: %d (等级 %d)",
+                    String.format("§a为 %s %s %d 自律值，当前: %d (等级 %s)",
                             player.getName().getString(),
                             amount > 0 ? "增加" : "减少",
                             Math.abs(actualIncrease),
                             stats.getTemperance(),
-                            stats.getTemperanceLevel())), true);
+                            EmployeeLevelCalculator.statGrade(stats.getTemperance()))), true);
         });
         return 1;
     }
@@ -209,12 +219,12 @@ public class EmployeeStatsCommand implements ICommand {
             // 重新应用属性效果
             EmployeeStatsApplier.applyAllAttributes(player);
             context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("§a为 %s %s %d 正义值，当前: %d (等级 %d)",
+                    String.format("§a为 %s %s %d 正义值，当前: %d (等级 %s)",
                             player.getName().getString(),
                             amount > 0 ? "增加" : "减少",
                             Math.abs(actualIncrease),
                             stats.getJustice(),
-                            stats.getJusticeLevel())), true);
+                            EmployeeLevelCalculator.statGrade(stats.getJustice()))), true);
         });
         return 1;
     }
@@ -225,16 +235,16 @@ public class EmployeeStatsCommand implements ICommand {
         player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(stats -> {
             context.getSource().sendSuccess(() -> Component.literal(
                     String.format("§e%s 的员工属性:\n" +
-                                  "§c勇气 (Fortitude): %d (等级 %d)\n" +
-                                  "§b谨慎 (Prudence): %d (等级 %d)\n" +
-                                  "§a自律 (Temperance): %d (等级 %d)\n" +
-                                  "§6正义 (Justice): %d (等级 %d)\n" +
+                                  "§c勇气 (Fortitude): %d (等级 %s)\n" +
+                                  "§b谨慎 (Prudence): %d (等级 %s)\n" +
+                                  "§a自律 (Temperance): %d (等级 %s)\n" +
+                                  "§6正义 (Justice): %d (等级 %s)\n" +
                                   "§d员工总等级: %d",
                             player.getName().getString(),
-                            stats.getFortitude(), stats.getFortitudeLevel(),
-                            stats.getPrudence(), stats.getPrudenceLevel(),
-                            stats.getTemperance(), stats.getTemperanceLevel(),
-                            stats.getJustice(), stats.getJusticeLevel(),
+                            stats.getFortitude(), EmployeeLevelCalculator.statGrade(stats.getFortitude()),
+                            stats.getPrudence(), EmployeeLevelCalculator.statGrade(stats.getPrudence()),
+                            stats.getTemperance(), EmployeeLevelCalculator.statGrade(stats.getTemperance()),
+                            stats.getJustice(), EmployeeLevelCalculator.statGrade(stats.getJustice()),
                             stats.getEmployeeLevel())), false);
         });
         return 1;

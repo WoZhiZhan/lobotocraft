@@ -1,6 +1,8 @@
 package com.wzz.lobotocraft.util;
 
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
+import com.wzz.lobotocraft.ego.EgoLoadoutService;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 
 /**
@@ -25,7 +27,10 @@ public class ArmorEffectChecker {
             locked[0] = data.isArmorLocked();
         });
         
-        return locked[0];
+        if (locked[0]) return true;
+        return EgoLoadoutService.isArmorProjection(player.getItemBySlot(EquipmentSlot.CHEST))
+                && EgoLoadoutService.isArmorProjection(player.getItemBySlot(EquipmentSlot.LEGS))
+                && EgoLoadoutService.isArmorProjection(player.getItemBySlot(EquipmentSlot.FEET));
     }
 
     /**

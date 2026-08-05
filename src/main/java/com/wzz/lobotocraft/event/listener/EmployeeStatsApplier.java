@@ -28,7 +28,11 @@ public class EmployeeStatsApplier {
     public static void onPlayerJoinWorld(EntityJoinLevelEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             applyAllAttributes(player);
-            syncAttributesToClient(player);
+            if (player.isChangingDimension()) {
+                DimensionSyncCoordinator.schedule(player);
+            } else {
+                syncAttributesToClient(player);
+            }
         }
     }
 
@@ -79,7 +83,7 @@ public class EmployeeStatsApplier {
      * 确保客户端收到的最大精神值包含 extra 部分，
      * 避免最大值显示和实际上限不一致。
      */
-    private static void syncAttributesToClient(ServerPlayer player) {
+    static void syncAttributesToClient(ServerPlayer player) {
         player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(stats -> {
             MessageLoader.getLoader().sendToPlayer(player,
                     new com.wzz.lobotocraft.network.packet.EmployeeStatsSyncPacket(

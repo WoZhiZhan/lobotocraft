@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModItems;
@@ -11,6 +12,7 @@ import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.util.ResourceUtil;
+import com.wzz.lobotocraft.util.SafeTransformationUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.core.BlockPos;
@@ -36,6 +38,7 @@ import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
 import software.bernie.geckolib.core.animation.AnimationState;
@@ -56,6 +59,9 @@ public class EntityNothingThere extends AbstractAbnormality {
     private static final EntityDataAccessor<Integer> DATA_PHASE =
             SynchedEntityData.defineId(EntityNothingThere.class, EntityDataSerializers.INT);
 
+    private static final EntityDataAccessor<Integer> DATA_COLLISION_PHASE =
+            SynchedEntityData.defineId(EntityNothingThere.class, EntityDataSerializers.INT);
+
     private static final EntityDataAccessor<Integer> DATA_COUNTDOWN =
             SynchedEntityData.defineId(EntityNothingThere.class, EntityDataSerializers.INT);
 
@@ -73,6 +79,7 @@ public class EntityNothingThere extends AbstractAbnormality {
     private static final int PHASE3_REGEN_DELAY = 15 * 20;
     private static final int PHASE3_REGEN_AMOUNT = 50;
     private static final int IDLE_SOUND_INTERVAL = 20 * 53;
+    private static final int DIMENSION_RETRY_INTERVAL = 10;
 
     private int currentPhase = PHASE_1;
     private int phaseTimer = 0;
@@ -109,6 +116,7 @@ public class EntityNothingThere extends AbstractAbnormality {
         super.defineSynchedData();
         this.entityData.define(DATA_ANIM, "idle");
         this.entityData.define(DATA_PHASE, PHASE_1);
+        this.entityData.define(DATA_COLLISION_PHASE, PHASE_1);
         this.entityData.define(DATA_COUNTDOWN, 0);
         this.entityData.define(DATA_ESCAPED_DISGUISED, false);
     }
@@ -143,7 +151,11 @@ public class EntityNothingThere extends AbstractAbnormality {
 
     @Override
     public net.minecraft.world.entity.EntityDimensions getDimensions(net.minecraft.world.entity.Pose pose) {
-        return switch (getCurrentPhase()) {
+        return dimensionsForPhase(getCollisionPhase());
+    }
+
+    private static net.minecraft.world.entity.EntityDimensions dimensionsForPhase(int phase) {
+        return switch (phase) {
             case PHASE_1 -> PHASE_1_SIZE;
             case PHASE_2 -> PHASE_2_SIZE;
             case PHASE_3 -> PHASE_3_SIZE;
@@ -154,7 +166,7 @@ public class EntityNothingThere extends AbstractAbnormality {
     @Override
     public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
         super.onSyncedDataUpdated(key);
-        if (DATA_PHASE.equals(key) && this.level().isClientSide) {
+        if (DATA_COLLISION_PHASE.equals(key) && this.level().isClientSide) {
             this.refreshDimensions();
         }
     }
@@ -255,11 +267,11 @@ public class EntityNothingThere extends AbstractAbnormality {
         if (disguisedAsPlayer || escapedDisguised) {
             return "no_things_have";
         }
-        return switch (getCurrentPhase()) {
-            case PHASE_2 -> "nothings_egg";
-            case PHASE_3 -> "no_things_have_man";
-            default -> "no_things_have";
-        };
+        return textureForPhase(getCurrentPhase());
+    }
+
+    static String textureForPhase(int phase) {
+        return NothingTherePhaseTextures.forPhase(clampPhase(phase));
     }
 
     public int getCurrentPhase() {
@@ -279,14 +291,62 @@ public class EntityNothingThere extends AbstractAbnormality {
     }
 
     public void setCurrentPhase(int phase) {
+        phase = clampPhase(phase);
         this.currentPhase = phase;
         this.entityData.set(DATA_PHASE, phase);
-        refreshDimensions();
-        this.setTexture(switch (phase) {
-            case 1 -> "nothings_egg";
-            case 2 -> "no_things_have_man";
-            default -> "no_things_have";
-        });
+        this.setTexture(textureForPhase(phase));
+        if (this.level() instanceof ServerLevel level) {
+            tryApplyCollisionPhase(level, phase);
+        }
+    }
+
+    private int getCollisionPhase() {
+        return clampPhase(this.entityData.get(DATA_COLLISION_PHASE));
+    }
+
+    private static int clampPhase(int phase) {
+        return phase < PHASE_1 || phase > PHASE_3 ? PHASE_1 : phase;
+    }
+
+    private boolean tryApplyCollisionPhase(ServerLevel level, int desiredPhase) {
+        desiredPhase = clampPhase(desiredPhase);
+        int appliedPhase = getCollisionPhase();
+        if (appliedPhase == desiredPhase) return true;
+
+        net.minecraft.world.entity.EntityDimensions current = dimensionsForPhase(appliedPhase);
+        net.minecraft.world.entity.EntityDimensions target = dimensionsForPhase(desiredPhase);
+        Vec3 safePosition;
+        if (SafeTransformationUtil.isPureShrink(current, target)) {
+            safePosition = this.position();
+        } else {
+            safePosition = SafeTransformationUtil.findPositionForDimensions(level, this, target, 12, 4);
+            if (safePosition == null) {
+                if (desiredPhase == PHASE_3) this.setNoAi(true);
+                return false;
+            }
+        }
+
+        if (safePosition.distanceToSqr(this.position()) > 1.0E-6D) {
+            this.moveTo(safePosition.x, safePosition.y, safePosition.z, this.getYRot(), this.getXRot());
+            this.getNavigation().stop();
+            this.setDeltaMovement(Vec3.ZERO);
+        }
+        this.entityData.set(DATA_COLLISION_PHASE, desiredPhase);
+        this.refreshDimensions();
+        if (desiredPhase == PHASE_3) this.setNoAi(false);
+        return true;
+    }
+
+    private void retryPendingDimensions(ServerLevel level) {
+        if (getCollisionPhase() == getCurrentPhase()) return;
+        if (this.tickCount % DIMENSION_RETRY_INTERVAL == 0) {
+            tryApplyCollisionPhase(level, getCurrentPhase());
+        }
+        if (getCurrentPhase() == PHASE_3 && getCollisionPhase() != PHASE_3) {
+            this.setNoAi(true);
+            this.getNavigation().stop();
+            this.setDeltaMovement(Vec3.ZERO);
+        }
     }
 
     public void setPhaseTimer(int timer) {
@@ -319,6 +379,7 @@ public class EntityNothingThere extends AbstractAbnormality {
     public void tick() {
         super.tick();
         if (this.level().isClientSide) return;
+        retryPendingDimensions((ServerLevel) this.level());
         if (attackAnimationTimer > 0) {
             this.setYRot(this.yRotO);
             this.yBodyRot = this.yBodyRotO;
@@ -331,7 +392,7 @@ public class EntityNothingThere extends AbstractAbnormality {
                 backToIdle();
             }
         }
-        if (hasEscape()) {
+        if (hasEscape() && !isContainmentReturnPending()) {
             if (!escapedDisguised) {
                 tickEscapePhases();
             } else {
@@ -513,7 +574,7 @@ public class EntityNothingThere extends AbstractAbnormality {
         float derivedRoll = this.random.nextFloat();
         float mainRoll = this.random.nextFloat();
 
-        if (healthPercent < 0.10f && derivedRoll < 0.15f && distance <= 3.0f) {
+        if (healthPercent < 0.10f && derivedRoll < 0.30f && distance <= 3.0f) {
             startGrandCombo();
             specialAttackProbability = 0.40f;
         } else if (healthPercent < 0.50f && derivedRoll < 0.30f && distance <= 3.0f) {
@@ -782,6 +843,7 @@ public class EntityNothingThere extends AbstractAbnormality {
     }
     public void transitionToPhase2() {
         setCurrentPhase(PHASE_2);
+        this.setNoAi(true);
         phaseTimer = 0;
         this.setHealth(this.getMaxHealth());
         clearAttackState();
@@ -807,7 +869,7 @@ public class EntityNothingThere extends AbstractAbnormality {
         updatePhase3Attributes();
 
         
-        this.setNoAi(false);
+        this.setNoAi(getCollisionPhase() != PHASE_3);
         lastDamagedTick = this.tickCount;
 
         phase23AmbientStarted = false;
@@ -890,17 +952,19 @@ public class EntityNothingThere extends AbstractAbnormality {
     }
 
     public void escapeDisguised() {
+        if (hasEscape()) return;
         escapedDisguised = true;
         executionCountdown = 200;
-        this.setEscape(true);
         this.entityData.set(DATA_COUNTDOWN, 10);
         this.entityData.set(DATA_ESCAPED_DISGUISED, true);
-        playGlobalSound(ModSounds.NOTHING_THERE_ESCAPE.get());
-        broadcastMessage("§c§l警告！一无所有伪装成文职出逃了！你有10秒时间找到并处决它！");
-        BlockPos reactorPos = findNearestReactor();
-        if (reactorPos != null) {
-            this.teleportTo(reactorPos.getX() + 0.5, reactorPos.getY() + 1, reactorPos.getZ() + 0.5);
+        if (!beginEscape(findNearestReactor())) {
+            escapedDisguised = false;
+            executionCountdown = 0;
+            this.entityData.set(DATA_COUNTDOWN, 0);
+            this.entityData.set(DATA_ESCAPED_DISGUISED, false);
+            return;
         }
+        broadcastMessage("§c§l警告！一无所有伪装成文职出逃了！你有10秒时间找到并处决它！");
         giveExecutionItems();
     }
 
@@ -908,25 +972,35 @@ public class EntityNothingThere extends AbstractAbnormality {
         escapedDisguised = false;
         this.entityData.set(DATA_ESCAPED_DISGUISED, false);
         this.entityData.set(DATA_COUNTDOWN, 0);
-        this.setEscape(true);
-        playGlobalSound(ModSounds.NOTHING_THERE_ESCAPE.get());
+        resetPhaseOneState(true);
+        if (!hasEscape()) beginEscape(null);
+    }
 
+    private void resetPhaseOneState(boolean restoreHealth) {
+        var maxHealthAttr = this.getAttribute(Attributes.MAX_HEALTH);
+        if (maxHealthAttr != null) maxHealthAttr.setBaseValue(PHASE1_HP);
+        updatePhase1Attributes();
         setCurrentPhase(PHASE_1);
         phaseTimer = 0;
+        attackCooldown = 0;
+        specialAttackCheckTimer = 0;
         specialAttackProbability = 0.40f;
         clearAttackState();
-
         phase23AmbientStarted = false;
         phase23AmbientFallbackTimer = 0;
+        animResetTimer = 0;
+        backToIdle();
+        setNoAi(false);
+        setHealth(restoreHealth ? PHASE1_HP : Math.min(getHealth(), getMaxHealth()));
+    }
 
-        updatePhase1Attributes();
-
-        var maxHealthAttr = this.getAttribute(Attributes.MAX_HEALTH);
-        if (maxHealthAttr != null) {
-            maxHealthAttr.setBaseValue(PHASE1_HP);
-        }
-        this.setHealth(PHASE1_HP);
-        this.setNoAi(false);
+    @Override
+    protected void prepareForContainmentReturn() {
+        resetPhaseOneState(false);
+        disguisedAsPlayer = false;
+        disguisePlayerUUID = null;
+        disguisePlayerName = "";
+        executionTargetUUID = null;
     }
 
     @SuppressWarnings("unchecked")
@@ -1059,6 +1133,12 @@ public class EntityNothingThere extends AbstractAbnormality {
                     this.random.nextInt(5) - 2
             );
         }
+        if (!FacilityAccessService.isPositionOpen(serverLevel.getServer(),
+                serverLevel.dimension().location(), spawnPos)) {
+            spawnPos = reactorPos == null ? this.blockPosition() : reactorPos.above();
+        }
+        if (!FacilityAccessService.isPositionOpen(serverLevel.getServer(),
+                serverLevel.dimension().location(), spawnPos)) return;
 
         EntityClerk clerk = new EntityClerk(
                 ModEntities.clerk.get(), this.level());
@@ -1077,7 +1157,9 @@ public class EntityNothingThere extends AbstractAbnormality {
         BlockPos nearest = null;
         double nearestDist = Double.MAX_VALUE;
         for (BlockPos pos : BlockPos.betweenClosed(center.offset(-32, -16, -32), center.offset(32, 16, 32))) {
-            if (serverLevel.getBlockEntity(pos) instanceof com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity) {
+            if (serverLevel.getBlockEntity(pos) instanceof com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity
+                    && FacilityAccessService.isPositionOpen(serverLevel.getServer(),
+                    serverLevel.dimension().location(), pos)) {
                 double dist = pos.distSqr(center);
                 if (dist < nearestDist) {
                     nearestDist = dist;
@@ -1112,7 +1194,9 @@ public class EntityNothingThere extends AbstractAbnormality {
 
     @Override
     public void stopEscape() {
-
+        boolean wasEscaped = hasEscape();
+        super.stopEscape();
+        if (!wasEscaped || hasEscape()) return;
         if (escapedDisguised) {
             escapedDisguised = false;
             executionCountdown = 0;
@@ -1121,7 +1205,6 @@ public class EntityNothingThere extends AbstractAbnormality {
             removeExecutionItems();
             broadcastMessage("§a一无所有的伪装出逃已被阻止！");
         }
-        super.stopEscape();
     }
     @Override
     public boolean hasAbnormalityAmbientSound() {
@@ -1167,6 +1250,17 @@ public class EntityNothingThere extends AbstractAbnormality {
     public SoundEvent getEscapeSound() {
         return ModSounds.NOTHING_THERE_ESCAPE.get();
     }
+
+    @Override
+    protected void playEscapeSound() {
+        playGlobalSound(getEscapeSound());
+    }
+
+    @Override
+    protected void broadcastEscapeMessage() {
+        if (!escapedDisguised) super.broadcastEscapeMessage();
+    }
+
     @Override
     protected void registerGoals() {
         super.registerGoals();
@@ -1261,6 +1355,7 @@ public class EntityNothingThere extends AbstractAbnormality {
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putInt("CurrentPhase", getCurrentPhase());
+        tag.putInt("CollisionPhase", getCollisionPhase());
         tag.putInt("PhaseTimer", phaseTimer);
         tag.putInt("AttackCooldown", attackCooldown);
         tag.putFloat("SpecialAttackProbability", specialAttackProbability);
@@ -1276,7 +1371,16 @@ public class EntityNothingThere extends AbstractAbnormality {
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
-        setCurrentPhase(tag.getInt("CurrentPhase"));
+        int savedPhase = clampPhase(tag.getInt("CurrentPhase"));
+        currentPhase = savedPhase;
+        this.entityData.set(DATA_PHASE, savedPhase);
+        this.entityData.set(DATA_COLLISION_PHASE,
+                tag.contains("CollisionPhase") ? clampPhase(tag.getInt("CollisionPhase")) : PHASE_1);
+        this.setTexture(textureForPhase(savedPhase));
+        this.refreshDimensions();
+        if (savedPhase == PHASE_2 || (savedPhase == PHASE_3 && getCollisionPhase() != PHASE_3)) {
+            this.setNoAi(true);
+        }
         phaseTimer = tag.getInt("PhaseTimer");
         attackCooldown = tag.getInt("AttackCooldown");
         specialAttackProbability = tag.getFloat("SpecialAttackProbability");

@@ -2,8 +2,10 @@ package com.wzz.lobotocraft.network.packet;
 
 import com.wzz.lobotocraft.block.entity.ElevatorBlockEntity;
 import com.wzz.lobotocraft.network.IMessage;
+import com.wzz.lobotocraft.network.RequestThrottle;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.network.NetworkEvent;
@@ -39,8 +41,13 @@ public class SetElevatorPacket implements IMessage {
     @Override
     public void run(NetworkEvent.Context ctx) {
         ctx.enqueueWork(() -> {
-            Level level = ctx.getSender().serverLevel();
-            if (level.getBlockEntity(this.blockPos) instanceof ElevatorBlockEntity be) {
+            ServerPlayer player = ctx.getSender();
+            if (player == null || !RequestThrottle.allow(player, "set-elevator", 250L)
+                    || distance < 1 || distance > 256) return;
+            Level level = player.serverLevel();
+            if (level.isLoaded(this.blockPos)
+                    && level.getBlockEntity(this.blockPos) instanceof ElevatorBlockEntity be
+                    && be.isWithinInteractionRange(player)) {
                 be.setTeleportDistance(this.distance);
                 be.setTeleportUp(this.isUp);
                 be.setChanged();

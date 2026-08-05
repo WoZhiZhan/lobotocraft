@@ -269,12 +269,28 @@ public class EntityLargeBird extends AbstractAbnormality {
 
     @Override
     public void stopEscape() {
+        boolean wasEscaped = hasEscape();
         super.stopEscape();
+        if (!wasEscaped || hasEscape()) return;
+        attackAnimationTimer = 0;
         attackPending = false;
+        attackCooldown = 0;
+        attackSoundTimer = 0;
         setAnimation("model.5");
         if (!this.level().isClientSide) {
             clearCharmedPlayersForThisBird();
         }
+    }
+
+    public void resetForBlackForestRestore() {
+        setEscape(false);
+        attackAnimationTimer = 0;
+        attackPending = false;
+        attackCooldown = 0;
+        attackSoundTimer = 0;
+        setAnimation("model.5");
+        setTarget(null);
+        if (!level().isClientSide) clearCharmedPlayersForThisBird();
     }
 
     @Override

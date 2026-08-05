@@ -11,22 +11,22 @@ package com.wzz.lobotocraft.capability;
 public interface IEmployeeStats {
 
     /**
-     * 获取勇气值 (20-100)
+     * 获取勇气值 (20-110)
      */
     int getFortitude();
     
     /**
-     * 获取谨慎值 (20-100)
+     * 获取谨慎值 (20-110)
      */
     int getPrudence();
     
     /**
-     * 获取自律值 (20-100)
+     * 获取自律值 (20-110)
      */
     int getTemperance();
     
     /**
-     * 获取正义值 (20-100)
+     * 获取正义值 (20-110)
      */
     int getJustice();
 
@@ -99,8 +99,8 @@ public interface IEmployeeStats {
     int getJusticeLevel();
     
     /**
-     * 获取员工总等级 (1-5)
-     * 四个属性都提升一级后，员工等级+1
+     * 获取员工总等级 (1-5)。四项属性等级求和后按原版 AgentModel 的
+     * 6、9、12、16 阈值计算。
      */
     int getEmployeeLevel();
     

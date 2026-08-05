@@ -29,6 +29,7 @@ public class CompanyRoomData extends SavedData {
 
     private final Map<String, RoomEntry> rooms = new LinkedHashMap<>();
     private final Map<String, FloorEntry> floors = new LinkedHashMap<>();
+    private final Map<String, FacilityAreaEntry> areas = new LinkedHashMap<>();
 
     public static CompanyRoomData get(ServerLevel anyLevel) {
         ServerLevel overworld = anyLevel.getServer().overworld();
@@ -54,6 +55,13 @@ public class CompanyRoomData extends SavedData {
                 data.floors.put(entry.key(), entry);
             }
         }
+        ListTag areaList = tag.getList("Areas", Tag.TAG_COMPOUND);
+        for (int i = 0; i < areaList.size(); i++) {
+            FacilityAreaEntry entry = FacilityAreaEntry.load(areaList.getCompound(i));
+            if (entry.dimension != null && !entry.key.isEmpty()) {
+                data.areas.put(entry.key, entry);
+            }
+        }
         return data;
     }
 
@@ -70,6 +78,12 @@ public class CompanyRoomData extends SavedData {
             floorList.add(entry.save());
         }
         tag.put("Floors", floorList);
+
+        ListTag areaList = new ListTag();
+        for (FacilityAreaEntry entry : areas.values()) {
+            areaList.add(entry.save());
+        }
+        tag.put("Areas", areaList);
         return tag;
     }
 
@@ -112,6 +126,56 @@ public class CompanyRoomData extends SavedData {
         result.sort(Comparator
                 .comparingInt((RoomEntry e) -> e.pos.getZ())
                 .thenComparingInt(e -> e.pos.getX()));
+        return result;
+    }
+
+    // -------------------------------------------------------------- 区域
+
+    public FacilityAreaEntry getOrCreateArea(ResourceLocation dimension, BlockPos markerPos,
+                                             FacilityAreaType type) {
+        String key = FacilityAreaEntry.makeKey(type, dimension, markerPos);
+        FacilityAreaEntry entry = areas.get(key);
+        if (entry == null) {
+            entry = new FacilityAreaEntry(dimension, key, markerPos, markerPos, markerPos,
+                    "", type, "");
+            areas.put(key, entry);
+            setDirty();
+        }
+        return entry;
+    }
+
+    public void putArea(FacilityAreaEntry entry) {
+        if (entry == null || entry.dimension == null || entry.key == null || entry.key.isEmpty()) return;
+        areas.put(entry.key, entry);
+        setDirty();
+    }
+
+    public FacilityAreaEntry findArea(String key) {
+        return key == null ? null : areas.get(key);
+    }
+
+    public void removeArea(String key) {
+        if (key != null && areas.remove(key) != null) {
+            setDirty();
+        }
+    }
+
+    public void removeArea(FacilityAreaType type, ResourceLocation dimension, BlockPos markerPos) {
+        removeArea(FacilityAreaEntry.makeKey(type, dimension, markerPos));
+    }
+
+    public List<FacilityAreaEntry> getAreas(ResourceLocation dimension) {
+        List<FacilityAreaEntry> result = new ArrayList<>();
+        for (FacilityAreaEntry entry : areas.values()) {
+            if (entry.dimension != null && entry.dimension.equals(dimension)) {
+                result.add(entry);
+            }
+        }
+        result.sort(Comparator
+                .comparingInt((FacilityAreaEntry e) -> e.markerPos.getY()).reversed()
+                .thenComparingInt(e -> e.markerPos.getZ())
+                .thenComparingInt(e -> e.markerPos.getX())
+                .thenComparing(e -> e.key));
         return result;
     }
 
@@ -165,9 +229,21 @@ public class CompanyRoomData extends SavedData {
      * @return floors 里的下标，没有楼层标记时返回 -1
      */
     public static int resolveFloorIndex(List<FloorEntry> sortedFloors, RoomEntry room) {
+        return resolveFloorIndex(sortedFloors, room.pos.getY());
+    }
+
+    public static int resolveFloorIndex(List<FloorEntry> sortedFloors, FacilityAreaEntry area) {
+        return resolveFloorIndex(sortedFloors, area.markerPos.getY());
+    }
+
+    public static int resolveFloorIndex(List<FloorEntry> sortedFloors, BlockPos position) {
+        return position == null ? -1 : resolveFloorIndex(sortedFloors, position.getY());
+    }
+
+    private static int resolveFloorIndex(List<FloorEntry> sortedFloors, int markerY) {
         if (sortedFloors.isEmpty()) return -1;
         for (int i = 0; i < sortedFloors.size(); i++) {
-            if (sortedFloors.get(i).y() <= room.pos.getY() + FLOOR_UP_TOLERANCE) {
+            if (sortedFloors.get(i).y() <= markerY + FLOOR_UP_TOLERANCE) {
                 return i;
             }
         }

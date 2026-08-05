@@ -1,9 +1,17 @@
 package com.wzz.lobotocraft.world.data;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.saveddata.SavedData;
+
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * 全服共享的考验状态。
@@ -35,6 +43,7 @@ public class OrdealData extends SavedData {
     private int violetDawnRemaining = 0;
     private boolean amberDawnActive = false;
     private int amberDawnRemaining = 0;
+    private final Map<UUID, AmberDawnRecord> trackedAmberDawns = new LinkedHashMap<>();
     private int middayTriggersToday = 0;
     private int middayTriggerSerialToday = 0;
     private int middayCompletionsToday = 0;
@@ -47,6 +56,9 @@ public class OrdealData extends SavedData {
     private int greenMiddayRemaining = 0;
     private boolean crimsonMiddayActive = false;
     private int crimsonMiddayRemaining = 0;
+    private int lateOrdealTier = 0;
+    private int lateOrdealColor = 0;
+    private final Map<UUID, LateOrdealRecord> trackedLateOrdeals = new LinkedHashMap<>();
 
     public static OrdealData get(ServerLevel level) {
         return level.getServer().overworld().getDataStorage().computeIfAbsent(
@@ -78,6 +90,7 @@ public class OrdealData extends SavedData {
             violetDawnRemaining = 0;
             amberDawnActive = false;
             amberDawnRemaining = 0;
+            trackedAmberDawns.clear();
             middayTriggersToday = 0;
             middayTriggerSerialToday = 0;
             middayCompletionsToday = 0;
@@ -90,6 +103,9 @@ public class OrdealData extends SavedData {
             greenMiddayRemaining = 0;
             crimsonMiddayActive = false;
             crimsonMiddayRemaining = 0;
+            lateOrdealTier = 0;
+            lateOrdealColor = 0;
+            trackedLateOrdeals.clear();
             setDirty();
         }
     }
@@ -258,10 +274,31 @@ public class OrdealData extends SavedData {
     public void startAmberDawn(int entityCount) {
         amberDawnActive = true;
         amberDawnRemaining = Math.max(0, entityCount);
+        trackedAmberDawns.clear();
         setDirty();
     }
 
-    public int decrementAmberDawnRemaining() {
+    public void trackAmberDawn(UUID uuid, String dimension, int chunkX, int chunkZ) {
+        if (!amberDawnActive || uuid == null || dimension == null || dimension.isBlank()) return;
+        AmberDawnRecord next = new AmberDawnRecord(uuid, dimension, chunkX, chunkZ);
+        AmberDawnRecord previous = trackedAmberDawns.put(uuid, next);
+        amberDawnRemaining = trackedAmberDawns.size();
+        if (!next.equals(previous)) {
+            setDirty();
+        }
+    }
+
+    public int removeTrackedAmberDawn(UUID uuid) {
+        if (!amberDawnActive) return amberDawnRemaining;
+        if (!trackedAmberDawns.isEmpty()) {
+            if (trackedAmberDawns.remove(uuid) != null) {
+                amberDawnRemaining = trackedAmberDawns.size();
+                setDirty();
+            }
+            return amberDawnRemaining;
+        }
+
+        // Legacy saves only stored a raw remaining count.
         if (amberDawnRemaining > 0) {
             amberDawnRemaining--;
             setDirty();
@@ -269,10 +306,35 @@ public class OrdealData extends SavedData {
         return amberDawnRemaining;
     }
 
+    public List<AmberDawnRecord> getTrackedAmberDawns() {
+        return List.copyOf(trackedAmberDawns.values());
+    }
+
+    public void replaceTrackedAmberDawns(Collection<AmberDawnRecord> records) {
+        if (!amberDawnActive) return;
+        trackedAmberDawns.clear();
+        for (AmberDawnRecord record : records) {
+            if (record != null && record.uuid() != null
+                    && record.dimension() != null && !record.dimension().isBlank()) {
+                trackedAmberDawns.put(record.uuid(), record);
+            }
+        }
+        amberDawnRemaining = trackedAmberDawns.size();
+        setDirty();
+    }
+
+    public void cancelAmberDawn() {
+        amberDawnActive = false;
+        amberDawnRemaining = 0;
+        trackedAmberDawns.clear();
+        setDirty();
+    }
+
     public void finishAmberDawn() {
         if (amberDawnActive) dawnCompletionsToday++;
         amberDawnActive = false;
         amberDawnRemaining = 0;
+        trackedAmberDawns.clear();
         setDirty();
     }
 
@@ -432,7 +494,61 @@ public class OrdealData extends SavedData {
     }
 
     public boolean hasActiveOrdeal() {
-        return hasActiveDawn() || hasActiveMidday();
+        return hasActiveDawn() || hasActiveMidday() || hasActiveLateOrdeal();
+    }
+
+    public boolean hasActiveLateOrdeal() {
+        return lateOrdealTier != 0 && !trackedLateOrdeals.isEmpty();
+    }
+
+    public int getLateOrdealTier() {
+        return lateOrdealTier;
+    }
+
+    public int getLateOrdealColor() {
+        return lateOrdealColor;
+    }
+
+    public void startLateOrdeal(int tier, int color, Collection<LateOrdealRecord> records) {
+        trackedLateOrdeals.clear();
+        if (records != null) {
+            for (LateOrdealRecord record : records) {
+                if (record != null && record.uuid() != null && record.dimension() != null
+                        && !record.dimension().isBlank()) {
+                    trackedLateOrdeals.put(record.uuid(), record);
+                }
+            }
+        }
+        if (trackedLateOrdeals.isEmpty()) {
+            lateOrdealTier = 0;
+            lateOrdealColor = 0;
+        } else {
+            lateOrdealTier = Math.max(1, tier);
+            lateOrdealColor = Math.max(1, color);
+        }
+        setDirty();
+    }
+
+    public void trackLateOrdeal(LateOrdealRecord record) {
+        if (lateOrdealTier == 0 || record == null || record.uuid() == null
+                || record.dimension() == null || record.dimension().isBlank()) return;
+        if (!record.equals(trackedLateOrdeals.put(record.uuid(), record))) setDirty();
+    }
+
+    public int removeTrackedLateOrdeal(UUID uuid) {
+        if (uuid != null && trackedLateOrdeals.remove(uuid) != null) setDirty();
+        return trackedLateOrdeals.size();
+    }
+
+    public List<LateOrdealRecord> getTrackedLateOrdeals() {
+        return List.copyOf(trackedLateOrdeals.values());
+    }
+
+    public void finishLateOrdeal() {
+        lateOrdealTier = 0;
+        lateOrdealColor = 0;
+        trackedLateOrdeals.clear();
+        setDirty();
     }
 
     public void resetForChallenge(int day) {
@@ -450,6 +566,7 @@ public class OrdealData extends SavedData {
         violetDawnRemaining = 0;
         amberDawnActive = false;
         amberDawnRemaining = 0;
+        trackedAmberDawns.clear();
         middayTriggersToday = 0;
         middayTriggerSerialToday = 0;
         middayCompletionsToday = 0;
@@ -462,6 +579,9 @@ public class OrdealData extends SavedData {
         greenMiddayRemaining = 0;
         crimsonMiddayActive = false;
         crimsonMiddayRemaining = 0;
+        lateOrdealTier = 0;
+        lateOrdealColor = 0;
+        trackedLateOrdeals.clear();
         setDirty();
     }
 
@@ -481,6 +601,11 @@ public class OrdealData extends SavedData {
         tag.putInt("VioletDawnRemaining", violetDawnRemaining);
         tag.putBoolean("AmberDawnActive", amberDawnActive);
         tag.putInt("AmberDawnRemaining", amberDawnRemaining);
+        ListTag amberDawns = new ListTag();
+        for (AmberDawnRecord record : trackedAmberDawns.values()) {
+            amberDawns.add(record.save());
+        }
+        tag.put("TrackedAmberDawns", amberDawns);
         tag.putInt("MiddayTriggersToday", middayTriggersToday);
         tag.putInt("MiddayTriggerSerialToday", middayTriggerSerialToday);
         tag.putInt("MiddayCompletionsToday", middayCompletionsToday);
@@ -493,6 +618,13 @@ public class OrdealData extends SavedData {
         tag.putInt("GreenMiddayRemaining", greenMiddayRemaining);
         tag.putBoolean("CrimsonMiddayActive", crimsonMiddayActive);
         tag.putInt("CrimsonMiddayRemaining", crimsonMiddayRemaining);
+        tag.putInt("LateOrdealTier", lateOrdealTier);
+        tag.putInt("LateOrdealColor", lateOrdealColor);
+        ListTag lateOrdeals = new ListTag();
+        for (LateOrdealRecord record : trackedLateOrdeals.values()) {
+            lateOrdeals.add(record.save());
+        }
+        tag.put("TrackedLateOrdeals", lateOrdeals);
         return tag;
     }
 
@@ -512,6 +644,16 @@ public class OrdealData extends SavedData {
         data.violetDawnRemaining = tag.getInt("VioletDawnRemaining");
         data.amberDawnActive = tag.getBoolean("AmberDawnActive");
         data.amberDawnRemaining = tag.getInt("AmberDawnRemaining");
+        ListTag amberDawns = tag.getList("TrackedAmberDawns", Tag.TAG_COMPOUND);
+        for (Tag entry : amberDawns) {
+            AmberDawnRecord record = AmberDawnRecord.load((CompoundTag) entry);
+            if (record != null) {
+                data.trackedAmberDawns.put(record.uuid(), record);
+            }
+        }
+        if (!data.trackedAmberDawns.isEmpty()) {
+            data.amberDawnRemaining = data.trackedAmberDawns.size();
+        }
         data.middayTriggersToday = tag.getInt("MiddayTriggersToday");
         data.middayTriggerSerialToday = tag.getInt("MiddayTriggerSerialToday");
         data.middayCompletionsToday = tag.getInt("MiddayCompletionsToday");
@@ -524,6 +666,57 @@ public class OrdealData extends SavedData {
         data.greenMiddayRemaining = tag.getInt("GreenMiddayRemaining");
         data.crimsonMiddayActive = tag.getBoolean("CrimsonMiddayActive");
         data.crimsonMiddayRemaining = tag.getInt("CrimsonMiddayRemaining");
+        data.lateOrdealTier = tag.getInt("LateOrdealTier");
+        data.lateOrdealColor = tag.getInt("LateOrdealColor");
+        ListTag lateOrdeals = tag.getList("TrackedLateOrdeals", Tag.TAG_COMPOUND);
+        for (Tag entry : lateOrdeals) {
+            LateOrdealRecord record = LateOrdealRecord.load((CompoundTag) entry);
+            if (record != null) data.trackedLateOrdeals.put(record.uuid(), record);
+        }
+        if (data.trackedLateOrdeals.isEmpty()) {
+            data.lateOrdealTier = 0;
+            data.lateOrdealColor = 0;
+        }
         return data;
+    }
+
+    public record AmberDawnRecord(UUID uuid, String dimension, int chunkX, int chunkZ) {
+        private CompoundTag save() {
+            CompoundTag tag = new CompoundTag();
+            tag.putUUID("Uuid", uuid);
+            tag.putString("Dimension", dimension);
+            tag.putInt("ChunkX", chunkX);
+            tag.putInt("ChunkZ", chunkZ);
+            return tag;
+        }
+
+        private static AmberDawnRecord load(CompoundTag tag) {
+            if (!tag.hasUUID("Uuid") || !tag.contains("Dimension", Tag.TAG_STRING)) {
+                return null;
+            }
+            String dimension = tag.getString("Dimension");
+            if (dimension.isBlank()) return null;
+            return new AmberDawnRecord(
+                    tag.getUUID("Uuid"), dimension, tag.getInt("ChunkX"), tag.getInt("ChunkZ"));
+        }
+    }
+
+    public record LateOrdealRecord(UUID uuid, String dimension, int chunkX, int chunkZ) {
+        private CompoundTag save() {
+            CompoundTag tag = new CompoundTag();
+            tag.putUUID("Uuid", uuid);
+            tag.putString("Dimension", dimension);
+            tag.putInt("ChunkX", chunkX);
+            tag.putInt("ChunkZ", chunkZ);
+            return tag;
+        }
+
+        private static LateOrdealRecord load(CompoundTag tag) {
+            if (!tag.hasUUID("Uuid") || !tag.contains("Dimension", Tag.TAG_STRING)) return null;
+            String dimension = tag.getString("Dimension");
+            if (dimension.isBlank()) return null;
+            return new LateOrdealRecord(tag.getUUID("Uuid"), dimension,
+                    tag.getInt("ChunkX"), tag.getInt("ChunkZ"));
+        }
     }
 }

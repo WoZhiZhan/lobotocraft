@@ -51,7 +51,7 @@ import java.util.List;
 /**
  * 紫罗兰的黎明 - 理解的果实。
  */
-public class EntityVioletDawn extends BaseGeoEntity {
+public class EntityVioletDawn extends BaseGeoEntity implements OrdealEntity {
     private static final EntityDataAccessor<String> ANIM =
             SynchedEntityData.defineId(EntityVioletDawn.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<Integer> ANIM_VERSION =

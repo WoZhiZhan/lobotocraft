@@ -1,8 +1,9 @@
 package com.wzz.lobotocraft.util;
 
 import com.mojang.datafixers.util.Pair;
+import com.wzz.lobotocraft.block.EscapeBlock;
+import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
 import com.wzz.lobotocraft.logger.ModLogger;
-import com.wzz.lobotocraft.world.LobotoTeleporter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
@@ -61,25 +62,48 @@ public class EntityUtil {
     /**
      * 传送玩家到指定维度和位置
      */
-    public static void teleportPlayer(ServerPlayer player, ResourceKey<Level> dimension, BlockPos position) {
+    public static boolean teleportPlayer(ServerPlayer player, ResourceKey<Level> dimension, BlockPos position) {
+        return position != null && teleportPlayer(player, dimension, Vec3.atBottomCenterOf(position));
+    }
+
+    /**
+     * Performs one authoritative player teleport. A passenger's position is
+     * owned by its vehicle, so the riding relationship must be cleared before
+     * crossing dimensions.
+     */
+    public static boolean teleportPlayer(ServerPlayer player, ResourceKey<Level> dimension, Vec3 position) {
         if (player == null || dimension == null || position == null) {
             ModLogger.error("传送参数不能为空！");
-            return;
+            return false;
         }
+        if (!Double.isFinite(position.x) || !Double.isFinite(position.y)
+                || !Double.isFinite(position.z) || player.isChangingDimension()) return false;
         
         MinecraftServer server = player.getServer();
         if (server == null) {
             ModLogger.error("服务器实例为空！");
-            return;
+            return false;
         }
         
         ServerLevel targetLevel = server.getLevel(dimension);
         if (targetLevel == null) {
             ModLogger.error("目标维度不存在: " + dimension.location());
-            return;
+            return false;
         }
         
-        player.changeDimension(targetLevel, new LobotoTeleporter(position));
+        if (player.isPassenger()) player.stopRiding();
+        boolean moved;
+        if (player.serverLevel() == targetLevel) {
+            player.teleportTo(position.x, position.y, position.z);
+            moved = true;
+        } else {
+            moved = player.teleportTo(targetLevel, position.x, position.y, position.z,
+                    java.util.Set.of(), player.getYRot(), player.getXRot());
+        }
+        if (!moved || player.serverLevel() != targetLevel) return false;
+        player.setDeltaMovement(Vec3.ZERO);
+        player.resetFallDistance();
+        return true;
     }
 
     public static List<BlockEntity> findBlockEntities(Level level) {
@@ -136,6 +160,39 @@ public class EntityUtil {
             return result;
         }
         return Collections.emptyList();
+    }
+
+    /**
+     * Finds valid, loaded escape blocks inside a bounded box around {@code centerPos}.
+     * Registered positions are only hints: every result is revalidated against the
+     * current chunk, block entity and block state before it is returned.
+     */
+    public static List<EscapeBlockEntity> findEscapeBlocks(Level level, BlockPos centerPos,
+                                                            int horizontalRadius, int verticalRadius) {
+        if (level == null || centerPos == null || horizontalRadius < 0 || verticalRadius < 0) {
+            return Collections.emptyList();
+        }
+
+        List<EscapeBlockEntity> result = new ArrayList<>();
+        for (BlockPos registeredPos : EscapeBlockEntity.getEscapeBlocks(level.dimension())) {
+            if (Math.abs((long) registeredPos.getX() - centerPos.getX()) > horizontalRadius
+                    || Math.abs((long) registeredPos.getY() - centerPos.getY()) > verticalRadius
+                    || Math.abs((long) registeredPos.getZ() - centerPos.getZ()) > horizontalRadius) {
+                continue;
+            }
+            if (!isInCompany(level, registeredPos) || !level.hasChunkAt(registeredPos)) {
+                continue;
+            }
+            BlockEntity blockEntity = level.getBlockEntity(registeredPos);
+            if (!(blockEntity instanceof EscapeBlockEntity escapeBlockEntity)
+                    || escapeBlockEntity.isRemoved()
+                    || !(level.getBlockState(registeredPos).getBlock() instanceof EscapeBlock)) {
+                continue;
+            }
+            result.add(escapeBlockEntity);
+        }
+        result.sort(Comparator.comparingDouble(be -> be.getBlockPos().distSqr(centerPos)));
+        return result;
     }
 
     /**
@@ -732,6 +789,34 @@ public class EntityUtil {
             return fallback;
         }
         return isInCompany(level, targetPos) ? targetPos.above() : null;
+    }
+
+    /** Finds a company-local position that fits the entity's full bounding box. */
+    public static BlockPos findSafeEntityPositionInCompany(Level level, LivingEntity entity, BlockPos origin,
+                                                            int horizontalRange, int verticalRange) {
+        if (level == null || entity == null || origin == null) return null;
+        for (int radius = 0; radius <= Math.max(0, horizontalRange); radius++) {
+            for (int dy = -Math.max(0, verticalRange); dy <= Math.max(0, verticalRange); dy++) {
+                for (int dx = -radius; dx <= radius; dx++) {
+                    for (int dz = -radius; dz <= radius; dz++) {
+                        if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
+                        BlockPos candidate = origin.offset(dx, dy, dz);
+                        if (!isInCompany(level, candidate) || !level.hasChunkAt(candidate)) continue;
+                        if (!entity.isNoGravity() && !level.getBlockState(candidate.below()).isFaceSturdy(
+                                level, candidate.below(), net.minecraft.core.Direction.UP)) continue;
+                        double x = candidate.getX() + 0.5D;
+                        double y = candidate.getY();
+                        double z = candidate.getZ() + 0.5D;
+                        AABB box = entity.getDimensions(entity.getPose()).makeBoundingBox(x, y, z);
+                        if (!level.noCollision(entity, box)) continue;
+                        if (!level.getEntities(entity, box,
+                                other -> other.isAlive() && !other.isRemoved()).isEmpty()) continue;
+                        return candidate;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     /**

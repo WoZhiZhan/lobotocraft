@@ -1,19 +1,17 @@
 package com.wzz.lobotocraft.event.listener;
 
 import com.wzz.lobotocraft.ModMain;
+import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.init.ModEntities;
+import com.wzz.lobotocraft.util.AbnormalitySpawnHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.world.data.LobotomySpawnSavedData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.Mth;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.monster.Vindicator;
 import net.minecraft.world.entity.npc.Villager;
@@ -46,10 +44,11 @@ public class SpecialKillSpawnEvent {
                 && player.hasEffect(MobEffects.DAMAGE_BOOST)      // 力量
                 && victim instanceof Vindicator
                 && victim.hasEffect(MobEffects.WEAKNESS)) {        // 虚弱
-            spawnNear(level, player, ModEntities.nothing_there.get());
-            EntityUtil.broadcastMessage(level, "§c§l这里一无所有");
-            data.nothingThereSpawned = true;
-            data.setDirty();
+            if (spawnNear(level, player, ModEntities.nothing_there.get())) {
+                EntityUtil.broadcastMessage(level, "§c§l这里一无所有");
+                data.nothingThereSpawned = true;
+                data.setDirty();
+            }
         }
 
         // ---- 条件2: 饥饿玩家 累计击杀 卫道士/村民 达 10 -> 微笑的尸山 ----
@@ -59,39 +58,28 @@ public class SpecialKillSpawnEvent {
             data.hungerKillCount++;
             data.setDirty();
             if (data.hungerKillCount >= HUNGER_KILL_REQUIRED) {
-                spawnNear(level, player, ModEntities.smiling_corpse_mountain.get());
-                EntityUtil.broadcastMessage(level, "§c§l那些尸体上弥漫着死亡的哀伤");
-                data.smilingSpawned = true;
-                data.setDirty();
+                if (spawnNear(level, player, ModEntities.smiling_corpse_mountain.get())) {
+                    EntityUtil.broadcastMessage(level, "§c§l那些尸体上弥漫着死亡的哀伤");
+                    data.smilingSpawned = true;
+                    data.setDirty();
+                }
             }
         }
     }
 
-    /** 在玩家周围 2~5 格找一处安全地面生成该实体, 找不到就退而求其次。 */
-    private static void spawnNear(ServerLevel level, ServerPlayer player, EntityType<?> type) {
-        RandomSource rand = level.random;
+    /** 在玩家附近生成；公司内统一拒绝未开放部门和未扩建区域。 */
+    private static <T extends AbstractAbnormality> boolean spawnNear(
+            ServerLevel level, ServerPlayer player, EntityType<T> type) {
         BlockPos base = player.blockPosition();
-        BlockPos chosen = null;
         for (int i = 0; i < 12; i++) {
-            int dx = Mth.nextInt(rand, 2, 5) * (rand.nextBoolean() ? 1 : -1);
-            int dz = Mth.nextInt(rand, 2, 5) * (rand.nextBoolean() ? 1 : -1);
-            BlockPos safe = EntityUtil.findSafeGroundPosition(level, base.offset(dx, 0, dz), 3);
-            if (safe != null) {
-                chosen = safe;
-                break;
-            }
+            int dx = level.random.nextInt(4) + 2;
+            int dz = level.random.nextInt(4) + 2;
+            if (level.random.nextBoolean()) dx = -dx;
+            if (level.random.nextBoolean()) dz = -dz;
+            if (AbnormalitySpawnHelper.spawnPersistent(level, type, base.offset(dx, 0, dz),
+                    MobSpawnType.EVENT) != null) return true;
         }
-        if (chosen == null) chosen = base.offset(2, 0, 2);
-        placeEntity(level, type, chosen);
-    }
-
-    private static void placeEntity(ServerLevel level, EntityType<?> type, BlockPos pos) {
-        Entity entity = type.create(level);
-        if (entity == null) return;
-        entity.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, level.random.nextFloat() * 360F, 0F);
-        if (entity instanceof Mob mob) {
-            mob.finalizeSpawn(level, level.getCurrentDifficultyAt(pos), MobSpawnType.EVENT, null, null);
-        }
-        level.addFreshEntity(entity);
+        return AbnormalitySpawnHelper.spawnPersistent(level, type, base,
+                MobSpawnType.EVENT) != null;
     }
 }

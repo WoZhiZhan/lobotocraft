@@ -21,6 +21,9 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = ModMain.MODID)
 public class CleanerEvent {
 
+    private static final long DAY_LENGTH = 24_000L;
+    private static final long NIGHT_START = 13_000L;
+    private static final long NIGHT_END = 23_000L;
     private static final int SPAWN_INTERVAL = 100;     // 每5秒尝试一次
     private static final int MAX_VISIBLE = 12;          // 可视范围内上限
     private static final double VISIBLE_RANGE = 48.0;
@@ -39,8 +42,8 @@ public class CleanerEvent {
         if (!(level instanceof ServerLevel serverLevel)) return;
         if (level.dimension() != Level.OVERWORLD) return;
         if (player.tickCount % SPAWN_INTERVAL != 0) return;
-        // 仅夜间
-        if (!serverLevel.isNight()) return;
+        // isNight() also returns true during daytime thunderstorms.
+        if (!isNaturalSpawnTime(serverLevel.getDayTime())) return;
 
         // 可视范围内数量上限
         int nearby = serverLevel.getEntitiesOfClass(EntityCleaner.class,
@@ -60,6 +63,11 @@ public class CleanerEvent {
         cleaner.finalizeSpawn(serverLevel, serverLevel.getCurrentDifficultyAt(spawnPos),
                 MobSpawnType.NATURAL, null, null);
         serverLevel.addFreshEntity(cleaner);
+    }
+
+    static boolean isNaturalSpawnTime(long dayTime) {
+        long timeOfDay = Math.floorMod(dayTime, DAY_LENGTH);
+        return timeOfDay >= NIGHT_START && timeOfDay < NIGHT_END;
     }
 
     private static BlockPos findSpawnPos(ServerLevel level, BlockPos center) {

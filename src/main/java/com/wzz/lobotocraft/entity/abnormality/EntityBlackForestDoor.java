@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.entity.abnormality;
 
 import com.mojang.datafixers.util.Pair;
 import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.BaseGeoEntity;
 import com.wzz.lobotocraft.event.listener.BlackForestEvent;
@@ -13,7 +14,7 @@ import com.wzz.lobotocraft.network.packet.FullScreenRenderMessage;
 import com.wzz.lobotocraft.util.AbnormalitySpawnHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.ResourceUtil;
-import com.wzz.lobotocraft.util.TimerEntry;
+import com.wzz.lobotocraft.world.data.EndBirdEggTracker;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -47,11 +48,15 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
     private long spawnTime;
     private int birdsEntered = 0;
     private boolean endBirdSpawned = false;
+    private long completionRemovalAt;
+    private int eggPlacementRetryTicks;
     private final Map<String, Pair<String, BlockPos>> birdInfo = new HashMap<>();
+    private final Map<String, CompoundTag> capturedBirds = new HashMap<>();
 
     public EntityBlackForestDoor(EntityType<? extends TamableAnimal> p_21368_, Level p_21369_) {
         super(p_21368_, p_21369_);
         this.spawnTime = p_21369_.getGameTime();
+        this.setPersistenceRequired();
     }
 
     @Override
@@ -73,6 +78,14 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
     public void tick() {
         super.tick();
         if (level().isClientSide) return;
+        long now = level().getServer().overworld().getGameTime();
+        if (endBirdSpawned) {
+            if (completionRemovalAt <= 0L) completionRemovalAt = now + 1L;
+            if (BlackForestDoorPolicy.shouldRemoveCompletedDoor(true, completionRemovalAt, now)) {
+                finishCompletedDoor();
+            }
+            return;
+        }
         if (tickCount % 20 == 0) {
             BlackForestEvent.BlackForestSavedData savedData =
                     BlackForestEvent.BlackForestSavedData.get((ServerLevel) level());
@@ -82,11 +95,18 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
                 String stringUUID = iterator.next();
                 try {
                     UUID uuid = UUID.fromString(stringUUID);
-                    Entity entity = ((ServerLevel) level()).getEntity(uuid);
+                    Entity entity = savedData.findTrackedEntity(level().getServer(), stringUUID);
+                    if (entity == null && isCapturedBirdUuid(stringUUID)) continue;
+                    if (entity == null && savedData.shouldRetainMissing(level().getServer(), stringUUID)) {
+                        continue;
+                    }
                     if (entity == null || !entity.isAlive() ||
                             (entity instanceof AbstractAbnormality ab && !ab.hasEscape())) {
                         iterator.remove();
+                        savedData.removeTrackingOnly(stringUUID);
                         removed = true;
+                    } else if (entity instanceof AbstractAbnormality abnormality) {
+                        savedData.observeEscapedBird(abnormality);
                     }
                 } catch (IllegalArgumentException e) {
                     iterator.remove();
@@ -96,73 +116,70 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
             if (removed) {
                 savedData.setDirty();
             }
-            if (savedData.isDoorSpawned() && savedData.getEscapedCount() <= 0) {
+            if (savedData.isDoorSpawned() && savedData.getEscapedCount() <= 0 && birdsEntered <= 0) {
                 savedData.setDoorSpawned(false);
                 this.discard();
                 return;
             }
         }
 
-        if (birdsEntered >= 3 && !endBirdSpawned) {
-            endBirdSpawned = true; // 立即置标志，防止重入
-
-            TimerEntry<BaseGeoEntity> timerEntry = new TimerEntry<>() {
-                @Override
-                public void onEnd(@NotNull BaseGeoEntity living) {
-                    List<ServerPlayer> allPlayers = java.util.Arrays.asList(EntityUtil.findAllPlayer(EntityBlackForestDoor.this));
-                    if (!allPlayers.isEmpty()) {
-                        FullScreenRenderMessage msg = FullScreenRenderMessage.builder()
-                                .showDuration(4000)
-                                .fade(500, 1000)
-                                .texture(ResourceUtil.createInstance("textures/gui/end_bird_cg/cg4.png"))
-                                .build();
-                        SoundEvent sound = ModSounds.THREE_BIRDS_APPEAR.get();
-                        for (ServerPlayer player : allPlayers) {
-                            MessageLoader.getLoader().sendToPlayer(player, msg);
-                            player.playNotifySound(
-                                    sound,
-                                    SoundSource.MASTER,
-                                    1.0f,
-                                    1.0f
-                            );
-                        }
-                        living.discard();
-                    }
-                }
-            };
-            timerEntry.addSkillTimer(this, 0, 5000, 1);
+        if (capturedRoleCount() == 3) {
+            if (eggPlacementRetryTicks > 0) {
+                eggPlacementRetryTicks--;
+                return;
+            }
             List<BlockPos> reactorPositions = new ArrayList<>();
             for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level(), getOnPos(), 300)) {
-                if (blockEntity instanceof RegenerationReactorBlockEntity) {
+                if (blockEntity instanceof RegenerationReactorBlockEntity
+                        && isOpenPosition(blockEntity.getBlockPos())) {
                     reactorPositions.add(blockEntity.getBlockPos());
                 }
             }
-            if (!reactorPositions.isEmpty()) {
-                BlockPos doorPos = this.blockPosition();
-                reactorPositions.sort(Comparator.comparingDouble(pos -> pos.distSqr(doorPos)));
-                List<BlockPos> selectedPositions = reactorPositions.size() <= 3
-                        ? reactorPositions
-                        : reactorPositions.subList(0, 3);
-                while (selectedPositions.size() < 3) {
-                    selectedPositions.add(selectedPositions.get(0));
-                }
-                EntityEndBirdEggSmall eggSmall = new EntityEndBirdEggSmall(ModEntities.end_bird_egg_small.get(), level());
-                EntityEndBirdEggHigh eggHigh = new EntityEndBirdEggHigh(ModEntities.end_bird_egg_high.get(), level());
-                EntityEndBirdEggEye eggEye = new EntityEndBirdEggEye(ModEntities.end_bird_egg_eye.get(), level());
-                spawnEggAt(eggSmall, selectedPositions.get(0));
-                spawnEggAt(eggHigh, selectedPositions.get(1));
-                spawnEggAt(eggEye, selectedPositions.get(2));
+            reactorPositions.sort(Comparator.comparingDouble(pos -> pos.distSqr(this.blockPosition())));
+            List<LivingEntity> eggs = List.of(
+                    new EntityEndBirdEggSmall(ModEntities.end_bird_egg_small.get(), level()),
+                    new EntityEndBirdEggHigh(ModEntities.end_bird_egg_high.get(), level()),
+                    new EntityEndBirdEggEye(ModEntities.end_bird_egg_eye.get(), level()));
+            List<BlockPos> eggPositions = reserveDistinctEggPositions(eggs, reactorPositions);
+            if (eggPositions == null) {
+                // The event remains pending and retries after players clear space or chunks load.
+                eggPlacementRetryTicks = 20;
+                return;
             }
+            endBirdSpawned = true; // 立即置标志，防止重入
+
+            if (!spawnEggsAtomically(eggs, eggPositions)) {
+                endBirdSpawned = false;
+                eggPlacementRetryTicks = 20;
+                return;
+            }
+            EntityEndBird endBird = AbnormalitySpawnHelper.spawnPersistent(
+                    (ServerLevel) level(), ModEntities.end_bird.get(), this.blockPosition());
+            if (endBird == null) {
+                eggs.forEach(Entity::discard);
+                endBirdSpawned = false;
+                eggPlacementRetryTicks = 20;
+                return;
+            }
+            Map<UUID, String> eventEggs = Map.of(
+                    eggs.get(0).getUUID(), EndBirdEggTracker.EGG_SMALL,
+                    eggs.get(1).getUUID(), EndBirdEggTracker.EGG_HIGH,
+                    eggs.get(2).getUUID(), EndBirdEggTracker.EGG_EYE);
+            EndBirdEggTracker tracker = EndBirdEggTracker.get((ServerLevel) level());
+            if (!tracker.beginEncounter(endBird.getUUID(), eventEggs)) {
+                eggs.forEach(Entity::discard);
+                endBird.discard();
+                endBirdSpawned = false;
+                eggPlacementRetryTicks = 20;
+                return;
+            }
+            endBird.setBirdReturnInfo(birdInfo, capturedBirds);
+            endBird.triggerEscape();
             BlackForestEvent.BlackForestSavedData savedData =
                     BlackForestEvent.BlackForestSavedData.get((ServerLevel) level());
             savedData.setDoorSpawned(false);
-            savedData.getEscapedBirdUUIDs().clear();
-            EntityEndBird endBird = AbnormalitySpawnHelper.spawnPersistent(
-                    (ServerLevel) level(), ModEntities.end_bird.get(), this.blockPosition());
-            if (endBird != null) {
-                endBird.setBirdReturnInfo(birdInfo);
-                endBird.triggerEscape();
-            }
+            savedData.clearEscapedBirds();
+            completionRemovalAt = level().getServer().overworld().getGameTime() + 100L;
             return;
         }
         checkBirdEntry();
@@ -173,18 +190,62 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
         }
     }
 
-    /**
-     * 在指定反应堆附近生成蛋
-     */
-    private void spawnEggAt(LivingEntity egg, BlockPos reactorPos) {
-        egg.addEffect(new MobEffectInstance(MobEffects.GLOWING, -1));
-        // 仅在公司范围内寻找安全地面,避免鸟蛋刷到公司之外
-        BlockPos spawnPos = EntityUtil.findReactorSpawnPositionInCompany(level(), reactorPos, 5);
-        if (spawnPos == null) {
-            spawnPos = reactorPos;
+    private List<BlockPos> reserveDistinctEggPositions(List<LivingEntity> eggs, List<BlockPos> reactors) {
+        if (!(level() instanceof ServerLevel serverLevel) || reactors.isEmpty()) return null;
+        List<BlockPos> positions = new ArrayList<>(3);
+        List<AABB> reservedBoxes = new ArrayList<>(3);
+        for (int eggIndex = 0; eggIndex < eggs.size(); eggIndex++) {
+            LivingEntity egg = eggs.get(eggIndex);
+            BlockPos selected = null;
+            search:
+            for (int radius = 1; radius <= 12; radius++) {
+                for (int reactorOffset = 0; reactorOffset < reactors.size(); reactorOffset++) {
+                    BlockPos reactor = reactors.get((eggIndex + reactorOffset) % reactors.size());
+                    for (int dy = -3; dy <= 4; dy++) {
+                        for (int dx = -radius; dx <= radius; dx++) {
+                            for (int dz = -radius; dz <= radius; dz++) {
+                                if (Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
+                                BlockPos candidate = reactor.offset(dx, dy, dz);
+                                if (!serverLevel.hasChunkAt(candidate) || !isOpenPosition(candidate)) continue;
+                                if (!serverLevel.getBlockState(candidate.below()).isFaceSturdy(
+                                        serverLevel, candidate.below(), net.minecraft.core.Direction.UP)) continue;
+                                double x = candidate.getX() + 0.5D;
+                                double y = candidate.getY();
+                                double z = candidate.getZ() + 0.5D;
+                                AABB box = egg.getDimensions(egg.getPose()).makeBoundingBox(x, y, z);
+                                if (reactors.stream().anyMatch(pos -> box.intersects(new AABB(pos)))) continue;
+                                if (reservedBoxes.stream().anyMatch(box::intersects)) continue;
+                                if (!serverLevel.noCollision(egg, box)) continue;
+                                if (!serverLevel.getEntities((Entity) null, box,
+                                        entity -> entity.isAlive() && !entity.isRemoved()).isEmpty()) continue;
+                                selected = candidate;
+                                reservedBoxes.add(box);
+                                break search;
+                            }
+                        }
+                    }
+                }
+            }
+            if (selected == null) return null;
+            positions.add(selected);
         }
-        egg.setPos(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
-        level().addFreshEntity(egg);
+        return positions;
+    }
+
+    private boolean spawnEggsAtomically(List<LivingEntity> eggs, List<BlockPos> positions) {
+        List<LivingEntity> spawned = new ArrayList<>(eggs.size());
+        for (int i = 0; i < eggs.size(); i++) {
+            LivingEntity egg = eggs.get(i);
+            BlockPos pos = positions.get(i);
+            egg.addEffect(new MobEffectInstance(MobEffects.GLOWING, -1));
+            egg.setPos(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D);
+            if (!level().addFreshEntity(egg)) {
+                spawned.forEach(Entity::discard);
+                return false;
+            }
+            spawned.add(egg);
+        }
+        return true;
     }
 
     /**
@@ -198,6 +259,9 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
                 bird -> BlackForestEvent.isBird(bird) && bird.hasEscape() && bird.isAlive()
         );
         for (AbstractAbnormality bird : birds) {
+            String enteringRole = birdRoleCode(bird);
+            if (enteringRole == null || birdInfo.containsKey(enteringRole)
+                    || capturedBirds.containsKey(enteringRole)) continue;
             if (bird instanceof EntityPunishingBird) {
                 for (ServerPlayer player : EntityUtil.findAllPlayer(this)) {
                     FullScreenRenderMessage msg = FullScreenRenderMessage.builder()
@@ -234,10 +298,40 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
             BlockPos returnPos = bird.getEscapePosition();
             if (returnPos == null) returnPos = bird.blockPosition();
             birdInfo.put(birdType, Pair.of(bird.getStringUUID(), returnPos));
+            capturedBirds.put(birdType, BlackForestEvent.captureBird(bird, birdType, returnPos));
 
             bird.discard();
-            birdsEntered++;
+            birdsEntered = capturedRoleCount();
         }
+    }
+
+    private static String birdRoleCode(AbstractAbnormality bird) {
+        if (bird instanceof EntityLargeBird) return "large_bird";
+        if (bird instanceof EntityApprovalBird) return "approval_bird";
+        if (bird instanceof EntityPunishingBird) return "punishing_bird";
+        return null;
+    }
+
+    private int capturedRoleCount() {
+        Set<String> codes = new HashSet<>(birdInfo.keySet());
+        codes.addAll(capturedBirds.keySet());
+        return BlackForestDoorPolicy.capturedRoleCount(codes);
+    }
+
+    private void finishCompletedDoor() {
+        List<ServerPlayer> allPlayers = Arrays.asList(EntityUtil.findAllPlayer(this));
+        if (!allPlayers.isEmpty()) {
+            FullScreenRenderMessage msg = FullScreenRenderMessage.builder()
+                    .showDuration(4000).fade(500, 1000)
+                    .texture(ResourceUtil.createInstance("textures/gui/end_bird_cg/cg4.png"))
+                    .build();
+            SoundEvent sound = ModSounds.THREE_BIRDS_APPEAR.get();
+            for (ServerPlayer player : allPlayers) {
+                MessageLoader.getLoader().sendToPlayer(player, msg);
+                player.playNotifySound(sound, SoundSource.MASTER, 1.0F, 1.0F);
+            }
+        }
+        discard();
     }
 
     @Override
@@ -254,22 +348,36 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
     }
 
     private void restoreCapturedBirds(ServerLevel serverLevel) {
-        if (birdInfo.isEmpty()) return;
-
-        for (Map.Entry<String, Pair<String, BlockPos>> entry : birdInfo.entrySet()) {
-            BlockPos returnPos = entry.getValue().getSecond();
-            if (returnPos == null) continue;
-            AbstractAbnormality bird = createBirdByCode(entry.getKey(), serverLevel);
-            if (bird != null) {
-                bird.setPos(returnPos.getX() + 0.5, returnPos.getY(), returnPos.getZ() + 0.5);
-                bird.setEscape(false);
-                bird.setQliphothCounter(bird.getMaxQliphothCounter());
-                serverLevel.addFreshEntity(bird);
+        if (birdInfo.isEmpty() && capturedBirds.isEmpty()) return;
+        Set<String> codes = new HashSet<>(birdInfo.keySet());
+        codes.addAll(capturedBirds.keySet());
+        List<CompoundTag> records = new ArrayList<>();
+        for (String code : codes) {
+            CompoundTag record = capturedBirds.get(code);
+            if (record == null) {
+                Pair<String, BlockPos> legacy = birdInfo.get(code);
+                if (legacy == null || legacy.getSecond() == null) continue;
+                record = new CompoundTag();
+                record.putString("Code", code);
+                record.putString("Dimension", serverLevel.dimension().location().toString());
+                record.putInt("X", legacy.getSecond().getX());
+                record.putInt("Y", legacy.getSecond().getY());
+                record.putInt("Z", legacy.getSecond().getZ());
             }
+            records.add(record.copy());
         }
+        BlackForestEvent.queueAndRestoreCapturedBirds(serverLevel, records);
 
+        capturedBirds.clear();
         birdInfo.clear();
         birdsEntered = 0;
+    }
+
+    private boolean isCapturedBirdUuid(String uuid) {
+        for (Pair<String, BlockPos> info : birdInfo.values()) {
+            if (uuid.equals(info.getFirst())) return true;
+        }
+        return false;
     }
 
     private void stopTrackedEscapedBirds(ServerLevel serverLevel, BlackForestEvent.BlackForestSavedData data) {
@@ -285,8 +393,7 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
 
     private void resetBlackForestData(BlackForestEvent.BlackForestSavedData data) {
         data.setDoorSpawned(false);
-        data.getEscapedBirdUUIDs().clear();
-        data.setDirty();
+        data.clearEscapedBirds();
     }
 
     @Nullable
@@ -321,7 +428,7 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
 
         // 尝试在鸟周围找一个室内的安全落点
         BlockPos targetPos = findIndoorPositionNear(nearest.blockPosition(), TELEPORT_RANGE);
-        if (targetPos != null) {
+        if (targetPos != null && isOpenPosition(targetPos)) {
             this.setPos(targetPos.getX() + 0.5, targetPos.getY(), targetPos.getZ() + 0.5);
         }
         // 如果找不到室内位置，则不瞬移，等下次再检测（避免跑到室外）
@@ -334,7 +441,7 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
     private BlockPos findIndoorPositionNear(BlockPos center, int radius) {
         // 先检查 center 自身（鸟当前位置）
         BlockPos safe = EntityUtil.findSafeGroundPosition(level(), center, 3);
-        if (safe != null && isInsideRoom(level(), safe)) {
+        if (safe != null && isOpenPosition(safe) && isInsideRoom(level(), safe)) {
             return safe;
         }
 
@@ -345,13 +452,20 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
                     if (Math.abs(dx) != r && Math.abs(dz) != r) continue; // 只遍历外圈
                     BlockPos candidate = center.offset(dx, 0, dz);
                     BlockPos candidateSafe = EntityUtil.findSafeGroundPosition(level(), candidate, 2);
-                    if (candidateSafe != null && isInsideRoom(level(), candidateSafe)) {
+                    if (candidateSafe != null && isOpenPosition(candidateSafe)
+                            && isInsideRoom(level(), candidateSafe)) {
                         return candidateSafe;
                     }
                 }
             }
         }
         return null;
+    }
+
+    private boolean isOpenPosition(BlockPos position) {
+        return level() instanceof ServerLevel serverLevel
+                && FacilityAccessService.isPositionOpen(serverLevel.getServer(),
+                serverLevel.dimension().location(), position);
     }
 
     /**
@@ -385,6 +499,7 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
         tag.putLong("SpawnTime", spawnTime);
         tag.putInt("BirdsEntered", birdsEntered);
         tag.putBoolean("EndBirdSpawned", endBirdSpawned);
+        tag.putLong("CompletionRemovalAt", completionRemovalAt);
         CompoundTag birdInfoTag = new CompoundTag();
         for (Map.Entry<String, Pair<String, BlockPos>> entry : birdInfo.entrySet()) {
             CompoundTag birdTag = new CompoundTag();
@@ -398,6 +513,9 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
             birdInfoTag.put(entry.getKey(), birdTag);
         }
         tag.put("BirdInfo", birdInfoTag);
+        CompoundTag capturedTag = new CompoundTag();
+        capturedBirds.forEach((code, record) -> capturedTag.put(code, record.copy()));
+        tag.put("CapturedBirds", capturedTag);
     }
 
     @Override
@@ -406,6 +524,7 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
         spawnTime = tag.getLong("SpawnTime");
         birdsEntered = tag.getInt("BirdsEntered");
         endBirdSpawned = tag.getBoolean("EndBirdSpawned");
+        completionRemovalAt = tag.getLong("CompletionRemovalAt");
         birdInfo.clear();
         if (tag.contains("BirdInfo")) {
             CompoundTag birdInfoTag = tag.getCompound("BirdInfo");
@@ -419,6 +538,14 @@ public class EntityBlackForestDoor extends BaseGeoEntity {
                 birdInfo.put(key, Pair.of(uuid, pos));
             }
         }
+        capturedBirds.clear();
+        if (tag.contains("CapturedBirds")) {
+            CompoundTag capturedTag = tag.getCompound("CapturedBirds");
+            for (String key : capturedTag.getAllKeys()) {
+                capturedBirds.put(key, capturedTag.getCompound(key).copy());
+            }
+        }
+        birdsEntered = capturedRoleCount();
     }
 
     @Override public boolean isPushable()     { return false; }

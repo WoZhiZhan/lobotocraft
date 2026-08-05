@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.util.EntityUtil;
 import net.minecraft.core.BlockPos;
@@ -8,46 +9,67 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
-/**
- * 计数器归零后,在最近的再生反应堆处生成"伊莎玛拉"的钩子。
- */
-public class SpawnIsharmlaHook {
+import java.util.UUID;
 
-    public static void trySpawnIsharmlaAtNearestReactor(ServerLevel level, BlockPos origin) {
-        BlockPos reactorPos = findNearestReactor(level, origin);
-        if (reactorPos == null) {
-            reactorPos = origin;
+/** Creates Isharmla after Dark Skadi's counter reaches zero. */
+public final class SpawnIsharmlaHook {
+    private SpawnIsharmlaHook() {
+    }
+
+    static boolean trySpawnTransaction(ServerLevel level, BlockPos reactorPos, UUID transactionId) {
+        String transaction = transactionId.toString();
+        for (EntityIsharmla existing : level.getEntitiesOfClass(EntityIsharmla.class,
+                new net.minecraft.world.phys.AABB(reactorPos).inflate(32.0D), EntityIsharmla::isAlive)) {
+            if (transaction.equals(existing.getPersistentData().getString("SkadiTransitionId"))) return true;
         }
         EntityIsharmla isharmla = ModEntities.isharmla.get().create(level);
-        if (isharmla == null) return;
-        BlockPos spawnPos = EntityUtil.findReactorSpawnPositionInCompany(level, reactorPos, 0);
-        if (spawnPos == null) return;
-        isharmla.moveTo(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5, 0f, 0f);
+        if (isharmla == null) return false;
+        BlockPos spawnPos = findCollisionSafeSpawn(level, reactorPos, isharmla);
+        if (spawnPos == null) return false;
+        isharmla.getPersistentData().putString("SkadiTransitionId", transaction);
+        isharmla.moveTo(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D, 0.0F, 0.0F);
         isharmla.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos),
                 MobSpawnType.EVENT, null, null);
         isharmla.setPersistenceRequired();
-        level.addFreshEntity(isharmla);
-        // 初始化形态并瞬移到反应堆、生成之泪
-        isharmla.onSpawnFromSkadi(level);
+        if (!level.addFreshEntity(isharmla)) return false;
+        isharmla.onSpawnFromSkadi(level, reactorPos);
+        return true;
     }
 
-    /** 在原点附近查找最近的再生反应堆方块实体位置 */
+    private static BlockPos findCollisionSafeSpawn(ServerLevel level, BlockPos reactorPos,
+                                                    EntityIsharmla isharmla) {
+        for (int range : new int[]{0, 4, 8}) {
+            BlockPos candidate = EntityUtil.findReactorSpawnPositionInCompany(level, reactorPos, range);
+            if (candidate == null || !FacilityAccessService.isPositionOpen(level.getServer(),
+                    level.dimension().location(), candidate)) continue;
+            double x = candidate.getX() + 0.5D;
+            double y = candidate.getY();
+            double z = candidate.getZ() + 0.5D;
+            if (level.noCollision(isharmla,
+                    isharmla.getDimensions(isharmla.getPose()).makeBoundingBox(x, y, z))) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
     private static BlockPos findNearestReactor(ServerLevel level, BlockPos origin) {
         BlockPos best = null;
         double bestDist = Double.MAX_VALUE;
-        for (BlockEntity be : EntityUtil.findBlockEntities(level, origin, 64)) {
-            if (be instanceof RegenerationReactorBlockEntity) {
-                double d = be.getBlockPos().distSqr(origin);
-                if (d < bestDist) {
-                    bestDist = d;
-                    best = be.getBlockPos();
+        for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level, origin, 64)) {
+            if (blockEntity instanceof RegenerationReactorBlockEntity
+                    && FacilityAccessService.isPositionOpen(level.getServer(),
+                    level.dimension().location(), blockEntity.getBlockPos())) {
+                double distance = blockEntity.getBlockPos().distSqr(origin);
+                if (distance < bestDist) {
+                    bestDist = distance;
+                    best = blockEntity.getBlockPos();
                 }
             }
         }
         return best;
     }
 
-    /** 供伊莎玛拉自身定位反应堆使用 */
     public static BlockPos findNearestReactorPublic(ServerLevel level, BlockPos origin) {
         return findNearestReactor(level, origin);
     }

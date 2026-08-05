@@ -381,7 +381,7 @@ public class WorkProgressScreen extends Screen {
             if (observationLevel >= 2) {
                 IAbnormality abnormality = getAbnormality();
                 try {
-                    if (abnormality != null && random.nextFloat() <= abnormality.getGiftProbability()) {
+                    if (false && abnormality != null && random.nextFloat() <= abnormality.getGiftProbability()) {
                         MessageLoader.getLoader().sendToServer(new ObtainGiftPacket(abnormality.getEntityId(), abnormality.getEGOGiftData().itemId()));
                         minecraft.player.sendSystemMessage(Component.literal("§a你获得了 §e" + abnormality.getAbnormalityName()
                                 + " §a异想体的 §e" + abnormality.getEGOGiftData().part() + " §a饰品：§6" + abnormality.getEGOGiftData().name()));
@@ -514,11 +514,11 @@ public class WorkProgressScreen extends Screen {
         renderWorkTimer(graphics);   // ← 右上角计时器
 
         if (CoreSuppressionClientState.isActive(CoreSuppressionType.MALKUTH) && finalResult == null) {
-            String actualWork = "实际工作类型：" + workType.getDisplayName();
-            int textWidth = font.width(actualWork);
+            String hiddenWork = "工作类型：???";
+            int textWidth = font.width(hiddenWork);
             graphics.fill(width / 2 - textWidth / 2 - 8, 12,
                     width / 2 + textWidth / 2 + 8, 30, 0xC0000000);
-            graphics.drawCenteredString(font, actualWork, width / 2, 17, 0xFFF3C85B);
+            graphics.drawCenteredString(font, hiddenWork, width / 2, 17, 0xFFF3C85B);
         }
 
         if (finalResult != null) {
@@ -666,12 +666,21 @@ public class WorkProgressScreen extends Screen {
         int barHeight = maxExtractions * energySpacing + 10;
         drawBarBackground(graphics, x - 5, startY - 5, x + barWidth, startY + barHeight);
 
-        for (int i = 0; i < maxExtractions; i++) {
-            int currentY = startY + (maxExtractions - 1 - i) * energySpacing;
-            if (i < currentExtraction) {
-                renderEnergyIcon(graphics, x, currentY, extractionResults[i], true);
-            } else {
-                renderEnergyIcon(graphics, x, currentY, false, false);
+        // 按类型分区而非抽取顺序：负面(红)自顶向下堆叠，正面(绿)自底向上堆叠，
+        // 中间未抽取的留空。避免原来红绿按顺序交叉排列、难以一眼读出正负比例。
+        int negativeSlot = 0;                    // 下一个红图标的行号（从顶部 0 开始递增）
+        int positiveSlot = maxExtractions - 1;   // 下一个绿图标的行号（从底部递减）
+        boolean[] occupied = new boolean[maxExtractions];
+
+        for (int i = 0; i < currentExtraction; i++) {
+            int row = extractionResults[i] ? positiveSlot-- : negativeSlot++;
+            if (row < 0 || row >= maxExtractions) continue;
+            occupied[row] = true;
+            renderEnergyIcon(graphics, x, startY + row * energySpacing, extractionResults[i], true);
+        }
+        for (int row = 0; row < maxExtractions; row++) {
+            if (!occupied[row]) {
+                renderEnergyIcon(graphics, x, startY + row * energySpacing, false, false);
             }
         }
 
@@ -695,22 +704,36 @@ public class WorkProgressScreen extends Screen {
         int leftColX  = LEFT_MARGIN;
         int rightColX = LEFT_MARGIN + colWidth + colGap;
 
-        for (int i = 0; i < maxExtractions; i++) {
-            boolean isLeft = (i < halfCount);
-            // 左列：索引 0..halfCount-1；右列：索引 halfCount..maxExtractions-1
-            int posInCol = isLeft ? i : (i - halfCount);
-            int rowFromBottom = (isLeft ? halfCount : (maxExtractions - halfCount)) - 1 - posInCol;
-            int x = isLeft ? leftColX : rightColX;
-            int y = startY + rowFromBottom * energySpacing;
+        // 与单列同理按类型分区：把两列视作一段连续槽位（左列自上而下，再接右列自上而下），
+        // 负面(红)从序列头部开始占位，正面(绿)从尾部倒着占位。
+        int negativeSlot = 0;
+        int positiveSlot = maxExtractions - 1;
+        boolean[] occupied = new boolean[maxExtractions];
 
-            if (i < currentExtraction) {
-                renderEnergyIcon(graphics, x, y, extractionResults[i], true);
-            } else {
-                renderEnergyIcon(graphics, x, y, false, false);
+        for (int i = 0; i < currentExtraction; i++) {
+            int slot = extractionResults[i] ? positiveSlot-- : negativeSlot++;
+            if (slot < 0 || slot >= maxExtractions) continue;
+            occupied[slot] = true;
+            drawDualSlot(graphics, slot, halfCount, leftColX, rightColX, startY,
+                    extractionResults[i], true);
+        }
+        for (int slot = 0; slot < maxExtractions; slot++) {
+            if (!occupied[slot]) {
+                drawDualSlot(graphics, slot, halfCount, leftColX, rightColX, startY, false, false);
             }
         }
 
         drawStats(graphics, LEFT_MARGIN, startY + barHeight + 10);
+    }
+
+    /** 把连续槽位号映射到双列坐标并绘制：0..halfCount-1 为左列，其后为右列，列内自上而下。 */
+    private void drawDualSlot(GuiGraphics graphics, int slot, int halfCount,
+                              int leftColX, int rightColX, int startY,
+                              boolean isPositive, boolean isFilled) {
+        boolean isLeft = slot < halfCount;
+        int rowInCol = isLeft ? slot : slot - halfCount;
+        int x = isLeft ? leftColX : rightColX;
+        renderEnergyIcon(graphics, x, startY + rowInCol * energySpacing, isPositive, isFilled);
     }
 
     private void drawBarBackground(GuiGraphics graphics, int x1, int y1, int x2, int y2) {

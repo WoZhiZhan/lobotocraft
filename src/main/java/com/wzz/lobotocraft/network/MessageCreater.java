@@ -1,64 +1,104 @@
 package com.wzz.lobotocraft.network;
 
-import java.util.function.Supplier;
-
+import com.wzz.lobotocraft.logger.ModLogger;
 import com.wzz.lobotocraft.util.UnsafeUtil;
+import io.netty.buffer.Unpooled;
+import java.util.function.Supplier;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.network.NetworkEvent;
 
-public class MessageCreater {
+public final class MessageCreater {
+    // Room and employee snapshots are bounded well below this size. Keeping
+    // the envelope small limits malformed-packet allocation before dispatch.
+    private static final int MAX_PAYLOAD_BYTES = 128 * 1024;
 
-	final IMessage message;
-	
-	public MessageCreater(IMessage message) {
-		this.message = message;
-	}
-	
-	public static void toBuf(MessageCreater creater, FriendlyByteBuf buf) {
-		String path = creater.message.getClass().getName();
-		byte[] bytes = path.getBytes();
-		buf.writeInt(bytes.length);
-        for (byte b : bytes) {
-            buf.writeByte(b);
+    final IMessage message;
+    private final int deferredPacketId;
+    private final byte[] deferredPayload;
+
+    public MessageCreater(IMessage message) {
+        this.message = message;
+        this.deferredPacketId = -1;
+        this.deferredPayload = null;
+    }
+
+    private MessageCreater(int packetId, byte[] payload) {
+        this.message = null;
+        this.deferredPacketId = packetId;
+        this.deferredPayload = payload;
+    }
+
+    public static void toBuf(MessageCreater creater, FriendlyByteBuf buf) {
+        buf.writeVarInt(PacketRegistry.idOf(creater.message.getClass()));
+        creater.message.toBytes(buf);
+    }
+
+    /**
+     * Decoding happens before NetworkEvent.Context exposes the reception side.
+     * Preserve the payload as bounded bytes here; only deserialize its fields
+     * after the direction whitelist has been checked in run().
+     */
+    public static MessageCreater fromBuf(FriendlyByteBuf buf) {
+        int id = buf.readVarInt();
+        if (PacketRegistry.byId(id) == null) {
+            throw new IllegalStateException("Unknown packet id " + id);
         }
-		creater.message.toBytes(buf);
-	}
+        int payloadLength = buf.readableBytes();
+        if (payloadLength > MAX_PAYLOAD_BYTES) {
+            throw new IllegalStateException("Packet payload exceeds " + MAX_PAYLOAD_BYTES + " bytes");
+        }
+        byte[] payload = new byte[payloadLength];
+        buf.readBytes(payload);
+        return new MessageCreater(id, payload);
+    }
 
-	public static MessageCreater fromBuf(FriendlyByteBuf buf) {
-		byte[] bytes = new byte[buf.readInt()];
-		for (int i = 0; i < bytes.length; i++) {
-			bytes[i] = buf.readByte();
-		}
-		String path = new String(bytes);
-		Class<?> clazz;
-		try {
-			clazz = Class.forName(path);
-		} catch (Exception e) {
-			throw new RuntimeException("Unknown message class: " + path, e);
-		}
-		IMessage message;
-		try {
-			message = (IMessage) UnsafeUtil.unsafe.allocateInstance(clazz);
-		} catch (Throwable e) {
-			try {
-				message = (IMessage) clazz.getDeclaredConstructor().newInstance();
-			} catch (Throwable e2) {
-				throw new RuntimeException("Failed to create message instance: " + path, e2);
-			}
-		}
-		message.fromBytes(buf);
-		return new MessageCreater(message);
-	}
-	
-	public static void run(MessageCreater creater, Supplier<NetworkEvent.Context> ctx) {
-		NetworkEvent.Context ct = ctx.get();
-		ct.enqueueWork(() -> {
-			if (!ct.getDirection().getReceptionSide().isClient() && !creater.message.sendToClient()) {
-				creater.message.run(ct);
-			} else {
-				creater.message.runClient(ct);
-			}
-		});
-		ct.setPacketHandled(true);
-	}
+    private IMessage decodeAfterDirectionCheck() {
+        Class<? extends IMessage> clazz = PacketRegistry.byId(deferredPacketId);
+        if (clazz == null) throw new IllegalStateException("Unknown packet id " + deferredPacketId);
+        IMessage decoded;
+        try {
+            decoded = clazz.getDeclaredConstructor().newInstance();
+        } catch (Throwable e) {
+            try {
+                decoded = (IMessage) UnsafeUtil.unsafe.allocateInstance(clazz);
+            } catch (Throwable ignored) {
+                throw new RuntimeException("Failed to create packet " + clazz.getName(), e);
+            }
+        }
+        FriendlyByteBuf payload = new FriendlyByteBuf(Unpooled.wrappedBuffer(deferredPayload));
+        try {
+            decoded.fromBytes(payload);
+            if (payload.readableBytes() != 0) {
+                throw new IllegalArgumentException("Packet " + clazz.getSimpleName()
+                        + " left " + payload.readableBytes() + " unread bytes");
+            }
+            return decoded;
+        } finally {
+            payload.release();
+        }
+    }
+
+    public static void run(MessageCreater creater, Supplier<NetworkEvent.Context> ctx) {
+        NetworkEvent.Context context = ctx.get();
+        context.enqueueWork(() -> {
+            boolean receivedOnClient = context.getDirection().getReceptionSide().isClient();
+            int packetId = creater.message == null ? creater.deferredPacketId
+                    : PacketRegistry.idOf(creater.message.getClass());
+            if (!PacketRegistry.accepts(packetId, receivedOnClient)) {
+                ModLogger.LOGGER.warn("Rejected packet id {} on invalid reception side", packetId);
+                return;
+            }
+
+            IMessage message;
+            try {
+                message = creater.message != null ? creater.message : creater.decodeAfterDirectionCheck();
+            } catch (RuntimeException e) {
+                ModLogger.LOGGER.warn("Rejected malformed packet id {}", packetId, e);
+                return;
+            }
+            if (receivedOnClient) message.runClient(context);
+            else message.run(context);
+        });
+        context.setPacketHandled(true);
+    }
 }

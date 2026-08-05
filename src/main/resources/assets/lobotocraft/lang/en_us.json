@@ -1,4 +1,7 @@
 {
+  "key.lobotocraft.open_facility_management": "Open employee management",
+  "key.lobotocraft.end_day": "End day / approve vote",
+  "key.lobotocraft.reject_day_vote": "Reject end-day vote",
   "itemGroup.lobotocraft_entity": "LobotoCraft:Spawn Egg",
   "itemGroup.lobotocraft_core": "LobotoCraft:Core",
   "itemGroup.lobotocraft_suit": "LobotoCraft:Suit",
@@ -319,5 +322,21 @@
   "entity.lobotocraft.text": "Please Input Text",
   "block.lobotocraft.room_marker": "Room Marker",
   "item.lobotocraft.room_terminal": "Room Terminal",
-  "item.lobotocraft.floor_marker": "Floor Marker"
+  "item.lobotocraft.floor_marker": "Floor Marker",
+  "entity.lobotocraft.crimson_dusk": "Crimson Dusk",
+  "entity.lobotocraft.green_dusk": "Green Dusk",
+  "entity.lobotocraft.amber_dusk": "Amber Dusk",
+  "entity.lobotocraft.green_midnight": "Green Midnight",
+  "entity.lobotocraft.violet_midnight": "Violet Midnight",
+  "entity.lobotocraft.amber_midnight": "Amber Midnight",
+  "message.lobotocraft.elevator.no_destination_up": "No available floor above",
+  "message.lobotocraft.elevator.no_destination_down": "No available floor below",
+  "message.lobotocraft.elevator.too_far": "You moved away from the elevator",
+  "message.lobotocraft.elevator.cooldown": "The elevator is cooling down",
+  "message.lobotocraft.elevator.locked_area": "The destination department is not open",
+  "message.lobotocraft.elevator.blocked_destination": "The destination exit is blocked",
+  "message.lobotocraft.elevator.invalid": "The elevator request is no longer valid",
+  "message.lobotocraft.navigation_cache.loading": "Parsing the facility navigation snapshot; AI employees will temporarily use local pathfinding.",
+  "message.lobotocraft.navigation_cache.ready": "The facility navigation snapshot is ready; full-facility AI pathfinding is available.",
+  "message.lobotocraft.navigation_cache.failed": "The facility navigation snapshot failed to load; AI employees will continue using local pathfinding."
 }

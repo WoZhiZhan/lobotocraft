@@ -24,8 +24,35 @@ public class ModKeyMappings {
             CATEGORY
     );
 
+    public static final KeyMapping END_DAY = new KeyMapping(
+            "key.lobotocraft.end_day",
+            KeyConflictContext.IN_GAME,
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_N,
+            CATEGORY
+    );
+
+    public static final KeyMapping REJECT_DAY_VOTE = new KeyMapping(
+            "key.lobotocraft.reject_day_vote",
+            KeyConflictContext.IN_GAME,
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_B,
+            CATEGORY
+    );
+
+    public static final KeyMapping OPEN_FACILITY_MANAGEMENT = new KeyMapping(
+            "key.lobotocraft.open_facility_management",
+            KeyConflictContext.IN_GAME,
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_C,
+            CATEGORY
+    );
+
     @SubscribeEvent
     public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         event.register(JUDGEMENT);
+        event.register(END_DAY);
+        event.register(REJECT_DAY_VOTE);
+        event.register(OPEN_FACILITY_MANAGEMENT);
     }
 }

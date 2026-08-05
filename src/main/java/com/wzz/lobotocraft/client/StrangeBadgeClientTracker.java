@@ -1,7 +1,7 @@
 package com.wzz.lobotocraft.client;
 
-import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.item.linkage.StrangeBadgeItem;
+import com.wzz.lobotocraft.util.MentalValueUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -53,22 +53,13 @@ public class StrangeBadgeClientTracker {
         // 检查主手
         ItemStack mainHand = player.getMainHandItem();
         if (mainHand.getItem() instanceof StrangeBadgeItem) {
-            // 检查玩家是否恐慌
-            final boolean[] isPanic = {false};
-            player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
-                isPanic[0] = mental.getMentalValue() <= 0;
-            });
-            return isPanic[0];
+            return MentalValueUtil.isPanic(player);
         }
         
         // 检查副手
         ItemStack offHand = player.getOffhandItem();
         if (offHand.getItem() instanceof StrangeBadgeItem) {
-            final boolean[] isPanic = {false};
-            player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
-                isPanic[0] = mental.getMentalValue() <= 0;
-            });
-            return isPanic[0];
+            return MentalValueUtil.isPanic(player);
         }
         
         return false;

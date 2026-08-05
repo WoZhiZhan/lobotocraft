@@ -1,8 +1,11 @@
 package com.wzz.lobotocraft.event.listener;
 
+import com.lobotocraft.facility.OrdealRewardService;
+import com.lobotocraft.facility.data.OrdealTier;
 import com.wzz.lobotocraft.ModMain;
-import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
+import com.wzz.lobotocraft.entity.base.EscapeTracker;
 import com.wzz.lobotocraft.entity.seaborn.EntityBasinSeaborn;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.network.MessageLoader;
@@ -84,28 +87,28 @@ public class BlueMiddayEvent {
 
     public static boolean triggerBlueMidday(ServerLevel level) {
         OrdealData data = OrdealData.get(level);
-        if (data.hasActiveOrdeal()) {
+        if (data.hasActiveMidday()) {
             return false;
         }
 
-        List<BlockPos> escapeBlocks = new ArrayList<>(EscapeBlockEntity.getEscapeBlocks(level.dimension()));
-        escapeBlocks.removeIf(pos -> !(level.getBlockEntity(pos) instanceof EscapeBlockEntity)
-                || !EntityUtil.isInCompany(level, pos));
-        if (escapeBlocks.isEmpty()) {
+        List<OrdealSpawnPointService.DepartmentCorridors> departments = new ArrayList<>(
+                OrdealSpawnPointService.openCorridorsByDepartment(level));
+        if (departments.isEmpty()) {
             return false;
         }
 
         MinecraftServer server = level.getServer();
-        int groupCount = Math.max(1, server.getPlayerList().getPlayers().size());
-        List<ServerPlayer> players = getEligiblePlayers(level);
-        Collections.shuffle(players, new java.util.Random(level.getRandom().nextLong()));
-        Collections.shuffle(escapeBlocks, new java.util.Random(level.getRandom().nextLong()));
+        Collections.shuffle(departments, new java.util.Random(level.getRandom().nextLong()));
+        int groupCount = OrdealSpawnPolicy.indigoNoonDepartmentCount(departments.size());
 
         int spawned = 0;
         for (int i = 0; i < groupCount; i++) {
-            ServerPlayer player = players.isEmpty() ? null : players.get(i % players.size());
-            BlockPos anchor = chooseEscapeBlockNearPlayer(level, escapeBlocks, player, i);
-            for (EntityType<? extends Mob> type : chooseSeabornTypes(level)) {
+            List<BlockPos> corridors = departments.get(i).corridors();
+            if (corridors.isEmpty()) continue;
+            BlockPos anchor = corridors.get(0);
+            List<EntityType<? extends Mob>> types = chooseSeabornTypes(level);
+            for (int member = 0; member < OrdealSpawnPolicy.INDIGO_NOON_PER_DEPARTMENT; member++) {
+                EntityType<? extends Mob> type = types.get(member % types.size());
                 if (spawnSeaborn(level, type, anchor)) {
                     spawned++;
                 }
@@ -127,6 +130,7 @@ public class BlueMiddayEvent {
                 "大群的意志",
                 "自由的进化和退化，是前文明留给它们的礼物。");
         applyStartRegeneration(server);
+        EscapeTracker.getInstance().onOrdealStart(level, OrdealTier.NOON);
         return true;
     }
 
@@ -159,6 +163,7 @@ public class BlueMiddayEvent {
         data.finishBlueMidday();
         trialActive = false;
         MinecraftServer server = level.getServer();
+        OrdealRewardService.complete(server, OrdealTier.NOON);
         awardCompletionWorkCount(server);
         showBlueMiddayTitle(server,
                 "深蓝色的正午",
@@ -250,7 +255,8 @@ public class BlueMiddayEvent {
     }
 
     private static boolean canPlaceMob(ServerLevel level, Mob mob, BlockPos pos) {
-        if (pos == null || !EntityUtil.isInCompany(level, pos)) {
+        if (pos == null || !FacilityAccessService.isPositionOpen(level.getServer(),
+                level.dimension().location(), pos)) {
             return false;
         }
         if (pos.getY() <= level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight() - 1) {

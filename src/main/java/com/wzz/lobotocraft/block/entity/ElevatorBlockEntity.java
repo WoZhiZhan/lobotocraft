@@ -1,13 +1,20 @@
 package com.wzz.lobotocraft.block.entity;
 
+import com.wzz.lobotocraft.employee.ElevatorRegistry;
 import com.wzz.lobotocraft.init.ModBlockEntities;
+import com.wzz.lobotocraft.world.data.CompanyRoomData;
+import com.wzz.lobotocraft.world.data.FacilityAreaEntry;
+import com.wzz.lobotocraft.world.data.FacilityAreaType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.AABB;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
@@ -15,187 +22,209 @@ import software.bernie.geckolib.core.animation.AnimationState;
 import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
 public class ElevatorBlockEntity extends BaseGeoBlockEntity {
     private static final RawAnimation ACTIVE_ANIMATION = RawAnimation.begin().thenLoop("dt-3");
-    private static final double DETECTION_HORIZONTAL_RADIUS = 3.0D;
+    public static final double INTERACTION_RADIUS = 3.0D;
+    private static final double INTERACTION_RADIUS_SQR = INTERACTION_RADIUS * INTERACTION_RADIUS;
     private static final int DESTINATION_HORIZONTAL_RADIUS = 3;
+    private static final int MAX_DESTINATION_PROBES = 64;
+    private static final long TELEPORT_COOLDOWN_TICKS = 20L;
+    private static final String COOLDOWN_TAG = "LobotocraftElevatorCooldown";
 
     private int teleportDistance = 10;
     private boolean teleportUp = true;
-    private int animationDuration = 40; // 动画持续时间(ticks)，40tick = 2秒
+    private int animationDuration = 40;
 
-    private boolean isActive = false;
-    private long activatedTick = -1;
-    private static final long DELAY_TICKS = 20;
-    private static final long TELEPORT_COOLDOWN_TICKS = 20 * 6L;
-    private static final Map<UUID, Long> TELEPORT_COOLDOWNS = new HashMap<>();
-    private final Map<UUID, Long> entitiesInRangeSince = new HashMap<>();
+    private boolean isActive;
+    private long activatedTick = -1L;
 
     public ElevatorBlockEntity(BlockPos pos, BlockState blockState) {
         super(ModBlockEntities.ELEVATOR.get(), pos, blockState);
     }
 
+    @Override
+    public void onLoad() {
+        super.onLoad();
+        if (level != null) ElevatorRegistry.register(level, worldPosition);
+        if (level instanceof ServerLevel serverLevel) syncArea(serverLevel);
+    }
+
+    @Override
+    public void setRemoved() {
+        if (level != null) ElevatorRegistry.unregister(level, worldPosition);
+        if (level instanceof ServerLevel serverLevel) {
+            BlockPos markerPos = worldPosition.immutable();
+            BlockState markerState = getBlockState();
+            var dimension = serverLevel.dimension().location();
+            serverLevel.getServer().execute(() -> {
+                if (serverLevel.hasChunkAt(markerPos)
+                        && !serverLevel.getBlockState(markerPos).is(markerState.getBlock())) {
+                    CompanyRoomData.get(serverLevel).removeArea(
+                            FacilityAreaType.ELEVATOR, dimension, markerPos);
+                }
+            });
+        }
+        super.setRemoved();
+    }
+
+    private void syncArea(ServerLevel level) {
+        CompanyRoomData data = CompanyRoomData.get(level);
+        FacilityAreaEntry area = data.getOrCreateArea(
+                level.dimension().location(), worldPosition, FacilityAreaType.ELEVATOR);
+        area.markerPos = worldPosition.immutable();
+        area.setBounds(worldPosition.offset(-3, 0, -3), worldPosition.offset(3, 2, 3));
+        area.departmentId = "";
+        area.type = FacilityAreaType.ELEVATOR;
+        area.groupId = "shaft:" + worldPosition.getX() + ":" + worldPosition.getZ();
+        data.putArea(area);
+    }
+
     public static void serverTick(Level level, BlockPos pos, BlockState state, ElevatorBlockEntity be) {
         if (level.isClientSide()) return;
-        be.tickDwellDetection(level, pos);
-        if (!be.isActive) return;
-
-        be.executeReadyTeleports(level, pos, level.getGameTime());
+        if (be.isActive && level.getGameTime() - be.activatedTick >= be.animationDuration) {
+            be.isActive = false;
+            be.activatedTick = -1L;
+            be.syncToClient();
+        }
     }
 
+    /** Compatibility entry point for old callers that still use the saved default direction. */
+    @Deprecated
     public void onStep(LivingEntity entity) {
-        Level level = entity.level();
-        if (level.isClientSide()) return;
-        if (!getDetectionBox(getBlockPos()).intersects(entity.getBoundingBox())) return;
-
-        long currentTick = level.getGameTime();
-        cleanupExpiredCooldowns(currentTick);
-        if (isOnTeleportCooldown(entity, currentTick)) {
-            this.entitiesInRangeSince.remove(entity.getUUID());
-            return;
-        }
-
-        this.entitiesInRangeSince.putIfAbsent(entity.getUUID(), currentTick);
-        beginActivation(currentTick);
+        tryTravel(entity, teleportUp);
     }
 
-    private void tickDwellDetection(Level level, BlockPos pos) {
-        long currentTick = level.getGameTime();
-        cleanupExpiredCooldowns(currentTick);
+    public TravelResult tryTravel(LivingEntity entity, boolean up) {
+        Level entityLevel = entity.level();
+        if (!(entityLevel instanceof ServerLevel serverLevel)
+                || entityLevel != level || !entity.isAlive()) {
+            return TravelResult.INVALID_ENTITY;
+        }
+        if (!isWithinInteractionRange(entity)) return TravelResult.TOO_FAR;
 
-        List<LivingEntity> entities = level.getEntitiesOfClass(
-                LivingEntity.class,
-                getDetectionBox(pos),
-                entity -> entity.isAlive() && !isOnTeleportCooldown(entity, currentTick)
-        );
-        if (entities.isEmpty()) {
-            resetActivation();
-            return;
+        long currentTick = entityLevel.getGameTime();
+        if (entity.getPersistentData().getLong(COOLDOWN_TAG) > currentTick) {
+            return TravelResult.COOLDOWN;
         }
 
-        Set<UUID> currentEntities = entities.stream()
-                .map(LivingEntity::getUUID)
-                .collect(Collectors.toSet());
-        entitiesInRangeSince.keySet().removeIf(uuid -> !currentEntities.contains(uuid));
+        BlockPos destination = findDestinationElevatorServer(serverLevel, up);
+        if (destination == null) return TravelResult.NO_DESTINATION;
 
-        for (LivingEntity entity : entities) {
-            entitiesInRangeSince.putIfAbsent(entity.getUUID(), currentTick);
+        Vec3 landing = new Vec3(destination.getX() + 0.5D, destination.getY() + 1.0D,
+                destination.getZ() + 0.5D);
+        AABB landingBox = entity.getDimensions(Pose.STANDING).makeBoundingBox(landing);
+        if (!serverLevel.getWorldBorder().isWithinBounds(landingBox)
+                || !serverLevel.noCollision(entity, landingBox)) {
+            return TravelResult.BLOCKED_DESTINATION;
         }
 
-        beginActivation(currentTick);
-    }
-
-    private void beginActivation(long currentTick) {
-        if (this.isActive) return;
-
-        this.isActive = true;
-        this.activatedTick = currentTick;
+        isActive = true;
+        activatedTick = currentTick;
         syncToClient();
-    }
-
-    private boolean hasEntityStayedLongEnough(LivingEntity entity, long currentTick) {
-        Long startTick = entitiesInRangeSince.get(entity.getUUID());
-        return startTick != null && currentTick - startTick >= DELAY_TICKS;
-    }
-
-    private static boolean isOnTeleportCooldown(LivingEntity entity, long currentTick) {
-        Long cooldownUntil = TELEPORT_COOLDOWNS.get(entity.getUUID());
-        return cooldownUntil != null && cooldownUntil > currentTick;
-    }
-
-    private static void startTeleportCooldown(LivingEntity entity, long currentTick) {
-        TELEPORT_COOLDOWNS.put(entity.getUUID(), currentTick + TELEPORT_COOLDOWN_TICKS);
-    }
-
-    private static void cleanupExpiredCooldowns(long currentTick) {
-        TELEPORT_COOLDOWNS.entrySet().removeIf(entry -> entry.getValue() <= currentTick);
-    }
-
-    private void resetActivation() {
-        boolean wasActive = this.isActive;
-        this.isActive = false;
-        this.activatedTick = -1;
-        this.entitiesInRangeSince.clear();
-        if (wasActive) {
-            syncToClient();
+        entity.getPersistentData().putLong(COOLDOWN_TAG, currentTick + TELEPORT_COOLDOWN_TICKS);
+        // A passenger's position is owned by its vehicle. Teleporting without
+        // dismounting lets the next vehicle tick pull the rider back to the old floor.
+        if (entity.isPassenger()) entity.stopRiding();
+        entity.teleportTo(landing.x, landing.y, landing.z);
+        entity.setDeltaMovement(Vec3.ZERO);
+        entity.resetFallDistance();
+        if (entityLevel.getBlockEntity(destination) instanceof ElevatorBlockEntity target) {
+            target.isActive = true;
+            target.activatedTick = currentTick;
+            target.syncToClient();
         }
-    }
-
-    private void executeReadyTeleports(Level level, BlockPos pos, long currentTick) {
-        AABB detectionBox = getDetectionBox(pos);
-        List<LivingEntity> entities = level.getEntitiesOfClass(
-                LivingEntity.class,
-                detectionBox,
-                entity -> entity.isAlive() && hasEntityStayedLongEnough(entity, currentTick)
-        );
-        BlockPos targetElevatorPos = findDestinationElevator(level);
-        for (LivingEntity entity : entities) {
-            if (targetElevatorPos == null) {
-                entitiesInRangeSince.remove(entity.getUUID());
-                continue;
-            }
-            entity.teleportTo(
-                    targetElevatorPos.getX() + 0.5D,
-                    targetElevatorPos.getY() + 1.0D,
-                    targetElevatorPos.getZ() + 0.5D
-            );
-            startTeleportCooldown(entity, currentTick);
-            entitiesInRangeSince.remove(entity.getUUID());
-        }
-
-        if (entitiesInRangeSince.isEmpty()) {
-            resetActivation();
-        }
+        return TravelResult.SUCCESS;
     }
 
     public BlockPos findDestinationElevator(Level level) {
-        return findNearestElevatorInDirection(level, getBlockPos());
+        return findDestinationElevator(level, teleportUp);
     }
 
-    private BlockPos findNearestElevatorInDirection(Level level, BlockPos pos) {
-        int step = this.teleportUp ? 1 : -1;
-        BlockPos nearest = null;
-        double nearestDistance = Double.MAX_VALUE;
-        for (int y = pos.getY() + step; y >= level.getMinBuildHeight() && y < level.getMaxBuildHeight(); y += step) {
+    public BlockPos findDestinationElevator(Level level, boolean up) {
+        if (level instanceof ServerLevel serverLevel) {
+            return findDestinationElevatorServer(serverLevel, up);
+        }
+        return rankedPositions(getBlockPos(), scanClientElevators(level, getBlockPos(), up), up)
+                .stream()
+                .filter(candidate -> level.getBlockEntity(candidate) instanceof ElevatorBlockEntity)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private BlockPos findDestinationElevatorServer(ServerLevel level, boolean up) {
+        java.util.Set<BlockPos> candidates = new java.util.HashSet<>(ElevatorRegistry.positions(level));
+        CompanyRoomData.get(level).getAreas(level.dimension().location()).stream()
+                .filter(area -> area.type == FacilityAreaType.ELEVATOR)
+                .map(area -> area.markerPos)
+                .forEach(candidates::add);
+
+        int probes = 0;
+        for (BlockPos candidate : rankedPositions(getBlockPos(), candidates, up)) {
+            if (level.isOutsideBuildHeight(candidate)) continue;
+            if (++probes > MAX_DESTINATION_PROBES) break;
+            // Route discovery is read-only. Loading arbitrary registered chunks here
+            // lets repeated navigation requests turn into unbounded chunk generation.
+            if (!level.hasChunkAt(candidate)) continue;
+            if (level.getBlockEntity(candidate) instanceof ElevatorBlockEntity) {
+                return candidate.immutable();
+            }
+        }
+        return null;
+    }
+
+    private static java.util.List<BlockPos> rankedPositions(
+            BlockPos origin, Iterable<BlockPos> candidates, boolean up) {
+        java.util.Map<ElevatorRoutePlanner.Stop, BlockPos> positions = new java.util.HashMap<>();
+        for (BlockPos candidate : candidates) {
+            if (candidate == null) continue;
+            positions.put(new ElevatorRoutePlanner.Stop(
+                    candidate.getX(), candidate.getY(), candidate.getZ()), candidate.immutable());
+        }
+        ElevatorRoutePlanner.Stop originStop = new ElevatorRoutePlanner.Stop(
+                origin.getX(), origin.getY(), origin.getZ());
+        return ElevatorRoutePlanner.rank(originStop, positions.keySet(), up,
+                        DESTINATION_HORIZONTAL_RADIUS).stream()
+                .map(positions::get)
+                .toList();
+    }
+
+    private Iterable<BlockPos> scanClientElevators(Level level, BlockPos origin, boolean up) {
+        java.util.List<BlockPos> result = new java.util.ArrayList<>();
+        int startY = up ? origin.getY() + 1 : level.getMinBuildHeight();
+        int endY = up ? level.getMaxBuildHeight() - 1 : origin.getY() - 1;
+        for (int y = startY; y <= endY; y++) {
             for (int dx = -DESTINATION_HORIZONTAL_RADIUS; dx <= DESTINATION_HORIZONTAL_RADIUS; dx++) {
                 for (int dz = -DESTINATION_HORIZONTAL_RADIUS; dz <= DESTINATION_HORIZONTAL_RADIUS; dz++) {
-                    BlockPos candidate = new BlockPos(pos.getX() + dx, y, pos.getZ() + dz);
-                    if (level.getBlockEntity(candidate) instanceof ElevatorBlockEntity) {
-                        double distance = candidate.distSqr(pos);
-                        if (distance < nearestDistance) {
-                            nearestDistance = distance;
-                            nearest = candidate;
-                        }
-                    }
+                    BlockPos candidate = new BlockPos(origin.getX() + dx, y, origin.getZ() + dz);
+                    if (level.getBlockEntity(candidate) instanceof ElevatorBlockEntity) result.add(candidate);
                 }
             }
         }
-        return nearest;
+        return result;
     }
 
-    private AABB getDetectionBox(BlockPos pos) {
-        double centerX = pos.getX() + 0.5D;
-        double centerZ = pos.getZ() + 0.5D;
-        return new AABB(
-                centerX - DETECTION_HORIZONTAL_RADIUS, pos.getY(), centerZ - DETECTION_HORIZONTAL_RADIUS,
-                centerX + DETECTION_HORIZONTAL_RADIUS, pos.getY() + 2.5D, centerZ + DETECTION_HORIZONTAL_RADIUS
-        );
+    public boolean isWithinInteractionRange(LivingEntity entity) {
+        Vec3 elevatorCenter = Vec3.atCenterOf(getBlockPos().above());
+        return entity.position().distanceToSqr(elevatorCenter) <= INTERACTION_RADIUS_SQR;
+    }
+
+    public enum TravelResult {
+        SUCCESS,
+        TOO_FAR,
+        COOLDOWN,
+        NO_DESTINATION,
+        LOCKED_AREA,
+        BLOCKED_DESTINATION,
+        INVALID_ENTITY
     }
 
     @Override
     public CompoundTag getUpdateTag() {
         CompoundTag tag = new CompoundTag();
-        tag.putBoolean("isActive", this.isActive);
-        tag.putInt("teleportDistance", this.teleportDistance);
-        tag.putBoolean("teleportUp", this.teleportUp);
-        tag.putInt("animationDuration", this.animationDuration);
+        tag.putBoolean("isActive", isActive);
+        tag.putInt("teleportDistance", teleportDistance);
+        tag.putBoolean("teleportUp", teleportUp);
+        tag.putInt("animationDuration", animationDuration);
         return tag;
     }
 
@@ -205,13 +234,14 @@ public class ElevatorBlockEntity extends BaseGeoBlockEntity {
     }
 
     @Override
-    public void onDataPacket(net.minecraft.network.Connection connection, net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket pkt) {
+    public void onDataPacket(net.minecraft.network.Connection connection,
+                             net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket pkt) {
         CompoundTag tag = pkt.getTag();
         if (tag != null) {
-            this.isActive = tag.getBoolean("isActive");
-            this.teleportDistance = tag.getInt("teleportDistance");
-            this.teleportUp = tag.getBoolean("teleportUp");
-            this.animationDuration = tag.getInt("animationDuration");
+            isActive = tag.getBoolean("isActive");
+            teleportDistance = tag.getInt("teleportDistance");
+            teleportUp = tag.getBoolean("teleportUp");
+            animationDuration = tag.getInt("animationDuration");
         }
     }
 
@@ -225,30 +255,42 @@ public class ElevatorBlockEntity extends BaseGeoBlockEntity {
     @Override
     public void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);
-        tag.putInt("teleportDistance", this.teleportDistance);
-        tag.putBoolean("teleportUp", this.teleportUp);
-        tag.putInt("animationDuration", this.animationDuration);
+        tag.putInt("teleportDistance", teleportDistance);
+        tag.putBoolean("teleportUp", teleportUp);
+        tag.putInt("animationDuration", animationDuration);
     }
 
     @Override
     public void load(CompoundTag tag) {
         super.load(tag);
-        this.teleportDistance = tag.getInt("teleportDistance");
-        this.teleportUp = tag.getBoolean("teleportUp");
-        // 使用默认值40，如果NBT中没有则保持默认
-        if (tag.contains("animationDuration")) {
-            this.animationDuration = tag.getInt("animationDuration");
-        } else {
-            this.animationDuration = 40; // 确保有默认值
-        }
+        teleportDistance = tag.getInt("teleportDistance");
+        teleportUp = tag.getBoolean("teleportUp");
+        animationDuration = tag.contains("animationDuration") ? tag.getInt("animationDuration") : 40;
     }
 
-    public int getTeleportDistance() { return this.teleportDistance; }
-    public void setTeleportDistance(int distance) { this.teleportDistance = distance; }
-    public boolean isTeleportUp() { return this.teleportUp; }
-    public void setTeleportUp(boolean up) { this.teleportUp = up; }
-    public int getAnimationDuration() { return this.animationDuration; }
-    public void setAnimationDuration(int duration) { this.animationDuration = duration; }
+    public int getTeleportDistance() {
+        return teleportDistance;
+    }
+
+    public void setTeleportDistance(int distance) {
+        teleportDistance = distance;
+    }
+
+    public boolean isTeleportUp() {
+        return teleportUp;
+    }
+
+    public void setTeleportUp(boolean up) {
+        teleportUp = up;
+    }
+
+    public int getAnimationDuration() {
+        return animationDuration;
+    }
+
+    public void setAnimationDuration(int duration) {
+        animationDuration = duration;
+    }
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
@@ -256,12 +298,11 @@ public class ElevatorBlockEntity extends BaseGeoBlockEntity {
     }
 
     private PlayState predicate(AnimationState<ElevatorBlockEntity> state) {
-        if (this.isActive) {
+        if (isActive) {
             state.getController().setAnimation(ACTIVE_ANIMATION);
             return PlayState.CONTINUE;
-        } else {
-            state.getController().stop();
-            return PlayState.STOP;
         }
+        state.getController().stop();
+        return PlayState.STOP;
     }
 }

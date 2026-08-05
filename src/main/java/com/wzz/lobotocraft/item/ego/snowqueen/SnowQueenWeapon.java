@@ -6,6 +6,7 @@ import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.AiSpecialEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -27,7 +28,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
-public class SnowQueenWeapon extends BaseEgoWeapon {
+public class SnowQueenWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapon {
+    @Override public double aiSpecialAttackRange() { return 6.0D; }
     private static final UUID REACH_UUID = UUID.fromString("366d55e8-cdb7-48e7-bc95-d9a722c9faaf");
     public SnowQueenWeapon() {
         super(

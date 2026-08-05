@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.entity.abnormality;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModMobEffects;
@@ -122,13 +123,21 @@ public class EntityLeticia extends AbstractAbnormality {
         }
 
         BlockPos spawnPos = findFriendSpawnPosition(serverLevel, player.blockPosition());
+        if (spawnPos == null) return;
         boolean escapeBlockSpawn = isEscapeBlockSpawn(serverLevel, spawnPos);
         double angle = escapeBlockSpawn ? 0.0D : serverLevel.getRandom().nextDouble() * Math.PI * 2.0D;
         double distance = escapeBlockSpawn ? 0.0D : 1.0D + serverLevel.getRandom().nextDouble() * 2.0D;
+        double spawnX = spawnPos.getX() + 0.5D + Math.cos(angle) * distance;
+        double spawnZ = spawnPos.getZ() + 0.5D + Math.sin(angle) * distance;
+        if (!FacilityAccessService.isPositionOpen(serverLevel.getServer(),
+                serverLevel.dimension().location(), BlockPos.containing(spawnX, spawnPos.getY(), spawnZ))) {
+            spawnX = spawnPos.getX() + 0.5D;
+            spawnZ = spawnPos.getZ() + 0.5D;
+        }
         friend.moveTo(
-                spawnPos.getX() + 0.5D + Math.cos(angle) * distance,
+                spawnX,
                 spawnPos.getY(),
-                spawnPos.getZ() + 0.5D + Math.sin(angle) * distance,
+                spawnZ,
                 serverLevel.getRandom().nextFloat() * 360.0F,
                 0.0F
         );
@@ -145,13 +154,15 @@ public class EntityLeticia extends AbstractAbnormality {
         ParticleUtil.spawnParticles(friend, ParticleUtil.getDustParticle(0.82f, 0.35f, 0.88f, 1.4f), 24, 0.03D);
     }
 
+    @javax.annotation.Nullable
     private static BlockPos findFriendSpawnPosition(ServerLevel level, BlockPos origin) {
-        List<BlockPos> escapeBlocks = new ArrayList<>(EscapeBlockEntity.getEscapeBlocks(level.dimension()));
-        return escapeBlocks.stream()
-                .filter(pos -> level.getBlockEntity(pos) instanceof EscapeBlockEntity)
+        List<BlockPos> escapeBlocks = new ArrayList<>(FacilityAccessService.openEscapeBlocks(level));
+        BlockPos candidate = escapeBlocks.stream()
                 .min(Comparator.comparingDouble(pos -> pos.distSqr(origin)))
                 .map(BlockPos::above)
                 .orElseGet(() -> EntityUtil.findSafeGroundPositionInCompany(level, origin, 4));
+        return FacilityAccessService.isPositionOpen(level.getServer(),
+                level.dimension().location(), candidate) ? candidate : null;
     }
 
     private static boolean isEscapeBlockSpawn(ServerLevel level, BlockPos spawnPos) {

@@ -1,16 +1,12 @@
 package com.wzz.lobotocraft.network;
 
 import com.wzz.lobotocraft.logger.ModLogger;
-import com.wzz.lobotocraft.network.packet.LambdaPacket;
 import com.wzz.lobotocraft.util.ResourceUtil;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
-import java.util.UUID;
-import java.util.function.Consumer;
 
 public class MessageLoader {
 	
@@ -25,7 +21,8 @@ public class MessageLoader {
 	}
 	
 	public final SimpleChannel instance;
-	private static final String PROTOCOL_VERSION = "2";
+	// Bump whenever PacketRegistry order or any IMessage wire layout changes.
+	private static final String PROTOCOL_VERSION = "20";
 	
 	public int id = 0;
 	
@@ -47,9 +44,10 @@ public class MessageLoader {
 		instance.sendToServer(new MessageCreater(message));
 	}
 
-	public void sendToServer(ServerPlayer player, Class<?> message) {
+	@Deprecated
+	public void sendToPlayer(ServerPlayer player, Class<?> message) {
 		try {
-			instance.send(PacketDistributor.PLAYER.with(()->player), new MessageCreater((IMessage) message.newInstance()));
+			sendToPlayer(player, (IMessage) message.newInstance());
 		} catch (InstantiationException | IllegalAccessException e) {
 			ModLogger.LOGGER.error("发送包到服务器发生错误 ", e);
 		}
@@ -57,7 +55,7 @@ public class MessageLoader {
 	
 	public void sendToServer(Class<?> message) {
 		try {
-			instance.sendToServer(new MessageCreater((IMessage) message.newInstance()));
+			sendToServer((IMessage) message.newInstance());
 		} catch (InstantiationException | IllegalAccessException e) {
 			ModLogger.LOGGER.error("发送包到服务器发生错误 ", e);
 		}
@@ -84,23 +82,4 @@ public class MessageLoader {
 		instance.sendToServer(new MessageCreater(msg));
 	}
 
-	public void sendToPlayer(ServerPlayer player, Consumer<CompoundTag> logic) {
-		String actionId = UUID.randomUUID().toString();
-		CompoundTag tag = new CompoundTag();
-		logic.accept(tag);
-		LambdaPacketHandler.registerClient(actionId, (data, mc) -> logic.accept(data));
-		sendToPlayer(player, new LambdaPacket(actionId, tag));
-	}
-
-	public void sendToServer(ServerLambda lambda) {
-		String actionId = UUID.randomUUID().toString();
-		CompoundTag tag = new CompoundTag();
-		LambdaPacketHandler.registerServer(actionId, lambda);
-		sendToServer(new LambdaPacket(actionId, tag));
-	}
-
-	@FunctionalInterface
-	public interface ServerLambda {
-		void run(CompoundTag data, ServerPlayer sender);
-	}
 }

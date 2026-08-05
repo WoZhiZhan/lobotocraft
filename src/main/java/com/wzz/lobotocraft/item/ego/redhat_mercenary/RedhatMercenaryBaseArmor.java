@@ -118,6 +118,12 @@ public abstract class RedhatMercenaryBaseArmor extends BaseEgoArmor {
             player.getPersistentData().remove("isAddRedHat");
         }
 
+        @Override
+        public void onCancelled(@NotNull Player player, @NotNull CancellationReason reason) {
+            removeSpeedBoost(player);
+            player.getPersistentData().remove("isAddRedHat");
+        }
+
         private void applySpeedBoost(Player player, boolean add) {
             AttributeInstance attribute = player.getAttribute(Attributes.MOVEMENT_SPEED);
             if (attribute != null) {

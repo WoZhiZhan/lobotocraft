@@ -1,5 +1,7 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
+import com.wzz.lobotocraft.ModMain;
+
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
@@ -20,6 +22,11 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
@@ -28,6 +35,7 @@ import software.bernie.geckolib.core.object.PlayState;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 血肉偶像 (T-09-79)
@@ -38,7 +46,12 @@ import java.util.UUID;
  * - 工作21-90秒：其他玩家恢复生命和精神
  * - 工作>90秒：祷告者死亡 + 所有异想体计数器归零
  */
+@Mod.EventBusSubscriber(modid = ModMain.MODID)
 public class EntityMeatIdol extends AbstractAbnormality {
+
+    private static final String NO_GRAVITY_OWNER_TAG = "LobotocraftMeatIdolNoGravityOwner";
+    private static final String ORIGINAL_NO_GRAVITY_TAG = "LobotocraftMeatIdolOriginalNoGravity";
+    private static final ConcurrentHashMap<UUID, EntityMeatIdol> ACTIVE_USERS = new ConcurrentHashMap<>();
 
     // 正在祷告的员工UUID
     private UUID prayingPlayerUUID = null;
@@ -54,6 +67,7 @@ public class EntityMeatIdol extends AbstractAbnormality {
 
     // 治疗计时器
     private int healingTimer = 0;
+    private boolean prayingOriginalNoGravity = false;
 
     // 治疗间隔（1秒 = 20 tick）
     private static final int HEALING_INTERVAL = 20;
@@ -148,11 +162,21 @@ public class EntityMeatIdol extends AbstractAbnormality {
             player.sendSystemMessage(Component.literal("§c已有员工正在向血肉偶像祷告！"));
             return false;
         }
+        EntityMeatIdol other = ACTIVE_USERS.get(player.getUUID());
+        if (other != null && other != this && !other.isRemoved() && other.isInUse()) {
+            player.sendSystemMessage(Component.literal("§c你已经在使用另一个血肉偶像。"));
+            return false;
+        }
 
         this.prayingPlayerUUID = player.getUUID();
         this.prayingTimer = 0;
         this.damageTimer = 0;
         this.healingTimer = 0;
+        this.prayingOriginalNoGravity = player.isNoGravity();
+        player.getPersistentData().putUUID(NO_GRAVITY_OWNER_TAG, getUUID());
+        player.getPersistentData().putBoolean(ORIGINAL_NO_GRAVITY_TAG, prayingOriginalNoGravity);
+        player.setNoGravity(true);
+        ACTIVE_USERS.put(player.getUUID(), this);
 
         player.sendSystemMessage(Component.literal(
                 "§e" + player.getName().getString() + " 开始向血肉偶像祷告..."
@@ -182,6 +206,11 @@ public class EntityMeatIdol extends AbstractAbnormality {
      * 停止祷告（玩家主动取消）
      */
     @Override
+    public boolean isUsing(ServerPlayer player) {
+        return player != null && player.getUUID().equals(prayingPlayerUUID);
+    }
+
+    @Override
     public void stopUsing(ServerPlayer player) {
         if (prayingPlayerUUID == null || !prayingPlayerUUID.equals(player.getUUID())) {
             return;
@@ -190,7 +219,7 @@ public class EntityMeatIdol extends AbstractAbnormality {
         int seconds = prayingTimer / 20;
 
         // 恢复玩家状态
-        player.setNoGravity(false);
+        restoreOwnedNoGravity(player);
 
         // 检查是否可以安全取消
         if (canSafelyCancelUsing(player)) {
@@ -226,11 +255,17 @@ public class EntityMeatIdol extends AbstractAbnormality {
             ServerPlayer player = ((ServerLevel)this.level()).getServer()
                     .getPlayerList().getPlayer(prayingPlayerUUID);
 
-            if (player == null || !player.isAlive()) {
-                // 祷告者离线或死亡
+            if (player == null) {
                 resetPraying();
                 return;
             }
+            if (!player.isAlive() || player.serverLevel() != this.level()
+                    || !ownsNoGravityMarker(player)) {
+                restoreOwnedNoGravity(player);
+                resetPraying();
+                return;
+            }
+            ACTIVE_USERS.put(player.getUUID(), this);
 
             // 增加祷告时间
             prayingTimer++;
@@ -277,6 +312,7 @@ public class EntityMeatIdol extends AbstractAbnormality {
                 // 广播消息
                 broadcastMessage("§4§l警告：所有异想体的逆卡巴拉计数器已归零！");
 
+                restoreOwnedNoGravity(player);
                 resetPraying();
                 return;
             }
@@ -403,10 +439,87 @@ public class EntityMeatIdol extends AbstractAbnormality {
      * 重置祷告状态
      */
     private void resetPraying() {
+        UUID previousPlayer = prayingPlayerUUID;
         prayingPlayerUUID = null;
         prayingTimer = 0;
         damageTimer = 0;
         healingTimer = 0;
+        prayingOriginalNoGravity = false;
+        if (previousPlayer != null) ACTIVE_USERS.remove(previousPlayer, this);
+    }
+
+    private boolean ownsNoGravityMarker(ServerPlayer player) {
+        return player.getPersistentData().hasUUID(NO_GRAVITY_OWNER_TAG)
+                && getUUID().equals(player.getPersistentData().getUUID(NO_GRAVITY_OWNER_TAG));
+    }
+
+    private void restoreOwnedNoGravity(ServerPlayer player) {
+        if (player == null || !ownsNoGravityMarker(player)) return;
+        player.setNoGravity(player.getPersistentData().getBoolean(ORIGINAL_NO_GRAVITY_TAG));
+        player.getPersistentData().remove(NO_GRAVITY_OWNER_TAG);
+        player.getPersistentData().remove(ORIGINAL_NO_GRAVITY_TAG);
+    }
+
+    private void endSessionWithoutPenalty(@Nullable ServerPlayer player) {
+        if (player != null) restoreOwnedNoGravity(player);
+        resetPraying();
+    }
+
+    @Override
+    public void remove(Entity.RemovalReason reason) {
+        if (!level().isClientSide && prayingPlayerUUID != null && level() instanceof ServerLevel serverLevel) {
+            endSessionWithoutPenalty(serverLevel.getServer().getPlayerList().getPlayer(prayingPlayerUUID));
+        }
+        super.remove(reason);
+    }
+
+    @SubscribeEvent
+    public static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        EntityMeatIdol idol = ACTIVE_USERS.get(player.getUUID());
+        if (idol != null) idol.endSessionWithoutPenalty(player);
+        restoreStalePlayerMarker(player);
+    }
+
+    @SubscribeEvent
+    public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        EntityMeatIdol idol = ACTIVE_USERS.get(player.getUUID());
+        if (idol != null) idol.endSessionWithoutPenalty(player);
+        restoreStalePlayerMarker(player);
+    }
+
+    @SubscribeEvent
+    public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        EntityMeatIdol idol = ACTIVE_USERS.get(player.getUUID());
+        if (idol != null) idol.endSessionWithoutPenalty(player);
+        restoreStalePlayerMarker(player);
+    }
+
+    @SubscribeEvent
+    public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) restoreStalePlayerMarker(player);
+    }
+
+    private static void restoreStalePlayerMarker(ServerPlayer player) {
+        if (!player.getPersistentData().hasUUID(NO_GRAVITY_OWNER_TAG)) return;
+        player.setNoGravity(player.getPersistentData().getBoolean(ORIGINAL_NO_GRAVITY_TAG));
+        player.getPersistentData().remove(NO_GRAVITY_OWNER_TAG);
+        player.getPersistentData().remove(ORIGINAL_NO_GRAVITY_TAG);
+    }
+
+    @SubscribeEvent
+    public static void onServerStopping(ServerStoppingEvent event) {
+        for (var entry : ACTIVE_USERS.entrySet()) {
+            ServerPlayer player = event.getServer().getPlayerList().getPlayer(entry.getKey());
+            entry.getValue().endSessionWithoutPenalty(player);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        ACTIVE_USERS.clear();
     }
 
     @Override
@@ -477,6 +590,7 @@ public class EntityMeatIdol extends AbstractAbnormality {
         tag.putInt("PrayingTimer", prayingTimer);
         tag.putInt("DamageTimer", damageTimer);
         tag.putInt("HealingTimer", healingTimer);
+        tag.putBoolean("PrayingOriginalNoGravity", prayingOriginalNoGravity);
     }
 
     @Override
@@ -488,6 +602,7 @@ public class EntityMeatIdol extends AbstractAbnormality {
         prayingTimer = tag.getInt("PrayingTimer");
         damageTimer = tag.getInt("DamageTimer");
         healingTimer = tag.getInt("HealingTimer");
+        prayingOriginalNoGravity = tag.getBoolean("PrayingOriginalNoGravity");
     }
 
     // ==================== 可取消使用系统实现 ====================

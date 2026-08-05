@@ -1,0 +1,23 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.lobotocraft.facility.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "lobotocraft.refmap.json",
+  "mixins": [
+    "access.CompanyDailyDataAccessor",
+    "CompanyDailyDataMixin",
+    "CompanySleepHandlerMixin",
+    "CrimsonDawnEventMixin",
+    "RegenerationReactorMixin",
+    "ServerPlayerDeathMixin",
+    "WorkManagerMixin"
+  ],
+  "client": [
+    "client.WorkProgressHudMixin",
+    "client.PlayerTabOverlayMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

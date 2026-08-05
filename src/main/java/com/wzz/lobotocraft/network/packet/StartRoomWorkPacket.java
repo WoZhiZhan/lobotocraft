@@ -3,10 +3,13 @@ package com.wzz.lobotocraft.network.packet;
 import com.wzz.lobotocraft.block.entity.RoomMarkerBlockEntity;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
+import com.wzz.lobotocraft.capability.PanicType;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.network.IMessage;
 import com.wzz.lobotocraft.network.MessageLoader;
+import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.work.WorkManager;
 import com.wzz.lobotocraft.world.RoomChunkTickets;
 import net.minecraft.core.BlockPos;
@@ -62,12 +65,22 @@ public class StartRoomWorkPacket implements IMessage {
 
     @Override
     public void run(NetworkEvent.Context ctx) {
+        // This historical remote-work packet is deliberately inert. Legitimate work
+        // starts at the abnormality interaction flow and is validated there.
+        if (ctx != null) return;
         ServerPlayer player = ctx.getSender();
         if (player == null) return;
 
         ServerLevel target = player.server.getLevel(ResourceKey.create(Registries.DIMENSION, dimension));
         if (target == null) {
             player.displayClientMessage(Component.literal("§c目标维度未加载。"), true);
+            return;
+        }
+        FacilityAccessService.ContainmentAccess access = FacilityAccessService.containmentAccess(
+                player.server, dimension, roomPos);
+        if (access != FacilityAccessService.ContainmentAccess.OPEN) {
+            player.displayClientMessage(Component.literal(access == FacilityAccessService.ContainmentAccess.UNEXPANDED
+                    ? "§7该收容单元尚未扩建，无法开始工作。" : "§c该收容单元当前不可用。"), true);
             return;
         }
 
@@ -98,7 +111,8 @@ public class StartRoomWorkPacket implements IMessage {
             player.displayClientMessage(Component.literal("§c你正在进行工作，无法开始新的工作！"), true);
             return;
         }
-        if (WorkManager.isAbnormalityBeingWorked(abnormality)) {
+        if (com.wzz.lobotocraft.work.AbnormalityWorkRules.isAiEmployee(player)
+                && WorkManager.isAiEmployeeWorking(abnormality)) {
             player.displayClientMessage(Component.literal("§c已经有人在对这只异想体工作了。"), true);
             return;
         }
@@ -112,9 +126,9 @@ public class StartRoomWorkPacket implements IMessage {
         final boolean[] mentalBroken = {false};
         final boolean[] berserk = {false};
         player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
-            if (mental.isMentalValueEmpty()) {
+            if (MentalValueUtil.isPanic(mental)) {
                 mentalBroken[0] = true;
-                berserk[0] = player.getMaxHealth() > mental.getEffectiveMaxMentalValue();
+                berserk[0] = mental.getPanicType() == PanicType.BERSERK;
             }
         });
         if (mentalBroken[0]) {

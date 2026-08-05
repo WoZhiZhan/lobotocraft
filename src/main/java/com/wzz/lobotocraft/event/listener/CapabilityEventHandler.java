@@ -2,14 +2,15 @@ package com.wzz.lobotocraft.event.listener;
 
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.capability.*;
-import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
-import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
 import com.wzz.lobotocraft.init.ModItems;
+import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
+import com.wzz.lobotocraft.entity.abnormality.EntityWingBeat;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
 import com.wzz.lobotocraft.util.ItemUtil;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -90,6 +91,7 @@ public class CapabilityEventHandler {
     @SubscribeEvent
     public static void onPlayerDeath(LivingDeathEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            if (player instanceof EmployeeServerPlayer) return;
             // 备份异想体数据
             player.getCapability(PlayerAbnormalityDataProvider.PLAYER_ABNORMALITY_DATA).ifPresent(data -> {
                 CompoundTag backupData = data.serializeNBT();
@@ -118,16 +120,23 @@ public class CapabilityEventHandler {
      */
     @SubscribeEvent
     public static void onPlayerClone(PlayerEvent.Clone event) {
+        event.getOriginal().reviveCaps();
+        try {
+            copyPlayerCapabilities(event);
+        } finally {
+            event.getOriginal().invalidateCaps();
+        }
+    }
+
+    private static void copyPlayerCapabilities(PlayerEvent.Clone event) {
         UUID playerUUID = event.getEntity().getUUID();
 
-        // 检查是否因为死亡而克隆（而不是从末地返回）
-        boolean isDeath = event.isWasDeath();
-
-        // 检查游戏规则是否保留物品栏
-        boolean keepInventory = false;
-        if (event.getEntity() instanceof ServerPlayer player) {
-            keepInventory = player.level().getGameRules().getBoolean(net.minecraft.world.level.GameRules.RULE_KEEPINVENTORY);
-        }
+        // Ordinary portal travel normally reuses the same ServerPlayer, so it should preserve SP without
+        // entering this Clone path. This is a static-analysis conclusion; a real portal round trip still
+        // needs runtime validation (reported issue 6).
+        event.getOriginal().getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(oldMental ->
+                event.getEntity().getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(
+                        newMental -> newMental.copyFrom(oldMental)));
 
         // 恢复异想体数据（观察等级等，始终保留）
         CompoundTag backupData = deathBackupData.get(playerUUID);
@@ -145,44 +154,26 @@ public class CapabilityEventHandler {
             });
         }
 
-        // 异想体机制处决(如银河之子计数器归零)致死时,不应触发死亡属性清空惩罚
-        boolean abnormalityExecuted = event.getOriginal().getPersistentData()
-                .getBoolean("lobotocraft_abnormality_executed");
-
-        // 员工属性的处理：非死亡克隆、开启keepInventory、或异想体处决致死时恢复
-        if (!isDeath || keepInventory || abnormalityExecuted) {
-            // 从末地返回、开启了keepInventory、或被异想体机制处决，恢复员工属性
-            CompoundTag backupStats = deathBackupStats.get(playerUUID);
-            if (backupStats != null) {
-                event.getEntity().getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(newStats -> {
-                    if (newStats instanceof EmployeeStats employeeStats) {
-                        employeeStats.loadFromNBT(backupStats);
-                    }
-                });
-                deathBackupStats.remove(playerUUID);
-            } else {
-                event.getOriginal().getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(oldStats -> {
-                    event.getEntity().getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(newStats -> {
-                        if (oldStats instanceof EmployeeStats oldEmployeeStats &&
-                                newStats instanceof EmployeeStats newEmployeeStats) {
-                            newEmployeeStats.copyFrom(oldEmployeeStats);
-                        }
-                    });
-                });
-            }
-        } else if (CoreSuppressionManager.hasReward(event.getOriginal(), CoreSuppressionType.HOD)) {
-            CompoundTag backupStats = deathBackupStats.get(playerUUID);
+        // Trained human-player stats survive every ServerPlayer replacement,
+        // independently of keepInventory and the cause of death.
+        CompoundTag backupStats = deathBackupStats.remove(playerUUID);
+        if (backupStats != null) {
             event.getEntity().getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(newStats -> {
                 if (newStats instanceof EmployeeStats employeeStats) {
-                    if (backupStats != null) employeeStats.loadFromNBT(backupStats);
-                    CoreSuppressionManager.retainHodDeathStats(event.getOriginal(), employeeStats);
+                    employeeStats.loadFromNBT(backupStats);
                 }
             });
-            deathBackupStats.remove(playerUUID);
         } else {
-            deathBackupStats.remove(playerUUID);
+            event.getOriginal().getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(oldStats -> {
+                event.getEntity().getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(newStats -> {
+                    if (oldStats instanceof EmployeeStats oldEmployeeStats
+                            && newStats instanceof EmployeeStats newEmployeeStats) {
+                        newEmployeeStats.copyFrom(oldEmployeeStats);
+                    }
+                });
+            });
         }
-        // 清除处决标记,避免影响后续的正常死亡惩罚
+        // The legacy execution marker is one-shot state and must not leak into a later life.
         event.getEntity().getPersistentData().remove("lobotocraft_abnormality_executed");
         event.getOriginal().getPersistentData().remove("lobotocraft_abnormality_executed");
 
@@ -215,6 +206,7 @@ public class CapabilityEventHandler {
     @SubscribeEvent
     public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            EntityWingBeat.recoverOrClearSession(player);
             syncDailyToClient(player);
         }
     }
@@ -225,9 +217,16 @@ public class CapabilityEventHandler {
     @SubscribeEvent
     public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            syncDailyToClient(player);
+            // Respawn packets, level data and the inventory menu are still being
+            // flushed around the dimension change event. Send capability state
+            // on the next server tick so it cannot overtake that vanilla batch.
+            DimensionSyncCoordinator.schedule(player);
             // 玩家切换维度时,精灵盛宴的祝福随之失效,清除标记避免回来后误触机制杀
-            player.getPersistentData().putBoolean("isInWingBeat", false);
+            boolean wasActive = player.getPersistentData().getBoolean(EntityWingBeat.ACTIVE_FLAG);
+            EntityWingBeat.clearSession(player);
+            if (wasActive) {
+                player.sendSystemMessage(Component.literal("§a精灵的舞会结束了..."));
+            }
         }
     }
 
@@ -237,11 +236,19 @@ public class CapabilityEventHandler {
     @SubscribeEvent
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            EntityWingBeat.recoverOrClearSession(player);
             syncDailyToClient(player);
         }
     }
 
-    private static void syncDailyToClient(ServerPlayer player) {
+    @SubscribeEvent
+    public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            EntityWingBeat.clearSession(player);
+        }
+    }
+
+    static void syncDailyToClient(ServerPlayer player) {
         player.getCapability(CompanyDailyDataProvider.COMPANY_DAILY_DATA).ifPresent(data -> {
             MessageLoader.getLoader().sendToPlayer(player,
                     new CompanyDailySyncPacket(

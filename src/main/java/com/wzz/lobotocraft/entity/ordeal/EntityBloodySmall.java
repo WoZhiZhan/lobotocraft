@@ -48,7 +48,7 @@ import java.util.UUID;
 /**
  * 血色的黎明 - "开始欢呼吧！"
  */
-public class EntityBloodySmall extends BaseGeoEntity {
+public class EntityBloodySmall extends BaseGeoEntity implements OrdealEntity {
     private static final int TELEPORT_INTERVAL = 20 * 20;
     private static final int NOTICE_COOLDOWN_TICKS = 10 * 20;
     private static final double ABNORMALITY_NOTICE_RANGE_SQR = 8.0D * 8.0D;
