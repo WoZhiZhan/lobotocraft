@@ -2,10 +2,13 @@ package com.wzz.lobotocraft.client.screen;
 
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.IEmployeeStats;
+import com.wzz.lobotocraft.client.compat.YsmClientCompat;
 import com.wzz.lobotocraft.client.ui.LobotomyButton;
 import com.wzz.lobotocraft.client.ui.LobotomyUiRenderer;
 import com.wzz.lobotocraft.client.ui.LobotomyUiTheme;
+import com.wzz.lobotocraft.compat.ysm.YsmModelCatalog;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
+import com.wzz.lobotocraft.employee.EmployeeAppearance;
 import com.wzz.lobotocraft.employee.PlayerProfileService;
 import com.wzz.lobotocraft.item.ego.base.IEgoArmor;
 import com.wzz.lobotocraft.item.ego.base.IEgoLevelItem;
@@ -16,6 +19,7 @@ import com.wzz.lobotocraft.network.packet.RequestFacilityManagementPacket;
 import com.wzz.lobotocraft.network.packet.RequestLlmConfigPacket;
 import com.wzz.lobotocraft.network.packet.OpenEmployeeWarehousePacket;
 import com.wzz.lobotocraft.network.packet.RequestPlayerProfilePacket;
+import com.wzz.lobotocraft.network.packet.SetEmployeeAppearancePacket;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
@@ -163,6 +167,7 @@ public final class FacilityManagementScreen extends Screen {
     private UUID selectedAiEmployee;
     private String selectedAiName = "";
     private LobotomyButton departmentButton;
+    private LobotomyButton appearanceButton;
     private static UUID rememberedAiEmployee;
 
     public FacilityManagementScreen(CompoundTag snapshot) {
@@ -174,6 +179,7 @@ public final class FacilityManagementScreen extends Screen {
     public void updateSnapshot(CompoundTag updated) {
         UUID keep = selectedAiEmployee;
         snapshot = updated.copy();
+        employeeRows = null;
         selectedAiEmployee = null;
         selectedAiName = "";
         if (keep != null) rememberedAiEmployee = keep;
@@ -204,6 +210,17 @@ public final class FacilityManagementScreen extends Screen {
                         panelY + 43, identityWidth, 18).build();
         identity.setTooltip(Tooltip.create(Component.literal("选择玩家部门归属")));
         addRenderableWidget(identity);
+        if (snapshot.getBoolean("CanManageAi")) {
+            int appearanceWidth = panelWidth >= 520 ? 58 : 48;
+            appearanceButton = LobotomyButton.create(
+                            Component.literal("外观"), button -> openAppearanceScreen())
+                    .bounds(profileRight - specialWidth - identityWidth - appearanceWidth - 18,
+                            panelY + 43, appearanceWidth, 18).build();
+            appearanceButton.setTooltip(Tooltip.create(
+                    Component.literal("更换所选AI员工的YSM外观")));
+            appearanceButton.active = canEditSelectedAppearance();
+            addRenderableWidget(appearanceButton);
+        }
         if (snapshot.getBoolean("CanRecruit")) {
             LobotomyButton warehouse = LobotomyButton.create(Component.literal("仓库"), button ->
                             MessageLoader.getLoader().sendToServer(new OpenEmployeeWarehousePacket()))
@@ -261,6 +278,7 @@ public final class FacilityManagementScreen extends Screen {
                 llmEnabled ? LobotomyUiTheme.ACCENT : LobotomyUiTheme.TEXT_MUTED);
         renderTabs(graphics, mouseX, mouseY);
         if (departmentButton != null) departmentButton.active = hasAiEmployees();
+        if (appearanceButton != null) appearanceButton.active = canEditSelectedAppearance();
 
         int listTop = panelY + HEADER_HEIGHT + 30;
         int listBottom = panelY + panelHeight - 14;
@@ -779,6 +797,38 @@ public final class FacilityManagementScreen extends Screen {
     private void openDepartmentScreen() {
         if (!hasAiEmployees()) return;
         minecraft.setScreen(new DepartmentAssignmentScreen(snapshot, selectedAiEmployee));
+    }
+
+    private void openAppearanceScreen() {
+        if (!canEditSelectedAppearance()) return;
+        EmployeeAppearance current = selectedAppearance();
+        String provider = snapshot.getString("YsmProvider");
+        if (provider.isBlank() && !current.isDefault()) provider = current.provider();
+        YsmModelCatalog catalog = YsmModelCatalog.readFrom(snapshot);
+        String selectedProvider = provider;
+        minecraft.setScreen(new YsmEmployeeModelScreen(this, selectedProvider, catalog, current,
+                selected -> {
+                    MessageLoader.getLoader().sendToServer(
+                            new SetEmployeeAppearancePacket(selectedAiEmployee, selected));
+                    minecraft.setScreen(this);
+                }));
+    }
+
+    private boolean canEditSelectedAppearance() {
+        if (!snapshot.getBoolean("CanManageAi") || selectedAiEmployee == null) return false;
+        EmployeeAppearance current = selectedAppearance();
+        String provider = snapshot.getString("YsmProvider");
+        YsmModelCatalog catalog = YsmModelCatalog.readFrom(snapshot);
+        boolean catalogUsable = snapshot.getBoolean("YsmAvailable")
+                && YsmClientCompat.isAvailable(provider)
+                && (!catalog.authoritative() || !catalog.keys().isEmpty());
+        return catalogUsable || !current.isDefault();
+    }
+
+    private EmployeeAppearance selectedAppearance() {
+        CompoundTag employee = selectedEmployeeEntry();
+        return employee == null ? EmployeeAppearance.DEFAULT
+                : EmployeeAppearance.load(employee.getCompound("Appearance"));
     }
 
     private boolean hasAiEmployees() {

@@ -65,6 +65,7 @@ import com.wzz.lobotocraft.network.packet.RoomWorkCandidatesPacket;
 import com.wzz.lobotocraft.network.packet.RoomTeleportRequestPacket;
 import com.wzz.lobotocraft.network.packet.ScreenDistortionEffectPacket;
 import com.wzz.lobotocraft.network.packet.SetElevatorPacket;
+import com.wzz.lobotocraft.network.packet.SetEmployeeAppearancePacket;
 import com.wzz.lobotocraft.network.packet.SetFloorNamePacket;
 import com.wzz.lobotocraft.network.packet.SetPlayerDepartmentPacket;
 import com.wzz.lobotocraft.network.packet.SetSpecialEgoPacket;
@@ -197,7 +198,8 @@ public final class PacketRegistry {
             OpenPlayerProfilePacket.class,
             SetPlayerDepartmentPacket.class,
             SetSpecialEgoPacket.class,
-            PlayerDepartmentSyncPacket.class);
+            PlayerDepartmentSyncPacket.class,
+            SetEmployeeAppearancePacket.class);
 
     /** Class -> id 的缓存，用 IdentityHashMap（Class 用引用相等即可，避免 equals/hashCode 开销）。 */
     private static final Map<Class<?>, Integer> ID_BY_CLASS = new IdentityHashMap<>();

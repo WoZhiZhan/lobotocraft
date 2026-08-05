@@ -22,7 +22,7 @@ public class MessageLoader {
 	
 	public final SimpleChannel instance;
 	// Bump whenever PacketRegistry order or any IMessage wire layout changes.
-	private static final String PROTOCOL_VERSION = "21";
+	private static final String PROTOCOL_VERSION = "22";
 	
 	public int id = 0;
 	

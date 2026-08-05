@@ -73,6 +73,12 @@ import java.util.Optional;
 
 @Mod.EventBusSubscriber(modid = ModMain.MODID)
 public final class EmployeeRuntimeManager {
+    public enum AppearanceChangeResult {
+        APPLIED,
+        BUSY,
+        FAILED
+    }
+
     private static final double MOVE_ARRIVAL_DISTANCE = 0.75D;
     private static final int IDLE_WANDER_ATTEMPTS = 32;
     private static final int IDLE_WANDER_MIN_DELAY = 100;
@@ -340,6 +346,52 @@ public final class EmployeeRuntimeManager {
         employee.setCustomName(departmentDisplayName(record));
         employee.refreshDisplayName();
         employee.refreshTabListName();
+    }
+
+    /** Recreates an idle synthetic player so YSM publishes its new capability to all trackers. */
+    public static AppearanceChangeResult changeAppearance(MinecraftServer server,
+                                                          EmployeeRecord record,
+                                                          EmployeeAppearance appearance) {
+        if (server == null || record == null || record.retired()) {
+            return AppearanceChangeResult.FAILED;
+        }
+        EmployeeAppearance clean = appearance == null
+                ? EmployeeAppearance.DEFAULT : appearance.sanitized();
+        if (record.appearance().equals(clean)) return AppearanceChangeResult.APPLIED;
+
+        RuntimeEmployee runtime = ACTIVE.get(record.id());
+        if (runtime == null) {
+            record.setAppearance(clean);
+            FacilityPersonnelData.get(server).changed();
+            return AppearanceChangeResult.APPLIED;
+        }
+        EmployeeServerPlayer player = runtime.player;
+        if (player.isRemoved() || !player.isAlive() || runtime.order != null
+                || runtime.panicking || MentalValueUtil.isPanic(player)
+                || WorkManager.isPlayerWorking(player)) {
+            return AppearanceChangeResult.BUSY;
+        }
+
+        EmployeeAppearance previous = record.appearance();
+        saveRuntime(runtime);
+        if (!ACTIVE.remove(record.id(), runtime)) return AppearanceChangeResult.FAILED;
+
+        player.serverLevel().removePlayerImmediately(player, Entity.RemovalReason.DISCARDED);
+        ClientboundPlayerInfoRemovePacket remove = new ClientboundPlayerInfoRemovePacket(
+                List.of(record.id()));
+        for (ServerPlayer viewer : server.getPlayerList().getPlayers()) {
+            viewer.connection.send(remove);
+        }
+
+        record.setAppearance(clean);
+        FacilityPersonnelData data = FacilityPersonnelData.get(server);
+        data.changed();
+        if (spawn(server, record) != null) return AppearanceChangeResult.APPLIED;
+
+        record.setAppearance(previous);
+        if (spawn(server, record) == null) record.setDeployed(false);
+        data.changed();
+        return AppearanceChangeResult.FAILED;
     }
 
     static Component departmentDisplayName(EmployeeRecord record) {
