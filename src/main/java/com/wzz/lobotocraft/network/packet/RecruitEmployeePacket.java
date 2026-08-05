@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.network.packet;
 
+import com.wzz.lobotocraft.employee.EmployeeAppearance;
 import com.wzz.lobotocraft.employee.FacilityManagementService;
 import com.wzz.lobotocraft.employee.RecruitmentService;
 import com.wzz.lobotocraft.network.IMessage;
@@ -15,6 +16,7 @@ public final class RecruitEmployeePacket implements IMessage {
     private int temperance;
     private int justice;
     private String persona;
+    private EmployeeAppearance appearance = EmployeeAppearance.DEFAULT;
 
     public RecruitEmployeePacket() {
     }
@@ -25,12 +27,18 @@ public final class RecruitEmployeePacket implements IMessage {
 
     public RecruitEmployeePacket(String name, int fortitude, int prudence, int temperance, int justice,
                                  String persona) {
+        this(name, fortitude, prudence, temperance, justice, persona, EmployeeAppearance.DEFAULT);
+    }
+
+    public RecruitEmployeePacket(String name, int fortitude, int prudence, int temperance, int justice,
+                                 String persona, EmployeeAppearance appearance) {
         this.name = name;
         this.fortitude = fortitude;
         this.prudence = prudence;
         this.temperance = temperance;
         this.justice = justice;
         this.persona = persona;
+        this.appearance = appearance == null ? EmployeeAppearance.DEFAULT : appearance.sanitized();
     }
 
     @Override
@@ -41,6 +49,11 @@ public final class RecruitEmployeePacket implements IMessage {
         temperance = buffer.readVarInt();
         justice = buffer.readVarInt();
         persona = buffer.readUtf(RecruitmentService.MAX_PERSONA_UTF16_LENGTH);
+        appearance = new EmployeeAppearance(
+                buffer.readUtf(EmployeeAppearance.MAX_PROVIDER_LENGTH),
+                buffer.readUtf(EmployeeAppearance.MAX_MODEL_ID_LENGTH),
+                buffer.readUtf(EmployeeAppearance.MAX_MODEL_PATH_LENGTH),
+                buffer.readUtf(EmployeeAppearance.MAX_TEXTURE_ID_LENGTH)).sanitized();
     }
 
     @Override
@@ -52,6 +65,12 @@ public final class RecruitEmployeePacket implements IMessage {
         buffer.writeVarInt(justice);
         buffer.writeUtf(persona == null ? "" : persona,
                 RecruitmentService.MAX_PERSONA_UTF16_LENGTH);
+        EmployeeAppearance clean = appearance == null
+                ? EmployeeAppearance.DEFAULT : appearance.sanitized();
+        buffer.writeUtf(clean.provider(), EmployeeAppearance.MAX_PROVIDER_LENGTH);
+        buffer.writeUtf(clean.modelId(), EmployeeAppearance.MAX_MODEL_ID_LENGTH);
+        buffer.writeUtf(clean.modelPath(), EmployeeAppearance.MAX_MODEL_PATH_LENGTH);
+        buffer.writeUtf(clean.textureId(), EmployeeAppearance.MAX_TEXTURE_ID_LENGTH);
     }
 
     @Override
@@ -64,7 +83,7 @@ public final class RecruitEmployeePacket implements IMessage {
         ServerPlayer sender = context.getSender();
         if (sender == null) return;
         RecruitmentService.Result result = RecruitmentService.recruit(sender, name,
-                fortitude, prudence, temperance, justice, persona);
+                fortitude, prudence, temperance, justice, persona, appearance);
         if (!result.success()) {
             sender.sendSystemMessage(Component.literal("§c" + result.message()));
             FacilityManagementService.open(sender);

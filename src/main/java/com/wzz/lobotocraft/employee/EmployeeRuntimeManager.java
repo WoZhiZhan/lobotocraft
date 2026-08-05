@@ -7,6 +7,7 @@ import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.capability.PanicType;
+import com.wzz.lobotocraft.compat.ysm.YsmEmployeeCompat;
 import com.wzz.lobotocraft.ego.AiEgoRepositoryData;
 import com.wzz.lobotocraft.ego.EgoLoadoutService;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
@@ -91,12 +92,21 @@ public final class EmployeeRuntimeManager {
     public static EmployeeRecord createAndSpawn(ServerPlayer owner, String name, EmployeeDepartment department,
                                                 int fortitude, int prudence,
                                                 int temperance, int justice) {
+        return createAndSpawn(owner, name, department, fortitude, prudence, temperance, justice,
+                EmployeeAppearance.DEFAULT);
+    }
+
+    public static EmployeeRecord createAndSpawn(ServerPlayer owner, String name, EmployeeDepartment department,
+                                                int fortitude, int prudence,
+                                                int temperance, int justice,
+                                                EmployeeAppearance appearance) {
         FacilityPersonnelData data = FacilityPersonnelData.get(owner.server);
         EmployeeRecord record = data.create(name,
                 DepartmentProgressService.isOpen(owner.server, department)
                         ? department : EmployeeDepartment.UNASSIGNED);
         if (record == null) return null;
         record.setStats(fortitude, prudence, temperance, justice);
+        record.setAppearance(appearance);
         record.setPosition(owner.serverLevel().dimension().location(), owner.getX(), owner.getY(), owner.getZ());
         record.setDeployed(true);
         data.changed();
@@ -114,7 +124,11 @@ public final class EmployeeRuntimeManager {
                 new GameProfile(record.id(), profileName(record)), record);
         CompoundTag saved = record.playerData();
         boolean restored = !saved.isEmpty();
-        if (restored) employee.load(saved);
+        if (!restored && YsmEmployeeCompat.isAvailable()) {
+            employee.saveWithoutId(saved);
+        }
+        boolean ysmPrepared = YsmEmployeeCompat.preparePlayerData(record, saved);
+        if (restored || ysmPrepared) employee.load(saved);
         employee.absMoveTo(record.x(), record.y(), record.z(), 0.0F, 0.0F);
         employee.setCustomName(departmentDisplayName(record));
         employee.setCustomNameVisible(true);

@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.EmployeeLevelCalculator;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
+import com.wzz.lobotocraft.compat.ysm.YsmEmployeeCompat;
 import com.wzz.lobotocraft.ego.AiEgoRepositoryData;
 import com.wzz.lobotocraft.ego.EgoLoadoutService;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
@@ -73,6 +74,9 @@ public final class FacilityManagementService {
         snapshot.putBoolean("LlmEnabled", LlmDispatchService.enabled());
         snapshot.putBoolean("CanManageAi", viewer.hasPermissions(2));
         snapshot.putBoolean("CanRecruit", viewer.hasPermissions(2));
+        String ysmProvider = YsmEmployeeCompat.activeProvider();
+        snapshot.putBoolean("YsmAvailable", !ysmProvider.isEmpty());
+        snapshot.putString("YsmProvider", ysmProvider);
         snapshot.putBoolean("CanConfigureLlm", viewer.hasPermissions(
                 com.wzz.lobotocraft.llm.LlmConfigService.CONFIG_PERMISSION_LEVEL));
         snapshot.put("DepartmentProgress", DepartmentProgressService.snapshot(viewer));
@@ -129,6 +133,9 @@ public final class FacilityManagementService {
             entry.putInt("Prudence", record.prudence());
             entry.putInt("Temperance", record.temperance());
             entry.putInt("Justice", record.justice());
+            if (!record.appearance().isDefault()) {
+                entry.put("Appearance", record.appearance().save());
+            }
             float baseMaxHealth = Math.max(20.0F, record.fortitude());
             float baseMaxMental = Math.max(20.0F, record.prudence());
             entry.putFloat("BaseMaxHealth", baseMaxHealth);

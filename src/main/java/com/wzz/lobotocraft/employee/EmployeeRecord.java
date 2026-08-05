@@ -24,6 +24,7 @@ public final class EmployeeRecord {
     private double y;
     private double z;
     private boolean deployed;
+    private EmployeeAppearance appearance = EmployeeAppearance.DEFAULT;
     // 显式的、不可逆的死亡/退休墓碑标志。死亡是不可逆事件，必须立即显式持久化，
     // 不能依赖延迟落盘或从 Health 推断（否则崩溃/强杀后会复活已死员工）。
     private boolean retired;
@@ -54,6 +55,7 @@ public final class EmployeeRecord {
     public double y() { return y; }
     public double z() { return z; }
     public boolean deployed() { return deployed; }
+    public EmployeeAppearance appearance() { return appearance; }
     public boolean retired() { return retired; }
     public CompoundTag playerData() { return playerData.copy(); }
     public ResourceLocation manualStationDimension() {
@@ -75,6 +77,10 @@ public final class EmployeeRecord {
 
     public void setDeployed(boolean deployed) {
         this.deployed = deployed;
+    }
+
+    public void setAppearance(EmployeeAppearance appearance) {
+        this.appearance = appearance == null ? EmployeeAppearance.DEFAULT : appearance.sanitized();
     }
 
     public void setManualStation(ResourceLocation dimension, BlockPos position) {
@@ -135,6 +141,7 @@ public final class EmployeeRecord {
         tag.putDouble("Y", y);
         tag.putDouble("Z", z);
         tag.putBoolean("Deployed", deployed);
+        if (!appearance.isDefault()) tag.put("Appearance", appearance.save());
         tag.putBoolean("Retired", retired);
         tag.put("PlayerData", playerData.copy());
         if (manualStationPos != null && !manualStationDimension.isBlank()) {
@@ -164,6 +171,7 @@ public final class EmployeeRecord {
         record.y = tag.getDouble("Y");
         record.z = tag.getDouble("Z");
         record.deployed = tag.getBoolean("Deployed");
+        record.appearance = EmployeeAppearance.load(tag.getCompound("Appearance"));
         // 老存档没有该字段时 getBoolean 默认返回 false，向后兼容。
         record.retired = tag.getBoolean("Retired");
         record.playerData = tag.getCompound("PlayerData").copy();

@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.employee;
 
 import com.wzz.lobotocraft.capability.EmployeeStats;
+import com.wzz.lobotocraft.compat.ysm.YsmEmployeeCompat;
 import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.item.PEBoxItem;
 import net.minecraft.server.level.ServerPlayer;
@@ -25,6 +26,13 @@ public final class RecruitmentService {
     public static Result recruit(ServerPlayer recruiter, String requestedName, int fortitudeLevel,
                                  int prudenceLevel, int temperanceLevel, int justiceLevel,
                                  String requestedPersona) {
+        return recruit(recruiter, requestedName, fortitudeLevel, prudenceLevel,
+                temperanceLevel, justiceLevel, requestedPersona, EmployeeAppearance.DEFAULT);
+    }
+
+    public static Result recruit(ServerPlayer recruiter, String requestedName, int fortitudeLevel,
+                                 int prudenceLevel, int temperanceLevel, int justiceLevel,
+                                 String requestedPersona, EmployeeAppearance requestedAppearance) {
         if (!com.wzz.lobotocraft.util.AbnormalitySpawnHelper.isCompany(recruiter.level())) {
             return Result.failure("请回到公司后再招募员工。");
         }
@@ -40,6 +48,13 @@ public final class RecruitmentService {
                 || !validLevel(temperanceLevel) || !validLevel(justiceLevel)) {
             return Result.failure("四维等级必须在I-V之间。");
         }
+        EmployeeAppearance appearance = requestedAppearance == null
+                ? EmployeeAppearance.DEFAULT : requestedAppearance.sanitized();
+        var validatedAppearance = YsmEmployeeCompat.validateRequested(appearance);
+        if (validatedAppearance.isEmpty()) {
+            return Result.failure("所选YSM模型在服务端不可用，请刷新模型目录后重试。");
+        }
+        appearance = validatedAppearance.get();
         if (FacilityPersonnelData.get(recruiter.server).findByName(name) != null) {
             return Result.failure("已经存在同名员工。");
         }
@@ -60,7 +75,7 @@ public final class RecruitmentService {
 
         EmployeeRecord record = EmployeeRuntimeManager.createAndSpawn(recruiter, name,
                 EmployeeDepartment.UNASSIGNED, statValue(fortitudeLevel), statValue(prudenceLevel),
-                statValue(temperanceLevel), statValue(justiceLevel));
+                statValue(temperanceLevel), statValue(justiceLevel), appearance);
         if (record == null) {
             // createAndSpawn 可能已在名册创建 record 但 spawn 失败，留下未部署的"幽灵"记录；
             // 清理它，避免占用名称或在下次重启时被重新 spawn（那会导致已退款的资源不守恒）。

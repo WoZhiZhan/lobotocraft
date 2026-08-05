@@ -1,8 +1,10 @@
 package com.wzz.lobotocraft.client.screen;
 
+import com.wzz.lobotocraft.client.compat.YsmClientCompat;
 import com.wzz.lobotocraft.client.ui.LobotomyButton;
 import com.wzz.lobotocraft.client.ui.LobotomyUiRenderer;
 import com.wzz.lobotocraft.client.ui.LobotomyUiTheme;
+import com.wzz.lobotocraft.employee.EmployeeAppearance;
 import com.wzz.lobotocraft.employee.RecruitmentService;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.RecruitEmployeePacket;
@@ -44,9 +46,15 @@ public final class RecruitmentScreen extends Screen {
     private boolean compact;
     private String nameDraft = "";
     private String personaDraft = "";
+    private EmployeeAppearance appearance = EmployeeAppearance.DEFAULT;
     private EditBox nameBox;
     private MultiLineEditBox personaBox;
     private Button recruitButton;
+    private boolean ysmSelectable;
+    private String ysmProvider = "";
+    private int nameFrameWidth;
+    private int appearanceButtonX;
+    private int appearanceButtonWidth;
 
     public RecruitmentScreen(Screen parent, CompoundTag resources) {
         super(Component.literal("员工招募"));
@@ -67,9 +75,18 @@ public final class RecruitmentScreen extends Screen {
         int nameBoxY = panelY + (compact ? 48 : 55);
         int statTop = panelY + (compact ? 72 : 91);
         int statStep = compact ? 23 : 29;
+        ysmProvider = resources.getString("YsmProvider");
+        ysmSelectable = resources.getBoolean("YsmAvailable")
+                && YsmClientCompat.isAvailable(ysmProvider);
+        if (!ysmSelectable) appearance = EmployeeAppearance.DEFAULT;
+        int nameRowWidth = panelWidth - 48;
+        appearanceButtonWidth = ysmSelectable
+                ? Math.min(180, Math.max(104, nameRowWidth / 3)) : 0;
+        nameFrameWidth = ysmSelectable ? nameRowWidth - appearanceButtonWidth - 8 : nameRowWidth;
+        appearanceButtonX = panelX + 24 + nameFrameWidth + 8;
 
         nameBox = addRenderableWidget(new EditBox(font, contentX + 5, nameBoxY + 7,
-                panelWidth - 58, 12, Component.literal("员工名称")));
+                nameFrameWidth - 10, 12, Component.literal("员工名称")));
         nameBox.setBordered(false);
         nameBox.setMaxLength(24);
         nameBox.setHint(Component.literal("员工名称"));
@@ -78,6 +95,19 @@ public final class RecruitmentScreen extends Screen {
             nameDraft = value;
             updateControls();
         });
+
+        if (ysmSelectable) {
+            Button appearanceButton = addRenderableWidget(LobotomyButton.create(
+                    Component.literal(appearanceButtonText()), button -> minecraft.setScreen(
+                            new YsmEmployeeModelScreen(this, ysmProvider, appearance, selected -> {
+                                appearance = selected;
+                                minecraft.setScreen(this);
+                            })))
+                    .bounds(appearanceButtonX, nameBoxY, appearanceButtonWidth, 22)
+                    .tooltip(Tooltip.create(Component.literal(appearanceTooltip())))
+                    .build());
+            appearanceButton.active = true;
+        }
 
         int statsWidth = (panelWidth - 56) / 2;
         int personaX = panelX + 34 + statsWidth;
@@ -117,7 +147,7 @@ public final class RecruitmentScreen extends Screen {
     private void recruit() {
         if (!recruitButton.active) return;
         MessageLoader.getLoader().sendToServer(new RecruitEmployeePacket(nameBox.getValue(),
-                levels[0], levels[1], levels[2], levels[3], personaForSubmission()));
+                levels[0], levels[1], levels[2], levels[3], personaForSubmission(), appearance));
         recruitButton.active = false;
         recruitButton.setMessage(Component.literal("处理中…"));
     }
@@ -156,10 +186,13 @@ public final class RecruitmentScreen extends Screen {
         graphics.drawString(font, "名称", panelX + 24, panelY + (compact ? 38 : 45), LobotomyUiTheme.TEXT_MUTED, false);
         int boxX = panelX + 24;
         int boxY = panelY + (compact ? 48 : 55);
-        int boxWidth = panelWidth - 48;
-        LobotomyUiRenderer.drawInsetBox(graphics, boxX, boxY, boxWidth, 22);
-        drawFrame(graphics, boxX, boxY, boxWidth, 22, nameBox != null && nameBox.isFocused()
+        LobotomyUiRenderer.drawInsetBox(graphics, boxX, boxY, nameFrameWidth, 22);
+        drawFrame(graphics, boxX, boxY, nameFrameWidth, 22, nameBox != null && nameBox.isFocused()
                 ? LobotomyUiTheme.LINE_ACCENT : LobotomyUiTheme.LINE_MID);
+        if (ysmSelectable) {
+            graphics.drawString(font, "YSM 外观（可选）", appearanceButtonX,
+                    panelY + (compact ? 38 : 45), LobotomyUiTheme.TEXT_MUTED, false);
+        }
 
         int statTop = panelY + (compact ? 72 : 91);
         int statStep = compact ? 23 : 29;
@@ -284,6 +317,27 @@ public final class RecruitmentScreen extends Screen {
     private String personaForSubmission() {
         if (personaBox == null) return "";
         return personaBox.getValue().replace('\r', ' ').replace('\n', ' ').replace('\t', ' ').strip();
+    }
+
+    private String appearanceButtonText() {
+        String text = appearance.isDefault() ? "原版外观" : "YSM: " + displayModelPath();
+        if (font == null || font.width(text) <= appearanceButtonWidth - 12) return text;
+        String suffix = "...";
+        int end = text.length();
+        while (end > 0 && font.width(text.substring(0, end) + suffix)
+                > appearanceButtonWidth - 12) end--;
+        return text.substring(0, end) + suffix;
+    }
+
+    private String appearanceTooltip() {
+        return appearance.isDefault() ? "保持原版员工外观" : appearance.modelPath()
+                + "\n贴图：" + appearance.textureId();
+    }
+
+    private String displayModelPath() {
+        String path = appearance.modelPath();
+        int separator = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+        return separator >= 0 ? path.substring(separator + 1) : path;
     }
 
     private static String nextUpgradeCost(int currentLevel) {
