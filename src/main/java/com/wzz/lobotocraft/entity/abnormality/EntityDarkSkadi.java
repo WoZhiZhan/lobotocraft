@@ -247,8 +247,9 @@ public class EntityDarkSkadi extends AbstractAbnormality {
             serverLevel.playSound(null, online.blockPosition(), ModSounds.SKADI_ESCAPE.get(),
                     net.minecraft.sounds.SoundSource.HOSTILE, 1.0f, 1.0f);
         }
-        com.wzz.lobotocraft.item.SkadiBanishData.get(serverLevel)
-                .setSkadiOrigin(getX(), getY(), getZ());
+        com.wzz.lobotocraft.item.SkadiBanishData.get(serverLevel).setSkadiOrigin(
+                serverLevel.dimension().location(), getX(), getY(), getZ(),
+                getHomeRoomDimension(), getHomeRoomMarker());
         discard();
     }
 

@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.entity.abnormality;
 import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
 import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.init.ModEntities;
+import com.wzz.lobotocraft.item.SkadiBanishData;
 import com.wzz.lobotocraft.util.EntityUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -27,6 +28,10 @@ public final class SpawnIsharmlaHook {
         BlockPos spawnPos = findCollisionSafeSpawn(level, reactorPos, isharmla);
         if (spawnPos == null) return false;
         isharmla.getPersistentData().putString("SkadiTransitionId", transaction);
+        SkadiBanishData origin = SkadiBanishData.get(level);
+        if (origin.getHomeDimension() != null && origin.getHomeMarker() != null) {
+            isharmla.bindHomeRoom(origin.getHomeDimension(), origin.getHomeMarker());
+        }
         isharmla.moveTo(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D, 0.0F, 0.0F);
         isharmla.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos),
                 MobSpawnType.EVENT, null, null);

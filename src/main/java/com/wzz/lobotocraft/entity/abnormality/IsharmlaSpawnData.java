@@ -67,6 +67,15 @@ public final class IsharmlaSpawnData extends SavedData {
         }
     }
 
+    public int cancelPendingTransitions() {
+        int count = pending.size();
+        if (count > 0) {
+            pending.clear();
+            setDirty();
+        }
+        return count;
+    }
+
     private void process(MinecraftServer server, PendingTransition transition) {
         ServerLevel level = server.getLevel(ResourceKey.create(Registries.DIMENSION, transition.dimension));
         if (level == null) {

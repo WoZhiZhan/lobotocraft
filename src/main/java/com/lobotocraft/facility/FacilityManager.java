@@ -24,6 +24,8 @@ import com.wzz.lobotocraft.entity.abnormality.EntityEndBirdEggEye;
 import com.wzz.lobotocraft.entity.abnormality.EntityEndBirdEggHigh;
 import com.wzz.lobotocraft.entity.abnormality.EntityEndBirdEggSmall;
 import com.wzz.lobotocraft.entity.abnormality.EntityIronMaiden;
+import com.wzz.lobotocraft.entity.abnormality.EntityIsharmla;
+import com.wzz.lobotocraft.entity.abnormality.IsharmlaSpawnData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.event.definition.work.WorkCompleteEvent;
 import com.wzz.lobotocraft.event.definition.work.WorkPreExtractionEvent;
@@ -265,6 +267,9 @@ public final class FacilityManager {
         // previous-day combatant survives as an untracked entity.
         KillCommand.queueActiveOrdealTargets(server);
         OrdealData.get(server.overworld()).syncDay(FacilityDayData.get(server.overworld()).getDay());
+        if (EntityIsharmla.restoreSkadiForNewDay(server)) {
+            IsharmlaSpawnData.get(server).cancelPendingTransitions();
+        }
         // Take a snapshot first: containment return may transfer an entity to
         // another dimension and remove the source instance from the live list.
         // Iterating the live entity collection while doing that can skip or

@@ -55,4 +55,16 @@ class IsharmlaSpawnDataTest {
         loaded.enqueue(id, ResourceLocation.tryParse("lobotocraft:loboto"), BlockPos.ZERO);
         assertFalse(loaded.hasPending(id));
     }
+
+    @Test
+    void dayRecoveryCancelsEveryPendingTransition() {
+        IsharmlaSpawnData data = new IsharmlaSpawnData();
+        data.enqueue(UUID.randomUUID(), ResourceLocation.tryParse("lobotocraft:loboto"), BlockPos.ZERO);
+        data.enqueue(UUID.randomUUID(), ResourceLocation.tryParse("lobotocraft:loboto"),
+                new BlockPos(1, 1, 1));
+
+        assertEquals(2, data.cancelPendingTransitions());
+        assertEquals(0, data.pendingCount());
+        assertEquals(0, data.cancelPendingTransitions());
+    }
 }

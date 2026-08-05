@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
+import com.wzz.lobotocraft.block.entity.RoomMarkerBlockEntity;
 import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
@@ -16,11 +17,15 @@ import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.util.SafeTransformationUtil;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -29,6 +34,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -268,7 +274,81 @@ public class EntityIsharmla extends AbstractAbnormality {
         return true; // 伊莎玛拉是出逃形态的 boss
     }
 
-    /** 由斯卡蒂生成时调用:瞬移到最近的再生反应堆,并初始化为人形态 */
+    /** Replaces the transition form with its original contained Skadi. */
+    @Override
+    public void stopEscape() {
+        if (!(level() instanceof ServerLevel serverLevel) || isRemoved()) return;
+        SkadiBanishData origin = SkadiBanishData.get(serverLevel);
+        if (restoreSkadi(serverLevel.getServer())) {
+            discardCurrentTears(serverLevel.getServer());
+            discard();
+        } else if (!origin.hasSkadiOrigin()) {
+            // An unloaded transition entity may reappear after its origin was already consumed.
+            discardCurrentTears(serverLevel.getServer());
+            discard();
+        }
+    }
+
+    public static boolean restoreSkadiForNewDay(MinecraftServer server) {
+        return restoreSkadi(server);
+    }
+
+    private static boolean restoreSkadi(MinecraftServer server) {
+        if (server == null) return false;
+        SkadiBanishData data = SkadiBanishData.get(server.overworld());
+        if (!data.hasSkadiOrigin() || data.isBanished()) return false;
+
+        for (ServerLevel level : server.getAllLevels()) {
+            for (net.minecraft.world.entity.Entity entity : level.getAllEntities()) {
+                if (entity instanceof EntityDarkSkadi skadi && skadi.isAlive() && !skadi.isRemoved()) {
+                    data.clearSkadiOrigin();
+                    return true;
+                }
+            }
+        }
+
+        ResourceLocation targetDimension = data.getHomeDimension() != null
+                ? data.getHomeDimension() : data.getOriginDimension();
+        ServerLevel targetLevel = targetDimension == null ? server.overworld()
+                : server.getLevel(ResourceKey.create(Registries.DIMENSION, targetDimension));
+        if (targetLevel == null) return false;
+
+        EntityDarkSkadi skadi = ModEntities.skadi_corrupted.get().create(targetLevel);
+        if (skadi == null) return false;
+        skadi.moveTo(data.getOriginX(), data.getOriginY(), data.getOriginZ(), 0.0F, 0.0F);
+        BlockPos origin = skadi.blockPosition();
+        if (!targetLevel.hasChunkAt(origin)) targetLevel.getChunkAt(origin);
+        Vec3 safe = SafeTransformationUtil.findPositionForDimensions(
+                targetLevel, skadi, skadi.getDimensions(skadi.getPose()), 8, 4);
+        if (safe != null) skadi.moveTo(safe.x, safe.y, safe.z, 0.0F, 0.0F);
+        if (data.getHomeDimension() != null && data.getHomeMarker() != null) {
+            skadi.bindHomeRoom(data.getHomeDimension(), data.getHomeMarker());
+        }
+        skadi.finalizeSpawn(targetLevel, targetLevel.getCurrentDifficultyAt(skadi.blockPosition()),
+                MobSpawnType.EVENT, null, null);
+        skadi.setHealth(skadi.getMaxHealth());
+        skadi.setEscape(false);
+        if (!targetLevel.addFreshEntity(skadi)) return false;
+        BlockPos homeMarker = data.getHomeMarker();
+        if (homeMarker != null && !targetLevel.hasChunkAt(homeMarker)) targetLevel.getChunkAt(homeMarker);
+        if (homeMarker != null
+                && targetLevel.getBlockEntity(homeMarker) instanceof RoomMarkerBlockEntity marker) {
+            marker.bindByUuid(targetLevel, skadi.getUUID());
+        }
+        data.clearSkadiOrigin();
+        return true;
+    }
+
+    private void discardCurrentTears(MinecraftServer server) {
+        for (java.util.UUID uuid : currentTears) {
+            for (ServerLevel level : server.getAllLevels()) {
+                if (level.getEntity(uuid) instanceof EntityIsharmlaTear tear) tear.discard();
+            }
+        }
+        currentTears.clear();
+    }
+
+    /** Called after the queued Skadi transition reaches a regeneration reactor. */
     public void onSpawnFromSkadi(ServerLevel level, BlockPos reactor) {
         // The spawn hook already validated this reactor and the initial entity AABB.
         anchorReactorPos = reactor.immutable();
@@ -409,7 +489,14 @@ public class EntityIsharmla extends AbstractAbnormality {
     public void tick() {
         super.tick();
         if (this.level().isClientSide) return;
+        if (isRemoved()) return;
         ServerLevel level = (ServerLevel) this.level();
+        if (!getPersistentData().getString("SkadiTransitionId").isBlank()
+                && !SkadiBanishData.get(level).hasSkadiOrigin()) {
+            discardCurrentTears(level.getServer());
+            discard();
+            return;
+        }
         retryPendingDimensions(level);
         keepNearReactor(level);
 
@@ -986,6 +1073,7 @@ public class EntityIsharmla extends AbstractAbnormality {
         }
         
         if (level() instanceof ServerLevel sl) {
+            restoreSkadi(sl.getServer());
             SkadiBanishData data = com.wzz.lobotocraft.item.SkadiBanishData.get(sl);
             if (data.hasSkadiOrigin()) {
             	AbstractAbnormality newEntity = new EntityDarkSkadi(ModEntities.skadi_corrupted.get(), sl);
