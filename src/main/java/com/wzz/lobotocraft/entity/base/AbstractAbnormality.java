@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.entity.base;
 
 import com.lobotocraft.facility.data.FacilityDayData;
 import com.wzz.lobotocraft.api.NameProvider;
+import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
 import com.wzz.lobotocraft.block.entity.RoomMarkerBlockEntity;
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
@@ -46,7 +47,6 @@ import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.MinecraftForge;
@@ -65,6 +65,9 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         COMPLETED,
         TRANSFERRED,
         DEFERRED
+    }
+
+    private record EscapeDestination(BlockPos marker, BlockPos position) {
     }
 
     private static final int[][] ESCAPE_BLOCK_SEARCH_RANGES = {
@@ -508,17 +511,18 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         beginEscape(null);
     }
 
-    /** Starts the common escape lifecycle, preferring a subtype-specific safe destination when supplied. */
+    /** Starts the common escape lifecycle, preferring a subtype-specific spawn anchor when supplied. */
     protected final boolean beginEscape(@Nullable BlockPos preferredDestination) {
         if (hasEscape() || this.level().isClientSide || !canEscape()) return false;
-        BlockPos teleportTarget = preferredDestination != null
-                && isAvailableEscapeDestination(preferredDestination)
-                ? preferredDestination : findAvailableEscapeBlock();
+        BlockPos teleportTarget = preferredDestination == null
+                ? null : findSafeEscapePosition(preferredDestination);
+        if (teleportTarget == null) teleportTarget = findAvailableEscapePosition();
         escapeDimension = this.level().dimension().location();
         escapePosition = this.blockPosition();
         setEscape(true);
         if (teleportTarget != null) {
-            teleportTo(teleportTarget.getX() + 0.5, teleportTarget.getY() + 1, teleportTarget.getZ() + 0.5);
+            teleportTo(teleportTarget.getX() + 0.5, teleportTarget.getY(),
+                    teleportTarget.getZ() + 0.5);
         }
         stopAmbientSoundForAllPlayers();
         playEscapeWarningSound();
@@ -552,55 +556,50 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         EntityUtil.broadcastMessage(level,"§c§l警告！" + getAbnormalityName() + "已经出逃！");
     }
 
-    private BlockPos findAvailableEscapeBlock() {
+    private BlockPos findAvailableEscapePosition() {
         if (!(level() instanceof ServerLevel serverLevel)) return null;
-        BlockPos center = getOnPos();
+        ResourceLocation currentDimension = serverLevel.dimension().location();
+        BlockPos center = homeRoomMarker != null && currentDimension.equals(homeRoomDimension)
+                ? homeRoomMarker : getOnPos();
         List<FloorEntry> floors = CompanyRoomData.get(serverLevel)
-                .getFloors(serverLevel.dimension().location());
+                .getFloors(currentDimension);
         int homeFloor = CompanyRoomData.resolveFloorIndex(floors, center);
-        List<BlockPos> nearestCrossFloorFallback = List.of();
+        BlockPos nearestCrossFloorFallback = null;
         for (int[] range : ESCAPE_BLOCK_SEARCH_RANGES) {
-            List<BlockPos> available = EntityUtil.findEscapeBlocks(level, center, range[0], range[1]).stream()
-                    .map(BlockEntity::getBlockPos)
-                    .filter(pos -> FacilityAccessService.isPositionOpen(
-                            serverLevel.getServer(), serverLevel.dimension().location(), pos))
-                    .filter(this::isAvailableEscapeDestination)
-                    .toList();
+            List<EscapeDestination> available = new ArrayList<>();
+            for (EscapeBlockEntity escapeBlock : EntityUtil.findEscapeBlocks(
+                    level(), center, range[0], range[1])) {
+                BlockPos marker = escapeBlock.getBlockPos();
+                if (!FacilityAccessService.isPositionOpen(
+                        serverLevel.getServer(), currentDimension, marker)) continue;
+                BlockPos safe = findSafeEscapePosition(marker);
+                if (safe != null) available.add(new EscapeDestination(marker, safe));
+            }
             if (available.isEmpty()) continue;
             if (homeFloor < 0) {
-                return available.get(random.nextInt(available.size()));
+                return available.get(0).position();
             }
-            List<BlockPos> sameFloor = available.stream()
-                    .filter(pos -> CompanyRoomData.resolveFloorIndex(floors, pos) == homeFloor)
+            List<EscapeDestination> sameFloor = available.stream()
+                    .filter(destination -> CompanyRoomData.resolveFloorIndex(
+                            floors, destination.marker()) == homeFloor)
                     .toList();
             if (!sameFloor.isEmpty()) {
-                return sameFloor.get(random.nextInt(sameFloor.size()));
+                return sameFloor.get(0).position();
             }
-            if (nearestCrossFloorFallback.isEmpty()) nearestCrossFloorFallback = available;
+            if (nearestCrossFloorFallback == null) {
+                nearestCrossFloorFallback = available.get(0).position();
+            }
         }
-        return nearestCrossFloorFallback.isEmpty() ? null
-                : nearestCrossFloorFallback.get(random.nextInt(nearestCrossFloorFallback.size()));
+        return nearestCrossFloorFallback;
     }
 
-    private boolean isAvailableEscapeDestination(BlockPos escapeBlockPos) {
-        double targetX = escapeBlockPos.getX() + 0.5D;
-        double targetY = escapeBlockPos.getY() + 1.0D;
-        double targetZ = escapeBlockPos.getZ() + 0.5D;
-        AABB destinationBox = getBoundingBox().move(
-                targetX - getX(),
-                targetY - getY(),
-                targetZ - getZ());
-
-        if (!level.noCollision(this, destinationBox)) {
-            return false;
-        }
-        return level.getEntitiesOfClass(
-                AbstractAbnormality.class,
-                destinationBox.inflate(0.1D),
-                abnormality -> abnormality != this
-                        && abnormality.hasEscape()
-                        && abnormality.getBoundingBox().intersects(destinationBox)
-        ).isEmpty();
+    private BlockPos findSafeEscapePosition(BlockPos spawnAnchor) {
+        if (!(level() instanceof ServerLevel serverLevel) || spawnAnchor == null) return null;
+        BlockPos safe = EntityUtil.findSafeEntityPositionInCompany(
+                serverLevel, this, spawnAnchor.above(), 4, 2);
+        if (safe == null || !FacilityAccessService.isPositionOpen(serverLevel.getServer(),
+                serverLevel.dimension().location(), safe)) return null;
+        return safe;
     }
 
     public BlockPos getEscapePosition() {
