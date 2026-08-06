@@ -53,7 +53,7 @@ public class EntityAmberDawn extends BaseGeoEntity implements OrdealEntity {
     private static final EntityDataAccessor<Integer> ANIM_VERSION =
             SynchedEntityData.defineId(EntityAmberDawn.class, EntityDataSerializers.INT);
 
-    private static final int TELEPORT_INTERVAL_TICKS = 40 * 20;
+    private static final int TELEPORT_INTERVAL_TICKS = 2 * 60 * 20;
     private static final int ATTACK_ANIM_TICKS = 20;
     private static final int ATTACK_HIT_TICK = 12;
     private static final int ATTACK_COOLDOWN_TICKS = 22;
