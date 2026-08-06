@@ -30,6 +30,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
@@ -436,9 +437,16 @@ public class MentalValueEventHandler {
 
             } else {
                 // 距离足够近时，进行攻击
-                if (player.tickCount % 10 == 0) { // 每0.5秒攻击一次
+                if (player.tickCount % 10 == 0
+                        && player.getAttackStrengthScale(0.0F) >= 1.0F) { // 每0.5秒尝试一次攻击
+                    ItemStack stack = player.getMainHandItem();
+                    boolean handledByItem = stack.getItem().onLeftClickEntity(stack, player, nearestEntity);
+                    if (EgoAttackOwnershipPolicy.shouldUseVanillaFallback(
+                            handledByItem, stack.getItem() instanceof BaseEgoWeapon)) {
+                        player.attack(nearestEntity);
+                    }
                     player.swing(InteractionHand.MAIN_HAND);
-                    player.attack(nearestEntity);
+                    player.resetAttackStrengthTicker();
                 }
 
                 // 攻击时停止移动
