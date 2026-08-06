@@ -131,11 +131,25 @@ public class AbnormalitySpawnHelper {
     public static <T extends AbstractAbnormality> T spawnPersistent(
             ServerLevel level, EntityType<T> type, BlockPos pos, MobSpawnType spawnType,
             SpawnPlacementPolicy placementPolicy) {
+        return spawnPersistent(level, type, pos, spawnType, placementPolicy, 0);
+    }
+
+    public static <T extends AbstractAbnormality> T spawnPersistentNearby(
+            ServerLevel level, EntityType<T> type, BlockPos pos, MobSpawnType spawnType,
+            int horizontalSearchRadius) {
+        return spawnPersistent(level, type, pos, spawnType, SpawnPlacementPolicy.FACILITY_RULES,
+                Math.max(0, horizontalSearchRadius));
+    }
+
+    private static <T extends AbstractAbnormality> T spawnPersistent(
+            ServerLevel level, EntityType<T> type, BlockPos pos, MobSpawnType spawnType,
+            SpawnPlacementPolicy placementPolicy, int horizontalSearchRadius) {
         if (placementPolicy == null) placementPolicy = SpawnPlacementPolicy.FACILITY_RULES;
         T entity = type.create(level);
         if (entity == null) return null;
 
-        BlockPos spawnPos = findSafeSpawnPosition(level, entity, pos, placementPolicy);
+        BlockPos spawnPos = findSafeSpawnPosition(
+                level, entity, pos, placementPolicy, horizontalSearchRadius);
         if (spawnPos == null) return null;
         entity.moveTo(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5,
                 level.random.nextFloat() * 360f, 0f);
@@ -147,7 +161,8 @@ public class AbnormalitySpawnHelper {
     }
 
     private static <T extends AbstractAbnormality> BlockPos findSafeSpawnPosition(
-            ServerLevel level, T entity, BlockPos pos, SpawnPlacementPolicy placementPolicy) {
+            ServerLevel level, T entity, BlockPos pos, SpawnPlacementPolicy placementPolicy,
+            int horizontalSearchRadius) {
         BlockPos direct = findSpawnGround(level, pos, 0);
         if (canSpawnAt(level, entity, direct, placementPolicy)) {
             return direct;
@@ -155,12 +170,28 @@ public class AbnormalitySpawnHelper {
 
         int radius = Math.max(4,
                 (int) Math.ceil(Math.max(entity.getBbWidth(), entity.getBbHeight())) + 2);
-        for (int attempt = 0; attempt < 32; attempt++) {
-            int offsetX = level.random.nextInt(radius * 2 + 1) - radius;
-            int offsetZ = level.random.nextInt(radius * 2 + 1) - radius;
-            BlockPos candidate = findSpawnGround(level, pos.offset(offsetX, 0, offsetZ), 0);
-            if (canSpawnAt(level, entity, candidate, placementPolicy)) {
-                return candidate;
+        if (horizontalSearchRadius > 0) {
+            radius = Math.max(radius, horizontalSearchRadius);
+            for (int ring = 1; ring <= radius; ring++) {
+                for (int offsetX = -ring; offsetX <= ring; offsetX++) {
+                    BlockPos north = findSpawnGround(level, pos.offset(offsetX, 0, -ring), 0);
+                    if (canSpawnAt(level, entity, north, placementPolicy)) return north;
+                    BlockPos south = findSpawnGround(level, pos.offset(offsetX, 0, ring), 0);
+                    if (canSpawnAt(level, entity, south, placementPolicy)) return south;
+                }
+                for (int offsetZ = -ring + 1; offsetZ < ring; offsetZ++) {
+                    BlockPos west = findSpawnGround(level, pos.offset(-ring, 0, offsetZ), 0);
+                    if (canSpawnAt(level, entity, west, placementPolicy)) return west;
+                    BlockPos east = findSpawnGround(level, pos.offset(ring, 0, offsetZ), 0);
+                    if (canSpawnAt(level, entity, east, placementPolicy)) return east;
+                }
+            }
+        } else {
+            for (int attempt = 0; attempt < 32; attempt++) {
+                int offsetX = level.random.nextInt(radius * 2 + 1) - radius;
+                int offsetZ = level.random.nextInt(radius * 2 + 1) - radius;
+                BlockPos candidate = findSpawnGround(level, pos.offset(offsetX, 0, offsetZ), 0);
+                if (canSpawnAt(level, entity, candidate, placementPolicy)) return candidate;
             }
         }
 

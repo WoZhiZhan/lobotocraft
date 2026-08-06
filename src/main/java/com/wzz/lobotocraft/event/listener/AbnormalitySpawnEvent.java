@@ -320,7 +320,7 @@ public class AbnormalitySpawnEvent {
     private static boolean trySpawnButterflyFuneral(ServerLevel level, Player player, BlockPos tombstonePos) {
         EntityButterflyFuneral butterfly = spawnNearbyIfAbsent(level, player, tombstonePos,
                 ModEntities.butterfly_funeral.get(), EntityButterflyFuneral.class, 3,
-                "亡蝶葬仪来为员工送上救赎");
+                "亡蝶葬仪来为员工送上救赎", 16);
         return butterfly != null;
     }
 
@@ -816,12 +816,23 @@ public class AbnormalitySpawnEvent {
                                                                          BlockPos origin, EntityType<T> type,
                                                                          Class<T> clazz, int radius,
                                                                          String successMessage) {
+        return spawnNearbyIfAbsent(level, player, origin, type, clazz, radius, successMessage, 0);
+    }
+
+    private static <T extends AbstractAbnormality> T spawnNearbyIfAbsent(ServerLevel level, Player player,
+                                                                         BlockPos origin, EntityType<T> type,
+                                                                         Class<T> clazz, int radius,
+                                                                         String successMessage,
+                                                                         int horizontalSearchRadius) {
         if (AbnormalitySpawnHelper.existsNearby(level, origin,
                 AbnormalitySpawnHelper.DEFAULT_DEDUP_RADIUS, clazz)) {
             return null;
         }
-        T entity = AbnormalitySpawnHelper.spawnPersistent(level, type,
-                findGroundNear(level, origin, radius), MobSpawnType.EVENT);
+        T entity = horizontalSearchRadius > 0
+                ? AbnormalitySpawnHelper.spawnPersistentNearby(
+                        level, type, origin, MobSpawnType.EVENT, horizontalSearchRadius)
+                : AbnormalitySpawnHelper.spawnPersistent(level, type,
+                        findGroundNear(level, origin, radius), MobSpawnType.EVENT);
         if (entity != null) {
             player.displayClientMessage(Component.literal(successMessage), false);
         }

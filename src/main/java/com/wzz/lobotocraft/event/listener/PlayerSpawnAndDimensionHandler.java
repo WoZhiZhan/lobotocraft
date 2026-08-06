@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.event.listener;
 import com.google.gson.*;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.entity.base.EscapeTracker;
+import com.wzz.lobotocraft.init.ModBlocks;
 import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.logger.ModLogger;
@@ -240,7 +241,9 @@ public class PlayerSpawnAndDimensionHandler {
                 return;
             }
             BlockPos pos = event.getPos();
-            if (ProtectionHelper.isProtected(level, pos)) {
+            if (ProtectionHelper.isProtected(level, pos)
+                    || event.getOriginalState().is(ModBlocks.ROOM_MARKER.get())
+                    || event.getOriginalState().is(ModBlocks.FLOOR_MARKER.get())) {
                 event.setCanceled(true);
             }
         }
