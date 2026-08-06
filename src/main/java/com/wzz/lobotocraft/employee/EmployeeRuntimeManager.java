@@ -11,6 +11,9 @@ import com.wzz.lobotocraft.compat.ysm.YsmEmployeeCompat;
 import com.wzz.lobotocraft.ego.AiEgoRepositoryData;
 import com.wzz.lobotocraft.ego.EgoLoadoutService;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.abnormality.EntityEndBirdEggEye;
+import com.wzz.lobotocraft.entity.abnormality.EntityEndBirdEggHigh;
+import com.wzz.lobotocraft.entity.abnormality.EntityEndBirdEggSmall;
 import com.wzz.lobotocraft.entity.abnormality.EntityPunishingBird;
 import com.wzz.lobotocraft.entity.data.EgoWeaponDisplayCatalog;
 import com.wzz.lobotocraft.entity.ordeal.OrdealEntity;
@@ -1054,10 +1057,17 @@ public final class EmployeeRuntimeManager {
                     .map(mental -> mental.getPanicType()).orElse(PanicType.NONE);
             return shouldCounterPanickingEmployee(panicType, assignedWeaponDamageType(observer));
         }
+        if (isEndBirdEgg(entity)) return true;
         if (entity instanceof AbstractAbnormality abnormality) return abnormality.hasEscape();
         return FacilityCombatRules.isOrdealCombatant(entity)
                 || entity instanceof Enemy
                 || entity.getType().getCategory() == MobCategory.MONSTER;
+    }
+
+    private static boolean isEndBirdEgg(LivingEntity entity) {
+        return entity instanceof EntityEndBirdEggSmall
+                || entity instanceof EntityEndBirdEggHigh
+                || entity instanceof EntityEndBirdEggEye;
     }
 
     static boolean shouldCounterPanickingEmployee(PanicType panicType, String weaponDamageType) {
