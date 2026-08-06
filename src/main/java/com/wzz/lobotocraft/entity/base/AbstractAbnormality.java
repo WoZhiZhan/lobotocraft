@@ -23,6 +23,7 @@ import com.wzz.lobotocraft.util.FacilityCombatRules;
 import com.wzz.lobotocraft.util.MethodHandleUtils;
 import com.wzz.lobotocraft.work.WorkType;
 import com.wzz.lobotocraft.world.data.CompanyRoomData;
+import com.wzz.lobotocraft.world.data.FacilityWorldLayout;
 import com.wzz.lobotocraft.world.data.FloorEntry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -561,6 +562,8 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         ResourceLocation currentDimension = serverLevel.dimension().location();
         BlockPos center = homeRoomMarker != null && currentDimension.equals(homeRoomDimension)
                 ? homeRoomMarker : getOnPos();
+        List<EscapeDestination> roomExits = findHomeRoomEscapeDestinations(serverLevel, center);
+        if (!roomExits.isEmpty()) return roomExits.get(0).position();
         List<FloorEntry> floors = CompanyRoomData.get(serverLevel)
                 .getFloors(currentDimension);
         int homeFloor = CompanyRoomData.resolveFloorIndex(floors, center);
@@ -591,6 +594,45 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
             }
         }
         return nearestCrossFloorFallback;
+    }
+
+    /** Prefer an exit block physically belonging to this containment room. */
+    private List<EscapeDestination> findHomeRoomEscapeDestinations(ServerLevel serverLevel,
+                                                                     BlockPos center) {
+        if (homeRoomMarker == null || !serverLevel.dimension().location().equals(homeRoomDimension)) {
+            return List.of();
+        }
+        if (!serverLevel.hasChunkAt(homeRoomMarker)) serverLevel.getChunkAt(homeRoomMarker);
+        if (!(serverLevel.getBlockEntity(homeRoomMarker) instanceof RoomMarkerBlockEntity roomMarker)) {
+            return List.of();
+        }
+        AABB roomBounds = roomMarker.getScanBox().inflate(4.0D);
+        List<EscapeDestination> result = new ArrayList<>();
+        for (EscapeBlockEntity escapeBlock : EntityUtil.findEscapeBlocks(
+                serverLevel, homeRoomMarker, 32, 12)) {
+            BlockPos marker = escapeBlock.getBlockPos();
+            Vec3 blockCenter = Vec3.atCenterOf(marker);
+            if (!roomBounds.contains(blockCenter)) continue;
+            if (!isNearestContainmentRoom(marker)) continue;
+            if (!FacilityAccessService.isPositionOpen(serverLevel.getServer(),
+                    serverLevel.dimension().location(), marker)) continue;
+            BlockPos safe = findSafeEscapePosition(marker);
+            if (safe != null) result.add(new EscapeDestination(marker, safe));
+        }
+        result.sort(Comparator.comparingDouble(destination ->
+                destination.marker().distSqr(center)));
+        return result;
+    }
+
+    private boolean isNearestContainmentRoom(BlockPos escapeBlock) {
+        double homeDistance = escapeBlock.distSqr(homeRoomMarker);
+        for (FacilityWorldLayout.ContainmentBinding binding
+                : FacilityWorldLayout.containmentBindings(level().dimension().location())) {
+            BlockPos candidate = binding.markerPos();
+            if (candidate.equals(homeRoomMarker)) continue;
+            if (escapeBlock.distSqr(candidate) + 0.01D < homeDistance) return false;
+        }
+        return true;
     }
 
     private BlockPos findSafeEscapePosition(BlockPos spawnAnchor) {

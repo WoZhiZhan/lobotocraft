@@ -65,7 +65,7 @@ public class AssignRoomEmployeeWorkPacket implements IMessage {
         ServerPlayer sender = context.getSender();
         if (sender == null
                 || !com.wzz.lobotocraft.util.AbnormalitySpawnHelper.isCompany(sender.level())) return;
-        if (!RequestThrottle.allow(sender, "room_work_assignment", 150L)) return;
+        if (!RequestThrottle.allow(sender, "room_work_assignment_" + employeeId, 150L)) return;
         String failure = validateAndAssign(sender);
         boolean success = failure == null;
         MessageLoader.getLoader().sendToPlayer(sender,

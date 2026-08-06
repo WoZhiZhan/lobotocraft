@@ -56,7 +56,8 @@ public final class AssignRoomEmployeeSuppressionPacket implements IMessage {
     @Override
     public void run(NetworkEvent.Context context) {
         ServerPlayer sender = context.getSender();
-        if (sender == null || !RequestThrottle.allow(sender, "room_suppression_assignment", 100L)) return;
+        if (sender == null || !RequestThrottle.allow(sender,
+                "room_suppression_assignment_" + employeeId, 100L)) return;
         String failure = validateAndAssign(sender);
         MessageLoader.getLoader().sendToPlayer(sender, new RoomSuppressionAssignmentResultPacket(
                 employeeId, failure == null, failure == null ? "镇压任务已下达" : failure));
