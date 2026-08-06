@@ -71,6 +71,8 @@ public class SnowQueenWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapon
 
     @Override
     public boolean onLeftClickEntity(ItemStack stack, Player player, Entity entity) {
+        boolean fullyCharged = SnowQueenAttackPolicy.canApplyKissSpecial(
+                player.getAttackStrengthScale(0.0F));
         boolean leftClick = super.onLeftClickEntity(stack, player, entity);
         if (!leftClick) return false;
         if (!(entity instanceof LivingEntity target)) {
@@ -81,7 +83,7 @@ public class SnowQueenWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapon
         Random random = new Random();
         float damage = 6 + random.nextInt(7);
         target.hurt(DamageHelper.getDamage(player, "white"), damage);
-        if (!(target instanceof Player)) {
+        if (!(target instanceof Player) && fullyCharged) {
             int i = random.nextInt(101);
             if (i <= 10) {
                 if (EgoArmorHelper.isFullEGO(player, "snowqueen"))

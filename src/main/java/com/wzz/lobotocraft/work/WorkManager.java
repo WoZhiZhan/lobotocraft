@@ -685,7 +685,7 @@ public class WorkManager {
             );
 
             if (!MinecraftForge.EVENT_BUS.post(damageEvent)) {
-                applyDamage(player, abnormality);
+                applyDamage(player, abnormality, session.workType);
             } else {
                 if (!damageEvent.getCancelMessage().isEmpty()) {
                     player.sendSystemMessage(Component.literal(damageEvent.getCancelMessage()));
@@ -716,8 +716,8 @@ public class WorkManager {
         return isActive(session);
     }
 
-    private static void applyDamage(ServerPlayer player, IAbnormality abnormality) {
-        abnormality.attackPlayerOnFailure(player, null);
+    private static void applyDamage(ServerPlayer player, IAbnormality abnormality, WorkType workType) {
+        abnormality.attackPlayerOnFailure(player, workType);
     }
 
     private static boolean completeWork(WorkSession session) {

@@ -33,6 +33,7 @@ import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.*;
 import com.wzz.lobotocraft.util.*;
 import com.wzz.lobotocraft.work.WorkManager;
+import com.wzz.lobotocraft.work.WorkFailureDamagePolicy;
 import com.wzz.lobotocraft.work.WorkType;
 import com.wzz.lobotocraft.world.data.OrdealData;
 import com.wzz.lobotocraft.world.structure.StructureLoader;
@@ -1010,7 +1011,9 @@ public class ForgeModEvent {
 		}
 		if (EgoArmorHelper.isFullEGO(event.getPlayer(), "army_in_black")) {
 			event.setCanceled(true);
-			event.getPlayer().hurt(DamageHelper.getDamage(event.getAbnormality(), event.getWorkType().getDamageType()), 1f);
+			String damageType = WorkFailureDamagePolicy.resolveDamageType(
+					event.getAbnormality().getDamageType(), event.getWorkType());
+			event.getPlayer().hurt(DamageHelper.getDamage(event.getAbnormality(), damageType), 1f);
 		}
 	}
 
