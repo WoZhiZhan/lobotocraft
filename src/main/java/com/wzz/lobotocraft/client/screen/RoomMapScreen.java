@@ -840,18 +840,20 @@ public class RoomMapScreen extends Screen {
 
     private FacilityAreaEntry nearestMappedPassage(RoomEmployeeSnapshot employee) {
         FacilityAreaEntry nearest = null;
-        double nearestDistance = Double.POSITIVE_INFINITY;
+        double nearestScore = Double.POSITIVE_INFINITY;
         for (FacilityAreaEntry area : areas) {
             if (area == null || area.dimension == null
                     || !area.dimension.equals(employee.dimension())
                     || area.type == com.wzz.lobotocraft.world.data.FacilityAreaType.CONTAINMENT
                     || area.groupId == null || area.groupId.isBlank()
-                    || !area.departmentId.equals(employee.departmentId())
                     || facilityLayout.areaById(area.groupId).isEmpty()) continue;
-            double distance = squaredDistanceToArea(employee.position(), area);
-            if (distance < nearestDistance) {
+            double score = squaredDistanceToArea(employee.position(), area);
+            if (!area.departmentId.equals(employee.departmentId())) {
+                score += 1_000_000.0D;
+            }
+            if (score < nearestScore) {
                 nearest = area;
-                nearestDistance = distance;
+                nearestScore = score;
             }
         }
         return nearest;

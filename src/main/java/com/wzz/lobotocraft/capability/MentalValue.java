@@ -233,7 +233,10 @@ public class MentalValue implements IMentalValue {
     public void copyFrom(IMentalValue source) {
         this.mentalValue = source.getMentalValue();
         this.maxMentalValue = source.getMaxMentalValue();
-        this.extraMentalValue = source.getExtraMentalValue();
+        // Equipment modifiers are recreated on the replacement player. Copying
+        // the old entity's effective attribute value would count those bonuses again.
+        this.extraMentalValue = source instanceof MentalValue value
+                ? value.extraMentalValue : source.getExtraMentalValue();
         this.panicType = source.getPanicType();
     }
 

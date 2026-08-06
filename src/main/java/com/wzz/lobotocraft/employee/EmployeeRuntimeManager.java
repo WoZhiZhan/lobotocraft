@@ -15,6 +15,8 @@ import com.wzz.lobotocraft.entity.abnormality.EntityEndBirdEggEye;
 import com.wzz.lobotocraft.entity.abnormality.EntityEndBirdEggHigh;
 import com.wzz.lobotocraft.entity.abnormality.EntityEndBirdEggSmall;
 import com.wzz.lobotocraft.entity.abnormality.EntityPunishingBird;
+import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
+import com.wzz.lobotocraft.entity.abnormality.EntitySnowQueen;
 import com.wzz.lobotocraft.entity.data.EgoWeaponDisplayCatalog;
 import com.wzz.lobotocraft.entity.ordeal.OrdealEntity;
 import com.wzz.lobotocraft.event.listener.EmployeeStatsApplier;
@@ -330,6 +332,8 @@ public final class EmployeeRuntimeManager {
      */
     private static boolean canAcceptNewOrder(RuntimeEmployee runtime) {
         if (runtime == null || !runtime.player.isAlive() || runtime.player.isRemoved()) return false;
+        if (EntitySnowQueen.isFrozen(runtime.player)
+                || EntityRedShoes.isRedShoesControlled(runtime.player)) return false;
         if (runtime.order != null && runtime.order.type == EmployeeTaskType.WORK
                 && CoreSuppressionManager.isMalkuthWorkCancellationLocked(runtime.player.level())) {
             return false;
@@ -487,6 +491,16 @@ public final class EmployeeRuntimeManager {
     }
 
     @SubscribeEvent
+    public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (event.getEntity() instanceof EmployeeServerPlayer) return;
+        for (RuntimeEmployee runtime : ACTIVE.values()) {
+            if (runtime.player.server == event.getEntity().getServer()) {
+                runtime.navigator.revalidateRoute();
+            }
+        }
+    }
+
+    @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
         ACTIVE.clear();
         INITIALIZED.remove(event.getServer());
@@ -510,6 +524,32 @@ public final class EmployeeRuntimeManager {
         // 继续跑下面的订单/存档逻辑等于操作一个已死实体，故在此复查一次
         if (player.isRemoved() || !player.isAlive()) {
             retireDead(runtime);
+            return;
+        }
+        if (EntitySnowQueen.isFrozen(player)) {
+            if (runtime.order != null) {
+                fail(runtime, "被冰雪女皇冰封，工作中断");
+            } else {
+                runtime.navigator.stop();
+                runtime.idleMoving = false;
+                clearAutonomousCombat(runtime);
+            }
+            if (WorkManager.isPlayerWorking(player)) {
+                WorkManager.cancelWork(player, "被冰雪女皇冰封，工作中断");
+            }
+            return;
+        }
+        if (EntityRedShoes.isRedShoesControlled(player)) {
+            if (runtime.order != null) {
+                fail(runtime, "被红舞鞋控制，工作中断");
+            } else {
+                runtime.navigator.stop();
+                runtime.idleMoving = false;
+                clearAutonomousCombat(runtime);
+            }
+            if (WorkManager.isPlayerWorking(player)) {
+                WorkManager.cancelWork(player, "被红舞鞋控制，工作中断");
+            }
             return;
         }
         if (player.tickCount % 20 == 0) {

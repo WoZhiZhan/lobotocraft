@@ -991,6 +991,7 @@ public class ForgeModEvent {
 				ParticleUtil.spawnParticlesAroundEntity(player, ParticleTypes.HEART, 30, 0.01f);
 				player.heal(player.getMaxHealth() * 0.25f);
 				MentalValueUtil.addMentalValue(player, MentalValueUtil.getEffectiveMaxMentalValue(player) * 0.25f);
+				EntityLargeBird.clearLargeBirdCharm(player);
 				persistentData.putLong(cooldownKey, currentTime + 90000L);
 			}
 		}

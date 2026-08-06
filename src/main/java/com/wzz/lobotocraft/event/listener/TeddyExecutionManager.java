@@ -125,14 +125,21 @@ public final class TeddyExecutionManager {
                 {1, 1}, {-1, 1}, {1, -1}, {-1, -1},
                 {2, 0}, {-2, 0}, {0, 2}, {0, -2}
         };
+        Vec3 nearest = null;
+        double nearestDistance = Double.POSITIVE_INFINITY;
         for (int dy : new int[]{0, 1, -1}) {
             for (int[] offset : offsets) {
                 Vec3 result = validateAnchor(level, teddy, player,
                         new Vec3(center.getX() + offset[0] + 0.5D, center.getY() + dy, center.getZ() + offset[1] + 0.5D));
-                if (result != null) return result;
+                if (result == null) continue;
+                double distance = result.distanceToSqr(player.position());
+                if (distance < nearestDistance) {
+                    nearest = result;
+                    nearestDistance = distance;
+                }
             }
         }
-        return validateAnchor(level, teddy, player, player.position());
+        return nearest != null ? nearest : validateAnchor(level, teddy, player, player.position());
     }
 
     private static Vec3 validateAnchor(ServerLevel level, EntityHappyTeddy teddy,

@@ -6,6 +6,8 @@ import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
+import com.wzz.lobotocraft.entity.abnormality.EntitySnowQueen;
 import com.wzz.lobotocraft.ego.AiEgoRepositoryData;
 import com.wzz.lobotocraft.ego.EgoLoadoutService;
 import com.wzz.lobotocraft.llm.LlmDepartmentAccessData;
@@ -144,6 +146,12 @@ public final class RoomEmployeeSnapshotService {
             } else if (panicking) {
                 eligible = false;
                 reason = "精神崩溃";
+            } else if (EntitySnowQueen.isFrozen(employee)) {
+                eligible = false;
+                reason = "被冰雪女皇冰封";
+            } else if (EntityRedShoes.isRedShoesControlled(employee)) {
+                eligible = false;
+                reason = "被红舞鞋控制";
             } else if (!suppression && stats[4] < abnormality.getRequiredEmployeeLevel()) {
                 eligible = false;
                 reason = "员工等级不足";

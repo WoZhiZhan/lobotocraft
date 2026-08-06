@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.employee.FacilityAccessService;
+import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.EntityRedShoesClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
@@ -846,7 +847,7 @@ public class EntityRedShoes extends AbstractAbnormality {
     }
 
     private static void chaseBloodlustTarget(LivingEntity entity, LivingEntity target) {
-        if (entity instanceof Player player) {
+        if (entity instanceof Player player && !(entity instanceof EmployeeServerPlayer)) {
             PlayerControlLock.lock(player, target, 0.16D, 2.4D);
             return;
         }

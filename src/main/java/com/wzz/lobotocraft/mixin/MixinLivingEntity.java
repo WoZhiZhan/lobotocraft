@@ -17,7 +17,8 @@ public class MixinLivingEntity {
     @Inject(method = "aiStep", at = @At("HEAD"), cancellable = true)
     private void aiStep(CallbackInfo ci) {
         LivingEntity self = (LivingEntity) (Object) this;
-        if (self.getPersistentData().getBoolean("NotMove"))
+        if (self.getPersistentData().getBoolean("NotMove")
+                || self.getPersistentData().getBoolean("isSnowQueen"))
             ci.cancel();
         if (!(self instanceof Player)) {
             MobEffectInstance kissEffect = self.getEffect(ModMobEffects.KISS.get());
@@ -33,7 +34,8 @@ public class MixinLivingEntity {
     @Inject(method = "travel", at = @At("HEAD"), cancellable = true)
     private void travel(CallbackInfo ci) {
         LivingEntity self = (LivingEntity) (Object) this;
-        if (self.getPersistentData().getBoolean("NotMove"))
+        if (self.getPersistentData().getBoolean("NotMove")
+                || self.getPersistentData().getBoolean("isSnowQueen"))
             ci.cancel();
     }
 

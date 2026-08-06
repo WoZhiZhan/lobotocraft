@@ -261,6 +261,18 @@ public final class EmployeeNavigator {
         player.clearNavigationInput();
     }
 
+    /** Rebuilds the current route after external world state changes such as a player respawn. */
+    public void revalidateRoute() {
+        if (target == null) return;
+        complete = false;
+        unreachable = false;
+        noPathStrikes = 0;
+        stuckStrikes = 0;
+        invalidatePath();
+        resetStuckTracking();
+        evaluateRoute();
+    }
+
     public boolean isComplete() {
         return complete;
     }

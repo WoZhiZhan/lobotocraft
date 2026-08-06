@@ -158,7 +158,11 @@ public class EntitySnowQueen extends AbstractAbnormality {
 
     @Override
     public boolean onWorkStart(ServerPlayer player, WorkType workType) {
+        if (isFrozen(player)) {
+            return false;
+        }
         for (Player p : EntityUtil.findPlayersAround(player, 4, 8)) {
+            if (p == player) continue;
             if (com.wzz.lobotocraft.util.BuffUtil.hasKiss(p) && p.getPersistentData().getBoolean("isSnowQueen")) {
                 player.displayClientMessage(Component.literal("你将要和冰雪女皇决斗！"), false);
                 player.getPersistentData().putBoolean("isSnowQueenDuel", true);
@@ -244,6 +248,7 @@ public class EntitySnowQueen extends AbstractAbnormality {
                 for (Player p : EntityUtil.findPlayersAround(player, 4, 8)) {
                     if (p.getPersistentData().getBoolean("isSnowQueen")) {
                         p.getPersistentData().remove("isSnowQueen");
+                        com.wzz.lobotocraft.util.BuffUtil.removeKiss(p);
                         p.displayClientMessage(Component.literal("§a你的队友在与冰雪女皇的决斗中获得了胜利！"), false);
                         p.setTicksFrozen(0);
                         SoundUtil.playSound(p.level, p, ModSounds.SNOW_QUEEN_DUEL_SUCCESS.get());
@@ -328,6 +333,10 @@ public class EntitySnowQueen extends AbstractAbnormality {
         // 移除冰封标记,否则 kill() 产生的 fellOutOfWorld 伤害会被 ForgeModEvent 中的 isSnowQueen 判定拦截,导致玩家不死
         player.getPersistentData().remove("isSnowQueen");
         player.kill();
+    }
+
+    public static boolean isFrozen(Player player) {
+        return player != null && player.getPersistentData().getBoolean("isSnowQueen");
     }
 
     @Override
