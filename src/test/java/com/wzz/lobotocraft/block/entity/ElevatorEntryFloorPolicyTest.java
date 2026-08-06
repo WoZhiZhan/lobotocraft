@@ -46,6 +46,16 @@ class ElevatorEntryFloorPolicyTest {
     }
 
     @Test
+    void treatsDifferentRoomHeightsWithinOneMarkedFloorAsArrived() {
+        List<FloorEntry> floors = floorsAt(236, 201, 168);
+
+        assertTrue(ElevatorEntryFloorPolicy.isBoardingPositionOnEntityFloor(
+                floors, posAt(202), posAt(222)));
+        assertFalse(ElevatorEntryFloorPolicy.isBoardingPositionOnEntityFloor(
+                floors, posAt(236), posAt(222)));
+    }
+
+    @Test
     void rejectsMissingPositions() {
         assertFalse(ElevatorEntryFloorPolicy.isBoardingPositionOnEntityFloor(
                 floorsAt(10), null, posAt(10)));

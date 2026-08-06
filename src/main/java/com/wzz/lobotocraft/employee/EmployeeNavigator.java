@@ -969,7 +969,8 @@ public final class EmployeeNavigator {
     private void tickWaitingForElevator() {
         waitTicks++;
         player.clearNavigationInput();
-        if (Math.abs(target.getY() - player.getY()) <= 4.0D) {
+        if (ElevatorEntryFloorPolicy.isOnSameFloor(
+                player.serverLevel(), player.blockPosition(), target)) {
             state = State.DIRECT;
             elevator = null;
             elevatorUp = false;

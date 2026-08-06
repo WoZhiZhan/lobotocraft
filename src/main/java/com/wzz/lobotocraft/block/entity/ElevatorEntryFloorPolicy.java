@@ -23,6 +23,13 @@ public final class ElevatorEntryFloorPolicy {
                 elevatorPosition.above());
     }
 
+    public static boolean isOnSameFloor(ServerLevel level, BlockPos first, BlockPos second) {
+        if (level == null || first == null || second == null) return false;
+        List<FloorEntry> floors = CompanyRoomData.get(level)
+                .getFloors(level.dimension().location());
+        return isBoardingPositionOnEntityFloor(floors, first, second);
+    }
+
     static boolean isBoardingPositionOnEntityFloor(List<FloorEntry> sortedFloors,
                                                     BlockPos entityPosition,
                                                     BlockPos boardingPosition) {
