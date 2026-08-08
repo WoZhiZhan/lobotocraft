@@ -11,26 +11,29 @@ public class CoreSuppressionSyncPacket implements IMessage {
     private boolean active;
     private int type;
     private String ownerName;
-    private int dawnCompleted;
-    private int middayCompleted;
-    private int workCompleted;
-    private int workRequired;
+    private int energy;
+    private int energyQuota;
+    private int meltdownLevel;
+    private int requiredMeltdownLevel;
     private int visualStage;
     private int completedMask;
+    private boolean fullVisualEffects;
 
     public CoreSuppressionSyncPacket(boolean active, int type, String ownerName,
-                                     int dawnCompleted, int middayCompleted,
-                                     int workCompleted, int workRequired,
-                                     int visualStage, int completedMask) {
+                                     int energy, int energyQuota,
+                                     int meltdownLevel, int requiredMeltdownLevel,
+                                     int visualStage, int completedMask,
+                                     boolean fullVisualEffects) {
         this.active = active;
         this.type = type;
         this.ownerName = ownerName == null ? "" : ownerName;
-        this.dawnCompleted = dawnCompleted;
-        this.middayCompleted = middayCompleted;
-        this.workCompleted = workCompleted;
-        this.workRequired = workRequired;
+        this.energy = energy;
+        this.energyQuota = energyQuota;
+        this.meltdownLevel = meltdownLevel;
+        this.requiredMeltdownLevel = requiredMeltdownLevel;
         this.visualStage = visualStage;
         this.completedMask = completedMask;
+        this.fullVisualEffects = fullVisualEffects;
     }
 
     @Override
@@ -43,12 +46,13 @@ public class CoreSuppressionSyncPacket implements IMessage {
         active = buf.readBoolean();
         type = buf.readInt();
         ownerName = buf.readUtf();
-        dawnCompleted = buf.readInt();
-        middayCompleted = buf.readInt();
-        workCompleted = buf.readInt();
-        workRequired = buf.readInt();
+        energy = buf.readInt();
+        energyQuota = buf.readInt();
+        meltdownLevel = buf.readInt();
+        requiredMeltdownLevel = buf.readInt();
         visualStage = buf.readInt();
         completedMask = buf.readInt();
+        fullVisualEffects = buf.readBoolean();
     }
 
     @Override
@@ -56,18 +60,20 @@ public class CoreSuppressionSyncPacket implements IMessage {
         buf.writeBoolean(active);
         buf.writeInt(type);
         buf.writeUtf(ownerName);
-        buf.writeInt(dawnCompleted);
-        buf.writeInt(middayCompleted);
-        buf.writeInt(workCompleted);
-        buf.writeInt(workRequired);
+        buf.writeInt(energy);
+        buf.writeInt(energyQuota);
+        buf.writeInt(meltdownLevel);
+        buf.writeInt(requiredMeltdownLevel);
         buf.writeInt(visualStage);
         buf.writeInt(completedMask);
+        buf.writeBoolean(fullVisualEffects);
     }
 
     @OnlyIn(Dist.CLIENT)
     @Override
     public void runClient(NetworkEvent.Context ctx) {
-        CoreSuppressionClientState.update(active, type, ownerName, dawnCompleted, middayCompleted,
-                workCompleted, workRequired, visualStage, completedMask);
+        CoreSuppressionClientState.update(active, type, ownerName, energy, energyQuota,
+                meltdownLevel, requiredMeltdownLevel, visualStage, completedMask,
+                fullVisualEffects);
     }
 }

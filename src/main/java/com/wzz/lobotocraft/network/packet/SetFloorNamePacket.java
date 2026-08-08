@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.network.packet;
 
 import com.wzz.lobotocraft.network.IMessage;
+import com.wzz.lobotocraft.network.RequestThrottle;
 import com.wzz.lobotocraft.world.data.CompanyRoomData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
@@ -46,6 +47,7 @@ public class SetFloorNamePacket implements IMessage {
     public void run(NetworkEvent.Context ctx) {
         ServerPlayer player = ctx.getSender();
         if (player == null) return;
+        if (!RequestThrottle.allow(player, "rename-floor", 250L)) return;
 
         String trimmed = name == null ? "" : name.trim();
         if (trimmed.length() > 24) {

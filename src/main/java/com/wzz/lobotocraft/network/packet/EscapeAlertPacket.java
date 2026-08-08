@@ -8,12 +8,12 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
 
 /**
- * 服务端 → 客户端：通知出逃警报等级
+ * 服务端 → 客户端：通知设施紧急警报等级
  * alertLevel:
- *  -1 = 无出逃，停止所有警报BGM
- *   0 = 任意异想体出逃
- *   1 = WAW/ALEPH 1~3只出逃
- *   2 = ALEPH 超过3只出逃
+ *  -1 = NORMAL，停止警报BGM
+ *   0 = LEVEL I
+ *   1 = LEVEL II
+ *   2 = LEVEL III
  */
 public class EscapeAlertPacket implements IMessage {
 

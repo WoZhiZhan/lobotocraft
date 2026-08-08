@@ -16,9 +16,11 @@ import net.minecraftforge.network.NetworkEvent;
 public class SuppressorCountSyncPacket implements IMessage {
 
     private int count;
+    private int capacity;
 
-    public SuppressorCountSyncPacket(int count) {
+    public SuppressorCountSyncPacket(int count, int capacity) {
         this.count = count;
+        this.capacity = capacity;
     }
 
     @Override
@@ -29,11 +31,13 @@ public class SuppressorCountSyncPacket implements IMessage {
     @Override
     public void fromBytes(FriendlyByteBuf buf) {
         this.count = buf.readInt();
+        this.capacity = buf.readInt();
     }
 
     @Override
     public void toBytes(FriendlyByteBuf buf) {
         buf.writeInt(count);
+        buf.writeInt(capacity);
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -45,6 +49,7 @@ public class SuppressorCountSyncPacket implements IMessage {
             CompoundTag persist = root.getCompound(Player.PERSISTED_NBT_TAG);
             persist.putBoolean("lobotocraft_suppressor_init", true);
             persist.putInt("lobotocraft_suppressor_count", count);
+            persist.putInt("lobotocraft_suppressor_capacity", capacity);
             root.put(Player.PERSISTED_NBT_TAG, persist);
         }
     }

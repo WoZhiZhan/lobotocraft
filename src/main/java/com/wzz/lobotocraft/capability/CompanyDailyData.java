@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.capability;
 
+import com.lobotocraft.facility.day.DayTransitionService;
 import com.wzz.lobotocraft.event.definition.company.*;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
@@ -84,7 +85,15 @@ public class CompanyDailyData {
      * 进入新的一天
      * 重置工作次数，天数+1，清除装备锁定
      */
+    /**
+     * Legacy-compatible entry point. New transactional callers should use
+     * {@link #tryAdvanceToNextDay()} so an event cancellation is observable.
+     */
     public void advanceToNextDay() {
+        tryAdvanceToNextDay();
+    }
+
+    public boolean tryAdvanceToNextDay() {
         int oldDay = currentDay;
         int newDay = currentDay + 1;
         
@@ -93,7 +102,7 @@ public class CompanyDailyData {
             CompanyDayAdvanceEvent event = new CompanyDayAdvanceEvent(owner, this, oldDay, newDay);
             if (MinecraftForge.EVENT_BUS.post(event)) {
                 // 事件被取消
-                return;
+                return false;
             }
         }
         
@@ -101,6 +110,7 @@ public class CompanyDailyData {
         todayWorkCount = 0;
         armorLocked = false;
         resistancesApplied = false;  // 重置抗性应用状态
+        return true;
     }
 
     /**
@@ -182,9 +192,10 @@ public class CompanyDailyData {
                 return;
             }
             
-            // 如果工作已完成，进入下一天
+            // Sleeping only requests a facility-wide transition. It must not
+            // mutate this player's day before the global transaction commits.
             if (event.hasCompletedWork()) {
-                advanceToNextDay();
+                DayTransitionService.requestStart(owner);
             }
         }
         this.hasSleep = hasSleep;

@@ -6,6 +6,8 @@ import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.AiCombatModeEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.AiRangedEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
@@ -53,11 +55,24 @@ import java.util.function.Consumer;
  * <p>
  * 宣判持枪要求：右手(主手)白枪 + 左手(副手)黑枪。
  */
-public class ButterflyFuneralWeapon extends BaseEgoWeapon {
+public class ButterflyFuneralWeapon extends BaseEgoWeapon
+        implements AiRangedEgoWeapon, AiCombatModeEgoWeapon {
 
     /* ======================= 可调参数 ======================= */
     /** 攻击距离 */
     public static final double ATTACK_RANGE = 10.0D;
+    @Override public double aiAttackRange() { return ATTACK_RANGE; }
+
+    @Override
+    public void prepareAiCombat(Player player, ItemStack stack) {
+        if (player instanceof ServerPlayer serverPlayer
+                && !isJudging(player) && canJudge(player)) {
+            toggleJudgement(serverPlayer);
+        }
+    }
+    @Override public double aiMinSpacing() { return 5.0D; }
+    @Override public double aiMaxSpacing() { return 9.0D; }
+    @Override public double aiPreferredSpacing() { return 7.0D; }
     /** 单发基础伤害 */
     public static final float BASE_DAMAGE = 2.0F;
     /** 基础开火冷却（tick） */
@@ -70,6 +85,8 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
     public static final int BURST_SHOTS = 3;
     /** 三连发的每发间隔（tick） */
     public static final int BURST_INTERVAL = 3;
+    /** 开火音量；单发与三连发续射保持一致。 */
+    public static final float ATTACK_SOUND_VOLUME = 0.35F;
 
     /** 每命中多少次叠一层蝶引 */
     public static final int HITS_PER_BUTTERFLY = 10;
@@ -302,7 +319,8 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
         tag.putInt(TAG_COOLDOWN, cooldown);
 
         if (!level.isClientSide) {
-            SoundUtil.playSound(level, player, ModSounds.BUTTERFLY_FUNERAL_WEAPON.get(), 0.7f);
+            SoundUtil.playSound(level, player, ModSounds.BUTTERFLY_FUNERAL_WEAPON.get(),
+                    ATTACK_SOUND_VOLUME);
             stopAnimation(player, stack, getFireAnimation(stack, judging, burst));
             triggerAnimation(player, stack, getFireAnimation(stack, judging, burst));
             performShot(level, player, stack);
@@ -357,7 +375,8 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
             EntityUtil.clearHurtTime(target);
             target.hurt(source, BASE_DAMAGE);
             // 命中特效：三只蝴蝶
-            ParticleUtil.spawnParticlesAroundEntity(target, ModParticleTypes.BUTTERFLY.get(), 3, 0.03D);
+            ParticleUtil.spawnParticlesAroundEntity(target,
+                    ModParticleTypes.BUTTERFLY_EGO.get(), 3, 0.03D);
         }
 
         // 命中生物才计数（开火一次算一次，不按命中数量重复计）
@@ -421,7 +440,8 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon {
             tag.putInt(TAG_BURST_DELAY, delay - 1);
             return;
         }
-        SoundUtil.playSound(level, player, ModSounds.BUTTERFLY_FUNERAL_WEAPON.get(), 0.7f);
+        SoundUtil.playSound(level, player, ModSounds.BUTTERFLY_FUNERAL_WEAPON.get(),
+                ATTACK_SOUND_VOLUME);
         performShot(level, player, stack);
         tag.putInt(TAG_BURST, burst - 1);
         tag.putInt(TAG_BURST_DELAY, BURST_INTERVAL);

@@ -11,6 +11,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
+import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -29,6 +30,7 @@ public class WorkProgressHUD {
 
     @SubscribeEvent
     public static void onRenderGameOverlay(RenderGuiOverlayEvent.Post event) {
+        if (!event.getOverlay().id().equals(VanillaGuiOverlay.HOTBAR.id())) return;
         Minecraft mc = Minecraft.getInstance();
         Player player = mc.player;
         

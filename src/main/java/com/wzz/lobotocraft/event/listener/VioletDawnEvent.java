@@ -1,8 +1,11 @@
 package com.wzz.lobotocraft.event.listener;
 
+import com.lobotocraft.facility.OrdealRewardService;
+import com.lobotocraft.facility.data.OrdealTier;
 import com.wzz.lobotocraft.ModMain;
-import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
+import com.wzz.lobotocraft.entity.base.EscapeTracker;
 import com.wzz.lobotocraft.entity.ordeal.EntityVioletDawn;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModSounds;
@@ -30,37 +33,29 @@ import static com.wzz.lobotocraft.event.listener.CrimsonDawnEvent.*;
 public class VioletDawnEvent {
     private static final double REACTOR_ESCAPE_BLOCK_RANGE_SQR = 48.0D * 48.0D;
 
-    public static void triggerVioletDawn(ServerLevel level) {
+    public static boolean triggerVioletDawn(ServerLevel level) {
         OrdealData data = OrdealData.get(level);
-        if (data.hasActiveDawn()) return;
+        if (data.isVioletDawnActive()) return false;
 
         MinecraftServer server = level.getServer();
-        int count = Math.max(1, server.getPlayerList().getPlayers().size());
-        List<ServerPlayer> players = getEligiblePlayers(level);
-        List<BlockPos> reactors = collectReactorPositions(level);
-        List<BlockPos> escapeBlocks = new ArrayList<>(EscapeBlockEntity.getEscapeBlocks(level.dimension()));
-        List<SpawnPoint> fallbackSpawnPoints = collectSpawnPoints(reactors, escapeBlocks, level);
+        List<OrdealSpawnPointService.DepartmentCorridors> departments =
+                OrdealSpawnPointService.openCorridorsByDepartment(level);
+        if (departments.isEmpty()) return false;
 
         int spawned = 0;
-        if (!players.isEmpty()) {
-            Collections.shuffle(players, new java.util.Random(level.getRandom().nextLong()));
-            for (int i = 0; i < count; i++) {
-                ServerPlayer player = players.get(i % players.size());
-                BlockPos spawnPos = chooseSpawnPositionNearPlayer(level, player, reactors, escapeBlocks, fallbackSpawnPoints, i);
+        int departmentCount = OrdealSpawnPolicy.dawnDepartmentCount(departments.size());
+        for (int index = 0; index < departmentCount; index++) {
+            for (BlockPos corridor : departments.get(index).corridors()) {
+                BlockPos spawnPos = EntityUtil.findSafeGroundPositionInCompany(level, corridor, 4);
                 if (spawnVioletDawnAt(level, spawnPos)) {
                     spawned++;
-                }
-            }
-        } else {
-            for (int i = 0; i < count; i++) {
-                if (spawnVioletDawnAt(level, chooseFallbackSpawnPosition(level, fallbackSpawnPoints, i))) {
-                    spawned++;
+                    break;
                 }
             }
         }
 
         if (spawned <= 0) {
-            return;
+            return false;
         }
 
         data.setDawnChance(0);
@@ -73,6 +68,8 @@ public class VioletDawnEvent {
                 "理解的果实",
                 "有朝一日，我们必将理解那些不能理解的东西。");
         playGlobalSound(server, ModSounds.VIOLET_DAWN_START.get());
+        EscapeTracker.getInstance().onOrdealStart(level, OrdealTier.DAWN);
+        return true;
     }
 
     public static void onVioletDawnRemoved(ServerLevel level) {
@@ -82,6 +79,7 @@ public class VioletDawnEvent {
 
         data.finishVioletDawn();
         MinecraftServer server = level.getServer();
+        OrdealRewardService.complete(server, OrdealTier.DAWN);
         showVioletDawnTitle(server,
                 "紫罗兰的黎明",
                 "理解的果实",
@@ -98,6 +96,8 @@ public class VioletDawnEvent {
     private static List<BlockPos> collectReactorPositions(ServerLevel level) {
         return EntityUtil.findBlockEntities(level).stream()
                 .filter(RegenerationReactorBlockEntity.class::isInstance)
+                .filter(blockEntity -> OrdealSpawnPointService.isOpenMappedArea(
+                        level, blockEntity.getBlockPos()))
                 .map(blockEntity -> blockEntity.getBlockPos())
                 .toList();
     }
@@ -155,7 +155,7 @@ public class VioletDawnEvent {
         if (!spawnPoints.isEmpty()) {
             return resolveSpawnPosition(level, spawnPoints.get(index % spawnPoints.size()));
         }
-        return EntityUtil.findSafeGroundPositionInCompany(level, fallback, 4);
+        return null;
     }
 
     private static BlockPos resolveSpawnPosition(ServerLevel level, SpawnPoint point) {
@@ -165,7 +165,8 @@ public class VioletDawnEvent {
     }
 
     private static boolean spawnVioletDawnAt(ServerLevel level, BlockPos spawnPos) {
-        if (spawnPos == null) {
+        if (spawnPos == null || !FacilityAccessService.isPositionOpen(level.getServer(),
+                level.dimension().location(), spawnPos)) {
             return false;
         }
         EntityVioletDawn violetDawn = ModEntities.violet_dawn.get().create(level);

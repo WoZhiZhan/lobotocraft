@@ -27,8 +27,8 @@ public class ToolUsageProgressScreen extends Screen {
     private int usageTimeSeconds = 0;
     private float currentDamage = 0f;
     private float damageInterval = 5f;
-    private int totalEnergyProduced = 0;
-    private int currentEnergyOutput = 1;
+    private float totalEnergyProduced = 0.0F;
+    private float currentEnergyOutput = 0.0F;
     private float energyInterval = 5f;
 
     // 血量显示
@@ -40,6 +40,7 @@ public class ToolUsageProgressScreen extends Screen {
 
     // 取消按钮
     private Button cancelButton = null;
+    private boolean cancellationSent;
 
     public ToolUsageProgressScreen(int abnormalityId, String abnormalityName) {
         super(Component.literal("工具使用中"));
@@ -51,7 +52,7 @@ public class ToolUsageProgressScreen extends Screen {
      * 接收服务器发送的状态更新
      */
     public void onStatusUpdate(int usageTimeSeconds, float currentDamage, float damageInterval,
-                               int totalEnergyProduced, int currentEnergyOutput, float energyInterval,
+                               float totalEnergyProduced, float currentEnergyOutput, float energyInterval,
                                float playerHealth, float playerMaxHealth) {
         this.usageTimeSeconds = usageTimeSeconds;
         this.currentDamage = currentDamage;
@@ -86,7 +87,7 @@ public class ToolUsageProgressScreen extends Screen {
      */
     private void onCancelButtonPressed() {
         // 发送停止使用请求到服务器
-        MessageLoader.getLoader().sendToServer(new StopUsingToolPacket(abnormalityId));
+        sendCancellationOnce();
 
         // 关闭界面
         this.onClose();
@@ -198,13 +199,13 @@ public class ToolUsageProgressScreen extends Screen {
         contentY += 20;
         graphics.drawString(this.font, "§6总能源产出：",
                 panelX + 40, contentY, 0xFFAA00);
-        graphics.drawString(this.font, String.format("§f%d", totalEnergyProduced),
+        graphics.drawString(this.font, String.format("§f%.2f", totalEnergyProduced),
                 panelX + 180, contentY, 0xFFFFFF);
 
         contentY += 20;
         graphics.drawString(this.font, "§6当前产能：",
                 panelX + 40, contentY, 0xFFAA00);
-        graphics.drawString(this.font, String.format("§f%d/次", currentEnergyOutput),
+        graphics.drawString(this.font, String.format("§f%.2f/次", currentEnergyOutput),
                 panelX + 180, contentY, 0xFFFFFF);
 
         contentY += 20;
@@ -286,10 +287,14 @@ public class ToolUsageProgressScreen extends Screen {
     @Override
     public void onClose() {
         // ESC关闭时也发送取消请求
-        if (this.minecraft != null && this.minecraft.player != null) {
-            MessageLoader.getLoader().sendToServer(new StopUsingToolPacket(abnormalityId));
-        }
+        sendCancellationOnce();
         super.onClose();
+    }
+
+    private void sendCancellationOnce() {
+        if (cancellationSent || this.minecraft == null || this.minecraft.player == null) return;
+        cancellationSent = true;
+        MessageLoader.getLoader().sendToServer(new StopUsingToolPacket(abnormalityId));
     }
 
     // ==================== 自适应缩放:鼠标坐标逆变换(与渲染变换保持一致,避免点击错位) ====================

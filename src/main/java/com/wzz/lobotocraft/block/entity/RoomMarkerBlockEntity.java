@@ -1,15 +1,22 @@
 package com.wzz.lobotocraft.block.entity;
 
+import com.lobotocraft.facility.data.FacilityDayData;
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.init.ModBlockEntities;
 import com.wzz.lobotocraft.world.data.CompanyRoomData;
+import com.wzz.lobotocraft.world.data.FacilityAreaEntry;
+import com.wzz.lobotocraft.world.data.FacilityAreaType;
 import com.wzz.lobotocraft.world.data.RoomEntry;
+import com.wzz.lobotocraft.world.data.RoomMonitorStatusPolicy;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -38,7 +45,7 @@ import java.util.UUID;
  *   <li>还是没有，但房间里有<b>别的</b>异想体，且原住户已经丢了 {@value #REBIND_AFTER} 次以上
  *       —— 说明玩家换了一只，自动改绑</li>
  * </ol>
- * 连续 {@value #LOST_AFTER} 次找不到 -> 标记"失联"（而不是"出逃"，避免玩家一回收就满屏红色警报）；
+ * 找不到已登记实体时立即标记"失联"，避免监控提供一个服务端必然拒绝的镇压入口；
  * 连续 {@value #FORGET_AFTER} 次找不到 -> 彻底清空登记，房间回到空置。
  */
 public class RoomMarkerBlockEntity extends BlockEntity {
@@ -48,8 +55,6 @@ public class RoomMarkerBlockEntity extends BlockEntity {
 
     private static final int SCAN_INTERVAL = 20;
 
-    /** 连续多少次扫不到就标记"失联" */
-    private static final int LOST_AFTER = 3;
     /** 失联多少次之后允许被房间里的新异想体顶替 */
     private static final int REBIND_AFTER = 3;
     /** 失联多少次之后彻底清空登记（60 次 = 60 秒） */
@@ -60,6 +65,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
 
     private int radiusXZ = 10;
     private int radiusY = 5;
+    private String departmentId = "";
 
     /** 住户身份：异想体编号。空串 = 本房间还没登记住户 */
     private String boundCode = "";
@@ -81,7 +87,11 @@ public class RoomMarkerBlockEntity extends BlockEntity {
         if (!(level instanceof ServerLevel serverLevel)) return;
 
         if (!be.registered) {
-            CompanyRoomData.get(serverLevel).getOrCreateRoom(serverLevel.dimension().location(), pos);
+            CompanyRoomData data = CompanyRoomData.get(serverLevel);
+            RoomEntry room = data.getOrCreateRoom(serverLevel.dimension().location(), pos);
+            room.departmentId = be.departmentId;
+            data.putRoom(room);
+            be.syncArea(serverLevel);
             be.registered = true;
         }
 
@@ -93,6 +103,12 @@ public class RoomMarkerBlockEntity extends BlockEntity {
     }
 
     public void scan(ServerLevel level) {
+        if (FacilityAccessService.containmentAccess(level.getServer(), level.dimension().location(),
+                worldPosition) != FacilityAccessService.ContainmentAccess.OPEN) {
+            publishUnexpandedState(level);
+            return;
+        }
+
         AABB box = getScanBox();
         List<AbstractAbnormality> inRoom = level.getEntitiesOfClass(
                 AbstractAbnormality.class, box, e -> e.isAlive() && !e.isRemoved());
@@ -162,8 +178,10 @@ public class RoomMarkerBlockEntity extends BlockEntity {
 
         CompanyRoomData data = CompanyRoomData.get(level);
         RoomEntry entry = data.getOrCreateRoom(level.dimension().location(), worldPosition);
+        entry.departmentId = departmentId;
         entry.playersInside = players.size();
         entry.lastUpdate = level.getGameTime();
+        entry.toolType = false;
 
         if (target != null) {
             missingScans = 0;
@@ -174,18 +192,28 @@ public class RoomMarkerBlockEntity extends BlockEntity {
                 escapeFlag = target.hasEscape();
             } catch (Throwable ignored) {
             }
-            boolean escaped = escapeFlag || !inside;
+            boolean escaped = escapeFlag;
 
             entry.abnormalityCode = boundCode;
             entry.abnormalityName = boundName;
             entry.riskName = boundRisk;
             entry.riskColor = boundRiskColor;
-            entry.status = escaped ? RoomEntry.STATUS_ESCAPED : RoomEntry.STATUS_OCCUPIED;
+            entry.toolType = target.isToolType();
+            entry.status = RoomMonitorStatusPolicy.trackedStatus(escapeFlag, inside);
             entry.qliphoth = target.getQliphothCounter();
             entry.maxQliphoth = target.getMaxQliphothCounter();
             entry.healthPercent = target.getMaxHealth() <= 0 ? 1.0F
                     : Math.max(0.0F, Math.min(1.0F, target.getHealth() / target.getMaxHealth()));
             entry.escapeDistance = escaped ? (int) Math.sqrt(distSqrToMarker(target)) : 0;
+            FacilityDayData facilityDay = FacilityDayData.get(level);
+            FacilityDayData.ActiveMeltdown facilityMeltdown =
+                    facilityDay.getActiveMeltdowns().get(target.getUUID());
+            boolean suppressionActive = CoreSuppressionManager.isSuppressionActive(level);
+            int facilityRemaining = facilityMeltdown == null ? 0 : (int) Math.max(0L,
+                    Math.min(Integer.MAX_VALUE, facilityMeltdown.deadline()
+                            - level.getServer().overworld().getGameTime()));
+            entry.meltdownActive = suppressionActive && facilityMeltdown != null;
+            entry.meltdownRemainingTicks = entry.meltdownActive ? facilityRemaining : 0;
 
         } else if (!boundCode.isEmpty()) {
             missingScans++;
@@ -199,14 +227,15 @@ public class RoomMarkerBlockEntity extends BlockEntity {
                 entry.qliphoth = -1;
                 entry.maxQliphoth = -1;
                 entry.escapeDistance = 0;
+                clearMeltdown(entry);
             } else {
                 entry.abnormalityCode = boundCode;
                 entry.abnormalityName = boundName;
                 entry.riskName = boundRisk;
                 entry.riskColor = boundRiskColor;
-                entry.status = missingScans >= LOST_AFTER
-                        ? RoomEntry.STATUS_LOST : RoomEntry.STATUS_ESCAPED;
+                entry.status = RoomMonitorStatusPolicy.missingBoundStatus();
                 entry.escapeDistance = 0;
+                clearMeltdown(entry);
             }
         } else {
             entry.abnormalityCode = "";
@@ -216,9 +245,40 @@ public class RoomMarkerBlockEntity extends BlockEntity {
             entry.qliphoth = -1;
             entry.maxQliphoth = -1;
             entry.escapeDistance = 0;
+            clearMeltdown(entry);
         }
 
         data.putRoom(entry);
+    }
+
+    /** Keep the physical abnormality and saved binding dormant until this slot is expanded. */
+    private void publishUnexpandedState(ServerLevel level) {
+        CompanyRoomData data = CompanyRoomData.get(level);
+        RoomEntry entry = data.getOrCreateRoom(level.dimension().location(), worldPosition);
+        entry.departmentId = departmentId;
+        entry.abnormalityCode = "";
+        entry.abnormalityName = "";
+        entry.riskName = "";
+        entry.status = RoomEntry.STATUS_UNEXPANDED;
+        entry.qliphoth = -1;
+        entry.maxQliphoth = -1;
+        entry.healthPercent = 1.0F;
+        entry.playersInside = 0;
+        entry.escapeDistance = 0;
+        clearMeltdown(entry);
+        entry.lastUpdate = level.getGameTime();
+        data.putRoom(entry);
+    }
+
+    private static void clearMeltdown(RoomEntry entry) {
+        entry.meltdownActive = false;
+        entry.meltdownRemainingTicks = 0;
+    }
+
+    private static int earliestPositive(int first, int second) {
+        if (first <= 0) return Math.max(0, second);
+        if (second <= 0) return first;
+        return Math.min(first, second);
     }
 
     private double distSqrToMarker(AbstractAbnormality abnormality) {
@@ -240,6 +300,9 @@ public class RoomMarkerBlockEntity extends BlockEntity {
             this.boundRisk = risk.name();
             this.boundRiskColor = 0xFF000000 | (risk.getColor() & 0xFFFFFF);
         }
+        if (level != null) {
+            abnormality.bindHomeRoom(level.dimension().location(), worldPosition);
+        }
         if (changed) {
             setChanged();
         }
@@ -247,6 +310,10 @@ public class RoomMarkerBlockEntity extends BlockEntity {
 
     /** 管理界面里手动指定住户 */
     public boolean bindByUuid(ServerLevel level, UUID uuid) {
+        if (FacilityAccessService.containmentAccess(level.getServer(), level.dimension().location(),
+                worldPosition) != FacilityAccessService.ContainmentAccess.OPEN) {
+            return false;
+        }
         Entity found = level.getEntity(uuid);
         if (!(found instanceof AbstractAbnormality abnormality) || !abnormality.isAlive()) {
             return false;
@@ -260,6 +327,12 @@ public class RoomMarkerBlockEntity extends BlockEntity {
 
     /** 清空登记。下一次扫描如果房间里有异想体，会自动重新认一只 */
     public void clearBinding() {
+        if (level instanceof ServerLevel serverLevel
+                && FacilityAccessService.containmentAccess(serverLevel.getServer(),
+                serverLevel.dimension().location(), worldPosition)
+                != FacilityAccessService.ContainmentAccess.OPEN) {
+            return;
+        }
         clearBindingQuiet();
         if (level instanceof ServerLevel serverLevel) {
             scan(serverLevel);
@@ -312,6 +385,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
         }
         if (level instanceof ServerLevel serverLevel) {
+            syncArea(serverLevel);
             scan(serverLevel);
         }
         return radiusXZ;
@@ -323,6 +397,69 @@ public class RoomMarkerBlockEntity extends BlockEntity {
 
     public int getRadiusY() {
         return radiusY;
+    }
+
+    public String getDepartmentId() {
+        return departmentId;
+    }
+
+    public void setDepartmentId(String departmentId) {
+        String value = departmentId == null ? "" : departmentId.trim();
+        this.departmentId = value.length() > FacilityAreaEntry.MAX_DEPARTMENT_LENGTH
+                ? value.substring(0, FacilityAreaEntry.MAX_DEPARTMENT_LENGTH)
+                : value;
+        setChanged();
+        if (level instanceof ServerLevel serverLevel) {
+            CompanyRoomData data = CompanyRoomData.get(serverLevel);
+            RoomEntry room = data.getOrCreateRoom(serverLevel.dimension().location(), worldPosition);
+            room.departmentId = this.departmentId;
+            data.putRoom(room);
+            syncArea(serverLevel);
+        }
+    }
+
+    private void syncArea(ServerLevel level) {
+        FacilityAreaEntry area = CompanyRoomData.get(level).getOrCreateArea(
+                level.dimension().location(), worldPosition, FacilityAreaType.CONTAINMENT);
+        area.markerPos = worldPosition.immutable();
+        area.setBounds(
+                worldPosition.offset(-radiusXZ, -radiusY, -radiusXZ),
+                worldPosition.offset(radiusXZ, radiusY, radiusXZ));
+        area.departmentId = departmentId;
+        area.type = FacilityAreaType.CONTAINMENT;
+        area.groupId = "";
+        CompanyRoomData.get(level).putArea(area);
+    }
+
+    @Override
+    public void onLoad() {
+        super.onLoad();
+        if (level instanceof ServerLevel serverLevel) {
+            RoomEntry room = CompanyRoomData.get(serverLevel).getOrCreateRoom(
+                    serverLevel.dimension().location(), worldPosition);
+            room.departmentId = departmentId;
+            CompanyRoomData.get(serverLevel).putRoom(room);
+            syncArea(serverLevel);
+            registered = true;
+        }
+    }
+
+    @Override
+    public void setRemoved() {
+        if (level instanceof ServerLevel serverLevel) {
+            BlockPos markerPos = worldPosition.immutable();
+            BlockState markerState = getBlockState();
+            ResourceLocation dimension = serverLevel.dimension().location();
+            serverLevel.getServer().execute(() -> {
+                if (serverLevel.hasChunkAt(markerPos)
+                        && !serverLevel.getBlockState(markerPos).is(markerState.getBlock())) {
+                    CompanyRoomData data = CompanyRoomData.get(serverLevel);
+                    data.removeRoom(dimension, markerPos);
+                    data.removeArea(FacilityAreaType.CONTAINMENT, dimension, markerPos);
+                }
+            });
+        }
+        super.setRemoved();
     }
 
     // 客户端需要知道扫描半径来画范围框，所以把 BE 数据同步过去
@@ -343,6 +480,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
         super.saveAdditional(tag);
         tag.putInt("RadiusXZ", radiusXZ);
         tag.putInt("RadiusY", radiusY);
+        tag.putString("DepartmentId", departmentId);
         tag.putString("BoundCode", boundCode);
         tag.putString("BoundName", boundName);
         tag.putString("BoundRisk", boundRisk);
@@ -357,6 +495,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
         super.load(tag);
         if (tag.contains("RadiusXZ")) this.radiusXZ = tag.getInt("RadiusXZ");
         if (tag.contains("RadiusY")) this.radiusY = tag.getInt("RadiusY");
+        this.departmentId = tag.getString("DepartmentId");
         this.boundCode = tag.getString("BoundCode");
         this.boundName = tag.getString("BoundName");
         this.boundRisk = tag.getString("BoundRisk");

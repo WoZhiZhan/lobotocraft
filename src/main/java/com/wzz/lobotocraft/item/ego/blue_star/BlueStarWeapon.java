@@ -5,6 +5,8 @@ import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.AiRangedEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.AiSpecialEgoWeapon;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.ScreenDistortionEffectPacket;
 import com.wzz.lobotocraft.util.ClientInputUtil;
@@ -17,6 +19,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
@@ -48,17 +51,39 @@ import java.util.Map;
  *     30~60% : 2段,每段18
  *     >60%   : 3段,每段24
  * Shift右键(120秒CD):特殊攻击,播放碧蓝新星攻击音效+屏幕扭曲,
- *   对全图敌对生物造成等同玩家精神值的白伤,解除该维度恐慌员工并回10%精神,
+ *   对全图敌对生物造成等同玩家精神值的白伤,为该维度恐慌员工恢复10%精神,
  *   并使该维度未出逃且计数器未满的异想体计数器+1。
  * 套装效果(武器+护甲+饰品):见 BlueStarSetEvent(命中减速、满精神光束+25%、致命复活)。
  */
-public class BlueStarWeapon extends BaseEgoWeapon {
+public class BlueStarWeapon extends BaseEgoWeapon implements AiRangedEgoWeapon, AiSpecialEgoWeapon {
 
     private static final String KEY_COOLDOWN = "AttackCooldown";  // 普通攻击冷却(tick)
     private static final String KEY_SPECIAL_CD = "SpecialCooldown"; // 特殊攻击冷却(tick)
     private static final int ATTACK_COOLDOWN = 30;      // 1.5秒
     private static final int SPECIAL_COOLDOWN = 120 * 20; // 120秒
     private static final double BEAM_RANGE = 25.0;
+    @Override public double aiAttackRange() { return BEAM_RANGE; }
+    @Override public double aiMinSpacing() { return 8.0D; }
+    @Override public double aiMaxSpacing() { return 22.0D; }
+    @Override public double aiPreferredSpacing() { return 15.0D; }
+    @Override public double aiSpecialAttackRange() { return Double.MAX_VALUE; }
+    @Override public boolean aiSpecialRequiresCrouch() { return true; }
+    @Override public boolean aiSpecialRequiresLineOfSight() { return false; }
+    @Override public boolean isAiSpecialAttackReady(Player player, ItemStack stack) {
+        return stack != null && !stack.isEmpty()
+                && stack.getOrCreateTag().getInt(KEY_SPECIAL_CD) <= 0;
+    }
+
+    @Override
+    public InteractionResult useForAi(ServerPlayer player, ItemStack stack,
+                                      InteractionHand hand, LivingEntity target) {
+        if (!canUseItem(player)) return InteractionResult.PASS;
+        int cooldown = stack.getOrCreateTag().getInt(KEY_COOLDOWN);
+        if (cooldown > 0) return InteractionResult.PASS;
+        stack.getOrCreateTag().putInt(KEY_COOLDOWN, ATTACK_COOLDOWN);
+        fireBeams(player, target);
+        return InteractionResult.SUCCESS;
+    }
 
     public BlueStarWeapon() {
         super(new ModTier.WeaponTier(), 0, -2.4f, new Properties().stacksTo(1).fireResistant());
@@ -119,14 +144,14 @@ public class BlueStarWeapon extends BaseEgoWeapon {
         stack.getOrCreateTag().putInt(KEY_COOLDOWN, ATTACK_COOLDOWN);
 
         if (!level.isClientSide) {
-            fireBeams((ServerPlayer) player);
+            fireBeams((ServerPlayer) player, null);
         }
         return InteractionResultHolder.success(stack);
     }
 
     // ==================== 光束攻击 ====================
 
-    private void fireBeams(ServerPlayer player) {
+    private void fireBeams(ServerPlayer player, @Nullable LivingEntity lockedTarget) {
         float cur = MentalValueUtil.getMentalValue(player);
         float max = MentalValueUtil.getEffectiveMaxMentalValue(player);
         float ratio = max > 0 ? cur / max : 0f;
@@ -142,14 +167,14 @@ public class BlueStarWeapon extends BaseEgoWeapon {
         };
 
         // 第 1 段（总是存在）
-        shootSingleBeam(player, getOrbPosition(player, 0, orbCount), beamDamage);
+        shootSingleBeam(player, getOrbPosition(player, 0, orbCount), beamDamage, lockedTarget);
         // 第 2 段
         if (orbCount >= 2) {
-            shootSingleBeam(player, getOrbPosition(player, 1, orbCount), beamDamage);
+            shootSingleBeam(player, getOrbPosition(player, 1, orbCount), beamDamage, lockedTarget);
         }
         // 第 3 段
         if (orbCount >= 3) {
-            shootSingleBeam(player, getOrbPosition(player, 2, orbCount), beamDamage);
+            shootSingleBeam(player, getOrbPosition(player, 2, orbCount), beamDamage, lockedTarget);
         }
 
         player.level().playSound(null, player.blockPosition(),
@@ -194,10 +219,17 @@ public class BlueStarWeapon extends BaseEgoWeapon {
     }
 
     /** 从指定起点朝玩家准星方向发射一道25格白色光束 */
-    private void shootSingleBeam(ServerPlayer player, Vec3 origin, float damage) {
+    private void shootSingleBeam(ServerPlayer player, Vec3 origin, float damage,
+                                 @Nullable LivingEntity lockedTarget) {
         ServerLevel level = player.serverLevel();
         Vec3 eye = player.getEyePosition();
         Vec3 look = player.getLookAngle().normalize();
+
+        if (lockedTarget != null && canBeamTarget(player, lockedTarget)
+                && player.distanceTo(lockedTarget) <= BEAM_RANGE) {
+            fireLockedBeam(player, origin, damage, lockedTarget);
+            return;
+        }
 
         // 从玩家眼睛做射线检测，找到准星实际指向的远点
         Vec3 eyeEnd = eye.add(look.scale(BEAM_RANGE));
@@ -219,7 +251,7 @@ public class BlueStarWeapon extends BaseEgoWeapon {
         double bestDist = Double.MAX_VALUE;
         AABB scan = new AABB(origin, realEnd).inflate(1.0);
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, scan,
-                en -> en != player && en.isAlive() && !(en instanceof Player p && (p.isCreative() || p.isSpectator())))) {
+                en -> canBeamTarget(player, en))) {
             Vec3 rel = e.getBoundingBox().getCenter().subtract(origin);
             double along = rel.dot(beamDir);
             if (along < 0 || along > BEAM_RANGE) continue;
@@ -228,6 +260,7 @@ public class BlueStarWeapon extends BaseEgoWeapon {
             if (along < bestDist) { bestDist = along; target = e; }
         }
 
+        if (target != null && !canBeamTarget(player, target)) target = null;
         Vec3 hitPoint = target != null ? target.getBoundingBox().getCenter() : realEnd;
         drawBeamParticles(level, origin, hitPoint);
 
@@ -242,6 +275,39 @@ public class BlueStarWeapon extends BaseEgoWeapon {
                         level.getGameTime() + 200);
             }
         }
+    }
+
+    private void fireLockedBeam(ServerPlayer player, Vec3 origin, float damage,
+                                LivingEntity target) {
+        ServerLevel level = player.serverLevel();
+        Vec3 targetPoint = target.getBoundingBox().getCenter();
+        HitResult blockHit = level.clip(new ClipContext(origin, targetPoint,
+                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+        if (blockHit.getType() == HitResult.Type.BLOCK) {
+            drawBeamParticles(level, origin, blockHit.getLocation());
+            return;
+        }
+
+        drawBeamParticles(level, origin, targetPoint);
+        EntityUtil.clearHurtTime(target);
+        target.hurt(DamageHelper.getDamage(player, "white"), damage);
+        if (target instanceof ServerPlayer sp) {
+            MentalValueUtil.reduceMentalValue(sp, damage);
+        }
+        if (isBlueStarSet(player)) {
+            target.getPersistentData().putLong("blue_star_slow_until",
+                    level.getGameTime() + 200);
+        }
+    }
+
+    private static boolean canBeamTarget(ServerPlayer attacker, LivingEntity target) {
+        if (target == null || target == attacker || !target.isAlive()) return false;
+        if (target instanceof Player) {
+            if (!(target instanceof ServerPlayer targetPlayer)) return false;
+            return !targetPlayer.isCreative() && !targetPlayer.isSpectator()
+                    && MentalValueUtil.isPanic(targetPlayer);
+        }
+        return true;
     }
 
     /** 光束粒子特效 */
@@ -293,7 +359,7 @@ public class BlueStarWeapon extends BaseEgoWeapon {
         }
 
         for (ServerPlayer targetPlayer : level.getServer().getPlayerList().getPlayers()) {
-            if (targetPlayer.serverLevel() == level && isPanicking(targetPlayer)) {
+            if (targetPlayer.serverLevel() == level && MentalValueUtil.isPanic(targetPlayer)) {
                 recoverFromPanic(targetPlayer);
             }
         }
@@ -308,18 +374,15 @@ public class BlueStarWeapon extends BaseEgoWeapon {
                 && target.getType().getCategory() == MobCategory.MONSTER;
     }
 
-    private boolean isPanicking(ServerPlayer player) {
-        return MentalValueUtil.getMentalValue(player) <= 0.0F
-                || player.getPersistentData().getBoolean("isharmla_panic");
-    }
-
     private void recoverFromPanic(ServerPlayer player) {
         float current = MentalValueUtil.getMentalValue(player);
         float recoveredMental = Math.max(1.0F, MentalValueUtil.getEffectiveMaxMentalValue(player) * 0.10F);
         MentalValueUtil.setMentalValue(player, Math.max(current, recoveredMental));
         player.getPersistentData().putBoolean("isharmla_panic", false);
-        player.removeEffect(MobEffects.BLINDNESS);
-        player.removeEffect(MobEffects.MOVEMENT_SLOWDOWN);
+        if (!MentalValueUtil.isPanic(player)) {
+            player.removeEffect(MobEffects.BLINDNESS);
+            player.removeEffect(MobEffects.MOVEMENT_SLOWDOWN);
+        }
     }
 
     // ==================== 冷却倒计时 ====================
@@ -379,7 +442,7 @@ public class BlueStarWeapon extends BaseEgoWeapon {
             components.add(Component.literal("§7精神30%~60%：2段，每段18白伤。"));
             components.add(Component.literal("§7精神>60%：3段，每段24白伤。"));
             components.add(Component.literal("§7Shift右键(120秒)：对全图敌对生物造成等同精神值的白伤，"));
-            components.add(Component.literal("§7解除该维度恐慌员工并回10%精神，未出逃异想体计数器+1。"));
+            components.add(Component.literal("§7为该维度恐慌员工恢复10%精神，未出逃异想体计数器+1。"));
             return;
         }
         components.add(Component.literal("§7新星自我们的绝望中闪耀。在它的光芒之下，众生皆为平等。"));

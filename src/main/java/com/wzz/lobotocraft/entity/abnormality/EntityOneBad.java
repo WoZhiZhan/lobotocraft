@@ -52,7 +52,7 @@ public class EntityOneBad extends AbstractAbnormality {
 
     @Override
     public boolean onOpenWorkScreen(ServerPlayer player) {
-        if (MentalValueUtil.getMentalValue(player) <= 0) {
+        if (MentalValueUtil.isPanic(player)) {
             player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
                 mental.setMentalValue(mental.getEffectiveMaxMentalValue());
                 player.sendSystemMessage(Component.literal(
@@ -180,7 +180,7 @@ public class EntityOneBad extends AbstractAbnormality {
 
     @Override
     public boolean onOpenManualScreen(ServerPlayer player) {
-        if (MentalValueUtil.getMentalValue(player) <= 0f) {
+        if (MentalValueUtil.isPanic(player)) {
             MentalValueUtil.setMentalValue(player, 100f);
             player.sendSystemMessage(Component.literal("§6一罪与百善回应了你的祈祷，你的精神完全恢复了！§r"));
             return false;

@@ -34,7 +34,7 @@ public class SeabornProjectileEvent {
             if (target != owner) {
                 net.minecraft.world.damagesource.DamageSource src =
                         (owner != null) ? DamageHelper.getDamage(owner, "red")
-                            : DamageHelper.getDamage().getDamageSources().generic();
+                            : target.damageSources().generic();
                 target.hurt(src, dmg);
             }
         }

@@ -1,7 +1,11 @@
 package com.wzz.lobotocraft.event.listener;
 
+import com.lobotocraft.facility.OrdealRewardService;
+import com.lobotocraft.facility.data.OrdealTier;
 import com.wzz.lobotocraft.ModMain;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
+import com.wzz.lobotocraft.entity.base.EscapeTracker;
 import com.wzz.lobotocraft.entity.ordeal.EntityVioletNoon;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModSounds;
@@ -36,29 +40,33 @@ public class VioletNoonEvent {
 
     public static boolean triggerVioletNoon(ServerLevel level) {
         OrdealData data = OrdealData.get(level);
-        if (data.hasActiveOrdeal()) {
+        if (data.hasActiveMidday()) {
             return false;
         }
 
-        List<BlockPos> reactors = collectReactorPositions(level);
-        if (reactors.isEmpty()) {
+        List<OrdealSpawnPointService.DepartmentCorridors> departments =
+                OrdealSpawnPointService.openCorridorsByDepartment(level);
+        if (departments.isEmpty()) {
             return false;
         }
 
         MinecraftServer server = level.getServer();
-        List<ServerPlayer> players = getEligiblePlayers(level);
-        if (players.isEmpty()) {
-            return false;
-        }
-        Collections.shuffle(players, new java.util.Random(level.getRandom().nextLong()));
-
         int available = MAX_NATURAL_VIOLET_NOONS_PER_DIMENSION - countActiveOrdealVioletNoons(level);
-        int count = Math.min(available, players.size());
+        int count = Math.min(available,
+                OrdealSpawnPolicy.violetNoonDepartmentCount(departments.size()));
         if (count <= 0) {
             return false;
         }
 
-        int spawned = spawnVioletNoons(level, reactors, players, count);
+        int spawned = 0;
+        for (int index = 0; index < count; index++) {
+            for (BlockPos corridor : departments.get(index).corridors()) {
+                if (spawnVioletNoonAt(level, corridor)) {
+                    spawned++;
+                    break;
+                }
+            }
+        }
         if (spawned <= 0) {
             return false;
         }
@@ -73,6 +81,7 @@ public class VioletNoonEvent {
                 "请给我们爱！！！",
                 "我们听见了弱者的挣扎与悲鸣，向它们乞求爱与慈悲吧。");
         playGlobalSound(server, ModSounds.VIOLET_NOON_START.get());
+        EscapeTracker.getInstance().onOrdealStart(level, OrdealTier.NOON);
         return true;
     }
 
@@ -87,6 +96,7 @@ public class VioletNoonEvent {
 
         data.finishVioletMidday();
         MinecraftServer server = level.getServer();
+        OrdealRewardService.complete(server, OrdealTier.NOON);
         showVioletNoonTitle(server,
                 "紫罗兰的正午",
                 "请给我们爱！！！",
@@ -119,7 +129,8 @@ public class VioletNoonEvent {
     }
 
     private static boolean spawnVioletNoonAt(ServerLevel level, BlockPos reactorPos) {
-        if (reactorPos == null || !EntityUtil.isInCompany(level, reactorPos)) {
+        if (reactorPos == null || !FacilityAccessService.isPositionOpen(level.getServer(),
+                level.dimension().location(), reactorPos)) {
             return false;
         }
 
@@ -142,7 +153,8 @@ public class VioletNoonEvent {
     }
 
     private static boolean canPlaceVioletNoon(ServerLevel level, EntityVioletNoon violetNoon, BlockPos pos) {
-        if (pos == null || !EntityUtil.isInCompany(level, pos)) {
+        if (pos == null || !FacilityAccessService.isPositionOpen(level.getServer(),
+                level.dimension().location(), pos)) {
             return false;
         }
         if (pos.getY() <= level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight() - 6) {
@@ -164,7 +176,7 @@ public class VioletNoonEvent {
         EntityUtil.findBlockEntities(level).stream()
                 .filter(RegenerationReactorBlockEntity.class::isInstance)
                 .map(blockEntity -> blockEntity.getBlockPos().immutable())
-                .filter(pos -> EntityUtil.isInCompany(level, pos))
+                .filter(pos -> OrdealSpawnPointService.isOpenMappedArea(level, pos))
                 .forEach(reactors::add);
         return reactors;
     }

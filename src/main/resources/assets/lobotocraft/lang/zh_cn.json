@@ -1,4 +1,7 @@
 {
+  "key.lobotocraft.open_facility_management": "打开员工管理面板",
+  "key.lobotocraft.end_day": "结束今日工作 / 同意投票",
+  "key.lobotocraft.reject_day_vote": "反对结束日投票",
   "itemGroup.lobotocraft_entity": "脑叶公司：刷怪蛋",
   "item.lobotocraft.onebad_spawn_egg": "一罪与百善 刷怪蛋",
   "item.lobotocraft.nothing_there_spawn_egg": "一无所有 刷怪蛋",
@@ -319,5 +322,21 @@
   "entity.lobotocraft.text": "请输入文本",
   "block.lobotocraft.room_marker": "房间标记",
   "item.lobotocraft.room_terminal": "监控终端",
-  "item.lobotocraft.floor_marker": "楼层标记"
+  "item.lobotocraft.floor_marker": "楼层标记",
+  "entity.lobotocraft.crimson_dusk": "血红色的黄昏",
+  "entity.lobotocraft.green_dusk": "绿色的黄昏",
+  "entity.lobotocraft.amber_dusk": "琥珀色的黄昏",
+  "entity.lobotocraft.green_midnight": "绿色的午夜",
+  "entity.lobotocraft.violet_midnight": "紫罗兰色的午夜",
+  "entity.lobotocraft.amber_midnight": "琥珀色的午夜",
+  "message.lobotocraft.elevator.no_destination_up": "上方没有可用楼层",
+  "message.lobotocraft.elevator.no_destination_down": "下方没有可用楼层",
+  "message.lobotocraft.elevator.too_far": "已离开电梯范围",
+  "message.lobotocraft.elevator.cooldown": "电梯正在冷却",
+  "message.lobotocraft.elevator.locked_area": "目标部门尚未开放",
+  "message.lobotocraft.elevator.blocked_destination": "目标楼层出口被阻挡",
+  "message.lobotocraft.elevator.invalid": "电梯请求已失效",
+  "message.lobotocraft.navigation_cache.loading": "正在解析公司导航快照，AI 员工将暂时使用局部寻路。",
+  "message.lobotocraft.navigation_cache.ready": "公司导航快照解析完成，AI 员工全设施寻路已就绪。",
+  "message.lobotocraft.navigation_cache.failed": "公司导航快照解析失败，AI 员工将继续使用局部寻路。"
 }

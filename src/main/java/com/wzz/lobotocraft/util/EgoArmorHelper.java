@@ -129,7 +129,7 @@ public class EgoArmorHelper {
     public static void applyArmorResistances(Player player) {
         player.getCapability(CompanyDailyDataProvider.COMPANY_DAILY_DATA).ifPresent(data -> {
             // 检查装备是否锁定
-            if (!data.isArmorLocked()) {
+            if (!ArmorEffectChecker.isArmorLocked(player)) {
                 // 装备未锁定，恢复原始抗性
                 if (data.isResistancesApplied()) {
                     restoreOriginalResistances(player, data);

@@ -1,6 +1,5 @@
 package com.wzz.lobotocraft.item.debug;
 
-import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -13,11 +12,9 @@ public class RemoverItem extends Item {
 
     @Override
     public boolean onLeftClickEntity(ItemStack stack, Player player, Entity entity) {
-        if (entity instanceof AbstractAbnormality abnormality) {
-            if (abnormality.hasEscape())
-                abnormality.stopEscape();
-        }
-        entity.discard();
-        return super.onLeftClickEntity(stack, player, entity);
+        if (RemovalTargetPolicy.isProtectedPlayerType(entity.getClass())) return true;
+        if (!entity.level().isClientSide) entity.discard();
+        return true;
     }
+
 }

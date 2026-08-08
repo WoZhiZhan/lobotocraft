@@ -1,20 +1,18 @@
 package com.wzz.lobotocraft.event.listener;
 
 import com.wzz.lobotocraft.ModMain;
-import com.wzz.lobotocraft.entity.abnormality.EntityDarkSkadi;
 import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.event.definition.company.CompanyDayAdvanceEvent;
+import com.lobotocraft.facility.day.FacilityDayCommittedEvent;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-
-import java.util.List;
 
 /**
  * 浊心斯卡蒂"同葬无光之愿"祝福相关事件:
@@ -25,11 +23,27 @@ import java.util.List;
 public class SkadiEvent {
     private static final String LAST_REVIVE_TICK_TAG = "lobotocraft_wish_without_light_revive_tick";
 
+    @SubscribeEvent
+    public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player
+                && player.hasEffect(ModMobEffects.WISH_WITHOUT_LIGHT.get())) {
+            SkadiBlessingManager.isValid(player);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onDayAdvance(FacilityDayCommittedEvent event) {
+        for (ServerPlayer player : event.getServer().getPlayerList().getPlayers()) {
+            SkadiBlessingManager.clear(player);
+        }
+    }
+
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onDamage(LivingDamageEvent event) {
         if (event.getEntity().level().isClientSide) return;
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         if (!player.hasEffect(ModMobEffects.WISH_WITHOUT_LIGHT.get())) return;
+        if (!SkadiBlessingManager.isValid(player)) return;
 
         float damage = event.getAmount();
 
@@ -38,7 +52,7 @@ public class SkadiEvent {
 
         // 2. 判断减免后是否致命
         if (damage >= player.getHealth()) {
-            // 致命伤害 → 触发复活
+            if (!SkadiBlessingManager.tryConsumeCharge(player)) return;
             event.setCanceled(true);
             revivePlayer(player);
         } else {
@@ -56,8 +70,15 @@ public class SkadiEvent {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         boolean revivedEarlierThisTick = player.getPersistentData().contains(LAST_REVIVE_TICK_TAG)
                 && player.getPersistentData().getLong(LAST_REVIVE_TICK_TAG) == player.level().getGameTime();
-        if (!player.hasEffect(ModMobEffects.WISH_WITHOUT_LIGHT.get()) && !revivedEarlierThisTick) return;
-
+        // Canceling the real death below plus the Clone capability copy likely prevents Skadi revival from
+        // resetting employee stats (reported issue 22), but this still needs a runtime regression test.
+        if (revivedEarlierThisTick) {
+            event.setCanceled(true);
+            revivePlayer(player);
+            return;
+        }
+        if (!player.hasEffect(ModMobEffects.WISH_WITHOUT_LIGHT.get())
+                || !SkadiBlessingManager.tryConsumeCharge(player)) return;
         event.setCanceled(true);
         revivePlayer(player);
     }
@@ -81,11 +102,5 @@ public class SkadiEvent {
                 net.minecraft.sounds.SoundSource.NEUTRAL, 1.0f, 1.0f);
         player.sendSystemMessage(Component.literal("§9「同葬无光之愿」庇护了你,你免于死亡。"));
 
-        ServerLevel level = (ServerLevel) player.level();
-        List<EntityDarkSkadi> skadis = level.getEntitiesOfClass(EntityDarkSkadi.class,
-                player.getBoundingBox().inflate(4096), LivingEntity::isAlive);
-        if (!skadis.isEmpty()) {
-            skadis.get(0).onBlessedPlayerRevive(player);
-        }
     }
 }

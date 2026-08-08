@@ -3,11 +3,10 @@ package com.wzz.lobotocraft.event.listener;
 import com.google.gson.*;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.entity.base.EscapeTracker;
+import com.wzz.lobotocraft.init.ModBlocks;
 import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.logger.ModLogger;
-import com.wzz.lobotocraft.network.MessageLoader;
-import com.wzz.lobotocraft.network.packet.EscapeAlertPacket;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.world.structure.ProtectionHelper;
 import net.minecraft.core.BlockPos;
@@ -182,8 +181,7 @@ public class PlayerSpawnAndDimensionHandler {
     }
 
     private static void syncAlertToPlayer(ServerPlayer player) {
-        int level = EscapeTracker.getInstance().getCurrentAlertLevel();
-        MessageLoader.getLoader().sendToPlayer(player, new EscapeAlertPacket(level));
+        EscapeTracker.getInstance().syncToPlayer(player);
     }
 
     /**
@@ -243,7 +241,9 @@ public class PlayerSpawnAndDimensionHandler {
                 return;
             }
             BlockPos pos = event.getPos();
-            if (ProtectionHelper.isProtected(level, pos)) {
+            if (ProtectionHelper.isProtected(level, pos)
+                    || event.getOriginalState().is(ModBlocks.ROOM_MARKER.get())
+                    || event.getOriginalState().is(ModBlocks.FLOOR_MARKER.get())) {
                 event.setCanceled(true);
             }
         }

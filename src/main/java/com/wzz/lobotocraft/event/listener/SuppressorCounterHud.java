@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.event.listener;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.util.ResourceUtil;
+import com.wzz.lobotocraft.util.SuppressorCounterUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.nbt.CompoundTag;
@@ -10,6 +11,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
+import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -31,6 +33,7 @@ public class SuppressorCounterHud {
 
     @SubscribeEvent
     public static void onRenderGameOverlay(RenderGuiOverlayEvent.Post event) {
+        if (!event.getOverlay().id().equals(VanillaGuiOverlay.HOTBAR.id())) return;
         Minecraft mc = Minecraft.getInstance();
         Player player = mc.player;
         if (player == null) return;
@@ -40,6 +43,9 @@ public class SuppressorCounterHud {
         CompoundTag persist = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
         if (!persist.getBoolean("lobotocraft_suppressor_init")) return;
         int count = persist.getInt("lobotocraft_suppressor_count");
+        int capacity = Math.max(SuppressorCounterUtil.BASE_COUNT,
+                Math.min(SuppressorCounterUtil.MAX_COUNT,
+                        persist.getInt("lobotocraft_suppressor_capacity")));
 
         GuiGraphics g = event.getGuiGraphics();
 
@@ -50,7 +56,7 @@ public class SuppressorCounterHud {
 
         // 计数文字(归零时显示红色)
         int color = count <= 0 ? 0xFF5555 : (count <= 20 ? 0xFFD700 : 0xFFFFFF);
-        String text = count + " / 120";
+        String text = count + " / " + capacity;
         g.drawString(mc.font, text, HUD_X + ICON_SIZE + 4, HUD_Y + 4, color);
     }
 }

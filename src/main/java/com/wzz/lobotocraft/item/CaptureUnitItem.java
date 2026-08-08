@@ -101,10 +101,10 @@ public class CaptureUnitItem extends Item {
                     if (newEntity instanceof AbstractAbnormality abnormality) {
                         CompoundTag entityNbt = tag.getCompound(ENTITY_NBT);
                         abnormality.load(entityNbt);
+                        // Qliphoth counter and source epochs are part of the captured entity state.
                         Vec3 hitPos = context.getClickLocation();
                         abnormality.setPos(hitPos.x(), hitPos.y(), hitPos.z());
                         abnormality.setEscape(false);
-                        abnormality.qliphothCounter = abnormality.maxQliphothCounter;
                         serverLevel.addFreshEntity(abnormality);
                         tag.remove(ENTITY_UUID);
                         tag.remove(ENTITY_CODE);

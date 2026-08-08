@@ -46,7 +46,7 @@ import java.util.List;
 /**
  * 紫罗兰的正午 - 请给我们爱！！！
  */
-public class EntityVioletNoon extends BaseGeoEntity {
+public class EntityVioletNoon extends BaseGeoEntity implements OrdealEntity {
     private static final EntityDataAccessor<String> ANIM =
             SynchedEntityData.defineId(EntityVioletNoon.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<Integer> ANIM_VERSION =

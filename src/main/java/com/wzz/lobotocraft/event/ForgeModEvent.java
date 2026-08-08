@@ -6,11 +6,11 @@ import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.abnormality.*;
-import com.wzz.lobotocraft.entity.ai.AttackAI;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.event.definition.company.CompanyDayAdvanceEvent;
+import com.lobotocraft.facility.day.PlayerEnteredFacilityDayEvent;
 import com.wzz.lobotocraft.event.definition.living.LivingSwingEvent;
 import com.wzz.lobotocraft.event.definition.mental_value.MentalValueEvent;
 import com.wzz.lobotocraft.event.definition.work.WorkCompleteEvent;
@@ -33,6 +33,7 @@ import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.*;
 import com.wzz.lobotocraft.util.*;
 import com.wzz.lobotocraft.work.WorkManager;
+import com.wzz.lobotocraft.work.WorkFailureDamagePolicy;
 import com.wzz.lobotocraft.work.WorkType;
 import com.wzz.lobotocraft.world.data.OrdealData;
 import com.wzz.lobotocraft.world.structure.StructureLoader;
@@ -49,7 +50,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
@@ -69,6 +69,8 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -87,16 +89,25 @@ public class ForgeModEvent {
 	private static final String LOW_HEALTH_SOUND_COOLDOWN_TAG = "lobotocraft_low_health_sound_cooldown";
 	private static final int LOW_HEALTH_SOUND_COOLDOWN_TICKS = 30 * 20;
 
-	@SubscribeEvent
+	@SubscribeEvent(priority = EventPriority.HIGHEST)
 	public static void onLivingAttack(LivingAttackEvent event) {
-		if (event.getEntity() instanceof AbstractAbnormality abnormality
-				&& event.getSource().is(DamageTypeTags.IS_FIRE)) {
-			abnormality.clearFire();
+		if (FacilityCombatRules.blocksEmployeeFriendlyFire(event.getEntity(), event.getSource())) {
 			event.setCanceled(true);
 			return;
 		}
+		if (FacilityCombatRules.isProtectedCombatant(event.getEntity())) {
+			if (!FacilityCombatRules.canDamageProtectedCombatant(event.getSource())) {
+				if (FacilityCombatRules.isImmuneEnvironment(event.getSource())) event.getEntity().clearFire();
+				event.setCanceled(true);
+				return;
+			}
+			if (FacilityCombatRules.ignoresHurtCooldown(event.getSource())) {
+				EntityUtil.clearHurtTime(event.getEntity());
+			}
+			return;
+		}
 		if (event.getEntity() instanceof ServerPlayer player && event.getSource() != null && event.getSource().getEntity() instanceof Player attacker) {
-			if (MentalValueUtil.getMentalValue(player) <= 0) {
+            if (MentalValueUtil.isPanic(player)) {
 				if (attacker.getMainHandItem().getItem() instanceof BaseEgoWeapon) {
 					DamageSource src = event.getSource();
 					if (DamageHelper.isWhiteDamage(src)) {
@@ -104,7 +115,7 @@ public class ForgeModEvent {
 						event.setCanceled(true);
 					} else if (DamageHelper.isBlackDamage(src)) {
 						MentalValueUtil.addMentalValue(player, event.getAmount());
-						EntityUtil.clearHurtTime(player, () -> player.hurt(DamageHelper.getDamage().getDamageSources().fellOutOfWorld(), event.getAmount()));
+						EntityUtil.clearHurtTime(player, () -> player.hurt(player.damageSources().fellOutOfWorld(), event.getAmount()));
 					}
 				} else {
 					event.setCanceled(true);
@@ -113,12 +124,12 @@ public class ForgeModEvent {
 		}
 		if (event.getEntity() instanceof Player player) {
 			if (EgoArmorHelper.isFullEGO(player, "fourth_match_flame") || EgoArmorHelper.isFullEGO(player, "snowqueen")) {
-				if (DamageHelper.getDamage().isAllFire(event.getSource())) {
+				if (DamageHelper.isAllFire(event.getSource())) {
 					event.setCanceled(true);
 				}
 			}
 			if (player.getPersistentData().getBoolean("isSnowQueen")) {
-				if (!DamageHelper.getDamage().isKill(event.getSource())) {
+				if (!DamageHelper.isKill(event.getSource())) {
 					event.setCanceled(true);
 				} else com.wzz.lobotocraft.util.BuffUtil.removeKiss(player);
 			}
@@ -134,6 +145,8 @@ public class ForgeModEvent {
 	public static void onLivingHurt(LivingHurtEvent event) {
 		DamageSource src = event.getSource();
 		LivingEntity target = event.getEntity();
+		// Deferred R-EGO-03: player-attributed punishment damage can still
+		// enter legacy hit-proc branches below. Audit self-damage per proc.
 		Holder<DamageType> holder = src.typeHolder();
 		Optional<ResourceKey<DamageType>> optionalKey = holder.unwrapKey();
 		if (optionalKey.isEmpty() || target == null) {
@@ -281,11 +294,11 @@ public class ForgeModEvent {
 				ChildrenGalaxyCurio.triggerRecovery(player);
 			}
 			if (src.getEntity() instanceof Player attacker && !player.level.isClientSide) {
-				if (MentalValueUtil.getMentalValue(player) <= 0 && isWhiteDamage(src) && MentalValueUtil.getMentalValue(attacker) > 0) {
+				if (MentalValueUtil.isPanic(player) && isWhiteDamage(src) && !MentalValueUtil.isPanic(attacker)) {
 					MentalValueUtil.addMentalValue(player, event.getAmount());
 					event.setCanceled(true);
 				}
-				if (MentalValueUtil.getMentalValue(player) <= 0 && isBlackDamage(src) && MentalValueUtil.getMentalValue(attacker) > 0) {
+				if (MentalValueUtil.isPanic(player) && isBlackDamage(src) && !MentalValueUtil.isPanic(attacker)) {
 					MentalValueUtil.addMentalValue(player, event.getAmount());
 				}
 			}
@@ -350,6 +363,11 @@ public class ForgeModEvent {
 						@Override
 						public void onEnd(@NotNull Player entity) {
 							entity.getPersistentData().putBoolean("isSuperWolf", false);
+						}
+
+						@Override
+						public void onCancelled(@NotNull Player entity, @NotNull TimerEntry.CancellationReason reason) {
+							entity.getPersistentData().remove("isSuperWolf");
 						}
 					};
 					timerEntry.addSkillTimer(player, 0, 5000, 1, true);
@@ -470,12 +488,19 @@ public class ForgeModEvent {
 
 	@SubscribeEvent
 	public static void onEntityJoinWorld(EntityJoinLevelEvent e) {
-		if (DamageHelper.getDamage() == null)
-			new DamageHelper(e.getLevel());
 		if (e.getEntity() instanceof Player player && e.getLevel() instanceof ServerLevel serverLevel
 				&& e.getLevel().dimension == ModDimensions.LOBOTO_KEY) {
 			StructureUpdater.onPlayerEnter(serverLevel, player);
 		}
+	}
+
+	@SubscribeEvent
+	public static void onBlackForestDoorJoin(EntityJoinLevelEvent event) {
+		if (!(event.getEntity() instanceof EntityBlackForestDoor door)) return;
+		boolean duplicate = !event.getLevel().getEntitiesOfClass(EntityBlackForestDoor.class,
+				door.getBoundingBox().inflate(400.0D),
+				other -> other != door && other.isAlive() && !other.isRemoved()).isEmpty();
+		if (duplicate) event.setCanceled(true);
 	}
 
 	@SubscribeEvent
@@ -488,32 +513,17 @@ public class ForgeModEvent {
 	}
 
 	@SubscribeEvent
-	public static void onEntityJoinLevel(EntityJoinLevelEvent e) {
-		if (e.getEntity() instanceof EntityEndBird) {
-			for (Entity entity : EntityUtil.findAllEntities(e.getEntity(), 400)) {
-				if (entity instanceof EntityLargeBird) {
-					e.setCanceled(true);
-					break;
-				}
-			}
-		}
-		if (e.getEntity() instanceof EntityBlackForestDoor) {
-			for (Entity entity : EntityUtil.findAllEntities(e.getEntity(), 400)) {
-				if (entity instanceof EntityBlackForestDoor) {
-					e.setCanceled(true);
-					break;
-				}
-			}
-		}
-	}
-
-	@SubscribeEvent
 	public static void onLivingDeath(LivingDeathEvent event) {
 		RedShoesBleedHandler.clearBleed(event.getEntity());
 		ThornBusWeapon.tryAwardKillTulip(event.getEntity(), event.getSource());
 		if (event.getEntity() instanceof Player player) {
 			EntityLargeBird.clearLargeBirdCharm(player);
-			player.getPersistentData().putBoolean("isInWingBeat", false);
+			if (player instanceof ServerPlayer serverPlayer) {
+				EntityWingBeat.clearSession(serverPlayer);
+			} else {
+				player.getPersistentData().putBoolean(EntityWingBeat.ACTIVE_FLAG, false);
+				player.getPersistentData().remove(EntityWingBeat.SESSION_KEY);
+			}
 			for (ItemStack itemStack : player.inventory.items) {
 				if (itemStack.getItem() instanceof PEBoxItem) {
 					itemStack.setCount((int) (itemStack.getCount() * 0.3));
@@ -624,7 +634,10 @@ public class ForgeModEvent {
 		if (event.getChangeType() == MentalValueEvent.ChangeType.ADD || event.getChangeType() == MentalValueEvent.ChangeType.REGENERATE) {
 			long until = event.getEntity().getPersistentData().getLong("isharmla_mental_recover_debuff_until");
 			if (until > 0 && event.getEntity().level().getGameTime() < until) {
-				event.setNewValue(event.getOriginalValue() * 0.5f);
+				float recovery = event.getNewValue() - event.getOriginalValue();
+				if (recovery > 0.0F) {
+					event.setNewValue(event.getOriginalValue() + recovery * 0.5F);
+				}
 			}
 		}
 	}
@@ -645,6 +658,11 @@ public class ForgeModEvent {
 					@Override
 					public void onEnd(@NotNull Player living) {
 						living.getPersistentData().putBoolean("notLargeBirdCharm", false);
+					}
+
+					@Override
+					public void onCancelled(@NotNull Player living, @NotNull TimerEntry.CancellationReason reason) {
+						living.getPersistentData().remove("notLargeBirdCharm");
 					}
 				};
 				timerEntry.addSkillTimer(player, 0, 20000, 1);
@@ -669,6 +687,11 @@ public class ForgeModEvent {
 					@Override
 					public void onEnd(@NotNull Player living) {
 						living.getPersistentData().putBoolean("notLargeBirdCharm", false);
+					}
+
+					@Override
+					public void onCancelled(@NotNull Player living, @NotNull TimerEntry.CancellationReason reason) {
+						living.getPersistentData().remove("notLargeBirdCharm");
 					}
 				};
 				timerEntry.addSkillTimer(player, 0, 20000, 1);
@@ -791,14 +814,12 @@ public class ForgeModEvent {
 
 	@SubscribeEvent
 	public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
-		if (!event.player.level().isClientSide && event.player instanceof ServerPlayer serverPlayer) {
-			clearThinDuskLargeBirdPanic(serverPlayer);
-			tickLowHealthSound(serverPlayer);
+		if (event.phase != TickEvent.Phase.END || event.player.level().isClientSide
+				|| !(event.player instanceof ServerPlayer serverPlayer)) {
+			return;
 		}
-		if (event.player.getMaxHealth() > MentalValueUtil.getEffectiveMaxMentalValue(event.player) &&
-		MentalValueUtil.getMentalValue(event.player) <= 0f) {
-			AttackAI.doAttack(event.player);
-		}
+		clearThinDuskLargeBirdPanic(serverPlayer);
+		tickLowHealthSound(serverPlayer);
 	}
 
 	private static void tickLowHealthSound(ServerPlayer player) {
@@ -847,7 +868,7 @@ public class ForgeModEvent {
 		if (!com.wzz.lobotocraft.item.ego.end_bird.EndBirdWeapon.hasThinDuskSetWithCurio(player, ModItems.LARGEBIRD_CURIO.get())) {
 			return;
 		}
-		if (MentalValueUtil.getMentalValue(player) > 0f) {
+		if (!MentalValueUtil.isPanic(player)) {
 			return;
 		}
 		float recoveredMental = Math.max(1.0f, MentalValueUtil.getEffectiveMaxMentalValue(player) * 0.1f);
@@ -919,6 +940,12 @@ public class ForgeModEvent {
 			event.setCanceled(true);
 			return;
 		}
+		if (abnormality instanceof EntityDarkSkadi skadi) {
+			skadi.invalidateBlessings();
+		}
+		if (abnormality instanceof EntityHappyTeddy teddy) {
+			teddy.cancelExecution();
+		}
 		CompoundTag entityNbt = new CompoundTag();
 		abnormality.saveWithoutId(entityNbt);
 		String entityTypeKey = net.minecraftforge.registries.ForgeRegistries.ENTITY_TYPES
@@ -965,6 +992,7 @@ public class ForgeModEvent {
 				ParticleUtil.spawnParticlesAroundEntity(player, ParticleTypes.HEART, 30, 0.01f);
 				player.heal(player.getMaxHealth() * 0.25f);
 				MentalValueUtil.addMentalValue(player, MentalValueUtil.getEffectiveMaxMentalValue(player) * 0.25f);
+				EntityLargeBird.clearLargeBirdCharm(player);
 				persistentData.putLong(cooldownKey, currentTime + 90000L);
 			}
 		}
@@ -983,7 +1011,9 @@ public class ForgeModEvent {
 		}
 		if (EgoArmorHelper.isFullEGO(event.getPlayer(), "army_in_black")) {
 			event.setCanceled(true);
-			event.getPlayer().hurt(DamageHelper.getDamage(event.getAbnormality(), event.getWorkType().getDamageType()), 1f);
+			String damageType = WorkFailureDamagePolicy.resolveDamageType(
+					event.getAbnormality().getDamageType(), event.getWorkType());
+			event.getPlayer().hurt(DamageHelper.getDamage(event.getAbnormality(), damageType), 1f);
 		}
 	}
 
@@ -992,27 +1022,29 @@ public class ForgeModEvent {
 		if (event.getEntity().getMainHandItem().getItem() instanceof CaptureUnitItem) {
 			event.setCanceled(true);
 		}
+		if (event.getEntity() instanceof ServerPlayer player) {
+			EntityWingBeat.expireSessionIfNeeded(player);
+		}
 		if (!(event.getAbnormality() instanceof EntityWingBeat) && !event.getEntity().level.isClientSide
 				&& event.getEntity().getPersistentData().getBoolean("isInWingBeat") && event.isOpeningWorkScreen()) {
 			event.getEntity().sendSystemMessage(Component.literal("§c你因尝试在精灵盛宴的祝福下对其他异想体工作被精灵盛宴啃噬了..."));
-			event.getEntity().hurt(DamageHelper.getDamage().getDamageSources().fellOutOfWorld(), event.getEntity().getMaxHealth());
+			event.getEntity().hurt(event.getEntity().damageSources().fellOutOfWorld(), event.getEntity().getMaxHealth());
 			event.getEntity().playSound(ModSounds.WINGBEAT_KILL_PLAYER.get());
 			event.setCanceled(true);
 		}
 	}
 
 	@SubscribeEvent
-	public static void onDayAdvance(CompanyDayAdvanceEvent event) {
+	public static void onDayAdvance(PlayerEnteredFacilityDayEvent event) {
 		SuppressorCounterUtil.restoreToFull(event.getPlayer());
 		MessageLoader.getLoader().sendToPlayer(event.getPlayer(),
-				new com.wzz.lobotocraft.network.packet.SuppressorCountSyncPacket(SuppressorCounterUtil.MAX_COUNT));
+				new com.wzz.lobotocraft.network.packet.SuppressorCountSyncPacket(
+						SuppressorCounterUtil.get(event.getPlayer()),
+						SuppressorCounterUtil.capacity(event.getPlayer())));
 		com.wzz.lobotocraft.util.BuffUtil.removeFriendshipProof(event.getPlayer());
 		com.wzz.lobotocraft.util.BuffUtil.removeKiss(event.getPlayer());
 		if (event.getPlayer().getPersistentData().getBoolean("isSnowQueen")) {
 			EntitySnowQueen.killPlayer(event.getPlayer());
-		}
-		if (event.getNewDay() == 2 && !ItemUtil.hasItem(event.getPlayer(), ModItems.TT2.get())) {
-			ItemUtil.addItem(event.getPlayer(), new ItemStack(ModItems.TT2.get()));
 		}
 		if (event.getNewDay() == 2 && !ItemUtil.hasItem(event.getPlayer(), ModItems.WORK_DEVICE.get())) {
 			ItemUtil.addItem(event.getPlayer(), new ItemStack(ModItems.WORK_DEVICE.get()));
@@ -1036,6 +1068,13 @@ public class ForgeModEvent {
 	@SubscribeEvent
 	public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
 		Player player = event.getEntity();
+		// Timers are intentionally cancelled on logout. Do not let their transient
+		// movement marker become a permanent save-state lock after reconnecting.
+		player.getPersistentData().remove("NotMove");
+		player.getPersistentData().remove("isSuperWolf");
+		player.getPersistentData().remove("notLargeBirdCharm");
+		player.getPersistentData().remove("isAddRedHat");
+		player.getPersistentData().remove("isAddBigBadwolf");
 		if (player.getPersistentData().getBoolean("isSnowQueen")
 				|| player.getPersistentData().getBoolean("isSnowQueenDuel")) {
 			player.getPersistentData().remove("isSnowQueen");
@@ -1063,9 +1102,22 @@ public class ForgeModEvent {
 		}
 	}
 
+	/**
+	 * A dimension unload is not a server shutdown: dimensions can unload while
+	 * players and timed effects in other dimensions remain active.  Shutting
+	 * down the shared scheduler here previously cancelled every effect and left
+	 * the rest of the server without timers.  ServerStopped is the sole global
+	 * lifecycle boundary for this scheduler.
+	 */
 	@SubscribeEvent
-	public static void onWorldUnload(LevelEvent.Unload event) {
+	public static void onServerStopping(ServerStoppingEvent event) {
+		com.wzz.lobotocraft.item.ego.redhat_mercenary.RedhatMercenaryWeaponGun.clearRuntimePrey(event.getServer());
+	}
+
+	@SubscribeEvent
+	public static void onServerStopped(ServerStoppedEvent event) {
 		TimerEntry.shutdownAll();
+		EntityArmyInBlack.clearEscapeGroupRuntimeState();
 	}
 
 	@SubscribeEvent

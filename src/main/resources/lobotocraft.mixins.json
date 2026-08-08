@@ -2,10 +2,13 @@
   "required": true,
   "minVersion": "0.8",
   "package": "com.wzz.lobotocraft.mixin",
-  "compatibilityLevel": "JAVA_8",
+  "compatibilityLevel": "JAVA_17",
   "refmap": "lobotocraft.refmap.json",
   "mixins": [
     "MixinAbstractContainerMenu",
+    "MixinArchitecturyPlayerHooks",
+    "MixinCraftingMenu",
+    "MixinConnection",
     "MixinDamageSource",
     "MixinEntity",
     "MixinInventory",
@@ -13,6 +16,7 @@
     "MixinLevelChunk",
     "MixinLivingEntity",
     "MixinPlayerFoodExhaustion",
+    "MixinPlayerList",
     "MixinPowderSnowBlock",
     "MixinRangedAttribute",
     "MixinServerPlayer",
@@ -22,10 +26,13 @@
     "ChannelAccessor",
     "ChannelHandleAccessor",
     "MixinDimensionType",
+    "MixinGameRenderer",
+    "MixinCrashFixHandler",
     "MixinInventoryScreen",
     "MixinLivingEntityRenderer",
     "MixinLocalPlayer",
-    "MixinMultiPlayerGameMode"
+    "MixinMultiPlayerGameMode",
+    "PostChainAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

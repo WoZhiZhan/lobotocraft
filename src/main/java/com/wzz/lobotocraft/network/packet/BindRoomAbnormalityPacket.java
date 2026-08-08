@@ -1,7 +1,10 @@
 package com.wzz.lobotocraft.network.packet;
 
 import com.wzz.lobotocraft.block.entity.RoomMarkerBlockEntity;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.network.IMessage;
+import com.wzz.lobotocraft.network.RequestThrottle;
+import com.wzz.lobotocraft.world.RoomBindingAuthorizations;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
@@ -54,13 +57,26 @@ public class BindRoomAbnormalityPacket implements IMessage {
     public void run(NetworkEvent.Context ctx) {
         ServerPlayer player = ctx.getSender();
         if (player == null) return;
+        if (!RequestThrottle.allow(player, "bind-room", 250L)) return;
 
         ServerLevel target = player.server.getLevel(ResourceKey.create(Registries.DIMENSION, dimension));
-        if (target == null || !target.isLoaded(roomPos)
+        if (target == null) {
+            player.displayClientMessage(Component.literal("§c目标维度未加载。"), true);
+            return;
+        }
+        FacilityAccessService.ContainmentAccess access = FacilityAccessService.containmentAccess(
+                player.server, dimension, roomPos);
+        if (access != FacilityAccessService.ContainmentAccess.OPEN) {
+            player.displayClientMessage(Component.literal(access == FacilityAccessService.ContainmentAccess.UNEXPANDED
+                    ? "§7该收容单元尚未扩建。" : "§c该收容单元当前不可用。"), true);
+            return;
+        }
+        if (!target.isLoaded(roomPos)
                 || !(target.getBlockEntity(roomPos) instanceof RoomMarkerBlockEntity be)) {
             player.displayClientMessage(Component.literal("§c该收容间信标已失效或未加载。"), true);
             return;
         }
+        if (!RoomBindingAuthorizations.consume(player, dimension, roomPos, uuid)) return;
 
         if (uuid == null) {
             be.clearBinding();

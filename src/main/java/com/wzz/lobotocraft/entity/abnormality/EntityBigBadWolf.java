@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModItems;
@@ -13,12 +14,16 @@ import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.util.ResourceUtil;
+import com.wzz.lobotocraft.util.SafeTransformationUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -40,6 +45,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
 import software.bernie.geckolib.core.animation.AnimationState;
@@ -63,11 +69,15 @@ import java.util.UUID;
  */
 public class EntityBigBadWolf extends AbstractAbnormality {
 
+    private static final EntityDataAccessor<Boolean> DATA_COLLISION_ESCAPED =
+            SynchedEntityData.defineId(EntityBigBadWolf.class, EntityDataSerializers.BOOLEAN);
+
     // Mob movement attributes are not 1:1 with player movement_speed values; this is gameplay-calibrated.
     private static final double ESCAPED_MOVEMENT_SPEED = 0.55D; // effective sprinting player with Speed III
     private static final double CHASE_SPEED_MODIFIER = 1.2D;
     private static final EntityDimensions CONTAINED_SIZE = EntityDimensions.scalable(1.6F, 4.1F);
     private static final EntityDimensions ESCAPED_SIZE = EntityDimensions.scalable(2.75F, 3.2F);
+    private static final int DIMENSION_RETRY_INTERVAL = 10;
 
     private final List<UUID> swallowedPlayers = new ArrayList<>();
     private int attackCooldown = 0;
@@ -87,8 +97,63 @@ public class EntityBigBadWolf extends AbstractAbnormality {
     }
 
     @Override
+    public void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_COLLISION_ESCAPED, false);
+    }
+
+    @Override
     public EntityDimensions getDimensions(Pose pose) {
-        return hasEscape() ? ESCAPED_SIZE : CONTAINED_SIZE;
+        return this.entityData.get(DATA_COLLISION_ESCAPED) ? ESCAPED_SIZE : CONTAINED_SIZE;
+    }
+
+    @Override
+    public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+        super.onSyncedDataUpdated(key);
+        if (DATA_COLLISION_ESCAPED.equals(key) && this.level().isClientSide) {
+            this.refreshDimensions();
+        }
+    }
+
+    private boolean tryApplyEscapeDimensions(ServerLevel level, boolean escaped) {
+        boolean appliedEscaped = this.entityData.get(DATA_COLLISION_ESCAPED);
+        if (appliedEscaped == escaped) return true;
+
+        EntityDimensions current = appliedEscaped ? ESCAPED_SIZE : CONTAINED_SIZE;
+        EntityDimensions target = escaped ? ESCAPED_SIZE : CONTAINED_SIZE;
+        Vec3 safePosition;
+        if (SafeTransformationUtil.isPureShrink(current, target)) {
+            safePosition = this.position();
+        } else {
+            safePosition = SafeTransformationUtil.findPositionForDimensions(level, this, target, 12, 4);
+            if (safePosition == null) {
+                this.setNoAi(true);
+                return false;
+            }
+        }
+
+        if (safePosition.distanceToSqr(this.position()) > 1.0E-6D) {
+            this.moveTo(safePosition.x, safePosition.y, safePosition.z, this.getYRot(), this.getXRot());
+            this.getNavigation().stop();
+            this.setDeltaMovement(Vec3.ZERO);
+        }
+        this.entityData.set(DATA_COLLISION_ESCAPED, escaped);
+        this.refreshDimensions();
+        this.setNoAi(false);
+        return true;
+    }
+
+    private void retryPendingDimensions(ServerLevel level) {
+        boolean desiredEscaped = hasEscape();
+        if (this.entityData.get(DATA_COLLISION_ESCAPED) == desiredEscaped) return;
+        if (this.tickCount % DIMENSION_RETRY_INTERVAL == 0) {
+            tryApplyEscapeDimensions(level, desiredEscaped);
+        }
+        if (this.entityData.get(DATA_COLLISION_ESCAPED) != desiredEscaped) {
+            this.setNoAi(true);
+            this.getNavigation().stop();
+            this.setDeltaMovement(Vec3.ZERO);
+        }
     }
 
     private void syncMovementSpeed() {
@@ -277,8 +342,8 @@ public class EntityBigBadWolf extends AbstractAbnormality {
             setTexture("bigbadwolf_big");
             setAnimation("idle");
             syncMovementSpeed();
-            this.refreshDimensions();
             if (this.level() instanceof ServerLevel level) {
+                tryApplyEscapeDimensions(level, true);
                 level.playSound(null, blockPosition(), ModSounds.WOLF_HOWL.get(), SoundSource.HOSTILE, 2.0f, 1.0f);
                 // 全屏CG:cg1 0.5秒 → cg2 持续1秒后渐隐
                 List<net.minecraft.resources.ResourceLocation> cgs = new ArrayList<>();
@@ -308,7 +373,16 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         resetEscapeState();
         setTexture(textureForCurrentState());
         setAnimation(hasSwallowedPlayers() ? "idle2" : "idle");
-        this.refreshDimensions();
+        if (this.level() instanceof ServerLevel level) {
+            tryApplyEscapeDimensions(level, false);
+        }
+    }
+
+    @Override
+    protected void prepareForContainmentReturn() {
+        if (this.level() instanceof ServerLevel level) {
+            tryApplyEscapeDimensions(level, false);
+        }
     }
 
     private void resetEscapeState() {
@@ -332,7 +406,9 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         BlockPos best = null;
         double bestD = Double.MAX_VALUE;
         for (BlockEntity be : EntityUtil.findBlockEntities(level, origin, 128)) {
-            if (be instanceof com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity) {
+            if (be instanceof com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity
+                    && FacilityAccessService.isPositionOpen(level.getServer(),
+                    level.dimension().location(), be.getBlockPos())) {
                 if (exclude != null && be.getBlockPos().equals(exclude)) continue;
                 double d = be.getBlockPos().distSqr(origin);
                 if (d < bestD) { bestD = d; best = be.getBlockPos(); }
@@ -497,6 +573,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         super.tick();
         if (this.level().isClientSide) return;
         ServerLevel level = (ServerLevel) this.level();
+        retryPendingDimensions(level);
         syncMovementSpeed();
         if (!hasEscape()) {
             // 收容期检测(每秒,以收容单元附近16格近似"收容单元前的走廊")
@@ -741,6 +818,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
+        tag.putBoolean("CollisionEscaped", this.entityData.get(DATA_COLLISION_ESCAPED));
         tag.putFloat("LastFogHealth", lastFogHealth);
         tag.putBoolean("InFog", inFog);
         CompoundTag list = new CompoundTag();
@@ -753,6 +831,10 @@ public class EntityBigBadWolf extends AbstractAbnormality {
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        boolean collisionEscaped = tag.contains("CollisionEscaped") && tag.getBoolean("CollisionEscaped");
+        this.entityData.set(DATA_COLLISION_ESCAPED, collisionEscaped);
+        this.refreshDimensions();
+        this.setNoAi(collisionEscaped != hasEscape());
         lastFogHealth = tag.contains("LastFogHealth") ? tag.getFloat("LastFogHealth") : this.getMaxHealth();
         inFog = tag.getBoolean("InFog");
         swallowedPlayers.clear();
@@ -767,6 +849,5 @@ public class EntityBigBadWolf extends AbstractAbnormality {
             setTexture(textureForCurrentState());
         }
         syncMovementSpeed();
-        this.refreshDimensions();
     }
 }

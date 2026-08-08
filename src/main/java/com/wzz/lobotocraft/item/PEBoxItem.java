@@ -19,6 +19,7 @@ import java.util.List;
  * - AbnormalityName: 异想体名称（如 "一罪与百善"）
  */
 public class PEBoxItem extends Item {
+    private static final String UNIVERSAL_TAG = "Universal";
 
     public PEBoxItem() {
         super(new Properties().stacksTo(64));
@@ -38,6 +39,18 @@ public class PEBoxItem extends Item {
         tag.putString("AbnormalityName", abnormalityName);
 
         return stack;
+    }
+
+    /** Creative/debug variant that can pay for any abnormality's information. */
+    public static ItemStack createUniversal() {
+        ItemStack stack = new ItemStack(ModItems.PE_BOX.get());
+        stack.getOrCreateTag().putBoolean(UNIVERSAL_TAG, true);
+        return stack;
+    }
+
+    public static boolean isUniversal(ItemStack stack) {
+        CompoundTag tag = stack.getTag();
+        return tag != null && tag.getBoolean(UNIVERSAL_TAG);
     }
 
     /**
@@ -66,7 +79,7 @@ public class PEBoxItem extends Item {
      * 检查PE-BOX是否属于指定异想体（通过编号）
      */
     public static boolean isFromAbnormality(ItemStack stack, String abnormalityCode) {
-        return getAbnormalityCode(stack).equals(abnormalityCode);
+        return isUniversal(stack) || getAbnormalityCode(stack).equals(abnormalityCode);
     }
 
     /**
@@ -97,15 +110,19 @@ public class PEBoxItem extends Item {
             return false;
         }
 
-        // 消耗物品
+        // Consume specific PE-BOXes first; universal boxes are fallback currency.
         int remaining = amount;
-        for (int i = 0; i < inventory.getContainerSize() && remaining > 0; i++) {
-            ItemStack stack = inventory.getItem(i);
-            if (stack.getItem() instanceof PEBoxItem &&
-                    isFromAbnormality(stack, abnormalityCode)) {
-                int toRemove = Math.min(remaining, stack.getCount());
-                stack.shrink(toRemove);
-                remaining -= toRemove;
+        for (int pass = 0; pass < 2 && remaining > 0; pass++) {
+            for (int i = 0; i < inventory.getContainerSize() && remaining > 0; i++) {
+                ItemStack stack = inventory.getItem(i);
+                boolean eligible = stack.getItem() instanceof PEBoxItem
+                        && isFromAbnormality(stack, abnormalityCode)
+                        && (pass == 1 || !isUniversal(stack));
+                if (eligible) {
+                    int toRemove = Math.min(remaining, stack.getCount());
+                    stack.shrink(toRemove);
+                    remaining -= toRemove;
+                }
             }
         }
 
@@ -116,6 +133,14 @@ public class PEBoxItem extends Item {
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
         CompoundTag tag = stack.getTag();
+        if (isUniversal(stack)) {
+            tooltip.add(Component.literal("通用 PE-BOX")
+                    .withStyle(ChatFormatting.GOLD));
+            tooltip.add(Component.literal("可用于任意异想体信息解锁")
+                    .withStyle(ChatFormatting.GRAY));
+            super.appendHoverText(stack, level, tooltip, flag);
+            return;
+        }
         if (tag != null) {
             String displayName = "";
 
@@ -157,6 +182,9 @@ public class PEBoxItem extends Item {
 
     @Override
     public Component getName(ItemStack stack) {
+        if (isUniversal(stack)) {
+            return Component.literal("通用 PE-BOX").withStyle(ChatFormatting.YELLOW);
+        }
         String abnormalityName = getAbnormalityName(stack);
         if (!abnormalityName.isEmpty()) {
             return Component.literal(abnormalityName + " PE-BOX")

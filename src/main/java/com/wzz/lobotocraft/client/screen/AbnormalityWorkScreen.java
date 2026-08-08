@@ -137,13 +137,14 @@ public class AbnormalityWorkScreen extends Screen {
     private void renderWorkIcon(GuiGraphics graphics, int x, int y, int workIndex,
                                 ResourceLocation icon, String name) {
         boolean isSelected = (workIndex == selectedWork);
+        boolean malkuthScramble = CoreSuppressionClientState.isActive(CoreSuppressionType.MALKUTH);
 
         if (isSelected) {
             graphics.fill(x - 2, y - 2, x + 42, y + 42, 0xFFFFFF00);
         }
 
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        if (CoreSuppressionClientState.isActive(CoreSuppressionType.MALKUTH)) {
+        if (malkuthScramble) {
             graphics.pose().pushPose();
             graphics.pose().translate(x, y, 0);
             graphics.pose().scale(40.0F / 136.0F, 40.0F / 184.0F, 1.0F);
@@ -153,13 +154,15 @@ public class AbnormalityWorkScreen extends Screen {
             graphics.blit(icon, x, y, 0, 0, 40, 40, 40, 40);
         }
 
-        int nameX = x + 20 - this.font.width(name) / 2;
-        graphics.drawString(this.font, name, nameX, y + 45, 0xFFFFFF);
+        String visibleName = malkuthScramble ? "???" : name;
+        int nameX = x + 20 - this.font.width(visibleName) / 2;
+        graphics.drawString(this.font, visibleName, nameX, y + 45, 0xFFFFFF);
 
         String rateText;
         int rateColor;
 
-        if (workPrefsUnlocked != null && workIndex < workPrefsUnlocked.length && workPrefsUnlocked[workIndex]) {
+        if (!malkuthScramble && workPrefsUnlocked != null && workIndex < workPrefsUnlocked.length
+                && workPrefsUnlocked[workIndex]) {
             // 已解锁，显示真实成功率
             int levelIndex = Math.min(Math.max(employeeLevel - 1, 0), 4);
             if (fullWorkPreferences != null && workIndex < fullWorkPreferences.length

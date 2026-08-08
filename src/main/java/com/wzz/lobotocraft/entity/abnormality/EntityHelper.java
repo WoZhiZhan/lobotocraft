@@ -165,15 +165,32 @@ public class EntityHelper extends AbstractAbnormality {
     }
 
     @Override
+    public void stopEscape() {
+        boolean wasEscaped = hasEscape();
+        super.stopEscape();
+        if (!wasEscaped || hasEscape()) return;
+        resetContainmentState();
+    }
+
+    @Override
     public void die(DamageSource source) {
         super.die(source);
-        // 镇压重置后回到未出逃贴图与状态
         if (!this.isRemoved()) {
-            setTexture("helper");
-            state = STATE_IDLE;
-            stateTimer = 0;
-            dashDirection = null;
+            resetContainmentState();
         }
+    }
+
+    private void resetContainmentState() {
+        setTexture("helper");
+        state = STATE_IDLE;
+        stateTimer = 0;
+        lastClientAnimation = "";
+        dashDirection = null;
+        dashHitIds.clear();
+        setAnimation(ANIM_IDLE);
+        setTarget(null);
+        getNavigation().stop();
+        setDeltaMovement(Vec3.ZERO);
     }
 
     // ==================== 出逃抗性:红0.5 白1.0 黑2.0 蓝2.0 ====================

@@ -1,12 +1,15 @@
 package com.wzz.lobotocraft.client.room;
 
 import com.wzz.lobotocraft.ModMain;
+import com.wzz.lobotocraft.client.performance.ClientPerformanceMonitor;
 import com.wzz.lobotocraft.client.screen.RoomMapScreen;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.OpenRoomMapPacket;
 import com.wzz.lobotocraft.network.packet.RequestRoomDataPacket;
 import com.wzz.lobotocraft.world.data.FloorEntry;
+import com.wzz.lobotocraft.world.data.FacilityAreaEntry;
 import com.wzz.lobotocraft.world.data.RoomEntry;
+import com.wzz.lobotocraft.world.data.RoomEmployeeSnapshot;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
@@ -50,19 +53,31 @@ public final class RoomViewClient {
     public static final int ENTER_TICKS = 22;
     /** 退出动画时长（tick） */
     public static final int EXIT_TICKS = 14;
-    /** 相机最终抬升高度（格） */
-    private static final double LIFT = 46.0D;
+    /** 监控界面使用固定的观察点，不依赖玩家打开终端时的位置。 */
+    private static final Vec3 MONITOR_CAMERA_POSITION = new Vec3(194.0D, 231.0D, 154.0D);
+    /** Minecraft yaw 180/-180 faces toward negative Z. */
+    private static final float MONITOR_CAMERA_YAW = 180.0F;
+    /** Keep the monitor camera level instead of looking down at the facility. */
+    private static final float MONITOR_CAMERA_PITCH = 0.0F;
     /** 数据刷新间隔 */
     private static final int REFRESH_INTERVAL = 40;
+    /** Stop a delayed server response from allowing refresh requests to pile up indefinitely. */
+    private static final int REFRESH_REQUEST_TIMEOUT = 200;
 
     private static Phase phase = Phase.IDLE;
     private static int ticks = 0;
     private static int prevTicks = 0;
     private static int refreshTimer = 0;
+    private static int refreshPendingTicks = 0;
+    private static boolean refreshPending = false;
 
     private static List<RoomEntry> rooms = Collections.emptyList();
     private static List<FloorEntry> floors = Collections.emptyList();
+    private static List<FacilityAreaEntry> areas = Collections.emptyList();
+    private static List<RoomEmployeeSnapshot> employees = Collections.emptyList();
+    private static java.util.Set<String> dangerousAreaIds = Collections.emptySet();
     private static long serverGameTime = 0L;
+    private static boolean globalTt2Enabled;
     private static ResourceLocation dimension = null;
 
     private static float startYaw = 0F;
@@ -89,16 +104,38 @@ public final class RoomViewClient {
         return floors;
     }
 
+    public static List<FacilityAreaEntry> getAreas() {
+        return areas;
+    }
+
     /** 收到服务端的房间数据 */
     public static void onRoomData(OpenRoomMapPacket packet) {
+        long sectionStarted = ClientPerformanceMonitor.beginSection("room_packet_apply");
+        try {
+            applyRoomData(packet);
+        } finally {
+            ClientPerformanceMonitor.endSection("room_packet_apply", sectionStarted);
+        }
+    }
+
+    private static void applyRoomData(OpenRoomMapPacket packet) {
+        if (packet.isRefresh()) {
+            refreshPending = false;
+            refreshPendingTicks = 0;
+        }
         rooms = packet.getRooms();
         floors = packet.getFloors();
+        areas = packet.getAreas();
+        employees = packet.getEmployees();
+        dangerousAreaIds = packet.getDangerousAreaIds();
         serverGameTime = packet.getServerGameTime();
+        globalTt2Enabled = packet.isGlobalTt2Enabled();
         dimension = packet.getDimension();
 
         if (packet.isRefresh()) {
             if (Minecraft.getInstance().screen instanceof RoomMapScreen screen) {
-                screen.onDataRefreshed(rooms, floors, serverGameTime);
+                screen.onDataRefreshed(rooms, floors, areas, employees, dangerousAreaIds,
+                        serverGameTime, globalTt2Enabled);
             }
             return;
         }
@@ -120,6 +157,8 @@ public final class RoomViewClient {
         ticks = 0;
         prevTicks = 0;
         refreshTimer = 0;
+        refreshPendingTicks = 0;
+        refreshPending = false;
 
         playOpenSound();
     }
@@ -146,14 +185,21 @@ public final class RoomViewClient {
     /** 强行复位（切世界、死亡等） */
     public static void reset() {
         phase = Phase.IDLE;
-        ticks = prevTicks = refreshTimer = 0;
+        ticks = prevTicks = refreshTimer = refreshPendingTicks = 0;
+        refreshPending = false;
         rooms = Collections.emptyList();
         floors = Collections.emptyList();
+        areas = Collections.emptyList();
+        employees = Collections.emptyList();
+        dangerousAreaIds = Collections.emptySet();
+        serverGameTime = 0L;
+        globalTt2Enabled = false;
+        dimension = null;
     }
 
     // -------------------------------------------------------------- 动画进度
 
-    /** 0 = 完全正常视角，1 = 完全俯视 */
+    /** 0 = 玩家视角，1 = 固定监控观察点。 */
     public static float progress(float partialTick) {
         float raw;
         switch (phase) {
@@ -201,8 +247,14 @@ public final class RoomViewClient {
                     openMapScreen();
                     return;
                 }
-                if (++refreshTimer >= REFRESH_INTERVAL) {
+                if (refreshPending && ++refreshPendingTicks >= REFRESH_REQUEST_TIMEOUT) {
+                    refreshPending = false;
+                    refreshPendingTicks = 0;
+                }
+                if (!refreshPending && ++refreshTimer >= REFRESH_INTERVAL) {
                     refreshTimer = 0;
+                    refreshPending = true;
+                    refreshPendingTicks = 0;
                     MessageLoader.getLoader().sendToServer(new RequestRoomDataPacket());
                 }
             }
@@ -219,7 +271,9 @@ public final class RoomViewClient {
     }
 
     private static void openMapScreen() {
-        Minecraft.getInstance().setScreen(new RoomMapScreen(rooms, floors, serverGameTime, dimension));
+        Minecraft.getInstance().setScreen(new RoomMapScreen(
+                rooms, floors, areas, employees, dangerousAreaIds, serverGameTime,
+                globalTt2Enabled, dimension));
     }
 
     private static void lockInput(LocalPlayer player) {
@@ -239,14 +293,14 @@ public final class RoomViewClient {
         float p = progress((float) event.getPartialTick());
         if (p <= 0.0001F) return;
 
-        // 俯视：pitch 拉到 89.9（不用 90，避免某些显卡上的万向节抖动）
-        event.setPitch(Mth.lerp(p, startPitch, 89.9F));
-        // yaw 拧到正北，让世界方向和平面图方向对齐（走最短路径）
-        float yawDelta = Mth.wrapDegrees(0F - startYaw);
+        // Move to the fixed observation point while facing horizontally toward negative Z.
+        event.setPitch(Mth.lerp(p, startPitch, MONITOR_CAMERA_PITCH));
+        float yawDelta = Mth.wrapDegrees(MONITOR_CAMERA_YAW - startYaw);
         event.setYaw(startYaw + yawDelta * p);
 
         Vec3 current = event.getCamera().getPosition();
-        event.getCamera().setPosition(current.x, current.y + LIFT * p, current.z);
+        Vec3 monitorPosition = current.lerp(MONITOR_CAMERA_POSITION, p);
+        event.getCamera().setPosition(monitorPosition.x, monitorPosition.y, monitorPosition.z);
     }
 
     /** 过渡期间不渲染手里的物品 */

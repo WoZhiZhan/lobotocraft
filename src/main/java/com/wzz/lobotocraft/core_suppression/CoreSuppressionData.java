@@ -7,7 +7,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public class CoreSuppressionData extends SavedData {
@@ -22,6 +24,9 @@ public class CoreSuppressionData extends SavedData {
     private int middayCompleted;
     private int seenDawnTriggerSerial;
     private int seenMiddayTriggerSerial;
+    private int[] malkuthWorkMapping = new int[0];
+    private int malkuthObservedMeltdownLevel = -1;
+    private final Set<UUID> fullVisualEffects = new HashSet<>();
 
     private final Map<UUID, int[]> hodPenalties = new HashMap<>();
     private final Map<UUID, int[]> pendingHodRestores = new HashMap<>();
@@ -85,8 +90,39 @@ public class CoreSuppressionData extends SavedData {
         return (completedMask & prerequisiteMask) == prerequisiteMask;
     }
 
+    public boolean usesFullVisualEffects(UUID playerUuid) {
+        return playerUuid != null && fullVisualEffects.contains(playerUuid);
+    }
+
+    public boolean hasMalkuthWorkMapping() {
+        return MalkuthWorkPolicy.isValidMapping(malkuthWorkMapping);
+    }
+
+    public int[] getMalkuthWorkMapping() {
+        return malkuthWorkMapping.clone();
+    }
+
+    public int getMalkuthObservedMeltdownLevel() {
+        return malkuthObservedMeltdownLevel;
+    }
+
+    public void setMalkuthWorkState(int[] mapping, int observedMeltdownLevel) {
+        int[] normalized = MalkuthWorkPolicy.normalizedCopy(mapping);
+        if (java.util.Arrays.equals(malkuthWorkMapping, normalized)
+                && malkuthObservedMeltdownLevel == observedMeltdownLevel) return;
+        malkuthWorkMapping = normalized;
+        malkuthObservedMeltdownLevel = observedMeltdownLevel;
+        setDirty();
+    }
+
+    private void clearMalkuthWorkState() {
+        malkuthWorkMapping = new int[0];
+        malkuthObservedMeltdownLevel = -1;
+    }
+
     public void start(CoreSuppressionType type, UUID ownerUuid, String ownerName, int challengeDay,
-                      int dawnTriggerSerial, int middayTriggerSerial) {
+                      int dawnTriggerSerial, int middayTriggerSerial,
+                      Map<UUID, Boolean> visualChoices) {
         this.activeType = type.ordinal();
         this.ownerUuid = ownerUuid;
         this.ownerName = ownerName;
@@ -95,8 +131,15 @@ public class CoreSuppressionData extends SavedData {
         this.middayCompleted = 0;
         this.seenDawnTriggerSerial = dawnTriggerSerial;
         this.seenMiddayTriggerSerial = middayTriggerSerial;
+        this.fullVisualEffects.clear();
+        if (visualChoices != null) {
+            visualChoices.forEach((uuid, enabled) -> {
+                if (uuid != null && Boolean.TRUE.equals(enabled)) fullVisualEffects.add(uuid);
+            });
+        }
         this.hodPenalties.clear();
         this.meltdownWorkProgress.clear();
+        clearMalkuthWorkState();
         setDirty();
     }
 
@@ -182,7 +225,9 @@ public class CoreSuppressionData extends SavedData {
         middayCompleted = 0;
         seenDawnTriggerSerial = 0;
         seenMiddayTriggerSerial = 0;
+        fullVisualEffects.clear();
         meltdownWorkProgress.clear();
+        clearMalkuthWorkState();
         setDirty();
     }
 
@@ -197,6 +242,15 @@ public class CoreSuppressionData extends SavedData {
         tag.putInt("MiddayCompleted", middayCompleted);
         tag.putInt("SeenDawnTriggerSerial", seenDawnTriggerSerial);
         tag.putInt("SeenMiddayTriggerSerial", seenMiddayTriggerSerial);
+        tag.putIntArray("MalkuthWorkMapping", malkuthWorkMapping);
+        tag.putInt("MalkuthObservedMeltdownLevel", malkuthObservedMeltdownLevel);
+        ListTag visualPlayers = new ListTag();
+        for (UUID playerUuid : fullVisualEffects) {
+            CompoundTag entry = new CompoundTag();
+            entry.putUUID("Player", playerUuid);
+            visualPlayers.add(entry);
+        }
+        tag.put("FullVisualEffects", visualPlayers);
         tag.put("HodPenalties", saveStatMap(hodPenalties));
         tag.put("PendingHodRestores", saveStatMap(pendingHodRestores));
         tag.put("MeltdownWorkProgress", saveStatMap(meltdownWorkProgress));
@@ -215,6 +269,15 @@ public class CoreSuppressionData extends SavedData {
         data.middayCompleted = tag.getInt("MiddayCompleted");
         data.seenDawnTriggerSerial = tag.getInt("SeenDawnTriggerSerial");
         data.seenMiddayTriggerSerial = tag.getInt("SeenMiddayTriggerSerial");
+        data.malkuthWorkMapping = MalkuthWorkPolicy.normalizedCopy(
+                tag.getIntArray("MalkuthWorkMapping"));
+        data.malkuthObservedMeltdownLevel = tag.contains("MalkuthObservedMeltdownLevel")
+                ? tag.getInt("MalkuthObservedMeltdownLevel") : -1;
+        ListTag visualPlayers = tag.getList("FullVisualEffects", Tag.TAG_COMPOUND);
+        for (int i = 0; i < visualPlayers.size(); i++) {
+            CompoundTag entry = visualPlayers.getCompound(i);
+            if (entry.hasUUID("Player")) data.fullVisualEffects.add(entry.getUUID("Player"));
+        }
         loadStatMap(tag.getList("HodPenalties", Tag.TAG_COMPOUND), data.hodPenalties);
         loadStatMap(tag.getList("PendingHodRestores", Tag.TAG_COMPOUND), data.pendingHodRestores);
         loadStatMap(tag.getList("MeltdownWorkProgress", Tag.TAG_COMPOUND), data.meltdownWorkProgress);

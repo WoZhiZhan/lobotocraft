@@ -82,7 +82,7 @@ public class RedhatMercenaryWeaponKnife extends RedhatMercenaryWeapon {
             damage *= FURY_DAMAGE_MULTIPLIER;
         }
 
-        DamageSource source = target.damageSources().playerAttack(player);
+        DamageSource source = DamageHelper.getDamage(player, "red");
         target.hurt(source, damage);
         player.playSound(ModSounds.REDHAT_MERCENARY_WEAPON_KNIFE.get());
         if (fury && !player.level.isClientSide) {
@@ -104,7 +104,7 @@ public class RedhatMercenaryWeaponKnife extends RedhatMercenaryWeapon {
 
             // 清掉无敌帧，保证同一次挥砍里每个目标都能吃到伤害
             other.invulnerableTime = 0;
-            other.hurt(other.damageSources().playerAttack(player), damage);
+            other.hurt(DamageHelper.getDamage(player, "red"), damage);
         }
     }
 

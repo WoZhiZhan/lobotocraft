@@ -2,6 +2,8 @@ package com.wzz.lobotocraft.item.ego.base;
 
 import com.wzz.lobotocraft.client.renderer.item.BaseEgoWeaponRenderer;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.Entity;
@@ -30,12 +32,16 @@ import java.util.function.Consumer;
  */
 public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnimatablePerspective, IEgoLevelItem {
     public static final String PARTIAL_ATTACK_TICK_TAG = "lobotocraft_partial_ego_attack_tick";
+    private static final String LEFT_CLICK_DAMAGE_MULTIPLIER_TAG = "lobotocraft_ego_attack_multiplier";
+    private static final String RESET_ATTACK_STRENGTH_TAG = "lobotocraft_reset_ego_attack_strength";
     public static final String COOLDOWN_TAG = "LastUseTime";
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final RawAnimation IDLE_ANIMATION = RawAnimation.begin().thenLoop("idle");
     private final RawAnimation ATTACK_ANIMATION = RawAnimation.begin().thenPlay(getAttackName());
 
+    // Deferred EGO-07: combat values are still split across constructors,
+    // abilities and presentation. Keep changes synchronized until EgoWeaponSpec.
     public BaseEgoWeapon(Tier tier, int attackDamage, float attackSpeed, Properties properties) {
         super(tier, attackDamage, attackSpeed, properties);
 
@@ -127,6 +133,8 @@ public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnima
 
 
     /** 子类重写，返回这把武器当前的冷却 tick 数。默认无冷却。 */
+    // Deferred EGO-05: game-time cooldowns coexist with legacy item-NBT
+    // countdowns and vanilla cooldowns. Do not add another representation.
     protected int getCooldownTicks(Player player, ItemStack stack) {
         return 0;
     }
@@ -135,7 +143,9 @@ public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnima
     public long getRemainingCooldown(Player player, ItemStack stack) {
         int cd = getCooldownTicks(player, stack);
         if (cd <= 0) return 0;
-        long last = stack.getOrCreateTag().getLong(COOLDOWN_TAG);
+        CompoundTag tag = stack.getTag();
+        if (tag == null || !tag.contains(COOLDOWN_TAG)) return 0;
+        long last = tag.getLong(COOLDOWN_TAG);
         long remaining = cd - (player.level().getGameTime() - last);
         return Math.max(0, remaining);
     }
@@ -191,17 +201,43 @@ public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnima
 
     @Override
     public boolean onLeftClickEntity(ItemStack stack, Player player, Entity entity) {
-        boolean fullyCharged = player.getAttackStrengthScale(0.0f) == 1.0f;
-        if (!fullyCharged && !player.level().isClientSide) {
-            player.getPersistentData().putLong(PARTIAL_ATTACK_TICK_TAG, player.level().getGameTime());
-        }
-        return fullyCharged;
+        float charge = Mth.clamp(player.getAttackStrengthScale(0.0F), 0.0F, 1.0F);
+        float damageMultiplier = 0.2F + charge * charge * 0.8F;
+        CompoundTag data = player.getPersistentData();
+        data.putLong(PARTIAL_ATTACK_TICK_TAG, player.level().getGameTime());
+        data.putFloat(LEFT_CLICK_DAMAGE_MULTIPLIER_TAG, damageMultiplier);
+        data.putBoolean(RESET_ATTACK_STRENGTH_TAG, true);
+
+        // E.G.O. always owns its left click. Returning false would let vanilla add a second
+        // PLAYER_ATTACK hit, which is interpreted as RED regardless of the weapon's real color.
+        return true;
     }
 
     public static boolean isMarkedPartialAttack(LivingEntity living) {
         if (!(living.getMainHandItem().getItem() instanceof BaseEgoWeapon)) return false;
+        if (!hasCurrentLeftClickAttack(living)) return false;
+        return currentLeftClickDamageMultiplier(living) < 0.999F;
+    }
+
+    public static boolean hasCurrentLeftClickAttack(LivingEntity living) {
+        if (!(living.getMainHandItem().getItem() instanceof BaseEgoWeapon)) return false;
+        CompoundTag data = living.getPersistentData();
+        if (!data.contains(PARTIAL_ATTACK_TICK_TAG)) return false;
         long attackTick = living.getPersistentData().getLong(PARTIAL_ATTACK_TICK_TAG);
-        return attackTick > 0L && living.level().getGameTime() - attackTick <= 1L;
+        return attackTick == living.level().getGameTime();
+    }
+
+    public static float currentLeftClickDamageMultiplier(LivingEntity living) {
+        if (!hasCurrentLeftClickAttack(living)) return 1.0F;
+        return Mth.clamp(living.getPersistentData().getFloat(LEFT_CLICK_DAMAGE_MULTIPLIER_TAG),
+                0.2F, 1.0F);
+    }
+
+    public static boolean consumePendingAttackStrengthReset(Player player) {
+        CompoundTag data = player.getPersistentData();
+        if (!data.getBoolean(RESET_ATTACK_STRENGTH_TAG)) return false;
+        data.remove(RESET_ATTACK_STRENGTH_TAG);
+        return true;
     }
 
     @Override

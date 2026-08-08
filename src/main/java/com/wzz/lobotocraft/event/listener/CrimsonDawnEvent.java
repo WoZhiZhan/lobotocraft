@@ -1,10 +1,12 @@
 package com.wzz.lobotocraft.event.listener;
 
+import com.lobotocraft.facility.OrdealRewardService;
+import com.lobotocraft.facility.data.OrdealTier;
 import com.wzz.lobotocraft.ModMain;
-import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
-import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.base.EscapeTracker;
 import com.wzz.lobotocraft.entity.ordeal.EntityBloodySmall;
 import com.wzz.lobotocraft.event.definition.work.WorkCompleteEvent;
 import com.wzz.lobotocraft.init.ModEntities;
@@ -45,7 +47,6 @@ public class CrimsonDawnEvent {
     private static final int MIDDAY_UNLOCK_DAY = 10;
     private static final int CHANCE_STEP = 3;
     private static final int MAX_STAGE_TRIGGERS_PER_DAY = 3;
-    private static final int MAX_BLOOD_DAWN_ENTITIES = 5;
     private static final int LOCATION_NOTICE_INTERVAL_TICKS = 10 * 20;
     private static final int SEARCH_LIMIT = 30_000_000;
     private static long lastLocationNoticeGameTime = Long.MIN_VALUE;
@@ -65,7 +66,10 @@ public class CrimsonDawnEvent {
     public static final int TITLE_STAY = 80;
     public static final int TITLE_FADE_OUT = 20;
 
-    @SubscribeEvent
+    // Legacy builds rolled an ordeal after every completed work. The facility
+    // scheduler now preselects the complete day at its boundary, so this entry
+    // point must stay detached from the Forge bus or it can create unscheduled
+    // extra ordeals alongside stages II/III/IV/V/VII/VIII/IX.
     public static void onWorkComplete(WorkCompleteEvent event) {
         ServerPlayer player = event.getEntity();
         if (!(player.level() instanceof ServerLevel level)) return;
@@ -148,32 +152,43 @@ public class CrimsonDawnEvent {
         return data.getNextMiddayType();
     }
 
-    private static void triggerBloodDawn(ServerLevel level) {
+    public static boolean triggerBloodDawn(ServerLevel level) {
         OrdealData data = OrdealData.get(level);
+        if (data.isBloodDawnActive()) return false;
         MinecraftServer server = level.getServer();
-        int count = Math.min(MAX_BLOOD_DAWN_ENTITIES,
-                Math.max(1, server.getPlayerList().getPlayers().size()));
-        int spawned = 0;
-        for (int i = 0; i < count; i++) {
-            if (spawnBloodySmall(level)) {
-                spawned++;
+        List<EntityBloodySmall> spawned = new ArrayList<>();
+        for (OrdealSpawnPointService.DepartmentCorridors department
+                : OrdealSpawnPointService.openCorridorsByDepartment(level)) {
+            EntityBloodySmall departmentSpawn = null;
+            for (BlockPos corridor : department.corridors()) {
+                departmentSpawn = spawnBloodySmall(level, corridor);
+                if (departmentSpawn != null) {
+                    break;
+                }
             }
+            if (departmentSpawn == null) {
+                spawned.forEach(EntityBloodySmall::discard);
+                return false;
+            }
+            spawned.add(departmentSpawn);
         }
 
-        if (spawned <= 0) {
-            return;
+        if (spawned.isEmpty()) {
+            return false;
         }
 
         data.setDawnChance(0);
         data.incrementDawnTriggersToday();
         data.setRandomNextDawnType(level.getRandom());
-        data.startBloodDawn(spawned);
+        data.startBloodDawn(spawned.size());
 
         showBloodDawnTitle(server,
                 "血色的黎明",
                 "开始欢呼吧！",
                 "让我们在这宛如风中残烛的生命里，纵情放一把大火吧！");
         playGlobalSound(server, ModSounds.BLOODY_DAWN_START.get());
+        EscapeTracker.getInstance().onOrdealStart(level, OrdealTier.DAWN);
+        return true;
     }
 
     public static void onBloodySmallKilled(ServerLevel level) {
@@ -183,6 +198,7 @@ public class CrimsonDawnEvent {
 
         data.finishBloodDawn();
         MinecraftServer server = level.getServer();
+        OrdealRewardService.complete(server, OrdealTier.DAWN);
         showBloodDawnTitle(server,
                 "血色的黎明",
                 "开始欢呼吧！",
@@ -210,20 +226,18 @@ public class CrimsonDawnEvent {
                 SEARCH_LIMIT, level.getMaxBuildHeight(), SEARCH_LIMIT);
         return level.getEntitiesOfClass(AbstractAbnormality.class, whole,
                 abnormality -> abnormality.isAlive()
-                        && !abnormality.hasEscape());
+                        && !abnormality.hasEscape()
+                        && FacilityAccessService.isPositionOpen(level.getServer(),
+                        level.dimension().location(), abnormality.blockPosition()));
     }
 
-    private static boolean spawnBloodySmall(ServerLevel level) {
+    private static EntityBloodySmall spawnBloodySmall(ServerLevel level, BlockPos corridor) {
         EntityBloodySmall clown = ModEntities.bloody_small.get().create(level);
-        if (clown == null) return false;
+        if (clown == null) return null;
 
-        SpawnTarget spawnTarget = chooseSpawnTarget(level, clown);
-        if (spawnTarget == null) {
-            return false;
-        }
-        BlockPos spawnPos = spawnTarget.pos();
+        BlockPos spawnPos = findBloodySmallSpawnPosition(level, clown, corridor, 4);
         if (spawnPos == null) {
-            return false;
+            return null;
         }
 
         clown.moveTo(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D,
@@ -231,52 +245,13 @@ public class CrimsonDawnEvent {
         clown.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), MobSpawnType.EVENT, null, null);
         clown.setPersistenceRequired();
         boolean added = level.addFreshEntity(clown);
-        if (added && spawnTarget.abnormality() != null) {
-            clown.setTrackedAbnormality(spawnTarget.abnormality());
-        }
-        return added;
-    }
-
-    private static SpawnTarget chooseSpawnTarget(ServerLevel level, EntityBloodySmall clown) {
-        List<AbstractAbnormality> candidates = new ArrayList<>(findCandidateAbnormalities(level));
-        Collections.shuffle(candidates, new java.util.Random(level.getRandom().nextLong()));
-        for (AbstractAbnormality candidate : candidates) {
-            if (!EntityUtil.isInCompany(level, candidate.blockPosition())) {
-                continue;
-            }
-            BlockPos pos = findBloodySmallSpawnPosition(level, clown, candidate.blockPosition(), 4);
-            if (pos != null) {
-                return new SpawnTarget(pos, candidate);
+        if (added) {
+            List<AbstractAbnormality> candidates = findCandidateAbnormalities(level);
+            if (!candidates.isEmpty()) {
+                clown.setTrackedAbnormality(candidates.get(level.getRandom().nextInt(candidates.size())));
             }
         }
-
-        List<SpawnAnchor> anchors = collectSpawnAnchors(level);
-        for (SpawnAnchor anchor : anchors) {
-            BlockPos pos = findBloodySmallSpawnPosition(level, clown, anchor.pos(), 4);
-            if (pos != null) {
-                return new SpawnTarget(pos, null);
-            }
-        }
-
-        return null;
-    }
-
-    private static List<SpawnAnchor> collectSpawnAnchors(ServerLevel level) {
-        List<SpawnAnchor> anchors = new ArrayList<>();
-        EntityUtil.findBlockEntities(level).stream()
-                .filter(RegenerationReactorBlockEntity.class::isInstance)
-                .filter(blockEntity -> EntityUtil.isInCompany(level, blockEntity.getBlockPos()))
-                .map(blockEntity -> new SpawnAnchor(blockEntity.getBlockPos()))
-                .forEach(anchors::add);
-
-        EscapeBlockEntity.getEscapeBlocks(level.dimension()).stream()
-                .filter(pos -> level.getBlockEntity(pos) instanceof EscapeBlockEntity)
-                .filter(pos -> EntityUtil.isInCompany(level, pos))
-                .map(SpawnAnchor::new)
-                .forEach(anchors::add);
-
-        Collections.shuffle(anchors, new java.util.Random(level.getRandom().nextLong()));
-        return anchors;
+        return added ? clown : null;
     }
 
     public static BlockPos findBloodySmallSpawnPosition(ServerLevel level, EntityBloodySmall clown,
@@ -315,7 +290,8 @@ public class CrimsonDawnEvent {
     }
 
     private static boolean canPlaceBloodySmall(ServerLevel level, EntityBloodySmall clown, BlockPos pos) {
-        if (pos == null || !EntityUtil.isInCompany(level, pos)) {
+        if (pos == null || !FacilityAccessService.isPositionOpen(level.getServer(),
+                level.dimension().location(), pos)) {
             return false;
         }
         if (pos.getY() <= level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight() - 1) {
@@ -336,12 +312,6 @@ public class CrimsonDawnEvent {
                 x - halfWidth, y, z - halfWidth,
                 x + halfWidth, y + clown.getBbHeight(), z + halfWidth);
         return level.noCollision(clown, boundingBox);
-    }
-
-    private record SpawnTarget(BlockPos pos, AbstractAbnormality abnormality) {
-    }
-
-    private record SpawnAnchor(BlockPos pos) {
     }
 
     private static void broadcastChance(MinecraftServer server, int chance, int dawnType, boolean capped) {

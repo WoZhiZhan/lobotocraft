@@ -3,6 +3,8 @@ package com.wzz.lobotocraft.network.packet;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.network.IMessage;
 import com.wzz.lobotocraft.network.MessageLoader;
+import com.wzz.lobotocraft.work.WorkManager;
+import com.wzz.lobotocraft.work.WorkStartAuthorizations;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -29,13 +31,13 @@ public class StartUsingToolPacket implements IMessage {
     @Override
     public void fromBytes(FriendlyByteBuf buf) {
         this.abnormalityId = buf.readInt();
-        this.abnormalityName = buf.readUtf();
+        this.abnormalityName = buf.readUtf(128);
     }
 
     @Override
     public void toBytes(FriendlyByteBuf buf) {
         buf.writeInt(abnormalityId);
-        buf.writeUtf(abnormalityName);
+        buf.writeUtf(abnormalityName, 128);
     }
 
     @Override
@@ -48,6 +50,21 @@ public class StartUsingToolPacket implements IMessage {
             Entity entity = player.level().getEntity(abnormalityId);
             if (!(entity instanceof IAbnormality abnormality)) {
                 player.sendSystemMessage(Component.literal("§c工具异想体不存在或已消失"));
+                return;
+            }
+
+            if (!abnormality.isToolType()) {
+                player.sendSystemMessage(Component.literal("§c目标不是工具型异想体"));
+                return;
+            }
+
+            if (!WorkStartAuthorizations.consumeToolUse(player, entity.getUUID())) {
+                player.sendSystemMessage(Component.literal("§c工具授权已失效，请重新与收容单元交互"));
+                return;
+            }
+
+            if (WorkManager.isPlayerWorking(player)) {
+                player.sendSystemMessage(Component.literal("§c你正在进行工作，无法使用工具"));
                 return;
             }
 

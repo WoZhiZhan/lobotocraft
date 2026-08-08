@@ -63,6 +63,7 @@ public class EntityPunishingBird extends AbstractAbnormality {
     // ========== 状态追踪 ==========
     // 普通攻击状态
     private int normalAttackCooldown = 0;
+    private int peckAnimationTicks = 0;
     private int normalAttackCount = 0;
     private UUID currentHelpTarget = null;
 
@@ -70,11 +71,18 @@ public class EntityPunishingBird extends AbstractAbnormality {
     private UUID angryTarget = null;
     private int angryTimer = 0;
     private static final int ANGRY_DURATION = 1200;
+    private static final int MAX_NORMAL_ESCAPE_TICKS = 20 * 180;
+    private static final double MAX_NEST_DISTANCE_SQR = 128.0D * 128.0D;
+    private static final int RETURN_TIMEOUT_TICKS = 20 * 30;
+    private static final int RETURN_NO_PROGRESS_TICKS = 20 * 12;
     private int bigBiteTimer = 0;
     private boolean bigBitePending = false;
 
     // 返回收容室
     private BlockPos nestPosition = null;
+    private int returningTicks = 0;
+    private int returnNoProgressTicks = 0;
+    private double bestReturnDistanceSqr = Double.MAX_VALUE;
 
     private final Random random = new Random();
 
@@ -154,7 +162,7 @@ public class EntityPunishingBird extends AbstractAbnormality {
     protected void registerGoals() {
         super.registerGoals();
         this.goalSelector.addGoal(0, new MoveToBlockPosWithElevatorGoal(
-                this, 1.2D, () -> nestPosition, this::isReturning, this::finishReturningToNest));
+                this, 1.2D, this::getReturnTarget, this::isReturning, this::finishReturningToNest));
         this.goalSelector.addGoal(1, new FloatGoal(this));
         this.goalSelector.addGoal(2, new MeleeAttackGoal(this, 1.2D, true));
         this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 0.8D));
@@ -207,7 +215,7 @@ public class EntityPunishingBird extends AbstractAbnormality {
 
     @Override
     public void onWorkComplete(ServerPlayer player, WorkType workType, WorkResult result) {
-        if (MentalValueUtil.getMentalValue(player) <= 0) {
+        if (MentalValueUtil.isPanic(player)) {
             decreaseQliphothCounter(1);
             player.sendSystemMessage(Component.literal("§c你陷入了恐慌，惩戒鸟的计数器-1..."));
         }
@@ -246,7 +254,9 @@ public class EntityPunishingBird extends AbstractAbnormality {
         this.getPersistentData().remove("NotFoundTick");
         this.getPersistentData().putInt("EscapeTime", 0);
         normalAttackCount = 0;
+        peckAnimationTicks = 0;
         currentHelpTarget = null;
+        resetReturnProgress();
 
         EntityLightFollower lightFollower = new EntityLightFollower(ModEntities.light_follower.get(), level());
         lightFollower.setLightLevel(4);
@@ -260,7 +270,9 @@ public class EntityPunishingBird extends AbstractAbnormality {
 
     @Override
     public void stopEscape() {
+        boolean wasEscaped = hasEscape();
         super.stopEscape();
+        if (!wasEscaped || hasEscape()) return;
         this.getPersistentData().remove("NotFoundTick");
         this.getPersistentData().remove("EscapeTime");
         noPhysics = false;
@@ -268,11 +280,13 @@ public class EntityPunishingBird extends AbstractAbnormality {
         setReturning(false);
         setCurrentAction("idle");
         normalAttackCount = 0;
+        peckAnimationTicks = 0;
         currentHelpTarget = null;
         angryTarget = null;
         angryTimer = 0;
         bigBitePending = false;
         setTarget(null);
+        resetReturnProgress();
 
         resetMaxHealth();
     }
@@ -292,8 +306,7 @@ public class EntityPunishingBird extends AbstractAbnormality {
         if (source.getEntity() instanceof AbstractAbnormality)
             return false;
         if (source.getEntity() instanceof ServerPlayer player) {
-            boolean isPanic = MentalValueUtil.getMentalValue(player) <= 0;
-            if (isPanic) {
+            if (isPanickingAttacker(player)) {
                 return super.hurt(source, amount);
             }
             if (!isAngry() && hasEscape()) {
@@ -302,6 +315,10 @@ public class EntityPunishingBird extends AbstractAbnormality {
             }
         }
         return super.hurt(source, amount);
+    }
+
+    private boolean isPanickingAttacker(ServerPlayer player) {
+        return MentalValueUtil.isPanic(player);
     }
 
     private void becomeAngry(Player attacker) {
@@ -362,6 +379,7 @@ public class EntityPunishingBird extends AbstractAbnormality {
             setTarget(null);
             this.getPersistentData().remove("NotFoundTick");
             this.getPersistentData().remove("EscapeTime");
+            resetReturnProgress();
 
             // 确保 goalSelector 中有 MoveToBlackForestDoorGoal
             ensureDoorGoalExists();
@@ -379,6 +397,10 @@ public class EntityPunishingBird extends AbstractAbnormality {
         int escapeTime = this.getPersistentData().getInt("EscapeTime");
         escapeTime++;
         this.getPersistentData().putInt("EscapeTime", escapeTime);
+
+        if (!isReturning() && !isAngry() && shouldReturnToNest()) {
+            startReturningToNest();
+        }
 
         if (isReturning()) {
             handleReturningState();
@@ -404,7 +426,31 @@ public class EntityPunishingBird extends AbstractAbnormality {
         this.getPersistentData().remove("NotFoundTick");
         this.getPersistentData().remove("EscapeTime");
         normalAttackCount = 0;
+        peckAnimationTicks = 0;
         currentHelpTarget = null;
+        setCurrentAction("idle");
+        resetReturnProgress();
+    }
+
+    public void resetForBlackForestRestore() {
+        setEscape(false);
+        getPersistentData().remove("NotFoundTick");
+        getPersistentData().remove("EscapeTime");
+        noPhysics = false;
+        setAngry(false);
+        setReturning(false);
+        setCurrentAction("idle");
+        normalAttackCount = 0;
+        normalAttackCooldown = 0;
+        peckAnimationTicks = 0;
+        currentHelpTarget = null;
+        angryTarget = null;
+        angryTimer = 0;
+        bigBitePending = false;
+        bigBiteTimer = 0;
+        setTarget(null);
+        resetReturnProgress();
+        resetMaxHealth();
     }
 
     private boolean doorGoalAdded = false;
@@ -425,6 +471,12 @@ public class EntityPunishingBird extends AbstractAbnormality {
         if (normalAttackCooldown > 0) {
             normalAttackCooldown--;
         }
+        if (peckAnimationTicks > 0 && --peckAnimationTicks == 0
+                && "peck_attack".equals(getCurrentAction())) {
+            setCurrentAction("idle");
+        } else if (peckAnimationTicks <= 0 && "peck_attack".equals(getCurrentAction())) {
+            setCurrentAction("idle");
+        }
 
         if (normalAttackCooldown == 0 && this.getTarget() instanceof Player t) {
             double distance = this.distanceTo(t);
@@ -435,24 +487,22 @@ public class EntityPunishingBird extends AbstractAbnormality {
             }
         }
 
-        if (shouldReturnToNest()) {
-            startReturningToNest();
-        }
     }
 
     private void performNormalAttack(Player target) {
         setCurrentAction("peck_attack");
+        peckAnimationTicks = 5;
 
         target.hurt(DamageHelper.getDamage(this, "lobotocraft:red"), 0.1F);
 
-        boolean wasPanic = MentalValueUtil.getMentalValue(target) <= 0;
+        boolean wasPanic = MentalValueUtil.isPanic(target);
         if (wasPanic) {
             float mentalRestore = 0.01F + random.nextFloat() * 0.02F;
             target.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
                 float maxMental = mental.getEffectiveMaxMentalValue();
                 mental.addMentalValue(maxMental * mentalRestore);
 
-                if (mental.getMentalValue() > 0 && currentHelpTarget != null &&
+                if (!MentalValueUtil.isPanic(target) && currentHelpTarget != null &&
                         currentHelpTarget.equals(target.getUUID())) {
                     target.sendSystemMessage(Component.literal("§a惩戒鸟帮助你恢复了精神！"));
                 }
@@ -471,8 +521,12 @@ public class EntityPunishingBird extends AbstractAbnormality {
         if (normalAttackCount >= 20) {
             return true;
         }
-
-        return false;
+        if (this.getPersistentData().getInt("EscapeTime") >= MAX_NORMAL_ESCAPE_TICKS) {
+            return true;
+        }
+        BlockPos returnTarget = getReturnTarget();
+        return returnTarget != null
+                && this.distanceToSqr(Vec3.atCenterOf(returnTarget)) > MAX_NEST_DISTANCE_SQR;
     }
 
     private void handleAngryState() {
@@ -531,31 +585,64 @@ public class EntityPunishingBird extends AbstractAbnormality {
     }
 
     private void handleReturningState() {
-        if (nestPosition == null) {
+        BlockPos returnTarget = getReturnTarget();
+        if (returnTarget == null) {
             stopEscape();
             return;
         }
 
-        if (this.distanceToSqr(Vec3.atCenterOf(nestPosition)) <= 2.25D) {
+        double distanceSqr = this.distanceToSqr(Vec3.atCenterOf(returnTarget));
+        if (distanceSqr <= 2.25D) {
             finishReturningToNest();
+            return;
+        }
+
+        returningTicks++;
+        if (PunishingBirdReturnPosition.madeProgress(distanceSqr, bestReturnDistanceSqr)) {
+            bestReturnDistanceSqr = distanceSqr;
+            returnNoProgressTicks = 0;
+        } else {
+            returnNoProgressTicks++;
+        }
+
+        if (returningTicks >= RETURN_TIMEOUT_TICKS
+                || returnNoProgressTicks >= RETURN_NO_PROGRESS_TICKS) {
+            finishReturningToNest();
+            return;
         }
         setCurrentAction("fly");
     }
 
     private void startReturningToNest() {
+        if (isReturning()) return;
         setReturning(true);
+        peckAnimationTicks = 0;
         noPhysics = false;
         setTarget(null);
         this.getNavigation().stop();
+        resetReturnProgress();
+        BlockPos returnTarget = getReturnTarget();
+        if (returnTarget != null) {
+            bestReturnDistanceSqr = this.distanceToSqr(Vec3.atCenterOf(returnTarget));
+        }
         setCurrentAction("fly");
         broadcastMessage("§e惩戒鸟正在返回收容室...");
     }
 
     private void finishReturningToNest() {
-        if (nestPosition != null) {
-            this.teleportTo(nestPosition.getX() + 0.5D, nestPosition.getY(), nestPosition.getZ() + 0.5D);
-        }
+        BlockPos returnTarget = getReturnTarget();
+        if (returnTarget != null) this.escapePosition = returnTarget;
         stopEscape();
+    }
+
+    private BlockPos getReturnTarget() {
+        return PunishingBirdReturnPosition.aboveNest(nestPosition);
+    }
+
+    private void resetReturnProgress() {
+        returningTicks = 0;
+        returnNoProgressTicks = 0;
+        bestReturnDistanceSqr = Double.MAX_VALUE;
     }
 
     private List<Player> findNearbyPanicPlayers(double range) {
@@ -763,16 +850,6 @@ public class EntityPunishingBird extends AbstractAbnormality {
         return super.canBeCollidedWith();
     }
 
-    @Override
-    public void move(MoverType type, Vec3 movement) {
-        if (isReturning()) {
-            this.setPos(this.getX() + movement.x, this.getY() + movement.y, this.getZ() + movement.z);
-            return;
-        }
-        super.move(type, movement);
-    }
-
-
     public static AttributeSupplier.Builder createAttributes() {
         return Mob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, 200.0D)
@@ -798,6 +875,10 @@ public class EntityPunishingBird extends AbstractAbnormality {
         tag.putInt("NormalAttackCount", normalAttackCount);
         tag.putInt("AngryTimer", angryTimer);
         tag.putInt("NormalAttackCooldown", normalAttackCooldown);
+        tag.putInt("PeckAnimationTicks", peckAnimationTicks);
+        tag.putInt("ReturningTicks", returningTicks);
+        tag.putInt("ReturnNoProgressTicks", returnNoProgressTicks);
+        tag.putDouble("BestReturnDistanceSqr", bestReturnDistanceSqr);
 
         if (currentHelpTarget != null) {
             tag.putUUID("CurrentHelpTarget", currentHelpTarget);
@@ -821,6 +902,12 @@ public class EntityPunishingBird extends AbstractAbnormality {
         normalAttackCount = tag.getInt("NormalAttackCount");
         angryTimer = tag.getInt("AngryTimer");
         normalAttackCooldown = tag.getInt("NormalAttackCooldown");
+        peckAnimationTicks = Math.max(0, tag.getInt("PeckAnimationTicks"));
+        returningTicks = tag.getInt("ReturningTicks");
+        returnNoProgressTicks = tag.getInt("ReturnNoProgressTicks");
+        bestReturnDistanceSqr = tag.contains("BestReturnDistanceSqr")
+                ? tag.getDouble("BestReturnDistanceSqr")
+                : Double.MAX_VALUE;
 
         if (tag.hasUUID("CurrentHelpTarget")) {
             currentHelpTarget = tag.getUUID("CurrentHelpTarget");

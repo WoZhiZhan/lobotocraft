@@ -9,20 +9,16 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.damagesource.DamageSources;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.Level;
 
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
-public class DamageHelper {
-    private final Level level;
-    private static DamageHelper INSTANCE;
+public final class DamageHelper {
     private static final Set<ResourceKey<DamageType>> VANILLA_DAMAGE_TYPES = Set.of(
             DamageTypes.IN_FIRE,
             DamageTypes.LIGHTNING_BOLT,
@@ -80,11 +76,6 @@ public class DamageHelper {
             resourceKeys.add(ResourceKey.create(Registries.DAMAGE_TYPE, ResourceUtil.createInstance("black")));
         }
         return resourceKeys;
-    }
-
-    public DamageHelper(Level level) {
-        this.level = level;
-        INSTANCE = this;
     }
 
     public static boolean isVanillaDamage(ResourceKey<DamageType> key) {
@@ -147,77 +138,62 @@ public class DamageHelper {
         return damageSource.getMsgId().equals("black");
     }
 
-    public static DamageHelper getDamage() {
-        return INSTANCE;
+    public static boolean inFire(DamageSource damageSource) {
+        return damageSource != null && damageSource.is(DamageTypes.IN_FIRE);
     }
 
-    public DamageSources getDamageSources() {
-        return level.damageSources;
+    public static boolean onFire(DamageSource damageSource) {
+        return damageSource != null && damageSource.is(DamageTypes.ON_FIRE);
     }
 
-    public DamageSource createDamage(ResourceKey<DamageType> type) {
-        return new DamageSource(level.registryAccess.registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(type));
-    }
-
-    public DamageSource createDamage(ResourceKey<DamageType> type, LivingEntity living) {
-        return new DamageSource(level.registryAccess.registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(type), living);
-    }
-
-    public boolean inFire(DamageSource damageSource) {
-        return damageSource == level.damageSources.inFire();
-    }
-
-    public boolean onFire(DamageSource damageSource) {
-        return damageSource == level.damageSources.onFire();
-    }
-
-    public boolean isAllFire(DamageSource damageSource) {
+    public static boolean isAllFire(DamageSource damageSource) {
         return onFire(damageSource) || inFire(damageSource);
     }
 
-    public boolean isFellOutOfWorld(DamageSource damageSource) {
-        return damageSource == level.damageSources.fellOutOfWorld();
+    public static boolean isFellOutOfWorld(DamageSource damageSource) {
+        return damageSource != null && damageSource.is(DamageTypes.FELL_OUT_OF_WORLD);
     }
 
-    public boolean isKill(DamageSource damageSource) {
-        return damageSource == level.damageSources.genericKill();
+    public static boolean isKill(DamageSource damageSource) {
+        return damageSource != null && damageSource.is(DamageTypes.GENERIC_KILL);
     }
 
-    public boolean inCactus(DamageSource damageSource) {
-        return damageSource == level.damageSources.cactus();
+    public static boolean inCactus(DamageSource damageSource) {
+        return damageSource != null && damageSource.is(DamageTypes.CACTUS);
     }
 
-    public boolean isDragonBreath(DamageSource damageSource) {
-        return damageSource == level.damageSources.dragonBreath();
+    public static boolean isDragonBreath(DamageSource damageSource) {
+        return damageSource != null && damageSource.is(DamageTypes.DRAGON_BREATH);
     }
 
-    public boolean isDryOut(DamageSource damageSource) {
-        return damageSource == level.damageSources.dryOut();
+    public static boolean isDryOut(DamageSource damageSource) {
+        return damageSource != null && damageSource.is(DamageTypes.DRY_OUT);
     }
 
-    public boolean isGeneric(DamageSource damageSource) {
-        return damageSource == level.damageSources.generic();
+    public static boolean isGeneric(DamageSource damageSource) {
+        return damageSource != null && damageSource.is(DamageTypes.GENERIC);
     }
 
-    public boolean isMagic(DamageSource damageSource) {
-        return damageSource == level.damageSources.magic();
+    public static boolean isMagic(DamageSource damageSource) {
+        return damageSource != null && damageSource.is(DamageTypes.MAGIC);
     }
 
-    public boolean isLava(DamageSource damageSource) {
-        return damageSource == level.damageSources.lava();
+    public static boolean isLava(DamageSource damageSource) {
+        return damageSource != null && damageSource.is(DamageTypes.LAVA);
     }
 
-    public boolean isFall(DamageSource damageSource) {
-        return damageSource == level.damageSources.fall();
+    public static boolean isFall(DamageSource damageSource) {
+        return damageSource != null && damageSource.is(DamageTypes.FALL);
     }
 
-    public boolean isExplosion(DamageSource damageSource) {
-        String id = damageSource.getMsgId();
-        return id.equals("explosion") || id.equals("explosion.player") || id.equals("badRespawnPoint");
+    public static boolean isExplosion(DamageSource damageSource) {
+        return damageSource != null && (damageSource.is(DamageTypes.EXPLOSION)
+                || damageSource.is(DamageTypes.PLAYER_EXPLOSION)
+                || damageSource.is(DamageTypes.BAD_RESPAWN_POINT));
     }
 
-    public boolean isMobAttack(DamageSource damageSource) {
-        return damageSource.typeHolder() == DamageTypes.MOB_ATTACK;
+    public static boolean isMobAttack(DamageSource damageSource) {
+        return damageSource != null && damageSource.is(DamageTypes.MOB_ATTACK);
     }
 
     /**

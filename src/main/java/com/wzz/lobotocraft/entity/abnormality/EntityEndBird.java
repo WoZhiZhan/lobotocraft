@@ -6,6 +6,11 @@ import com.wzz.lobotocraft.entity.EntityLightOrb;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
+import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
+import com.wzz.lobotocraft.ego.SpecialEgoCatalog;
+import com.wzz.lobotocraft.ego.SpecialEgoService;
+import com.wzz.lobotocraft.event.listener.BlackForestEvent;
 import com.wzz.lobotocraft.init.*;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.FullScreenRenderMessage;
@@ -19,6 +24,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
@@ -61,7 +67,13 @@ public class EntityEndBird extends AbstractAbnormality {
     private static final int ATTACKS_BEFORE_TELEPORT = 3;
 
     /** 普通攻击 AABB 半扩展量（格） */
-    private static final double NORMAL_ATTACK_RADIUS = 3.5;
+    private static final double NORMAL_ATTACK_RADIUS = 8.5;
+
+    /** 巨口伤害距离；在原 10 格基础上增加 5 格。 */
+    private static final double GIANT_MOUTH_RANGE = 15.0;
+
+    /** Vanilla 声音以约 16×音量格衰减；1.3125 将原 16 格范围增加到约 21 格。 */
+    private static final float EXTENDED_ATTACK_SOUND_VOLUME = 21.0F / 16.0F;
 
     /** 光弹攻击覆盖半径（格），对应 20×20 区域 */
     private static final double ORB_ATTACK_RADIUS = 10.0;
@@ -91,6 +103,7 @@ public class EntityEndBird extends AbstractAbnormality {
     /** 当前被魅惑的玩家 UUID 集合 */
     private final Set<UUID> charmedPlayers = new HashSet<>();
     private Map<String, Pair<String, BlockPos>> birdReturnInfo = new HashMap<>();
+    private Map<String, CompoundTag> capturedBirds = new HashMap<>();
     private UUID thinDuskRewardPlayer = null;
 
     // ══════════════════════════════════════════════════════════════
@@ -148,6 +161,8 @@ public class EntityEndBird extends AbstractAbnormality {
     @Override
     public void tick() {
         super.tick();
+        if (level() instanceof ServerLevel serverLevel
+                && (replayPendingAbort(serverLevel) || replayPendingCompletion(serverLevel))) return;
         setNoAi(!hasEscape());
 
         // 朝向目标平滑旋转
@@ -320,7 +335,8 @@ public class EntityEndBird extends AbstractAbnormality {
         String anim = random.nextBoolean() ? "attack1" : "attack2";
 
         level().playSound(null, getX(), getY(), getZ(),
-                ModSounds.END_BIRD_WILL_ATTACK_2.get(), SoundSource.HOSTILE, 1.0f, 1.0f);
+                ModSounds.END_BIRD_WILL_ATTACK_2.get(), SoundSource.HOSTILE,
+                EXTENDED_ATTACK_SOUND_VOLUME, 1.0f);
         setAnimation(anim);
 
         TimerEntry<AbstractAbnormality> timer = new TimerEntry<>() {
@@ -330,9 +346,11 @@ public class EntityEndBird extends AbstractAbnormality {
 
                 if (exec == 20) {
                     level().playSound(null, getX(), getY(), getZ(),
-                            ModSounds.END_BIRD_ATTACK_1.get(), SoundSource.HOSTILE, 1.0f, 1.0f);
+                            ModSounds.END_BIRD_ATTACK_1.get(), SoundSource.HOSTILE,
+                            EXTENDED_ATTACK_SOUND_VOLUME, 1.0f);
                     level().playSound(null, getX(), getY(), getZ(),
-                            ModSounds.END_BIRD_ATTACK_2.get(), SoundSource.HOSTILE, 1.0f, 1.0f);
+                            ModSounds.END_BIRD_ATTACK_2.get(), SoundSource.HOSTILE,
+                            EXTENDED_ATTACK_SOUND_VOLUME, 1.0f);
 
                     AABB hitBox = getBoundingBox().inflate(NORMAL_ATTACK_RADIUS, 2.0, NORMAL_ATTACK_RADIUS);
                     int dmg = 23 + random.nextInt(21);
@@ -473,7 +491,8 @@ public class EntityEndBird extends AbstractAbnormality {
         isBusy = true;
         setAnimation("skill1");
         level().playSound(null, getX(), getY(), getZ(),
-                ModSounds.END_BIRD_SKILL_1.get(), SoundSource.HOSTILE, 1.0f, 1.0f);
+                ModSounds.END_BIRD_SKILL_1.get(), SoundSource.HOSTILE,
+                EXTENDED_ATTACK_SOUND_VOLUME, 1.0f);
 
         TimerEntry<AbstractAbnormality> timer = new TimerEntry<>() {
             @Override
@@ -504,10 +523,10 @@ public class EntityEndBird extends AbstractAbnormality {
 
     /** 对巨口朝向 90° 扇形（半角 45°）、10 格以内的所有目标造成 50-115 随机红色伤害。 */
     private void dealGiantMouthDamage() {
-        AABB area = new AABB(blockPosition()).inflate(10, 5, 10);
+        AABB area = new AABB(blockPosition()).inflate(GIANT_MOUTH_RANGE, 5, GIANT_MOUTH_RANGE);
         int dmg = 50 + random.nextInt(66); // 50-115
         level().getEntitiesOfClass(LivingEntity.class, area,
-                        e -> canEndBirdDamage(e) && isInFront(e, 45.0f, 10.0))
+                        e -> canEndBirdDamage(e) && isInFront(e, 45.0f, GIANT_MOUTH_RANGE))
                 .forEach(e -> e.hurt(DamageHelper.getDamage(this, "red"), dmg));
     }
 
@@ -648,11 +667,24 @@ public class EntityEndBird extends AbstractAbnormality {
      * 设置三鸟信息
      */
     public void setBirdReturnInfo(Map<String, Pair<String, BlockPos>> info) {
-        this.birdReturnInfo = info;
+        this.birdReturnInfo = new HashMap<>(info);
+    }
+
+    public void setBirdReturnInfo(Map<String, Pair<String, BlockPos>> info,
+                                  Map<String, CompoundTag> snapshots) {
+        this.birdReturnInfo = new HashMap<>(info);
+        this.capturedBirds = new HashMap<>();
+        snapshots.forEach((code, snapshot) -> this.capturedBirds.put(code, snapshot.copy()));
     }
 
     @Override
     public void setHealth(float f) {
+        if (f <= 0f && this.isAlive() && level() instanceof ServerLevel serverLevel
+                && !EndBirdEggTracker.get(serverLevel).canEndBirdDie(getUUID())) {
+            // Health edits and other forced paths cannot bypass the three event eggs.
+            super.setHealth(1.0F);
+            return;
+        }
         if (f <= 0f && this.isAlive()) {
             setAnimation("die");
             level().playSound(null, getX(), getY(), getZ(),
@@ -660,14 +692,11 @@ public class EntityEndBird extends AbstractAbnormality {
 
             if (!level().isClientSide && level() instanceof ServerLevel serverLevel) {
                 // 清理追踪器
-                EndBirdEggTracker.get(serverLevel).clear();
+                EndBirdEggTracker tracker = EndBirdEggTracker.get(serverLevel);
 
                 // 解除所有魅惑
-                for (UUID uuid : charmedPlayers) {
-                    ServerPlayer player = serverLevel.getServer().getPlayerList().getPlayer(uuid);
-                    if (player != null) dispelCharm(player);
-                }
-                charmedPlayers.clear();
+                queueAndDispelAllCharms(serverLevel, tracker);
+                tracker.clearIfEndBird(getUUID());
 
                 for (ServerPlayer player : EntityUtil.findAllPlayer(this)) {
                     FullScreenRenderMessage msg = FullScreenRenderMessage.builder()
@@ -701,51 +730,126 @@ public class EntityEndBird extends AbstractAbnormality {
         super.setHealth(f);
     }
 
-    private void setThinDuskRewardPlayer(@Nullable ServerPlayer player) {
-        if (player != null) {
-            thinDuskRewardPlayer = player.getUUID();
+    @Override
+    public void kill() {
+        if (level() instanceof ServerLevel serverLevel
+                && EndBirdEggTracker.get(serverLevel).isTrackedEndBird(getUUID())) {
+            // Commands and automation must obey the same event invariant as combat.
+            // setHealth keeps the bird at one until all three registered eggs are gone.
+            setHealth(0.0F);
+            return;
         }
+        super.kill();
+    }
+
+    @Override
+    public void remove(RemovalReason reason) {
+        if (!level().isClientSide && reason.shouldDestroy() && level() instanceof ServerLevel serverLevel) {
+            EndBirdEggTracker tracker = EndBirdEggTracker.get(serverLevel);
+            if (tracker.isTrackedEndBird(getUUID())) {
+                // A debug remover or another forced discard aborts atomically instead of
+                // leaving a permanent tracker that blocks every later encounter.
+                List<UUID> eggIds = tracker.abortEncounter(getUUID(), charmedPlayers);
+                queueAndDispelAllCharms(serverLevel, tracker);
+                for (UUID eggId : eggIds) {
+                    Entity egg = findLoadedEntity(serverLevel.getServer(), eggId);
+                    if (egg != null && !egg.isRemoved()) {
+                        egg.discard();
+                        if (egg.isRemoved()) tracker.acknowledgeEggCleanup(eggId);
+                    }
+                }
+                restoreThreeBirds(serverLevel);
+            }
+        }
+        super.remove(reason);
+    }
+
+    private void setThinDuskRewardPlayer(@Nullable ServerPlayer player) {
+        if (player != null) setThinDuskRewardPlayer(player.getUUID());
+    }
+
+    private void setThinDuskRewardPlayer(@Nullable UUID playerUUID) {
+        if (playerUUID != null) thinDuskRewardPlayer = playerUUID;
+    }
+
+    /** Replays the final-egg transaction after this entity or its chunk is loaded again. */
+    public boolean replayPendingCompletion(ServerLevel serverLevel) {
+        EndBirdEggTracker tracker = EndBirdEggTracker.get(serverLevel);
+        if (!tracker.isCompletionPending(getUUID()) || !isAlive()) return false;
+        setThinDuskRewardPlayer(tracker.getCompletionKillerUUID());
+        setHealth(0.0F);
+        return true;
+    }
+
+    /** Safely retires a conflicting legacy per-dimension encounter. */
+    public boolean replayPendingAbort(ServerLevel serverLevel) {
+        EndBirdEggTracker tracker = EndBirdEggTracker.get(serverLevel);
+        if (!tracker.needsEndBirdAbort(getUUID())) return false;
+        queueAndDispelAllCharms(serverLevel, tracker);
+        restoreThreeBirds(serverLevel);
+        tracker.acknowledgeEndBirdAbort(getUUID());
+        discard();
+        return true;
+    }
+
+    private void queueAndDispelAllCharms(ServerLevel serverLevel, EndBirdEggTracker tracker) {
+        tracker.queueCharmCleanup(charmedPlayers);
+        for (UUID uuid : new HashSet<>(charmedPlayers)) {
+            ServerPlayer player = serverLevel.getServer().getPlayerList().getPlayer(uuid);
+            if (player != null) {
+                dispelCharm(player);
+                tracker.acknowledgeCharmCleanup(uuid);
+            }
+        }
+        charmedPlayers.clear();
     }
 
     @Nullable
     private ServerPlayer resolveThinDuskRewardPlayer(ServerLevel serverLevel) {
         if (thinDuskRewardPlayer != null) {
             ServerPlayer player = serverLevel.getServer().getPlayerList().getPlayer(thinDuskRewardPlayer);
-            if (player != null) return player;
+            if (player != null && !(player instanceof EmployeeServerPlayer)) return player;
         }
         return serverLevel.getServer().getPlayerList().getPlayers().stream()
+                .filter(player -> !(player instanceof EmployeeServerPlayer))
                 .min(Comparator.comparingDouble(player -> player.distanceToSqr(this)))
                 .orElse(null);
     }
 
     private void grantThinDuskEquipment(ServerPlayer player) {
-        ItemUtil.addItem(player, new ItemStack(ModItems.END_BIRD_WEAPON.get()));
-        ItemUtil.addItem(player, new ItemStack(ModItems.END_BIRD_CHESTPLATE.get()));
-        ItemUtil.addItem(player, new ItemStack(ModItems.END_BIRD_LEGGINGS.get()));
-        ItemUtil.addItem(player, new ItemStack(ModItems.END_BIRD_BOOTS.get()));
-        player.sendSystemMessage(Component.literal("§5你取得了薄暝的武器与装备。"));
+        if (SpecialEgoService.unlock(player.server, SpecialEgoCatalog.THIN_DUSK_ID)) {
+            player.sendSystemMessage(Component.literal(
+                    "§d全服已解锁特殊 E.G.O「薄暝」。武器与护甲席位可在设施管理中分别申请。"));
+        } else {
+            player.sendSystemMessage(Component.literal("§5特殊 E.G.O「薄暝」已处于解锁状态。"));
+        }
     }
 
     /**
      * 恢复三鸟到出逃前的位置
      */
     private void restoreThreeBirds(ServerLevel serverLevel) {
-        if (birdReturnInfo.isEmpty()) return;
-
-        for (Map.Entry<String, Pair<String, BlockPos>> entry : birdReturnInfo.entrySet()) {
-            String abnormalityCode = entry.getKey();
-            BlockPos returnPos = entry.getValue().getSecond();
-
-            if (returnPos == null) continue;
-
-            AbstractAbnormality bird = createBirdByCode(abnormalityCode, serverLevel);
-            if (bird != null) {
-                bird.setPos(returnPos.getX() + 0.5, returnPos.getY(), returnPos.getZ() + 0.5);
-                bird.setEscape(false);
-                bird.setQliphothCounter(bird.getMaxQliphothCounter());
-                serverLevel.addFreshEntity(bird);
+        if (birdReturnInfo.isEmpty() && capturedBirds.isEmpty()) return;
+        Set<String> codes = new HashSet<>(birdReturnInfo.keySet());
+        codes.addAll(capturedBirds.keySet());
+        List<CompoundTag> records = new ArrayList<>();
+        for (String code : codes) {
+            CompoundTag record = capturedBirds.get(code);
+            if (record == null) {
+                Pair<String, BlockPos> legacy = birdReturnInfo.get(code);
+                if (legacy == null || legacy.getSecond() == null) continue;
+                record = new CompoundTag();
+                record.putString("Code", code);
+                record.putString("Dimension", serverLevel.dimension().location().toString());
+                record.putInt("X", legacy.getSecond().getX());
+                record.putInt("Y", legacy.getSecond().getY());
+                record.putInt("Z", legacy.getSecond().getZ());
             }
+            records.add(record.copy());
         }
+        BlackForestEvent.queueAndRestoreCapturedBirds(serverLevel, records);
+        birdReturnInfo.clear();
+        capturedBirds.clear();
     }
 
     /**
@@ -780,8 +884,10 @@ public class EntityEndBird extends AbstractAbnormality {
 
         charmedPlayers.removeIf(uuid -> {
             ServerPlayer player = serverLevel.getServer().getPlayerList().getPlayer(uuid);
-            if (player == null || !player.isAlive()) {
-                if (player != null) dispelCharm(player);
+            // Keep offline UUIDs so encounter completion/removal can queue a login cleanup.
+            if (player == null) return false;
+            if (!player.isAlive()) {
+                dispelCharm(player);
                 return true;
             }
 
@@ -877,6 +983,7 @@ public class EntityEndBird extends AbstractAbnormality {
         if (targetPos == null) return;
 
         BlockPos safe = EntityUtil.findSafeGroundPosition(level(), targetPos, 5);
+        if (!isOpenPosition(safe)) return;
         setPos(safe.getX() + 0.5, safe.getY(), safe.getZ() + 0.5);
     }
 
@@ -893,7 +1000,8 @@ public class EntityEndBird extends AbstractAbnormality {
                 EntityEndBirdEggHigh.class,
                 EntityEndBirdEggEye.class)) {
             for (LivingEntity egg : level().getEntitiesOfClass(cls,
-                    new AABB(reference).inflate(64), LivingEntity::isAlive)) {
+                    new AABB(reference).inflate(64),
+                    egg -> egg.isAlive() && isOpenPosition(egg.blockPosition()))) {
                 double d = egg.blockPosition().distSqr(reference);
                 if (d < bestDist) { bestDist = d; best = egg.blockPosition(); }
             }
@@ -901,7 +1009,7 @@ public class EntityEndBird extends AbstractAbnormality {
 
         // 遍历再生反应堆
         for (BlockEntity be : EntityUtil.findBlockEntities(level(), reference, 64)) {
-            if (be instanceof RegenerationReactorBlockEntity) {
+            if (be instanceof RegenerationReactorBlockEntity && isOpenPosition(be.getBlockPos())) {
                 double d = be.getBlockPos().distSqr(reference);
                 if (d < bestDist) { bestDist = d; best = be.getBlockPos(); }
             }
@@ -909,6 +1017,7 @@ public class EntityEndBird extends AbstractAbnormality {
 
         if (best == null) return;
         BlockPos safe = EntityUtil.findSafeGroundPosition(level(), best, 5);
+        if (!isOpenPosition(safe)) return;
         setPos(safe.getX() + 0.5, safe.getY(), safe.getZ() + 0.5);
     }
 
@@ -920,6 +1029,7 @@ public class EntityEndBird extends AbstractAbnormality {
         return level().getEntitiesOfClass(eggClass,
                         new AABB(blockPosition()).inflate(512), LivingEntity::isAlive)
                 .stream()
+                .filter(e -> isOpenPosition(e.blockPosition()))
                 .min(Comparator.comparingDouble(e -> e.distanceToSqr(this)))
                 .map(Entity::blockPosition)
                 .orElse(null);
@@ -929,7 +1039,7 @@ public class EntityEndBird extends AbstractAbnormality {
         BlockPos nearest = null;
         double   minDist = Double.MAX_VALUE;
         for (BlockEntity be : EntityUtil.findBlockEntities(level(), center, 300)) {
-            if (be instanceof RegenerationReactorBlockEntity) {
+            if (be instanceof RegenerationReactorBlockEntity && isOpenPosition(be.getBlockPos())) {
                 double d = be.getBlockPos().distSqr(center);
                 if (d < minDist) { minDist = d; nearest = be.getBlockPos(); }
             }
@@ -951,6 +1061,12 @@ public class EntityEndBird extends AbstractAbnormality {
         return findNearestReactorPos(blockPosition());
     }
 
+    private boolean isOpenPosition(BlockPos position) {
+        return level() instanceof ServerLevel serverLevel
+                && FacilityAccessService.isPositionOpen(serverLevel.getServer(),
+                serverLevel.dimension().location(), position);
+    }
+
     // ══════════════════════════════════════════════════════════════
     //  鸟蛋存活检测
     // ══════════════════════════════════════════════════════════════
@@ -967,27 +1083,39 @@ public class EntityEndBird extends AbstractAbnormality {
     /**
      * 鸟蛋死亡时调用，扣除终末鸟血量。所有蛋死亡或血量归零时直接击杀。
      */
-    public static void endBirdEggDie(Level level) {
-        endBirdEggDie(level, null);
-    }
-
-    public static void endBirdEggDie(Level level, @Nullable ServerPlayer eggKiller) {
+    public static boolean endBirdEggDie(Level level, UUID eggUUID, String eggType,
+                                        @Nullable ServerPlayer eggKiller) {
         if (!level.isClientSide && level instanceof ServerLevel serverLevel) {
             EndBirdEggTracker tracker = EndBirdEggTracker.get(serverLevel);
-            if (tracker.getEndBirdUUID() != null) {
-                Entity entity = serverLevel.getEntity(tracker.getEndBirdUUID());
+            EndBirdEggTracker.EggDestructionResult result =
+                    tracker.markEggDestroyed(eggUUID, eggType);
+            if (result == EndBirdEggTracker.EggDestructionResult.ACCEPTED
+                    || result == EndBirdEggTracker.EggDestructionResult.COMPLETE) {
+                if (result == EndBirdEggTracker.EggDestructionResult.COMPLETE && eggKiller != null) {
+                    tracker.recordCompletionKiller(eggKiller.getUUID());
+                }
+                Entity entity = findLoadedEntity(serverLevel.getServer(), tracker.getEndBirdUUID());
                 if (entity instanceof EntityEndBird endBird && endBird.isAlive()) {
-                    float newHealth = endBird.getHealth() - 110000f;
-                    if (tracker.areAllEggsDestroyed() || newHealth <= 0) {
-                        endBird.setThinDuskRewardPlayer(eggKiller);
-                        endBird.setHealth(0);
+                    if (result == EndBirdEggTracker.EggDestructionResult.COMPLETE) {
+                        endBird.replayPendingCompletion((ServerLevel) endBird.level());
                     } else {
-                        endBird.setHealth(newHealth);
+                        endBird.setHealth(Math.max(1.0F, endBird.getHealth() - 110000.0F));
                     }
                 }
+                return true;
             }
-            if (tracker.areAllEggsDestroyed()) tracker.clear();
         }
+        return false;
+    }
+
+    @Nullable
+    private static Entity findLoadedEntity(MinecraftServer server, @Nullable UUID uuid) {
+        if (server == null || uuid == null) return null;
+        for (ServerLevel candidate : server.getAllLevels()) {
+            Entity entity = candidate.getEntity(uuid);
+            if (entity != null) return entity;
+        }
+        return null;
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -1017,6 +1145,9 @@ public class EntityEndBird extends AbstractAbnormality {
             birdInfoTag.put(entry.getKey(), birdTag);
         }
         tag.put("BirdReturnInfo", birdInfoTag);
+        CompoundTag capturedTag = new CompoundTag();
+        capturedBirds.forEach((code, record) -> capturedTag.put(code, record.copy()));
+        tag.put("CapturedBirds", capturedTag);
     }
 
     @Override
@@ -1042,6 +1173,13 @@ public class EntityEndBird extends AbstractAbnormality {
                     pos = new BlockPos(birdTag.getInt("X"), birdTag.getInt("Y"), birdTag.getInt("Z"));
                 }
                 birdReturnInfo.put(key, Pair.of(uuid, pos));
+            }
+        }
+        capturedBirds.clear();
+        if (tag.contains("CapturedBirds")) {
+            CompoundTag capturedTag = tag.getCompound("CapturedBirds");
+            for (String key : capturedTag.getAllKeys()) {
+                capturedBirds.put(key, capturedTag.getCompound(key).copy());
             }
         }
     }
@@ -1078,14 +1216,6 @@ public class EntityEndBird extends AbstractAbnormality {
     }
 
     @Override public void onQliphothMeltdown() { super.onQliphothMeltdown(); triggerEscape(); }
-
-    @Override
-    public void onAddedToWorld() {
-        super.onAddedToWorld();
-        if (!level().isClientSide && level() instanceof ServerLevel serverLevel) {
-            EndBirdEggTracker.get(serverLevel).registerEndBird(this.getStringUUID());
-        }
-    }
 
     @Override
     public boolean hurt(DamageSource ds, float f) {

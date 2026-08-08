@@ -1,27 +1,34 @@
 package com.wzz.lobotocraft.event.listener;
 
 import com.wzz.lobotocraft.ModMain;
+import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
 import com.wzz.lobotocraft.event.definition.work.WorkCompleteEvent;
+import com.wzz.lobotocraft.entity.ordeal.OrdealEntity;
 import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.SuppressorCounterUtil;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.monster.Enemy;
+import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 /**
  * 便携式抑制计数(HUD 机制)的服务端逻辑:
  *  - 公司维度外每 8 秒(160 tick)消耗 1 点
- *  - 玩家受到伤害后,按伤害数值额外扣减对应抑制计数
  *  - 计数归零时,施加与原"便携式抑制器"道具相同的惩罚(四色伤害 + 缓慢)
  */
 @Mod.EventBusSubscriber(modid = ModMain.MODID)
 public class SuppressorCounterEvent {
+
+    private static final int HOSTILE_KILL_RESTORE = 5;
 
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
@@ -43,51 +50,62 @@ public class SuppressorCounterEvent {
         // 每秒同步计数到客户端用于 HUD 显示
         if (player instanceof net.minecraft.server.level.ServerPlayer sp && player.tickCount % 20 == 0) {
             com.wzz.lobotocraft.network.MessageLoader.getLoader().sendToPlayer(sp,
-                    new com.wzz.lobotocraft.network.packet.SuppressorCountSyncPacket(SuppressorCounterUtil.get(player)));
+                    new com.wzz.lobotocraft.network.packet.SuppressorCountSyncPacket(
+                            SuppressorCounterUtil.get(player), SuppressorCounterUtil.capacity(player)));
         }
     }
 
-    /** 受到伤害后,按伤害数值额外扣减抑制计数 */
+    /** Restore a small amount of outside-time energy for a real player's hostile-mob kill. */
     @SubscribeEvent
-    public static void onLivingHurt(LivingHurtEvent event) {
-        if (!(event.getEntity() instanceof Player player)) return;
-        if (player.level().isClientSide) return;
-        if (player.isCreative() || player.isSpectator()) return;
-        if (player.level().dimension() == ModDimensions.LOBOTO_KEY) return;
-        // 避免惩罚自身造成的伤害递归扣减
-        if (event.getSource() != null && event.getSource().getEntity() == player) return;
-        int amount = Math.max(1, Math.round(event.getAmount()));
-        SuppressorCounterUtil.reduce(player, amount);
+    public static void onLivingDeath(LivingDeathEvent event) {
+        LivingEntity defeated = event.getEntity();
+        if (defeated.level().isClientSide || !isHostile(defeated)) return;
+
+        Player killer = event.getSource().getEntity() instanceof Player sourcePlayer
+                ? sourcePlayer
+                : defeated.getKillCredit() instanceof Player creditedPlayer ? creditedPlayer : null;
+        if (!(killer instanceof net.minecraft.server.level.ServerPlayer serverPlayer)
+                || killer instanceof EmployeeServerPlayer
+                || killer instanceof FakePlayer
+                || killer.isCreative()
+                || killer.isSpectator()) {
+            return;
+        }
+
+        SuppressorCounterUtil.restore(serverPlayer, HOSTILE_KILL_RESTORE);
+        com.wzz.lobotocraft.network.MessageLoader.getLoader().sendToPlayer(serverPlayer,
+                new com.wzz.lobotocraft.network.packet.SuppressorCountSyncPacket(
+                        SuppressorCounterUtil.get(serverPlayer), SuppressorCounterUtil.capacity(serverPlayer)));
     }
 
-    /** 捕捉单元合成前置:抑制计数需为满(120),合成后消耗所有计数;否则取消合成并退还能源 */
+    private static boolean isHostile(LivingEntity entity) {
+        return entity instanceof Enemy
+                || entity instanceof OrdealEntity
+                || entity.getType().getCategory() == MobCategory.MONSTER;
+    }
+
+    /** 捕捉单元合成:结果槽负责前置拦截;合法制作后消耗全部抑制计数。 */
     @SubscribeEvent
     public static void onItemCrafted(net.minecraftforge.event.entity.player.PlayerEvent.ItemCraftedEvent event) {
         Player player = event.getEntity();
         if (player.level().isClientSide) return;
         if (!(event.getCrafting().getItem() instanceof com.wzz.lobotocraft.item.CaptureUnitItem)) return;
 
-        if (SuppressorCounterUtil.get(player) >= SuppressorCounterUtil.MAX_COUNT) {
+        int capacity = SuppressorCounterUtil.capacity(player);
+        if (SuppressorCounterUtil.get(player) >= capacity) {
             // 满足条件:消耗所有抑制计数
             SuppressorCounterUtil.set(player, 0);
             if (player instanceof net.minecraft.server.level.ServerPlayer sp) {
                 com.wzz.lobotocraft.network.MessageLoader.getLoader().sendToPlayer(sp,
-                        new com.wzz.lobotocraft.network.packet.SuppressorCountSyncPacket(0));
+                        new com.wzz.lobotocraft.network.packet.SuppressorCountSyncPacket(0, capacity));
                 sp.sendSystemMessage(net.minecraft.network.chat.Component.literal("§b捕捉单元制作完成,抑制计数已耗尽。"));
             }
         } else {
-            // 计数不足:取消合成,移除产出并退还全部材料
-            // 配方材料:金锭x2 + 铁块x3 + 黑曜石x3 + 异想体能源(pe_box)x1
+            // Defensive fallback only. ResultSlot pickup should have rejected this craft already.
             event.getCrafting().setCount(0);
-            net.minecraft.world.entity.player.Inventory inv = player.getInventory();
-            inv.add(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.GOLD_INGOT, 2));
-            inv.add(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_BLOCK, 3));
-            inv.add(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.OBSIDIAN, 3));
-            inv.add(new net.minecraft.world.item.ItemStack(
-                    com.wzz.lobotocraft.init.ModItems.PE_BOX.get(), 1));
             if (player instanceof net.minecraft.server.level.ServerPlayer sp) {
                 sp.sendSystemMessage(net.minecraft.network.chat.Component.literal(
-                        "§c抑制计数未满(需120),无法制作捕捉单元,材料已退还。"));
+                        "§c抑制计数未满(需" + capacity + "),无法制作捕捉单元。"));
             }
         }
     }
@@ -103,7 +121,8 @@ public class SuppressorCounterEvent {
             SuppressorCounterUtil.restore(player, restore);
             if (player instanceof net.minecraft.server.level.ServerPlayer sp) {
                 com.wzz.lobotocraft.network.MessageLoader.getLoader().sendToPlayer(sp,
-                        new com.wzz.lobotocraft.network.packet.SuppressorCountSyncPacket(SuppressorCounterUtil.get(player)));
+                        new com.wzz.lobotocraft.network.packet.SuppressorCountSyncPacket(
+                                SuppressorCounterUtil.get(player), SuppressorCounterUtil.capacity(player)));
             }
         }
     }

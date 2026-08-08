@@ -44,4 +44,8 @@ public interface IMentalValue {
      * 获取有效最大精神值（基础最大值 + 额外精神值）
      */
     float getEffectiveMaxMentalValue();
+
+    PanicType getPanicType();
+
+    void setPanicType(PanicType panicType);
 }

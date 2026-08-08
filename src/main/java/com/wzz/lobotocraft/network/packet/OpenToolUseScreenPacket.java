@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.network.packet;
 
 import com.wzz.lobotocraft.client.screen.ToolUseScreen;
 import com.wzz.lobotocraft.network.IMessage;
+import com.wzz.lobotocraft.network.PacketDecodeLimits;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.api.distmarker.Dist;
@@ -12,6 +13,7 @@ import net.minecraftforge.network.NetworkEvent;
  * 打开工具使用界面数据包（服务器 -> 客户端）
  */
 public class OpenToolUseScreenPacket implements IMessage {
+    private static final int MAX_WARNING_MESSAGES = 64;
     private int abnormalityId;
     private String abnormalityName;
     private String toolType;
@@ -32,7 +34,8 @@ public class OpenToolUseScreenPacket implements IMessage {
         this.abnormalityName = buf.readUtf();
         this.toolType = buf.readUtf();
         this.warningTitle = buf.readUtf();
-        int messageCount = buf.readInt();
+        int messageCount = PacketDecodeLimits.readIntCount(
+                buf, MAX_WARNING_MESSAGES, "tool warning message");
         this.warningMessages = new String[messageCount];
         for (int i = 0; i < messageCount; i++) {
             this.warningMessages[i] = buf.readUtf();
@@ -45,9 +48,10 @@ public class OpenToolUseScreenPacket implements IMessage {
         buf.writeUtf(abnormalityName);
         buf.writeUtf(toolType);
         buf.writeUtf(warningTitle);
-        buf.writeInt(warningMessages.length);
-        for (String message : warningMessages) {
-            buf.writeUtf(message);
+        int messageCount = Math.min(warningMessages.length, MAX_WARNING_MESSAGES);
+        buf.writeInt(messageCount);
+        for (int i = 0; i < messageCount; i++) {
+            buf.writeUtf(warningMessages[i]);
         }
     }
 

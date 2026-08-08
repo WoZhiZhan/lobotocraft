@@ -741,9 +741,16 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
     @Override
     public void stopEscape() {
+        boolean wasEscaped = hasEscape();
         super.stopEscape();
+        if (!wasEscaped || hasEscape()) return;
         setPhase(0);
         applyPhaseAttributes(0);
+        tombstoneEaten = 0;
+        cachedTombstone = null;
+        lastTombstoneScan = -100;
+        transitionCooldown = 0;
+        readyRunTransition = 0;
         setAnimation("idle1");
     }
 

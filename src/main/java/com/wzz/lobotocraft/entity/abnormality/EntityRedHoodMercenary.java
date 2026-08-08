@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.block.entity.ElevatorBlockEntity;
+import com.wzz.lobotocraft.block.entity.ElevatorEntryFloorPolicy;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
@@ -180,6 +181,42 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
     @Override
     public void onQliphothMeltdown() {
         triggerEscape();
+    }
+
+    @Override
+    public void stopEscape() {
+        boolean wasEscaped = hasEscape();
+        super.stopEscape();
+        if (!wasEscaped || hasEscape()) return;
+        resetContainmentState();
+    }
+
+    private void resetContainmentState() {
+        if (level() instanceof ServerLevel level && commissionTargetId != null
+                && level.getEntity(commissionTargetId) instanceof LivingEntity target) {
+            TargetMarkerItem.clearTargetMark(target);
+        }
+        attackCooldown = 0;
+        actionTimer = 0;
+        actionType = -1;
+        actionHits = 0;
+        actionTarget = null;
+        commissionTargetId = null;
+        commissionMode = false;
+        wolfMode = false;
+        rageMode = false;
+        rangedRollTimer = 0;
+        targetElevatorPos = null;
+        elevatorWaitTimer = 0;
+        chaseStateCheckTimer = 0;
+        chaseStuckTimer = 0;
+        chaseTargetId = null;
+        chaseState = ChaseState.FINDING_PATH;
+        syncMovementSpeed();
+        setAnimation("idle1");
+        setTarget(null);
+        getNavigation().stop();
+        setDeltaMovement(Vec3.ZERO);
     }
 
     // ==================== 委托状态 ====================
@@ -555,10 +592,8 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
         for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level, redHoodPos, 30)) {
             if (!(blockEntity instanceof ElevatorBlockEntity elevator)) continue;
             BlockPos elevatorPos = blockEntity.getBlockPos();
-            if (needGoUp != elevator.isTeleportUp()) {
-                continue;
-            }
-            BlockPos destinationElevator = elevator.findDestinationElevator(level);
+            if (!ElevatorEntryFloorPolicy.isOnEntityFloor(level, redHoodPos, elevatorPos)) continue;
+            BlockPos destinationElevator = elevator.findDestinationElevator(level, needGoUp);
             if (destinationElevator == null) continue;
             int destY = destinationElevator.getY() + 1;
 
@@ -607,10 +642,10 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
                 targetElevatorPos.getY() + 1.0D,
                 targetElevatorPos.getZ() + 0.5D
         );
-        if (distToElevator <= 2.5D) {
+        if (distToElevator <= ElevatorBlockEntity.INTERACTION_RADIUS * ElevatorBlockEntity.INTERACTION_RADIUS) {
             this.getNavigation().stop();
             if (level.getBlockEntity(targetElevatorPos) instanceof ElevatorBlockEntity elevator) {
-                elevator.onStep(this);
+                elevator.tryTravel(this, target.getY() > this.getY());
             }
             elevatorWaitTimer = 0;
             chaseStuckTimer = 0;
@@ -646,6 +681,13 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
         this.getNavigation().stop();
         this.setDeltaMovement(0, this.getDeltaMovement().y, 0);
 
+        if (!(this.level().getBlockEntity(targetElevatorPos) instanceof ElevatorBlockEntity source)
+                || !source.isWithinInteractionRange(this)) {
+            chaseState = ChaseState.FINDING_PATH;
+            if (this.level() instanceof ServerLevel level) evaluateChaseState(level, target);
+            return;
+        }
+
         if (Math.abs(target.getY() - this.getY()) <= 5.0D) {
             chaseState = ChaseState.DIRECT_MOVE;
             elevatorWaitTimer = 0;
@@ -655,10 +697,7 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
         }
 
         if (elevatorWaitTimer > 100) {
-            if (targetElevatorPos != null
-                    && this.level().getBlockEntity(targetElevatorPos) instanceof ElevatorBlockEntity elevator) {
-                elevator.onStep(this);
-            }
+            source.tryTravel(this, target.getY() > this.getY());
             elevatorWaitTimer = 60;
         }
     }

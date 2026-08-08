@@ -6,6 +6,7 @@ import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.AiSpecialEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -27,8 +28,9 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class HelperWeapon extends BaseEgoWeapon {
+public class HelperWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapon {
     private static final double ATTACK_RANGE = 4.0;
+    @Override public double aiSpecialAttackRange() { return ATTACK_RANGE; }
     private static final UUID REACH_UUID = UUID.fromString("4abcfd08-d9d9-4f67-9794-4edaab555777");
     public HelperWeapon() {
         super(
@@ -69,7 +71,7 @@ public class HelperWeapon extends BaseEgoWeapon {
         if (EgoArmorHelper.isFullEGO(player, "helper")) {
             player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(data -> damage.updateAndGet(v -> v + data.getJusticeLevel()));
         }
-        target.hurt(target.damageSources().playerAttack(player), damage.get());
+        target.hurt(DamageHelper.getDamage(player, "red"), damage.get());
         return true;
     }
 

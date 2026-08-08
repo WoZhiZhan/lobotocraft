@@ -1,8 +1,11 @@
 package com.wzz.lobotocraft.client.audio;
 
 import com.wzz.lobotocraft.client.screen.api.IMusicScreen;
+import com.wzz.lobotocraft.client.alert.EscapeAlertManager;
+import com.wzz.lobotocraft.client.core.CoreSuppressionClientState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
@@ -54,10 +57,16 @@ public class GuiMusicManager {
         if (mc.level == null) return;
 
         this.currentScreen = screen;
+        if (CoreSuppressionClientState.isActive()
+                || EscapeAlertManager.getInstance().isBgmActive()) {
+            stopCurrentMusic();
+            return;
+        }
         String category = screen.getMusicCategory();
 
         // 如果是相同分类的音乐且正在播放
-        if (currentMusic != null && currentMusic.getCategory().equals(category) && !currentMusic.isStopped()) {
+        if (currentMusic != null && currentMusic.getCategory().equals(category)
+                && !currentMusic.isStopped() && mc.getSoundManager().isActive(currentMusic)) {
             if (fadeState == FadeState.FADE_OUT) {
                 // 正在淡出，改为淡入
                 startFadeIn(screen.getFadeInDuration());
@@ -71,6 +80,10 @@ public class GuiMusicManager {
         // 创建新的音乐实例
         SoundEvent musicLocation = screen.getSoundEvent();
         if (musicLocation == null) return;
+
+        NormalWorkMusicManager.getInstance().suspend();
+        mc.getMusicManager().stopPlaying();
+        mc.getSoundManager().stop(null, SoundSource.MUSIC);
 
         // 获取该分类上次播放的位置（秒）
         float savedPosition = playPositions.getOrDefault(category, 0.0f);
@@ -134,6 +147,12 @@ public class GuiMusicManager {
      */
     public void tick() {
         if (currentMusic == null) return;
+        if (CoreSuppressionClientState.isActive()
+                || EscapeAlertManager.getInstance().isBgmActive()) {
+            suspendForHigherPriorityBgm();
+            return;
+        }
+        Minecraft.getInstance().getMusicManager().stopPlaying();
 
         // 如果正在等待设置位置
         if (waitForPositionSet > 0) {
@@ -269,6 +288,11 @@ public class GuiMusicManager {
         currentScreen = null;
     }
 
+    public void suspendForHigherPriorityBgm() {
+        stopCurrentMusic();
+        fadeState = FadeState.NONE;
+    }
+
     /**
      * 获取当前音量
      */
@@ -280,7 +304,8 @@ public class GuiMusicManager {
      * 是否正在播放
      */
     public boolean isPlaying() {
-        return currentMusic != null && !currentMusic.isStopped();
+        return currentMusic != null && !currentMusic.isStopped()
+                && Minecraft.getInstance().getSoundManager().isActive(currentMusic);
     }
 
     /**

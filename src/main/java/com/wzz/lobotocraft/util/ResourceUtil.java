@@ -9,6 +9,8 @@ import net.minecraft.server.packs.resources.ResourceManager;
 import java.util.Optional;
 
 public class ResourceUtil {
+    // Deferred RES-01: main and facility assets retain separate namespaces.
+    // Keep callers explicit until a typed resource migration is implemented.
     public static ResourceLocation createInstance(String path) {
         return ResourceLocation.fromNamespaceAndPath(ModMain.MODID, path);
     }

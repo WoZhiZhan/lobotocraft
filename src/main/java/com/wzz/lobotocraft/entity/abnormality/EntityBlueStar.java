@@ -2,7 +2,7 @@ package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.block.RegenerationReactorBlock;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
-import com.wzz.lobotocraft.capability.MentalValueProvider;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
@@ -130,11 +130,14 @@ public class EntityBlueStar extends AbstractAbnormality {
     @Override
     public void triggerEscape() {
         if (hasEscape() || this.level().isClientSide || !canEscape()) return;
+        ServerLevel serverLevel = (ServerLevel) this.level();
         setEscape(true);
         escapePosition = this.blockPosition();
         this.entityData.set(DATA_ESCAPED, true);
         for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level, getOnPos(), 8)) {
-            if (level.getBlockState(blockEntity.getBlockPos()).getBlock() instanceof RegenerationReactorBlock) {
+            if (level.getBlockState(blockEntity.getBlockPos()).getBlock() instanceof RegenerationReactorBlock
+                    && FacilityAccessService.isPositionOpen(serverLevel.getServer(),
+                    serverLevel.dimension().location(), blockEntity.getBlockPos())) {
                 teleportTo(blockEntity.getBlockPos().getX(), blockEntity.getBlockPos().getY() + 1, blockEntity.getBlockPos().getZ());
                 break;
             }
@@ -167,7 +170,7 @@ public class EntityBlueStar extends AbstractAbnormality {
 
     @Override
     public void onWorkComplete(ServerPlayer player, WorkType workType, WorkResult result) {
-        if (MentalValueUtil.getMentalValue(player) <= 0) {
+        if (MentalValueUtil.isPanic(player)) {
             decreaseQliphothCounter(1);
             player.sendSystemMessage(Component.literal("§c你陷入了恐慌，碧蓝新星的计数器-1..."));
         }
@@ -199,6 +202,15 @@ public class EntityBlueStar extends AbstractAbnormality {
         setAnimation("animation.blue_star.dead");
         playSound(ModSounds.BLUE_STAR_DIE.get());
         super.die(damageSource);
+    }
+
+    @Override
+    public void stopEscape() {
+        boolean wasEscaped = hasEscape();
+        super.stopEscape();
+        if (!wasEscaped || hasEscape()) return;
+        setAnimation("animation.blue_star.idle");
+        setTarget(null);
     }
 
     private void killMob(LivingEntity living, boolean remove) {
@@ -240,6 +252,13 @@ public class EntityBlueStar extends AbstractAbnormality {
                 }
                 setAnimation("animation.blue_star.idle");
             }
+
+            @Override
+            public void onCancelled(@NotNull LivingEntity living, @NotNull CancellationReason reason) {
+                if (reason == CancellationReason.LOGOUT && living instanceof ServerPlayer player) {
+                    PendingPlayerExecution.mark(player);
+                }
+            }
         };
         timerEntry.addSkillTimer(living, 0, 1800, 1);
     }
@@ -276,26 +295,21 @@ public class EntityBlueStar extends AbstractAbnormality {
                     }
                 }
                 for (Entity e : EntityUtil.findAllEntities(this, 400)) {
-                    if (e instanceof ServerPlayer player) {
-                        player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(data -> {
-                            if (data.isMentalValueEmpty()) {
-                                if (!player.getPersistentData().getBoolean("isStartElevatorAnim")) {
-                                    player.getPersistentData().putBoolean("isStartElevatorAnim", true);
-                                    int animDuration = 40;
-                                    // 坐电梯同款过渡动画:先发相机过渡包,再把玩家瞬间传送到碧蓝新星处
-                                    net.minecraft.world.phys.Vec3 startPos = player.position().add(0, 1, 0);
-                                    net.minecraft.world.phys.Vec3 endPos = this.position().add(0, 1, 0);
-                                    MessageLoader.getLoader().sendToPlayer(
-                                            player,
-                                            new ElevatorTeleportPacket(startPos, endPos, animDuration)
-                                    );
-                                    player.teleportTo(this.getX(), this.getY(), this.getZ());
-                                    // 过渡动画结束后再击杀(40 tick ≈ 2000 毫秒)
-                                    TimerEntry<ServerPlayer> killTimer = getPlayerTimerEntry();
-                                    killTimer.addSkillTimer(player, 0, animDuration * 50, 1);
-                                }
-                            }
-                        });
+                    if (e instanceof ServerPlayer player && MentalValueUtil.isPanic(player)
+                            && !player.getPersistentData().getBoolean("isStartElevatorAnim")) {
+                        player.getPersistentData().putBoolean("isStartElevatorAnim", true);
+                        int animDuration = 40;
+                        // 坐电梯同款过渡动画:先发相机过渡包,再把玩家瞬间传送到碧蓝新星处
+                        net.minecraft.world.phys.Vec3 startPos = player.position().add(0, 1, 0);
+                        net.minecraft.world.phys.Vec3 endPos = this.position().add(0, 1, 0);
+                        MessageLoader.getLoader().sendToPlayer(
+                                player,
+                                new ElevatorTeleportPacket(startPos, endPos, animDuration)
+                        );
+                        player.teleportTo(this.getX(), this.getY(), this.getZ());
+                        // 过渡动画结束后再击杀(40 tick ≈ 2000 毫秒)
+                        TimerEntry<ServerPlayer> killTimer = getPlayerTimerEntry();
+                        killTimer.addSkillTimer(player, 0, animDuration * 50, 1);
                     }
                 }
             }
@@ -319,6 +333,11 @@ public class EntityBlueStar extends AbstractAbnormality {
                     living.kill();
                 }
             }
+
+            @Override
+            public void onCancelled(@NotNull ServerPlayer living, @NotNull CancellationReason reason) {
+                if (reason == CancellationReason.LOGOUT) PendingPlayerExecution.mark(living);
+            }
         };
         return killTimer;
     }
@@ -338,7 +357,7 @@ public class EntityBlueStar extends AbstractAbnormality {
                             if (living instanceof EntityClerk clerk && damage >= clerk.getHealth()) {
                                 EntityClerk.markNoTombstone(clerk);
                             }
-                            living.hurt(DamageHelper.getDamage().getDamageSources().fellOutOfWorld(), damage);
+                            living.hurt(living.damageSources().fellOutOfWorld(), damage);
                         }
                     } else {
                         MessageLoader.getLoader().sendToPlayer(player, new ScreenDistortionEffectPacket(0.3f, 10));

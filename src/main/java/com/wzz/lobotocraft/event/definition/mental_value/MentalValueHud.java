@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.event.definition.mental_value;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
+import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -73,8 +74,8 @@ public class MentalValueHud {
 
                 gui.leftHeight += 10;
 
-                // 如果精神值为0，显示闪烁警告效果
-                if (currentMental <= 0 && (player.tickCount / 10) % 2 == 0) {
+                // 恐慌恢复期间继续显示闪烁警告，直到 SP 超过上限的一半。
+                if (MentalValueUtil.isPanic(player) && (player.tickCount / 10) % 2 == 0) {
                     // 绘制闪烁效果（使用完整图标闪烁）
                     for (int i = 0; i < 10; i++) {
                         int iconX = left + i * 8;

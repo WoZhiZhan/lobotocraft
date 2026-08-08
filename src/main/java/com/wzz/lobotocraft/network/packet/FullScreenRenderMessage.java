@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.network.packet;
 
 import com.wzz.lobotocraft.client.renderer.FullScreenRenderer;
 import com.wzz.lobotocraft.network.IMessage;
+import com.wzz.lobotocraft.network.PacketDecodeLimits;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
@@ -12,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class FullScreenRenderMessage implements IMessage {
+    private static final int MAX_TEXTURES = 64;
 
     private Integer showDuration;
     private Integer fadeInDuration;
@@ -59,7 +61,7 @@ public class FullScreenRenderMessage implements IMessage {
         if ((mask & 512) != 0) stopImmediately = buf.readBoolean();
         // 新增：读取多图列表
         if ((mask & 1024) != 0) {
-            int count = buf.readInt();
+            int count = PacketDecodeLimits.readIntCount(buf, MAX_TEXTURES, "fullscreen texture");
             textureList = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
                 textureList.add(buf.readResourceLocation());
@@ -98,9 +100,10 @@ public class FullScreenRenderMessage implements IMessage {
         if (stopImmediately != null) buf.writeBoolean(stopImmediately);
         // 新增：写入多图列表
         if (textureList != null && !textureList.isEmpty()) {
-            buf.writeInt(textureList.size());
-            for (ResourceLocation loc : textureList) {
-                buf.writeResourceLocation(loc);
+            int textureCount = Math.min(textureList.size(), MAX_TEXTURES);
+            buf.writeInt(textureCount);
+            for (int i = 0; i < textureCount; i++) {
+                buf.writeResourceLocation(textureList.get(i));
             }
         }
         if (perImageDuration != null) buf.writeInt(perImageDuration);

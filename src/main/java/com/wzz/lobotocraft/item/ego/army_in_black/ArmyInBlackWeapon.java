@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.AiRangedEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -25,10 +26,14 @@ import software.bernie.geckolib.core.object.PlayState;
 
 import java.util.*;
 
-public class ArmyInBlackWeapon extends BaseEgoWeapon {
+public class ArmyInBlackWeapon extends BaseEgoWeapon implements AiRangedEgoWeapon {
     private static final int SPLASH_RADIUS = 2;          // 5×5 => 中心±2格
     private static final int MAX_SPLASH_COUNT = 6;        // 多目标最多6次
     private static final double ATTACK_RANGE = 35;
+    @Override public double aiAttackRange() { return ATTACK_RANGE; }
+    @Override public double aiMinSpacing() { return 10.0D; }
+    @Override public double aiMaxSpacing() { return 30.0D; }
+    @Override public double aiPreferredSpacing() { return 20.0D; }
     private static final float HEALTH_THRESHOLD = 0.5f;
     private static final float WHITE_DAMAGE_BONUS = 2.5f;
     private static final float BLACK_DAMAGE_BONUS = 1.5f;
@@ -197,7 +202,7 @@ public class ArmyInBlackWeapon extends BaseEgoWeapon {
 
         private void damageSplash(LivingEntity target) {
             target.playSound(ModSounds.ARMY_IN_BLACK_SPUTTERING.get(), 1.0f, 1.0f);
-            DamageSource source = target.damageSources().playerAttack(attacker);
+            DamageSource source = DamageHelper.getDamage(attacker, "black");
             EntityUtil.clearHurtTime(target, () -> target.hurt(source, damage));
             ParticleUtil.spawnParticlesAroundEntity(target, ModParticleTypes.ARMY_IN_BLACK_SPUTTERING.get(), 5, 0.2f);
             onSplashHit();   // 低血量回复3点精神/生命（上一条加的）

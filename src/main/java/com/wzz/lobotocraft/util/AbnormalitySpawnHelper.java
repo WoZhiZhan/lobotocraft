@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.util;
 
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.item.PEBoxItem;
@@ -25,6 +26,21 @@ import java.util.List;
  * 局部范围去重计数、地形(生物群系)判断。
  */
 public class AbnormalitySpawnHelper {
+
+    public enum SpawnPlacementPolicy {
+        FACILITY_RULES(true),
+        DEBUG_BYPASS(false);
+
+        private final boolean requiresOpenFacilityArea;
+
+        SpawnPlacementPolicy(boolean requiresOpenFacilityArea) {
+            this.requiresOpenFacilityArea = requiresOpenFacilityArea;
+        }
+
+        public boolean requiresOpenFacilityArea() {
+            return requiresOpenFacilityArea;
+        }
+    }
 
     /** 默认局部去重半径(方块) */
     public static final double DEFAULT_DEDUP_RADIUS = 64.0;
@@ -109,10 +125,32 @@ public class AbnormalitySpawnHelper {
      */
     public static <T extends AbstractAbnormality> T spawnPersistent(
             ServerLevel level, EntityType<T> type, BlockPos pos, MobSpawnType spawnType) {
+        return spawnPersistent(level, type, pos, spawnType, SpawnPlacementPolicy.FACILITY_RULES);
+    }
+
+    public static <T extends AbstractAbnormality> T spawnPersistent(
+            ServerLevel level, EntityType<T> type, BlockPos pos, MobSpawnType spawnType,
+            SpawnPlacementPolicy placementPolicy) {
+        return spawnPersistent(level, type, pos, spawnType, placementPolicy, 0);
+    }
+
+    public static <T extends AbstractAbnormality> T spawnPersistentNearby(
+            ServerLevel level, EntityType<T> type, BlockPos pos, MobSpawnType spawnType,
+            int horizontalSearchRadius) {
+        return spawnPersistent(level, type, pos, spawnType, SpawnPlacementPolicy.FACILITY_RULES,
+                Math.max(0, horizontalSearchRadius));
+    }
+
+    private static <T extends AbstractAbnormality> T spawnPersistent(
+            ServerLevel level, EntityType<T> type, BlockPos pos, MobSpawnType spawnType,
+            SpawnPlacementPolicy placementPolicy, int horizontalSearchRadius) {
+        if (placementPolicy == null) placementPolicy = SpawnPlacementPolicy.FACILITY_RULES;
         T entity = type.create(level);
         if (entity == null) return null;
 
-        BlockPos spawnPos = findSafeSpawnPosition(level, entity, pos);
+        BlockPos spawnPos = findSafeSpawnPosition(
+                level, entity, pos, placementPolicy, horizontalSearchRadius);
+        if (spawnPos == null) return null;
         entity.moveTo(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5,
                 level.random.nextFloat() * 360f, 0f);
         entity.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos),
@@ -123,25 +161,45 @@ public class AbnormalitySpawnHelper {
     }
 
     private static <T extends AbstractAbnormality> BlockPos findSafeSpawnPosition(
-            ServerLevel level, T entity, BlockPos pos) {
+            ServerLevel level, T entity, BlockPos pos, SpawnPlacementPolicy placementPolicy,
+            int horizontalSearchRadius) {
         BlockPos direct = findSpawnGround(level, pos, 0);
-        if (canSpawnAt(level, entity, direct)) {
+        if (canSpawnAt(level, entity, direct, placementPolicy)) {
             return direct;
         }
 
         int radius = Math.max(4,
                 (int) Math.ceil(Math.max(entity.getBbWidth(), entity.getBbHeight())) + 2);
-        for (int attempt = 0; attempt < 32; attempt++) {
-            int offsetX = level.random.nextInt(radius * 2 + 1) - radius;
-            int offsetZ = level.random.nextInt(radius * 2 + 1) - radius;
-            BlockPos candidate = findSpawnGround(level, pos.offset(offsetX, 0, offsetZ), 0);
-            if (canSpawnAt(level, entity, candidate)) {
-                return candidate;
+        if (horizontalSearchRadius > 0) {
+            radius = Math.max(radius, horizontalSearchRadius);
+            for (int ring = 1; ring <= radius; ring++) {
+                for (int offsetX = -ring; offsetX <= ring; offsetX++) {
+                    BlockPos north = findSpawnGround(level, pos.offset(offsetX, 0, -ring), 0);
+                    if (canSpawnAt(level, entity, north, placementPolicy)) return north;
+                    BlockPos south = findSpawnGround(level, pos.offset(offsetX, 0, ring), 0);
+                    if (canSpawnAt(level, entity, south, placementPolicy)) return south;
+                }
+                for (int offsetZ = -ring + 1; offsetZ < ring; offsetZ++) {
+                    BlockPos west = findSpawnGround(level, pos.offset(-ring, 0, offsetZ), 0);
+                    if (canSpawnAt(level, entity, west, placementPolicy)) return west;
+                    BlockPos east = findSpawnGround(level, pos.offset(ring, 0, offsetZ), 0);
+                    if (canSpawnAt(level, entity, east, placementPolicy)) return east;
+                }
+            }
+        } else {
+            for (int attempt = 0; attempt < 32; attempt++) {
+                int offsetX = level.random.nextInt(radius * 2 + 1) - radius;
+                int offsetZ = level.random.nextInt(radius * 2 + 1) - radius;
+                BlockPos candidate = findSpawnGround(level, pos.offset(offsetX, 0, offsetZ), 0);
+                if (canSpawnAt(level, entity, candidate, placementPolicy)) return candidate;
             }
         }
 
         BlockPos fallback = findSpawnGround(level, pos, radius);
-        return fallback != null ? fallback : pos.above();
+        if (!isCompany(level) && placementPolicy == SpawnPlacementPolicy.FACILITY_RULES) {
+            return fallback != null ? fallback : pos.above();
+        }
+        return canSpawnAt(level, entity, fallback, placementPolicy) ? fallback : null;
     }
 
     private static BlockPos findSpawnGround(ServerLevel level, BlockPos pos, int horizontalRange) {
@@ -151,11 +209,17 @@ public class AbnormalitySpawnHelper {
         return EntityUtil.findSafeGroundPosition(level, pos, horizontalRange);
     }
 
-    private static boolean canSpawnAt(ServerLevel level, Entity entity, BlockPos pos) {
+    private static boolean canSpawnAt(ServerLevel level, Entity entity, BlockPos pos,
+                                      SpawnPlacementPolicy placementPolicy) {
         if (pos == null) return false;
+        if (placementPolicy.requiresOpenFacilityArea() && isCompany(level)
+                && !FacilityAccessService.isPositionOpen(level.getServer(),
+                level.dimension().location(), pos)) return false;
         entity.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5,
                 entity.getYRot(), entity.getXRot());
-        return level.noCollision(entity);
+        return level.noCollision(entity)
+                && level.getEntities(entity, entity.getBoundingBox(),
+                other -> other.isAlive() && !other.isRemoved() && other.isPickable()).isEmpty();
     }
 
     // ===================== 地形(生物群系)判断 =====================

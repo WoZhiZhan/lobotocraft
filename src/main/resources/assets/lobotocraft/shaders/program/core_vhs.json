@@ -1,0 +1,18 @@
+{
+  "blend": { "func": "add", "srcrgb": "one", "dstrgb": "zero" },
+  "vertex": "lobotocraft:core_suppression",
+  "fragment": "lobotocraft:core_vhs",
+  "attributes": [ "Position" ],
+  "samplers": [ { "name": "DiffuseSampler" }, { "name": "VhsSampler" }, { "name": "Vhs2Sampler" } ],
+  "uniforms": [
+    { "name": "ProjMat", "type": "matrix4x4", "count": 16, "values": [ 1.0,0.0,0.0,0.0, 0.0,1.0,0.0,0.0, 0.0,0.0,1.0,0.0, 0.0,0.0,0.0,1.0 ] },
+    { "name": "OutSize", "type": "float", "count": 2, "values": [ 1.0, 1.0 ] },
+    { "name": "EffectTime", "type": "float", "count": 1, "values": [ 1.0 ] },
+    { "name": "Tracking", "type": "float", "count": 1, "values": [ 0.0 ] },
+    { "name": "Contrast", "type": "float", "count": 1, "values": [ 0.204 ] },
+    { "name": "Jitter", "type": "float", "count": 1, "values": [ 0.074 ] },
+    { "name": "Glitch", "type": "float", "count": 1, "values": [ 0.08 ] },
+    { "name": "Noise", "type": "float", "count": 1, "values": [ 0.659 ] },
+    { "name": "Brightness", "type": "float", "count": 1, "values": [ 0.23 ] }
+  ]
+}

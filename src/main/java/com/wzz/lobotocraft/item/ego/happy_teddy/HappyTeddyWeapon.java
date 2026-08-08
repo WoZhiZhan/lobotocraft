@@ -8,6 +8,7 @@ import com.wzz.lobotocraft.util.*;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
@@ -63,13 +64,14 @@ public class HappyTeddyWeapon extends BaseEgoWeapon {
                 p -> p.broadcastBreakEvent(EquipmentSlot.MAINHAND)
         );
         float damage = 7;
+        DamageSource source = DamageHelper.getDamage(player, "white");
         CompoundTag compoundTag = target.getPersistentData();
         EntityUtil.clearHurtTime(target, () -> {
             compoundTag.putFloat("HappyTeddyDamage", compoundTag.getFloat("HappyTeddyDamage") + damage);
-                    target.hurt(player.damageSources().playerAttack(player), damage);
+                    target.hurt(source, damage);
                     EntityUtil.clearHurtTime(target, () -> {
                         compoundTag.putFloat("HappyTeddyDamage", compoundTag.getFloat("HappyTeddyDamage") + damage);
-                                target.hurt(player.damageSources().playerAttack(player), damage);
+                                target.hurt(source, damage);
                                 if (compoundTag.getFloat("HappyTeddyDamage") >= 40) {
                                     compoundTag.putFloat("HappyTeddyDamage", 0);
                                     TimerEntry<LivingEntity> timerEntry = new TimerEntry<>() {

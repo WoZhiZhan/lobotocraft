@@ -2,15 +2,18 @@ package com.wzz.lobotocraft.work;
 
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
+import com.wzz.lobotocraft.capability.PanicType;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityData;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
 import com.wzz.lobotocraft.entity.data.AbnormalityEncyclopediaData;
+import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.event.definition.work.WorkScreenOpenEvent;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.OpenManualScreenPacket;
 import com.wzz.lobotocraft.network.packet.OpenToolUseScreenPacket;
 import com.wzz.lobotocraft.network.packet.OpenWorkScreenPacket;
+import com.wzz.lobotocraft.util.MentalValueUtil;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
@@ -53,6 +56,17 @@ public class AbnormalityWorkHandler {
 
 			} else {
 				// 普通右键：根据异想体类型打开不同界面
+                // 普通工作只允许已经被收容室信标登记的异想体。
+                // 工具类异想体走“使用”流程，不属于四项工作。
+                if (!abnormality.isToolType()
+                        && (!(abnormality instanceof AbstractAbnormality concrete)
+                        || !AbnormalityWorkRules.isRegistered(concrete))) {
+                    serverPlayer.displayClientMessage(
+                            Component.literal("§c该异想体尚未登记，无法进行工作。"), false);
+                    event.setCancellationResult(InteractionResult.FAIL);
+                    event.setCanceled(true);
+                    return;
+                }
                 // 检查玩家是否正在工作
 				if (WorkManager.isPlayerWorking(serverPlayer)) {
 					serverPlayer.displayClientMessage(Component.literal("§c你正在进行工作，无法开始新的工作！"), false);
@@ -67,12 +81,9 @@ public class AbnormalityWorkHandler {
 				final boolean[] isMentalBroken = {false};
 				final boolean[] isBerserk = {false};
 				serverPlayer.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
-					if (mental.isMentalValueEmpty()) {
+					if (MentalValueUtil.isPanic(mental)) {
 						isMentalBroken[0] = true;
-						// 判断是恐慌还是疯狂
-						float maxHealth = serverPlayer.getMaxHealth();
-						float maxMental = mental.getEffectiveMaxMentalValue();
-						isBerserk[0] = maxHealth > maxMental;
+						isBerserk[0] = mental.getPanicType() == PanicType.BERSERK;
 					}
 				});
 				// 恐慌或疯狂状态下无法打开工作面板
@@ -92,6 +103,7 @@ public class AbnormalityWorkHandler {
 				if (abnormality.isToolType()) {
 					// 打开工具使用界面
 					if (!serverPlayer.isCreative() && !serverPlayer.isSpectator()) {
+						WorkStartAuthorizations.grantToolUse(serverPlayer, event.getTarget().getUUID());
 						MessageLoader.getLoader().sendToPlayer(serverPlayer,
 								new OpenToolUseScreenPacket(
 										abnormality.getEntityId(),
@@ -113,6 +125,7 @@ public class AbnormalityWorkHandler {
 												workPrefsUnlocked[i] = data.isManualUnlocked(abnormalityCode, 100 + i);
 											}
 											// 普通异想体：打开工作选择界面
+											WorkStartAuthorizations.grant(serverPlayer, event.getTarget().getUUID());
 											MessageLoader.getLoader().sendToPlayer(serverPlayer,
 													new OpenWorkScreenPacket(
 															abnormality.getEntityId(),

@@ -17,15 +17,15 @@ public class ToolUsageUpdatePacket implements IMessage {
     private int usageTimeSeconds;
     private float currentDamage;
     private float damageInterval;
-    private int totalEnergyProduced;
-    private int currentEnergyOutput;
+    private float totalEnergyProduced;
+    private float currentEnergyOutput;
     private float energyInterval;
     private float playerHealth;
     private float playerMaxHealth;
 
     public ToolUsageUpdatePacket(int abnormalityId, int usageTimeSeconds,
                                  float currentDamage, float damageInterval,
-                                 int totalEnergyProduced, int currentEnergyOutput, float energyInterval,
+                                 float totalEnergyProduced, float currentEnergyOutput, float energyInterval,
                                  float playerHealth, float playerMaxHealth) {
         this.abnormalityId = abnormalityId;
         this.usageTimeSeconds = usageTimeSeconds;
@@ -44,8 +44,8 @@ public class ToolUsageUpdatePacket implements IMessage {
         this.usageTimeSeconds = buf.readInt();
         this.currentDamage = buf.readFloat();
         this.damageInterval = buf.readFloat();
-        this.totalEnergyProduced = buf.readInt();
-        this.currentEnergyOutput = buf.readInt();
+        this.totalEnergyProduced = buf.readFloat();
+        this.currentEnergyOutput = buf.readFloat();
         this.energyInterval = buf.readFloat();
         this.playerHealth = buf.readFloat();
         this.playerMaxHealth = buf.readFloat();
@@ -57,8 +57,8 @@ public class ToolUsageUpdatePacket implements IMessage {
         buf.writeInt(usageTimeSeconds);
         buf.writeFloat(currentDamage);
         buf.writeFloat(damageInterval);
-        buf.writeInt(totalEnergyProduced);
-        buf.writeInt(currentEnergyOutput);
+        buf.writeFloat(totalEnergyProduced);
+        buf.writeFloat(currentEnergyOutput);
         buf.writeFloat(energyInterval);
         buf.writeFloat(playerHealth);
         buf.writeFloat(playerMaxHealth);

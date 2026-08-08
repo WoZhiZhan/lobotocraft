@@ -1,52 +1,99 @@
 package com.wzz.lobotocraft.client;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
-public class ShockwaveEffectManager {
+public final class ShockwaveEffectManager {
+    public static final int MAX_ACTIVE_SHOCKWAVES = 64;
+    public static final float MAX_RADIUS = 128.0F;
 
     public static class Shockwave {
-        public final double x, y, z;
+        public final double x;
+        public final double y;
+        public final double z;
         public final float maxRadius;
         public final int color;
-        public float currentRadius = 0f;
-        public float alpha = 1.0f;
-
-        // 参数：圆环层数（叠加多圈增加厚度感）
         public final int ringCount = 3;
-        public final float ringSpacing = 1.2f; // 每圈间距
+        public final float ringSpacing = 1.2F;
+        public float currentRadius;
+        public float alpha = 1.0F;
+        private float previousRadius;
+        private float previousAlpha = 1.0F;
 
         public Shockwave(double x, double y, double z, float maxRadius, int color) {
-            this.x = x; this.y = y; this.z = z;
+            this.x = x;
+            this.y = y;
+            this.z = z;
             this.maxRadius = maxRadius;
             this.color = color;
         }
 
-        public boolean isExpired() { return alpha <= 0f; }
+        public boolean isExpired() {
+            return alpha <= 0.0F;
+        }
 
-        public void tick(float partialTick) {
-            float speed = maxRadius / 30f; // 30tick 扩展到最大
-            currentRadius += speed * partialTick;
+        public void tick() {
+            previousRadius = currentRadius;
+            previousAlpha = alpha;
+            float speed = maxRadius / 30.0F;
+            currentRadius = Math.min(maxRadius, currentRadius + speed);
 
-            // 超过最大半径后开始淡出
             if (currentRadius >= maxRadius) {
-                alpha = Math.max(0f, alpha - 0.05f * partialTick);
+                alpha = Math.max(0.0F, alpha - 0.05F);
             } else {
-                // 扩展期间轻微透明度变化
-                alpha = 0.6f + 0.4f * (1f - currentRadius / maxRadius);
+                alpha = 0.6F + 0.4F * (1.0F - currentRadius / maxRadius);
             }
+        }
+
+        public float getRenderRadius(float partialTick) {
+            return lerp(clampPartialTick(partialTick), previousRadius, currentRadius);
+        }
+
+        public float getRenderAlpha(float partialTick) {
+            return lerp(clampPartialTick(partialTick), previousAlpha, alpha);
         }
     }
 
-    private static final List<Shockwave> shockwaves = new ArrayList<>();
+    private static final List<Shockwave> SHOCKWAVES = new ArrayList<>();
+    private static final List<Shockwave> SHOCKWAVES_VIEW = Collections.unmodifiableList(SHOCKWAVES);
 
-    public static void addShockwave(double x, double y, double z, float maxRadius, int color) {
-        shockwaves.add(new Shockwave(x, y, z, maxRadius, color));
+    private ShockwaveEffectManager() {
     }
 
-    public static List<Shockwave> getShockwaves() { return shockwaves; }
+    public static void addShockwave(double x, double y, double z, float maxRadius, int color) {
+        if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)
+                || !Float.isFinite(maxRadius) || maxRadius <= 0.0F) {
+            return;
+        }
+        while (SHOCKWAVES.size() >= MAX_ACTIVE_SHOCKWAVES) {
+            SHOCKWAVES.remove(0);
+        }
+        SHOCKWAVES.add(new Shockwave(x, y, z, Math.min(maxRadius, MAX_RADIUS), color));
+    }
+
+    public static List<Shockwave> getShockwaves() {
+        return SHOCKWAVES_VIEW;
+    }
+
+    public static int getActiveShockwaveCount() {
+        return SHOCKWAVES.size();
+    }
 
     public static void tick() {
-        shockwaves.removeIf(Shockwave::isExpired);
+        SHOCKWAVES.forEach(Shockwave::tick);
+        SHOCKWAVES.removeIf(Shockwave::isExpired);
+    }
+
+    public static void clear() {
+        SHOCKWAVES.clear();
+    }
+
+    private static float clampPartialTick(float partialTick) {
+        return Math.max(0.0F, Math.min(1.0F, partialTick));
+    }
+
+    private static float lerp(float amount, float start, float end) {
+        return start + amount * (end - start);
     }
 }

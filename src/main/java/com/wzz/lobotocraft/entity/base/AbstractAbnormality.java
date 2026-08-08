@@ -1,7 +1,9 @@
 package com.wzz.lobotocraft.entity.base;
 
+import com.lobotocraft.facility.data.FacilityDayData;
 import com.wzz.lobotocraft.api.NameProvider;
-import com.wzz.lobotocraft.block.EscapeBlock;
+import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
+import com.wzz.lobotocraft.block.entity.RoomMarkerBlockEntity;
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
@@ -9,17 +11,22 @@ import com.wzz.lobotocraft.entity.EntityRedShoesClerk;
 import com.wzz.lobotocraft.entity.ai.goal.MoveToBlackForestDoorGoal;
 import com.wzz.lobotocraft.entity.abnormality.EntityIsharmla;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.event.definition.abnormality.AbnormalityEscapeEvent;
 import com.wzz.lobotocraft.event.definition.abnormality.AbnormalityEscapeStopEvent;
 import com.wzz.lobotocraft.event.definition.abnormality.QliphothCounterEvent;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
-import com.wzz.lobotocraft.util.AbnormalityCombatUtil;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
+import com.wzz.lobotocraft.util.FacilityCombatRules;
 import com.wzz.lobotocraft.util.MethodHandleUtils;
 import com.wzz.lobotocraft.work.WorkType;
+import com.wzz.lobotocraft.world.data.CompanyRoomData;
+import com.wzz.lobotocraft.world.data.FacilityWorldLayout;
+import com.wzz.lobotocraft.world.data.FloorEntry;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
@@ -27,11 +34,12 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializer;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.*;
@@ -40,9 +48,10 @@ import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.common.util.ITeleporter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -53,6 +62,25 @@ import java.util.*;
  * 异想体抽象基类
  */
 public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbnormality, NameProvider {
+    private enum ContainmentReturnResult {
+        COMPLETED,
+        TRANSFERRED,
+        DEFERRED
+    }
+
+    private record EscapeDestination(BlockPos marker, BlockPos position) {
+    }
+
+    private static final int[][] ESCAPE_BLOCK_SEARCH_RANGES = {
+            {12, 8},
+            {24, 12},
+            {48, 20},
+            {96, 32},
+            {192, 64},
+            {Integer.MAX_VALUE, Integer.MAX_VALUE}
+    };
+    private static final int CONTAINMENT_RETURN_RETRY_INTERVAL = 20;
+
     private static EntityDataAccessor<Optional<Component>> DATA_CUSTOM_NAME;
     public static final EntityDataAccessor<Boolean> DATA_ESCAPED =
             SynchedEntityData.defineId(AbstractAbnormality.class, EntityDataSerializers.BOOLEAN);
@@ -66,6 +94,13 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
     public String damageType;         // 伤害类型
     public int maxPEOutput;           // 最大PE产量
     public BlockPos escapePosition = null;
+    private ResourceLocation escapeDimension;
+    private ResourceLocation homeRoomDimension;
+    private BlockPos homeRoomMarker;
+    private boolean pendingContainmentReturn;
+    private boolean pendingStopEscapeEvent;
+    private boolean containmentReturnWasSuppression;
+    private int lastFacilityDaySeen = -1;
     private int lastHurtTimestamp = -10000; // 记录上次受伤的时刻（tick）
 
     public float[] workPreferences = new float[4];      // 简化偏好
@@ -81,6 +116,9 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
 
     public AbstractAbnormality(EntityType<? extends TamableAnimal> type, Level level) {
         super(type, level);
+        if (!level.isClientSide && level instanceof ServerLevel serverLevel) {
+            lastFacilityDaySeen = FacilityDayData.get(serverLevel).getDay();
+        }
         initializeAbnormality();
         this.setPersistenceRequired();
         this.setCustomNameVisible(false);
@@ -141,6 +179,15 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         return null;
     }
 
+    /** Special transition entities can opt out of the normal containment-bound suppression return. */
+    protected boolean usesContainmentReturnOnDeath() {
+        return true;
+    }
+
+    /** Lets special forms shrink and clear transient combat state before placement is evaluated. */
+    protected void prepareForContainmentReturn() {
+    }
+
     protected int getFirstAmbientSoundMaxDelay() {
         return 60;
     }
@@ -149,19 +196,31 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         if (escapePosition == null) {
             return;
         }
-        AbstractAbnormality newEntity = createNewInstance(serverLevel);
-        if (newEntity == null) return;
-        newEntity.moveTo(
-                escapePosition.getX() + 0.5,
-                escapePosition.getY(),
-                escapePosition.getZ() + 0.5,
-                0, 0
-        );
+        if (returnSameEntityToContainment(serverLevel) == ContainmentReturnResult.DEFERRED) {
+            pendingContainmentReturn = true;
+            pendingStopEscapeEvent = true;
+            setHealth(ContainmentReturnPolicy.healthAfterDeferredSuppression(getMaxHealth()));
+            setDeltaMovement(Vec3.ZERO);
+        }
+    }
 
-        // 重置状态
-        newEntity.setEscape(false);
-        newEntity.qliphothCounter = newEntity.maxQliphothCounter;
-        serverLevel.addFreshEntity(newEntity);
+    /** Records the authoritative containment-room marker for suppression and day-change recovery. */
+    public void bindHomeRoom(ResourceLocation dimension, BlockPos markerPos) {
+        if (dimension == null || markerPos == null) return;
+        homeRoomDimension = dimension;
+        homeRoomMarker = markerPos.immutable();
+    }
+
+    public ResourceLocation getHomeRoomDimension() {
+        return homeRoomDimension;
+    }
+
+    public BlockPos getHomeRoomMarker() {
+        return homeRoomMarker;
+    }
+
+    protected final boolean isContainmentReturnPending() {
+        return pendingContainmentReturn;
     }
 
     /**
@@ -191,6 +250,22 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
             this.stopRiding();
         }
         if (!this.level().isClientSide) {
+            if (this.level() instanceof ServerLevel serverLevel) {
+                int facilityDay = FacilityDayData.get(serverLevel).getDay();
+                if (lastFacilityDaySeen != facilityDay) {
+                    lastFacilityDaySeen = facilityDay;
+                    // FacilityManager performs the first day-change recovery
+                    // from a stable entity snapshot. If that return had to be
+                    // deferred, wait for the normal retry loop instead of
+                    // invoking stopEscape a second time in the same transition.
+                    if (hasEscape() && !pendingContainmentReturn) stopEscape();
+                }
+            }
+            if (ContainmentReturnPolicy.shouldRetry(pendingContainmentReturn, this.tickCount,
+                    CONTAINMENT_RETURN_RETRY_INTERVAL)) {
+                // Dynamic dispatch is required so subtype cleanup runs after a deferred return succeeds.
+                stopEscape();
+            }
             CoreSuppressionManager.tickMeltdown(this);
             if (this.tickCount == 1 || this.tickCount % 100 == 0) {
                 syncNearbyPlayers();
@@ -223,6 +298,16 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
             this.checkPlayerDistanceAndStopSound();
         }
         super.discard();
+    }
+
+    @Override
+    public void remove(RemovalReason reason) {
+        if (!level().isClientSide && reason.shouldDestroy() && level() instanceof ServerLevel serverLevel) {
+            // Chunk unloads and dimension transfers are non-destructive removal reasons and must
+            // keep the alert. Actual death/discard unregisters only this exact entity UUID.
+            EscapeTracker.getInstance().onEscapeStop(serverLevel.getServer(), getUUID());
+        }
+        super.remove(reason);
     }
 
     /**
@@ -420,25 +505,25 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
 
         for (ServerPlayer player : nearbyPlayers) {
             syncNameToPlayer(player);
-            player.getCapability(CompanyDailyDataProvider.COMPANY_DAILY_DATA).ifPresent(data -> {
-                if (!data.hasCompletedTodayWork() && data.isHasSleep()) {
-                    data.setHasSleep(false);
-                    this.stopEscape();
-                    MessageLoader.getLoader().sendToPlayer(player, new CompanyDailySyncPacket(data.getCurrentDay(),
-                            data.getTodayWorkCount(), data.isArmorLocked(), false));
-                }
-            });
         }
     }
 
     public void triggerEscape() {
-        if (hasEscape() || this.level().isClientSide || !canEscape()) return;
-        setEscape(true);
+        beginEscape(null);
+    }
+
+    /** Starts the common escape lifecycle, preferring a subtype-specific spawn anchor when supplied. */
+    protected final boolean beginEscape(@Nullable BlockPos preferredDestination) {
+        if (hasEscape() || this.level().isClientSide || !canEscape()) return false;
+        BlockPos teleportTarget = preferredDestination == null
+                ? null : findSafeEscapePosition(preferredDestination);
+        if (teleportTarget == null) teleportTarget = findAvailableEscapePosition();
+        escapeDimension = this.level().dimension().location();
         escapePosition = this.blockPosition();
-        this.entityData.set(DATA_ESCAPED, true);
-        BlockPos teleportTarget = findAvailableEscapeBlock();
+        setEscape(true);
         if (teleportTarget != null) {
-            teleportTo(teleportTarget.getX() + 0.5, teleportTarget.getY() + 1, teleportTarget.getZ() + 0.5);
+            teleportTo(teleportTarget.getX() + 0.5, teleportTarget.getY(),
+                    teleportTarget.getZ() + 0.5);
         }
         stopAmbientSoundForAllPlayers();
         playEscapeWarningSound();
@@ -447,6 +532,7 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         decreaseAllPlayersTodayWorkCount();
         MinecraftForge.EVENT_BUS.post(new AbnormalityEscapeEvent(this));
         EscapeTracker.getInstance().onEscapeStart(this);
+        return true;
     }
 
     protected void decreaseAllPlayersTodayWorkCount() {
@@ -471,34 +557,91 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         EntityUtil.broadcastMessage(level,"§c§l警告！" + getAbnormalityName() + "已经出逃！");
     }
 
-    private BlockPos findAvailableEscapeBlock() {
-        List<BlockEntity> escapeBlocks = EntityUtil.findBlockEntities(level, getOnPos(), 6).stream()
-                .filter(be -> level.getBlockState(be.getBlockPos()).getBlock() instanceof EscapeBlock)
-                .toList();
-        if (escapeBlocks.isEmpty()) return null;
-        Set<BlockPos> occupiedPositions = new HashSet<>();
-        List<AbstractAbnormality> escapedAbnormalities = level.getEntitiesOfClass(
-                AbstractAbnormality.class,
-                new AABB(getOnPos()).inflate(10),
-                ab -> ab != this && ab.hasEscape()
-        );
-        for (AbstractAbnormality ab : escapedAbnormalities) {
-            occupiedPositions.add(ab.blockPosition());
+    private BlockPos findAvailableEscapePosition() {
+        if (!(level() instanceof ServerLevel serverLevel)) return null;
+        ResourceLocation currentDimension = serverLevel.dimension().location();
+        BlockPos center = homeRoomMarker != null && currentDimension.equals(homeRoomDimension)
+                ? homeRoomMarker : getOnPos();
+        List<EscapeDestination> roomExits = findHomeRoomEscapeDestinations(serverLevel, center);
+        if (!roomExits.isEmpty()) return roomExits.get(0).position();
+        List<FloorEntry> floors = CompanyRoomData.get(serverLevel)
+                .getFloors(currentDimension);
+        int homeFloor = CompanyRoomData.resolveFloorIndex(floors, center);
+        BlockPos nearestCrossFloorFallback = null;
+        for (int[] range : ESCAPE_BLOCK_SEARCH_RANGES) {
+            List<EscapeDestination> available = new ArrayList<>();
+            for (EscapeBlockEntity escapeBlock : EntityUtil.findEscapeBlocks(
+                    level(), center, range[0], range[1])) {
+                BlockPos marker = escapeBlock.getBlockPos();
+                if (!FacilityAccessService.isPositionOpen(
+                        serverLevel.getServer(), currentDimension, marker)) continue;
+                BlockPos safe = findSafeEscapePosition(marker);
+                if (safe != null) available.add(new EscapeDestination(marker, safe));
+            }
+            if (available.isEmpty()) continue;
+            if (homeFloor < 0) {
+                return available.get(0).position();
+            }
+            List<EscapeDestination> sameFloor = available.stream()
+                    .filter(destination -> CompanyRoomData.resolveFloorIndex(
+                            floors, destination.marker()) == homeFloor)
+                    .toList();
+            if (!sameFloor.isEmpty()) {
+                return sameFloor.get(0).position();
+            }
+            if (nearestCrossFloorFallback == null) {
+                nearestCrossFloorFallback = available.get(0).position();
+            }
         }
-        List<BlockEntity> available = escapeBlocks.stream()
-                .filter(be -> !occupiedPositions.contains(be.getBlockPos()))
-                .toList();
-        if (!available.isEmpty()) {
-            return available.get(random.nextInt(available.size())).getBlockPos();
+        return nearestCrossFloorFallback;
+    }
+
+    /** Prefer an exit block physically belonging to this containment room. */
+    private List<EscapeDestination> findHomeRoomEscapeDestinations(ServerLevel serverLevel,
+                                                                     BlockPos center) {
+        if (homeRoomMarker == null || !serverLevel.dimension().location().equals(homeRoomDimension)) {
+            return List.of();
         }
-        BlockPos chosenPos = escapeBlocks.get(random.nextInt(escapeBlocks.size())).getBlockPos();
-        double offsetX = (random.nextDouble() - 0.5) * 2.0;
-        double offsetZ = (random.nextDouble() - 0.5) * 2.0;
-        return new BlockPos(
-                (int)(chosenPos.getX() + offsetX),
-                chosenPos.getY(),
-                (int)(chosenPos.getZ() + offsetZ)
-        );
+        if (!serverLevel.hasChunkAt(homeRoomMarker)) serverLevel.getChunkAt(homeRoomMarker);
+        if (!(serverLevel.getBlockEntity(homeRoomMarker) instanceof RoomMarkerBlockEntity roomMarker)) {
+            return List.of();
+        }
+        AABB roomBounds = roomMarker.getScanBox().inflate(4.0D);
+        List<EscapeDestination> result = new ArrayList<>();
+        for (EscapeBlockEntity escapeBlock : EntityUtil.findEscapeBlocks(
+                serverLevel, homeRoomMarker, 32, 12)) {
+            BlockPos marker = escapeBlock.getBlockPos();
+            Vec3 blockCenter = Vec3.atCenterOf(marker);
+            if (!roomBounds.contains(blockCenter)) continue;
+            if (!isNearestContainmentRoom(marker)) continue;
+            if (!FacilityAccessService.isPositionOpen(serverLevel.getServer(),
+                    serverLevel.dimension().location(), marker)) continue;
+            BlockPos safe = findSafeEscapePosition(marker);
+            if (safe != null) result.add(new EscapeDestination(marker, safe));
+        }
+        result.sort(Comparator.comparingDouble(destination ->
+                destination.marker().distSqr(center)));
+        return result;
+    }
+
+    private boolean isNearestContainmentRoom(BlockPos escapeBlock) {
+        double homeDistance = escapeBlock.distSqr(homeRoomMarker);
+        for (FacilityWorldLayout.ContainmentBinding binding
+                : FacilityWorldLayout.containmentBindings(level().dimension().location())) {
+            BlockPos candidate = binding.markerPos();
+            if (candidate.equals(homeRoomMarker)) continue;
+            if (escapeBlock.distSqr(candidate) + 0.01D < homeDistance) return false;
+        }
+        return true;
+    }
+
+    private BlockPos findSafeEscapePosition(BlockPos spawnAnchor) {
+        if (!(level() instanceof ServerLevel serverLevel) || spawnAnchor == null) return null;
+        BlockPos safe = EntityUtil.findSafeEntityPositionInCompany(
+                serverLevel, this, spawnAnchor.above(), 4, 2);
+        if (safe == null || !FacilityAccessService.isPositionOpen(serverLevel.getServer(),
+                serverLevel.dimension().location(), safe)) return null;
+        return safe;
     }
 
     public BlockPos getEscapePosition() {
@@ -512,17 +655,22 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
 
     public void stopEscape() {
         if (!hasEscape()) return;
-        if (escapePosition != null) {
-            moveTo(escapePosition.getX() + 0.5, escapePosition.getY(), escapePosition.getZ() + 0.5, 0, 0);
-            hurtMarked = true;
-            escapePosition = null;
+        ContainmentReturnResult result = level() instanceof ServerLevel serverLevel
+                ? returnSameEntityToContainment(serverLevel)
+                : ContainmentReturnResult.DEFERRED;
+        if (result == ContainmentReturnResult.DEFERRED) {
+            pendingContainmentReturn = true;
+            pendingStopEscapeEvent = true;
+            setTarget(null);
+            getNavigation().stop();
+            setDeltaMovement(0.0D, 0.0D, 0.0D);
+            return;
         }
-        setEscape(false);
-        qliphothCounter = maxQliphothCounter;
-        setTarget(null);
-        setHealth(getMaxHealth());
-        MinecraftForge.EVENT_BUS.post(new AbnormalityEscapeStopEvent(this, false));
-        EscapeTracker.getInstance().onEscapeStop(this);
+        if (result == ContainmentReturnResult.TRANSFERRED) return;
+        pendingStopEscapeEvent = false;
+        MinecraftForge.EVENT_BUS.post(new AbnormalityEscapeStopEvent(
+                this, containmentReturnWasSuppression));
+        containmentReturnWasSuppression = false;
     }
 
     /**
@@ -672,23 +820,19 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
 
     @Override
     public boolean hurt(DamageSource damageSource, float f) {
-        if (damageSource.is(DamageTypeTags.IS_FIRE)) {
-            clearFire();
+        if (!FacilityCombatRules.canDamageProtectedCombatant(damageSource)) {
+            if (FacilityCombatRules.isImmuneEnvironment(damageSource)) clearFire();
             return false;
         }
-        if (!hasEscape() && !DamageHelper.getDamage().isKill(damageSource))
+        if (!hasEscape() && !DamageHelper.isKill(damageSource))
             return false;
         if (!this.canEscape()) {
-            if (!DamageHelper.getDamage().isKill(damageSource))
+            if (!DamageHelper.isKill(damageSource))
                 return false;
         }
-        Entity entity = damageSource.getEntity();
-        if (entity instanceof LivingEntity living && !living.getMainHandItem().getItem().getClass().getName().startsWith("com.wzz.lobotocraft")
-        && !(living instanceof AbstractAbnormality) && !AbnormalityCombatUtil.isAbnormalitySuppressor(living))
-            return false;
         boolean hurt = super.hurt(damageSource, f);
         if (hurt) {
-            EntityUtil.clearHurtTime(this);
+            if (FacilityCombatRules.ignoresHurtCooldown(damageSource)) EntityUtil.clearHurtTime(this);
             if (damageSource.getEntity() instanceof LivingEntity attacker && attacker != this) {
                 lastHurtTimestamp = this.tickCount;
             }
@@ -702,14 +846,126 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
 
     @Override
     public void die(DamageSource damageSource) {
-        if (level instanceof ServerLevel serverLevel && canEscape()) {
-            EscapeTracker.getInstance().onEscapeStop(this);
-            if (hasEscape()) {
-                MinecraftForge.EVENT_BUS.post(new AbnormalityEscapeStopEvent(this, true));
+        if (level instanceof ServerLevel && canEscape() && usesContainmentReturnOnDeath() && hasEscape()) {
+            containmentReturnWasSuppression = true;
+            // Use dynamic dispatch so each abnormality clears its own temporary escape state.
+            stopEscape();
+            if (!isRemoved() && pendingContainmentReturn) {
+                setHealth(ContainmentReturnPolicy.healthAfterDeferredSuppression(getMaxHealth()));
+                setDeltaMovement(0.0D, 0.0D, 0.0D);
             }
-            respawnAtEscapePosition(serverLevel);
+            return;
         }
         super.die(damageSource);
+    }
+
+    private ContainmentReturnResult returnSameEntityToContainment(ServerLevel currentLevel) {
+        prepareForContainmentReturn();
+        ResourceLocation targetDimension = ContainmentReturnPolicy.selectTargetDimension(
+                homeRoomDimension, escapeDimension, currentLevel.dimension().location());
+        ServerLevel targetLevel = currentLevel.getServer().getLevel(ResourceKey.create(
+                Registries.DIMENSION, targetDimension));
+        if (targetLevel == null) return ContainmentReturnResult.DEFERRED;
+
+        if (homeRoomMarker != null && isValidContainmentAnchor(targetLevel, homeRoomMarker)
+                && !targetLevel.hasChunkAt(homeRoomMarker)) {
+            // The bound marker is authoritative; load its chunk for this bounded return transaction.
+            targetLevel.getChunkAt(homeRoomMarker);
+        }
+        RoomMarkerBlockEntity marker = homeRoomMarker != null
+                && isValidContainmentAnchor(targetLevel, homeRoomMarker)
+                && targetLevel.getBlockEntity(homeRoomMarker) instanceof RoomMarkerBlockEntity room ? room : null;
+        BlockPos primary = escapePosition != null
+                && isValidContainmentAnchor(targetLevel, escapePosition) ? escapePosition : homeRoomMarker;
+        if (primary == null) return ContainmentReturnResult.DEFERRED;
+        if (!isValidContainmentAnchor(targetLevel, primary)) return ContainmentReturnResult.DEFERRED;
+        if (!targetLevel.hasChunkAt(primary)) targetLevel.getChunkAt(primary);
+        BlockPos safe = findSafeContainmentPosition(targetLevel, marker, primary);
+        if (safe == null && homeRoomMarker != null && !homeRoomMarker.equals(primary)) {
+            safe = findSafeContainmentPosition(targetLevel, marker, homeRoomMarker);
+        }
+        if (safe == null) return ContainmentReturnResult.DEFERRED;
+
+        if (targetLevel != currentLevel) {
+            BlockPos destination = safe.immutable();
+            boolean suppression = containmentReturnWasSuppression;
+            Entity moved = changeDimension(targetLevel, new ITeleporter() {
+                @Override
+                public Entity placeEntity(Entity entity, ServerLevel source, ServerLevel destinationLevel,
+                                          float yaw, java.util.function.Function<Boolean, Entity> repositionEntity) {
+                    Entity replacement = repositionEntity.apply(false);
+                    if (replacement != null) {
+                        replacement.moveTo(destination.getX() + 0.5D, destination.getY(),
+                                destination.getZ() + 0.5D, entity.getYRot(), entity.getXRot());
+                    }
+                    return replacement;
+                }
+            });
+            if (!(moved instanceof AbstractAbnormality returned)) {
+                return ContainmentReturnResult.DEFERRED;
+            }
+            if (returned.level() != targetLevel) return ContainmentReturnResult.DEFERRED;
+            returned.containmentReturnWasSuppression = suppression;
+            returned.pendingContainmentReturn = false;
+            returned.pendingStopEscapeEvent = false;
+            returned.stopEscape();
+            // Forge normally preserves UUID across dimensions. If another teleporter replaces it,
+            // the known source UUID is still the only additional identity that belongs here.
+            EscapeTracker.getInstance().onEscapeStop(currentLevel.getServer(), getUUID());
+            // Keep the removed source instance escaped so subclass cleanup guards skip it.
+            // The migrated replacement performs cleanup and emits the stop event exactly once.
+            return ContainmentReturnResult.TRANSFERRED;
+        }
+
+        moveTo(safe.getX() + 0.5D, safe.getY(), safe.getZ() + 0.5D, getYRot(), getXRot());
+        setDeltaMovement(0.0D, 0.0D, 0.0D);
+        setTarget(null);
+        getNavigation().stop();
+        hurtMarked = true;
+        pendingContainmentReturn = false;
+        escapePosition = null;
+        escapeDimension = null;
+        setEscape(false);
+        qliphothCounter = maxQliphothCounter;
+        setTarget(null);
+        setHealth(getMaxHealth());
+        EscapeTracker.getInstance().onEscapeStop(this);
+        return ContainmentReturnResult.COMPLETED;
+    }
+
+    private static boolean isValidContainmentAnchor(ServerLevel level, BlockPos pos) {
+        return pos.getY() >= level.getMinBuildHeight()
+                && pos.getY() < level.getMaxBuildHeight()
+                && level.getWorldBorder().isWithinBounds(pos);
+    }
+
+    private BlockPos findSafeContainmentPosition(ServerLevel level, @Nullable RoomMarkerBlockEntity marker, BlockPos center) {
+        AABB roomBounds = marker == null ? null : marker.getScanBox();
+        int maxRadius = marker == null ? 4 : Math.min(32, Math.max(0, marker.getRadiusXZ()));
+        for (int radius = 0; radius <= maxRadius; radius++) {
+            for (int dy = -2; dy <= 3; dy++) {
+                for (int dx = -radius; dx <= radius; dx++) {
+                    for (int dz = -radius; dz <= radius; dz++) {
+                        if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
+                        BlockPos pos = center.offset(dx, dy, dz);
+                        if (!level.hasChunkAt(pos)) continue;
+                        if (roomBounds != null && !roomBounds.contains(
+                                pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D)) continue;
+                        AABB destination = getBoundingBox().move(
+                                pos.getX() + 0.5D - getX(), pos.getY() - getY(), pos.getZ() + 0.5D - getZ());
+                        if (!level.noCollision(this, destination)) continue;
+                        if (!level.getEntities(this, destination,
+                                entity -> entity.isAlive() && !entity.isRemoved() && entity.isPickable()).isEmpty()) {
+                            continue;
+                        }
+                        if (!isNoGravity() && !level.getBlockState(pos.below()).isFaceSturdy(
+                                level, pos.below(), net.minecraft.core.Direction.UP)) continue;
+                        return pos;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     @Override
@@ -879,6 +1135,26 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
                     tag.getInt("EscapePosZ")
             );
         }
+        escapeDimension = ResourceLocation.tryParse(tag.getString("EscapeDimension"));
+        if (escapeDimension == null && escapePosition != null) {
+            escapeDimension = level().dimension().location();
+        }
+        homeRoomDimension = ResourceLocation.tryParse(tag.getString("HomeRoomDimension"));
+        if (tag.contains("HomeRoomMarker")) homeRoomMarker = BlockPos.of(tag.getLong("HomeRoomMarker"));
+        pendingContainmentReturn = tag.getBoolean("PendingContainmentReturn");
+        ContainmentReturnPolicy.LoadedState loadedReturn = ContainmentReturnPolicy.normalizeLoadedState(
+                this.entityData.get(DATA_ESCAPED), pendingContainmentReturn,
+                tag.getBoolean("ContainmentReturnWasSuppression"), getHealth(), getMaxHealth());
+        pendingContainmentReturn = loadedReturn.pending();
+        pendingStopEscapeEvent = loadedReturn.stopEventPending();
+        containmentReturnWasSuppression = loadedReturn.suppression();
+        if (loadedReturn.escaped() != this.entityData.get(DATA_ESCAPED)) {
+            this.entityData.set(DATA_ESCAPED, loadedReturn.escaped());
+        }
+        if (Float.compare(loadedReturn.health(), getHealth()) != 0) {
+            setHealth(loadedReturn.health());
+        }
+        if (tag.contains("LastFacilityDaySeen")) lastFacilityDaySeen = tag.getInt("LastFacilityDaySeen");
 
     }
 
@@ -894,5 +1170,12 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
             tag.putInt("EscapePosY", escapePosition.getY());
             tag.putInt("EscapePosZ", escapePosition.getZ());
         }
+        if (escapeDimension != null) tag.putString("EscapeDimension", escapeDimension.toString());
+        if (homeRoomDimension != null) tag.putString("HomeRoomDimension", homeRoomDimension.toString());
+        if (homeRoomMarker != null) tag.putLong("HomeRoomMarker", homeRoomMarker.asLong());
+        tag.putBoolean("PendingContainmentReturn", pendingContainmentReturn);
+        tag.putBoolean("PendingStopEscapeEvent", pendingStopEscapeEvent);
+        tag.putBoolean("ContainmentReturnWasSuppression", containmentReturnWasSuppression);
+        tag.putInt("LastFacilityDaySeen", lastFacilityDaySeen);
     }
 }

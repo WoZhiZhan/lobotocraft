@@ -54,7 +54,7 @@ public class LargeBirdCurio extends BaseEgoCurio {
         if (slotContext.entity() instanceof ServerPlayer player) {
             if (EgoArmorHelper.isFullEGO(player, "end_bird")
                     && EgoArmorHelper.isHoldingWeapon(player, "end_bird")
-                    && MentalValueUtil.getMentalValue(player) <= 0f) {
+                    && MentalValueUtil.isPanic(player)) {
                 MentalValueUtil.setMentalValue(player, MentalValueUtil.getEffectiveMaxMentalValue(player));
             }
         }

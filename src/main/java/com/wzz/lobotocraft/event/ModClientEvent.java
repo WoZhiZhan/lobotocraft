@@ -9,6 +9,8 @@ import com.wzz.lobotocraft.client.renderer.block.BaseGeoBlockRenderer;
 import com.wzz.lobotocraft.client.renderer.block.SimpleBlockEntityRenderer;
 import com.wzz.lobotocraft.client.renderer.entity.abnormality.*;
 import com.wzz.lobotocraft.client.renderer.item.BaseEgoCurioRenderer;
+import com.wzz.lobotocraft.client.screen.EmployeeInventoryScreen;
+import com.wzz.lobotocraft.client.screen.EmployeeWarehouseScreen;
 import com.wzz.lobotocraft.init.ModBlockEntities;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModItems;
@@ -24,6 +26,8 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.client.event.ModelEvent;
 import net.minecraftforge.client.event.RegisterShadersEvent;
+import net.minecraft.client.gui.screens.MenuScreens;
+import com.wzz.lobotocraft.init.ModMenus;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -36,13 +40,17 @@ public class ModClientEvent {
 
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
-        event.enqueueWork(() -> ModItems.REGISTRY.getEntries().forEach(reg -> {
-            Item item = reg.get();
-            if (item instanceof BaseEgoCurio curio) {
-                CuriosRendererRegistry.register(item,
-                        () -> new BaseEgoCurioRenderer(curio.curioName()));
-            }
-        }));
+        event.enqueueWork(() -> {
+            MenuScreens.register(ModMenus.EMPLOYEE_INVENTORY.get(), EmployeeInventoryScreen::new);
+            MenuScreens.register(ModMenus.EMPLOYEE_WAREHOUSE.get(), EmployeeWarehouseScreen::new);
+            ModItems.REGISTRY.getEntries().forEach(reg -> {
+                Item item = reg.get();
+                if (item instanceof BaseEgoCurio curio) {
+                    CuriosRendererRegistry.register(item,
+                            () -> new BaseEgoCurioRenderer(curio.curioName()));
+                }
+            });
+        });
     }
 
     @SubscribeEvent
@@ -97,6 +105,12 @@ public class ModClientEvent {
         event.registerEntityRenderer(ModEntities.green_noon.get(), (r) -> new GeoEntityRenderer<>(r, 1.1f, 1.1f));
         event.registerEntityRenderer(ModEntities.crimson_noon.get(), (r) -> new GeoEntityRenderer<>(r, 1.2f, 1.2f));
         event.registerEntityRenderer(ModEntities.amber_dawn.get(), (r) -> new GeoEntityRenderer<>(r, 0.8f, 0.8f));
+        event.registerEntityRenderer(ModEntities.crimson_dusk.get(), (r) -> new GeoEntityRenderer<>(r, 1.65f, 1.65f));
+        event.registerEntityRenderer(ModEntities.green_dusk.get(), (r) -> new GeoEntityRenderer<>(r, 1.6f, 1.6f));
+        event.registerEntityRenderer(ModEntities.amber_dusk.get(), (r) -> new GeoEntityRenderer<>(r, 1.7f, 1.7f));
+        event.registerEntityRenderer(ModEntities.green_midnight.get(), (r) -> new GeoEntityRenderer<>(r, 2.4f, 2.4f));
+        event.registerEntityRenderer(ModEntities.violet_midnight.get(), (r) -> new GeoEntityRenderer<>(r, 2.2f, 2.2f));
+        event.registerEntityRenderer(ModEntities.amber_midnight.get(), (r) -> new GeoEntityRenderer<>(r, 2.8f, 2.8f));
         event.registerEntityRenderer(ModEntities.butterfly_funeral.get(), (r) -> new AbnormalityRenderer<>(r, "butterfly", "butterfly", 0.6f, 0.6f));
         event.registerEntityRenderer(ModEntities.fragment_of_the_universe.get(), (r) -> new AbnormalityRenderer<>(r, 1.0f, 1.0f));
         event.registerEntityRenderer(ModEntities.helper.get(), (r) -> new AbnormalityRenderer<>(r, 1.0f, 1.0f));

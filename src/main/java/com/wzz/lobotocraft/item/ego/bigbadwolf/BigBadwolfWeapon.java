@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.AiSpecialEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -25,8 +26,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
-public class BigBadwolfWeapon extends BaseEgoWeapon {
+public class BigBadwolfWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapon {
     private static final double ATTACK_RANGE = 3.1;
+    @Override public double aiSpecialAttackRange() { return ATTACK_RANGE; }
     public BigBadwolfWeapon() {
         super(
                 new ModTier.WeaponTier(),
@@ -54,7 +56,7 @@ public class BigBadwolfWeapon extends BaseEgoWeapon {
         } else {
             SoundUtil.playSound(player.level, player, ModSounds.BIG_BADWOLF_WEAPON.get());
         }
-        target.hurt(target.damageSources().playerAttack(player), damage);
+        target.hurt(DamageHelper.getDamage(player, "red"), damage);
         DotHelper.applyDot("big_badwolf", player, target, 3f, "red", 20, 100, 1);
         if (EgoArmorHelper.isFullEGO(player, "big_badwolf")) {
             SlowTimer.applySlowEffect(target);
@@ -67,8 +69,9 @@ public class BigBadwolfWeapon extends BaseEgoWeapon {
         if (entity instanceof Player player && !player.level.isClientSide && player.getHealth() < player.getMaxHealth() / 2) {
             SoundUtil.playSound(player.level, player, ModSounds.BIG_BADWOLF_WEAPON.get());
             float damage = 24 + new Random().nextInt(6);
+            DamageSource source = DamageHelper.getDamage(player, "red");
             for (LivingEntity target : EntityUtil.findAllEntitiesInLookDirection(player, 4, 3, LivingEntity.class)) {
-                target.hurt(target.damageSources().playerAttack(player), damage);
+                target.hurt(source, damage);
                 DotHelper.applyDot("big_badwolf", player, target, 3f, "red", 20, 100, 1);
                 if (EgoArmorHelper.isFullEGO(player, "big_badwolf")) {
                     SlowTimer.applySlowEffect(target);

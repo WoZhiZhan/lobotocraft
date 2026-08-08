@@ -3,13 +3,15 @@ package com.wzz.lobotocraft.item;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
 import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.util.EntityUtil;
-import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.world.structure.Structures;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
@@ -19,11 +21,21 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
 public class ConveyerItem extends Item {
+    static final int TELEPORT_COOLDOWN_TICKS = 40;
+    private static final String RETURN_X = "lobotocraft:LotoOldX";
+    private static final String RETURN_Y = "lobotocraft:LotoOldY";
+    private static final String RETURN_Z = "lobotocraft:LotoOldZ";
+    private static final String RETURN_LEVEL = "lobotocraft:LotoOldLevelName";
+    private static final String COMPANY_SUFFIX = "_loboto";
+    private static final Vec3 INITIAL_COMPANY_POSITION = new Vec3(0.5D, 4.0D, 0.5D);
+    private static final Vec3 GENERATED_COMPANY_POSITION = new Vec3(195.5D, 273.0D, 29.5D);
+
     public ConveyerItem() {
         super(new Properties().stacksTo(1).fireResistant().rarity(Rarity.EPIC));
     }
@@ -36,65 +48,122 @@ public class ConveyerItem extends Item {
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
         if (!(player instanceof ServerPlayer serverPlayer)) {
-            return super.use(level, player, hand);
+            return InteractionResultHolder.success(stack);
         }
         if (CoreSuppressionManager.isDeviceRestricted(player)) {
             player.sendSystemMessage(Component.literal("§c核心抑制期间无法使用传送装置。"));
-            return InteractionResultHolder.fail(player.getItemInHand(hand));
+            return InteractionResultHolder.fail(stack);
         }
-        CompoundTag nbt = player.getPersistentData();
-        final String keyX = "lobotocraft:LotoOldX";
-        final String keyY = "lobotocraft:LotoOldY";
-        final String keyZ = "lobotocraft:LotoOldZ";
-        final String keyLevel = "lobotocraft:LotoOldLevelName";
-        ResourceKey<Level> currentDim = serverPlayer.level.dimension;
-        
-        if (!currentDim.equals(ModDimensions.LOBOTO_KEY)) {
-            // 在主世界等维度，传送到脑叶公司
-            nbt.putDouble(keyX, player.getX());
-            nbt.putDouble(keyY, player.getY());
-            nbt.putDouble(keyZ, player.getZ());
-            nbt.putString(keyLevel, player.level.dimension.location().toString());
-            
-            // 获取脑叶公司的坐标，如果没有则使用默认值
-            double x = nbt.contains(keyX + "_loboto") ? nbt.getDouble(keyX + "_loboto") : 0.5;
-            double y = nbt.contains(keyY + "_loboto") ? nbt.getDouble(keyY + "_loboto") : 4.0;
-            double z = nbt.contains(keyZ + "_loboto") ? nbt.getDouble(keyZ + "_loboto") : 0.5;
-            if (Structures.LOBOTO.isGenerated(serverPlayer.serverLevel()) && x == 0.5 && y == 4.0) {
-                x = 195;
-                y = 273;
-                z = 29;
-            }
-            EntityUtil.teleportPlayer(serverPlayer, ModDimensions.LOBOTO_KEY, BlockPos.containing(x, y, z));
-            return InteractionResultHolder.success(serverPlayer.getItemInHand(hand));
+        if (serverPlayer.isChangingDimension() || player.getCooldowns().isOnCooldown(this)) {
+            return InteractionResultHolder.fail(stack);
         }
-        
-        // 在脑叶公司维度，传送回主世界
-        String levelName = nbt.getString(keyLevel);
 
-        if (levelName.isEmpty()) {
-            levelName = "minecraft:overworld";
-            nbt.putString(keyLevel, levelName);
-            BlockPos spawnPos = serverPlayer.getServer().overworld().getSharedSpawnPos();
-            nbt.putDouble(keyX, spawnPos.getX() + 0.5);
-            nbt.putDouble(keyY, spawnPos.getY());
-            nbt.putDouble(keyZ, spawnPos.getZ() + 0.5);
+        CompoundTag nbt = player.getPersistentData();
+        ResourceKey<Level> currentDim = serverPlayer.serverLevel().dimension();
+        if (!currentDim.equals(ModDimensions.LOBOTO_KEY)) {
+            return enterCompany(serverPlayer, stack, nbt, currentDim);
         }
-        
-        ResourceKey<Level> targetDim = ResourceKey.create(Registries.DIMENSION, ResourceUtil.createInstanceWithColon(levelName));
-        double x = nbt.getDouble(keyX);
-        double y = nbt.getDouble(keyY);
-        double z = nbt.getDouble(keyZ);
-        
-        // 保存当前在脑叶公司的位置
-        nbt.putDouble(keyX + "_loboto", player.getX());
-        nbt.putDouble(keyY + "_loboto", player.getY());
-        nbt.putDouble(keyZ + "_loboto", player.getZ());
-        
-        if (!currentDim.equals(targetDim)) {
-            EntityUtil.teleportPlayer(serverPlayer, targetDim, BlockPos.containing(x, y, z));
+        return leaveCompany(serverPlayer, stack, nbt);
+    }
+
+    private InteractionResultHolder<ItemStack> enterCompany(ServerPlayer player, ItemStack stack,
+                                                             CompoundTag data,
+                                                             ResourceKey<Level> sourceDimension) {
+        MinecraftServer server = player.getServer();
+        ServerLevel company = server == null ? null : server.getLevel(ModDimensions.LOBOTO_KEY);
+        if (company == null) return InteractionResultHolder.fail(stack);
+
+        Vec3 sourcePosition = player.position();
+        Vec3 destination = companyPosition(data, company);
+        player.getCooldowns().addCooldown(this, TELEPORT_COOLDOWN_TICKS);
+        if (!EntityUtil.teleportPlayer(player, ModDimensions.LOBOTO_KEY, destination)) {
+            player.getCooldowns().removeCooldown(this);
+            return InteractionResultHolder.fail(stack);
         }
-        return InteractionResultHolder.success(serverPlayer.getItemInHand(hand));
+
+        putPosition(data, RETURN_X, RETURN_Y, RETURN_Z, sourcePosition);
+        data.putString(RETURN_LEVEL, sourceDimension.location().toString());
+        return InteractionResultHolder.success(stack);
+    }
+
+    private InteractionResultHolder<ItemStack> leaveCompany(ServerPlayer player, ItemStack stack,
+                                                             CompoundTag data) {
+        ReturnTarget target = returnTarget(player, data);
+        Vec3 companyPosition = player.position();
+        boolean rememberCompanyPosition = EntityUtil.isInCompany(
+                player.serverLevel(), BlockPos.containing(companyPosition));
+
+        player.getCooldowns().addCooldown(this, TELEPORT_COOLDOWN_TICKS);
+        if (!EntityUtil.teleportPlayer(player, target.dimension, target.position)) {
+            player.getCooldowns().removeCooldown(this);
+            return InteractionResultHolder.fail(stack);
+        }
+
+        if (rememberCompanyPosition) {
+            putPosition(data, RETURN_X + COMPANY_SUFFIX, RETURN_Y + COMPANY_SUFFIX,
+                    RETURN_Z + COMPANY_SUFFIX, companyPosition);
+        }
+        return InteractionResultHolder.success(stack);
+    }
+
+    private static Vec3 companyPosition(CompoundTag data, ServerLevel company) {
+        boolean hasSavedPosition = hasPosition(data, RETURN_X + COMPANY_SUFFIX,
+                RETURN_Y + COMPANY_SUFFIX, RETURN_Z + COMPANY_SUFFIX);
+        Vec3 fallback = Structures.LOBOTO.isGenerated(company)
+                ? GENERATED_COMPANY_POSITION : INITIAL_COMPANY_POSITION;
+        if (!hasSavedPosition) return fallback;
+
+        Vec3 saved = getPosition(data, RETURN_X + COMPANY_SUFFIX,
+                RETURN_Y + COMPANY_SUFFIX, RETURN_Z + COMPANY_SUFFIX);
+        if (!isFinite(saved) || company.isOutsideBuildHeight(BlockPos.containing(saved))) return fallback;
+        if (Structures.LOBOTO.isGenerated(company)
+                && !EntityUtil.isInCompany(company, BlockPos.containing(saved))) return fallback;
+        return saved;
+    }
+
+    private static ReturnTarget returnTarget(ServerPlayer player, CompoundTag data) {
+        MinecraftServer server = player.getServer();
+        ResourceLocation location = ResourceLocation.tryParse(data.getString(RETURN_LEVEL));
+        ResourceKey<Level> dimension = location == null
+                ? Level.OVERWORLD : ResourceKey.create(Registries.DIMENSION, location);
+        ServerLevel target = server == null ? null : server.getLevel(dimension);
+        if (target == null || dimension.equals(ModDimensions.LOBOTO_KEY)) {
+            dimension = Level.OVERWORLD;
+            target = server == null ? null : server.overworld();
+        }
+
+        if (target != null && hasPosition(data, RETURN_X, RETURN_Y, RETURN_Z)) {
+            Vec3 saved = getPosition(data, RETURN_X, RETURN_Y, RETURN_Z);
+            if (isFinite(saved) && !target.isOutsideBuildHeight(BlockPos.containing(saved))) {
+                return new ReturnTarget(dimension, saved);
+            }
+        }
+
+        BlockPos spawn = target == null ? BlockPos.ZERO : target.getSharedSpawnPos();
+        return new ReturnTarget(dimension, Vec3.atBottomCenterOf(spawn));
+    }
+
+    private static boolean hasPosition(CompoundTag data, String x, String y, String z) {
+        return data.contains(x) && data.contains(y) && data.contains(z);
+    }
+
+    private static Vec3 getPosition(CompoundTag data, String x, String y, String z) {
+        return new Vec3(data.getDouble(x), data.getDouble(y), data.getDouble(z));
+    }
+
+    private static void putPosition(CompoundTag data, String x, String y, String z, Vec3 position) {
+        data.putDouble(x, position.x);
+        data.putDouble(y, position.y);
+        data.putDouble(z, position.z);
+    }
+
+    private static boolean isFinite(Vec3 position) {
+        return Double.isFinite(position.x) && Double.isFinite(position.y)
+                && Double.isFinite(position.z);
+    }
+
+    private record ReturnTarget(ResourceKey<Level> dimension, Vec3 position) {
     }
 }

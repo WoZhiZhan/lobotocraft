@@ -1,8 +1,11 @@
 package com.wzz.lobotocraft.event.listener;
 
+import com.lobotocraft.facility.OrdealRewardService;
+import com.lobotocraft.facility.data.OrdealTier;
 import com.wzz.lobotocraft.ModMain;
-import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
+import com.wzz.lobotocraft.entity.base.EscapeTracker;
 import com.wzz.lobotocraft.entity.ordeal.EntityGreenNoon;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModSounds;
@@ -32,18 +35,27 @@ import static com.wzz.lobotocraft.event.listener.CrimsonDawnEvent.sendOrdealTitl
 public class GreenNoonEvent {
     public static boolean triggerGreenNoon(ServerLevel level) {
         OrdealData data = OrdealData.get(level);
-        if (data.hasActiveOrdeal()) {
+        if (data.hasActiveMidday()) {
             return false;
         }
 
-        List<SpawnPoint> spawnPoints = collectSpawnPoints(level);
-        if (spawnPoints.isEmpty()) {
+        List<OrdealSpawnPointService.DepartmentCorridors> departments =
+                OrdealSpawnPointService.openCorridorsByDepartment(level);
+        if (departments.isEmpty()) {
             return false;
         }
 
-        List<ServerPlayer> players = getEligiblePlayers(level);
-        int count = Math.max(1, players.size());
-        int spawned = spawnGreenNoons(level, spawnPoints, count);
+        int spawned = 0;
+        int count = OrdealSpawnPolicy.greenNoonDepartmentCount(departments.size());
+        for (int index = 0; index < count; index++) {
+            for (BlockPos corridor : departments.get(index).corridors()) {
+                BlockPos spawnPos = EntityUtil.findSafeGroundPositionInCompany(level, corridor, 4);
+                if (spawnGreenNoonAt(level, spawnPos)) {
+                    spawned++;
+                    break;
+                }
+            }
+        }
         if (spawned <= 0) {
             return false;
         }
@@ -59,6 +71,7 @@ public class GreenNoonEvent {
                 "理解的过程",
                 "他们，终究是被生命束缚着的存在。而我们，将倾泻绝望与怒火！");
         playGlobalSound(server, ModSounds.GREEN_NOON_START.get());
+        EscapeTracker.getInstance().onOrdealStart(level, OrdealTier.NOON);
         return true;
     }
 
@@ -73,6 +86,7 @@ public class GreenNoonEvent {
 
         data.finishGreenMidday();
         MinecraftServer server = level.getServer();
+        OrdealRewardService.complete(server, OrdealTier.NOON);
         showGreenNoonTitle(server,
                 "绿色的正午",
                 "理解的过程",
@@ -84,13 +98,12 @@ public class GreenNoonEvent {
         List<SpawnPoint> spawnPoints = new ArrayList<>();
         EntityUtil.findBlockEntities(level).stream()
                 .filter(RegenerationReactorBlockEntity.class::isInstance)
-                .filter(blockEntity -> EntityUtil.isInCompany(level, blockEntity.getBlockPos()))
+                .filter(blockEntity -> OrdealSpawnPointService.isOpenMappedArea(
+                        level, blockEntity.getBlockPos()))
                 .map(blockEntity -> new SpawnPoint(blockEntity.getBlockPos(), true))
                 .forEach(spawnPoints::add);
 
-        EscapeBlockEntity.getEscapeBlocks(level.dimension()).stream()
-                .filter(pos -> level.getBlockEntity(pos) instanceof EscapeBlockEntity)
-                .filter(pos -> EntityUtil.isInCompany(level, pos))
+        OrdealSpawnPointService.collectOpenCorridors(level).stream()
                 .map(pos -> new SpawnPoint(pos, false))
                 .forEach(spawnPoints::add);
 
@@ -126,7 +139,8 @@ public class GreenNoonEvent {
     }
 
     private static boolean spawnGreenNoonAt(ServerLevel level, BlockPos spawnPos) {
-        if (spawnPos == null || !EntityUtil.isInCompany(level, spawnPos)) {
+        if (spawnPos == null || !FacilityAccessService.isPositionOpen(level.getServer(),
+                level.dimension().location(), spawnPos)) {
             return false;
         }
 
@@ -144,7 +158,8 @@ public class GreenNoonEvent {
     }
 
     private static boolean canPlaceGreenNoon(ServerLevel level, EntityGreenNoon greenNoon, BlockPos pos) {
-        if (pos == null || !EntityUtil.isInCompany(level, pos)) {
+        if (pos == null || !FacilityAccessService.isPositionOpen(level.getServer(),
+                level.dimension().location(), pos)) {
             return false;
         }
         if (pos.getY() <= level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight() - 1) {

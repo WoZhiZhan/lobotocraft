@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.network.packet;
 
 import com.wzz.lobotocraft.client.screen.RoomMapScreen;
 import com.wzz.lobotocraft.network.IMessage;
+import com.wzz.lobotocraft.network.PacketDecodeLimits;
 import com.wzz.lobotocraft.world.data.AbnormalityCandidate;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -17,6 +18,7 @@ import java.util.List;
  * 服务端 -> 客户端：附近异想体清单，交给监控界面弹出"更改住户"选单。
  */
 public class NearbyAbnormalitiesPacket implements IMessage {
+    private static final int MAX_CANDIDATES = 512;
 
     private BlockPos roomPos;
     private List<AbnormalityCandidate> candidates;
@@ -40,7 +42,7 @@ public class NearbyAbnormalitiesPacket implements IMessage {
     @Override
     public void fromBytes(FriendlyByteBuf buf) {
         this.roomPos = buf.readBlockPos();
-        int size = buf.readVarInt();
+        int size = PacketDecodeLimits.readVarIntCount(buf, MAX_CANDIDATES, "abnormality candidate");
         this.candidates = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
             this.candidates.add(AbnormalityCandidate.read(buf));
@@ -50,9 +52,10 @@ public class NearbyAbnormalitiesPacket implements IMessage {
     @Override
     public void toBytes(FriendlyByteBuf buf) {
         buf.writeBlockPos(roomPos);
-        buf.writeVarInt(candidates.size());
-        for (AbnormalityCandidate candidate : candidates) {
-            candidate.write(buf);
+        int candidateCount = Math.min(candidates.size(), MAX_CANDIDATES);
+        buf.writeVarInt(candidateCount);
+        for (int i = 0; i < candidateCount; i++) {
+            candidates.get(i).write(buf);
         }
     }
 

@@ -44,7 +44,7 @@ import software.bernie.geckolib.core.object.PlayState;
 /**
  * 绿色的黎明 - 疑问。
  */
-public class EntityGreenDawn extends BaseGeoEntity {
+public class EntityGreenDawn extends BaseGeoEntity implements OrdealEntity {
     private static final EntityDataAccessor<String> ANIM =
             SynchedEntityData.defineId(EntityGreenDawn.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<Integer> ANIM_VERSION =

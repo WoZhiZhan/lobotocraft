@@ -6,6 +6,7 @@ import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.AiSpecialEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -27,7 +28,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
-public class SnowQueenWeapon extends BaseEgoWeapon {
+public class SnowQueenWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapon {
+    @Override public double aiSpecialAttackRange() { return 6.0D; }
     private static final UUID REACH_UUID = UUID.fromString("366d55e8-cdb7-48e7-bc95-d9a722c9faaf");
     public SnowQueenWeapon() {
         super(
@@ -69,6 +71,8 @@ public class SnowQueenWeapon extends BaseEgoWeapon {
 
     @Override
     public boolean onLeftClickEntity(ItemStack stack, Player player, Entity entity) {
+        boolean fullyCharged = SnowQueenAttackPolicy.canApplyKissSpecial(
+                player.getAttackStrengthScale(0.0F));
         boolean leftClick = super.onLeftClickEntity(stack, player, entity);
         if (!leftClick) return false;
         if (!(entity instanceof LivingEntity target)) {
@@ -79,7 +83,7 @@ public class SnowQueenWeapon extends BaseEgoWeapon {
         Random random = new Random();
         float damage = 6 + random.nextInt(7);
         target.hurt(DamageHelper.getDamage(player, "white"), damage);
-        if (!(target instanceof Player)) {
+        if (!(target instanceof Player) && fullyCharged) {
             int i = random.nextInt(101);
             if (i <= 10) {
                 if (EgoArmorHelper.isFullEGO(player, "snowqueen"))

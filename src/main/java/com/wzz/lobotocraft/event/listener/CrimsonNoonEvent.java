@@ -1,9 +1,12 @@
 package com.wzz.lobotocraft.event.listener;
 
+import com.lobotocraft.facility.OrdealRewardService;
+import com.lobotocraft.facility.data.OrdealTier;
 import com.wzz.lobotocraft.ModMain;
-import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.base.EscapeTracker;
 import com.wzz.lobotocraft.entity.ordeal.EntityBloodySmall;
 import com.wzz.lobotocraft.entity.ordeal.EntityCrimsonNoon;
 import com.wzz.lobotocraft.init.ModEntities;
@@ -41,21 +44,23 @@ public class CrimsonNoonEvent {
 
     public static boolean triggerCrimsonNoon(ServerLevel level) {
         OrdealData data = OrdealData.get(level);
-        if (data.hasActiveOrdeal()) {
+        if (data.hasActiveMidday()) {
             return false;
         }
 
-        List<SpawnPoint> spawnPoints = collectSpawnPoints(level);
-        if (spawnPoints.isEmpty()) {
+        List<BlockPos> corridors = new ArrayList<>(OrdealSpawnPointService.collectOpenCorridors(level));
+        if (corridors.isEmpty()) {
             return false;
         }
+        java.util.Collections.shuffle(corridors, new java.util.Random(level.getRandom().nextLong()));
 
-        List<ServerPlayer> players = getEligiblePlayers(level);
-        if (players.isEmpty()) {
-            return false;
+        int spawned = 0;
+        int total = OrdealSpawnPolicy.crimsonNoonTotalCount(corridors.size());
+        for (BlockPos corridor : corridors) {
+            if (spawned >= total) break;
+            BlockPos spawnPos = EntityUtil.findSafeGroundPositionInCompany(level, corridor, 4);
+            if (spawnCrimsonNoonAt(level, spawnPos)) spawned++;
         }
-
-        int spawned = spawnCrimsonNoons(level, spawnPoints, players);
         if (spawned <= 0) {
             return false;
         }
@@ -71,6 +76,7 @@ public class CrimsonNoonEvent {
                 "汁水大合唱",
                 "我们每时都在游行，每刻都在分享喜悦。");
         playGlobalSound(server, ModSounds.CRIMSON_NOON_START.get());
+        EscapeTracker.getInstance().onOrdealStart(level, OrdealTier.NOON);
         return true;
     }
 
@@ -107,6 +113,7 @@ public class CrimsonNoonEvent {
         OrdealData data = OrdealData.get(level);
         data.finishCrimsonMidday();
         MinecraftServer server = level.getServer();
+        OrdealRewardService.complete(server, OrdealTier.NOON);
         showCrimsonNoonTitle(server,
                 "血色的正午",
                 "汁水大合唱",
@@ -118,13 +125,12 @@ public class CrimsonNoonEvent {
         List<SpawnPoint> spawnPoints = new ArrayList<>();
         EntityUtil.findBlockEntities(level).stream()
                 .filter(RegenerationReactorBlockEntity.class::isInstance)
-                .filter(blockEntity -> EntityUtil.isInCompany(level, blockEntity.getBlockPos()))
+                .filter(blockEntity -> OrdealSpawnPointService.isOpenMappedArea(
+                        level, blockEntity.getBlockPos()))
                 .map(blockEntity -> new SpawnPoint(blockEntity.getBlockPos(), true))
                 .forEach(spawnPoints::add);
 
-        EscapeBlockEntity.getEscapeBlocks(level.dimension()).stream()
-                .filter(pos -> level.getBlockEntity(pos) instanceof EscapeBlockEntity)
-                .filter(pos -> EntityUtil.isInCompany(level, pos))
+        OrdealSpawnPointService.collectOpenCorridors(level).stream()
                 .map(pos -> new SpawnPoint(pos, false))
                 .forEach(spawnPoints::add);
 
@@ -162,7 +168,8 @@ public class CrimsonNoonEvent {
     }
 
     private static boolean spawnCrimsonNoonAt(ServerLevel level, BlockPos spawnPos) {
-        if (spawnPos == null || !EntityUtil.isInCompany(level, spawnPos)) {
+        if (spawnPos == null || !FacilityAccessService.isPositionOpen(level.getServer(),
+                level.dimension().location(), spawnPos)) {
             return false;
         }
 
@@ -180,7 +187,8 @@ public class CrimsonNoonEvent {
     }
 
     private static boolean canPlaceCrimsonNoon(ServerLevel level, EntityCrimsonNoon crimsonNoon, BlockPos pos) {
-        if (pos == null || !EntityUtil.isInCompany(level, pos)) {
+        if (pos == null || !FacilityAccessService.isPositionOpen(level.getServer(),
+                level.dimension().location(), pos)) {
             return false;
         }
         if (pos.getY() <= level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight() - 1) {
@@ -230,7 +238,8 @@ public class CrimsonNoonEvent {
             return null;
         }
         return abnormalities.stream()
-                .filter(abnormality -> EntityUtil.isInCompany(level, abnormality.blockPosition()))
+                .filter(abnormality -> FacilityAccessService.isPositionOpen(level.getServer(),
+                        level.dimension().location(), abnormality.blockPosition()))
                 .min(java.util.Comparator.comparingDouble(crimsonNoon::distanceToSqr))
                 .orElse(null);
     }

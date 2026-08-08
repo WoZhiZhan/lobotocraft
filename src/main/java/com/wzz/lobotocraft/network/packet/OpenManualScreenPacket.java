@@ -1,10 +1,14 @@
 package com.wzz.lobotocraft.network.packet;
 
 import com.wzz.lobotocraft.client.screen.AbnormalityEncyclopediaScreen;
+import com.wzz.lobotocraft.client.screen.DepartmentAssignmentScreen;
+import com.wzz.lobotocraft.client.screen.EquipmentCraftingScreen;
 import com.wzz.lobotocraft.entity.data.AbnormalityEncyclopediaData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.network.IMessage;
+import com.wzz.lobotocraft.network.PacketDecodeLimits;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -15,6 +19,7 @@ import net.minecraftforge.network.NetworkEvent;
  * 发送完整的异想体信息
  */
 public class OpenManualScreenPacket implements IMessage {
+    private static final int MAX_MANUALS = 256;
     private int abnormalityId;
     private String abnormalityCode;      // 编号 如 O-03-03
     private String abnormalityName;      // 名称
@@ -99,7 +104,7 @@ public class OpenManualScreenPacket implements IMessage {
             workPreferencesUnlocked[i] = buf.readBoolean();
         }
         this.sensitiveInfoUnlocked = buf.readBoolean();
-        int manualCount = buf.readInt();
+        int manualCount = PacketDecodeLimits.readIntCount(buf, MAX_MANUALS, "manual unlock");
         this.manualsUnlocked = new boolean[manualCount];
         for (int i = 0; i < manualCount; i++) {
             manualsUnlocked[i] = buf.readBoolean();
@@ -128,19 +133,26 @@ public class OpenManualScreenPacket implements IMessage {
         // 写入工作偏好矩阵
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 5; j++) {
-                buf.writeFloat(workPreferences[i][j]);
+                float value = workPreferences != null
+                        && i < workPreferences.length
+                        && workPreferences[i] != null
+                        && j < workPreferences[i].length
+                        ? workPreferences[i][j] : 0.5F;
+                buf.writeFloat(value);
             }
         }
 
         buf.writeInt(observationLevel);
         buf.writeBoolean(basicInfoUnlocked);
-        for (boolean unlocked : workPreferencesUnlocked) {
-            buf.writeBoolean(unlocked);
+        for (int i = 0; i < 4; i++) {
+            buf.writeBoolean(workPreferencesUnlocked != null
+                    && i < workPreferencesUnlocked.length && workPreferencesUnlocked[i]);
         }
         buf.writeBoolean(sensitiveInfoUnlocked);
-        buf.writeInt(manualsUnlocked.length);  // 先写数组长度
-        for (boolean unlocked : manualsUnlocked) {
-            buf.writeBoolean(unlocked);
+        int manualCount = Math.min(manualsUnlocked.length, MAX_MANUALS);
+        buf.writeInt(manualCount);
+        for (int i = 0; i < manualCount; i++) {
+            buf.writeBoolean(manualsUnlocked[i]);
         }
 
         // 写入解锁成本
@@ -157,6 +169,17 @@ public class OpenManualScreenPacket implements IMessage {
     @OnlyIn(Dist.CLIENT)
     @Override
     public void runClient(NetworkEvent.Context ctx) {
+        Minecraft minecraft = Minecraft.getInstance();
+        Screen returnScreen = null;
+        if (minecraft.screen instanceof com.wzz.lobotocraft.client.screen.RoomMapScreen
+                || minecraft.screen instanceof AbnormalityEncyclopediaScreen) {
+            returnScreen = minecraft.screen instanceof AbnormalityEncyclopediaScreen encyclopedia
+                    ? encyclopedia.getReturnScreen() : minecraft.screen;
+        } else if (minecraft.screen instanceof EquipmentCraftingScreen crafting) {
+            returnScreen = crafting.getReturnScreen();
+        } else if (minecraft.screen instanceof DepartmentAssignmentScreen) {
+            returnScreen = minecraft.screen;
+        }
         AbnormalityEncyclopediaData.EntryData data =
                 AbnormalityEncyclopediaData.getData(abnormalityCode);
 
@@ -171,7 +194,8 @@ public class OpenManualScreenPacket implements IMessage {
                 abnormalityId, abnormalityCode, abnormalityName, riskLevel,
                 damageType, maxPEOutput, workPreferences, observationLevel,
                 manualTexts,
-                data.sensitiveInfo(),
+                AbnormalityEncyclopediaData.getStories(abnormalityCode),
+                data.sensitiveInfo(), returnScreen,
                 basicInfoUnlocked, workPreferencesUnlocked, sensitiveInfoUnlocked, manualsUnlocked,
                 basicInfoCost, workPreferencesCost, sensitiveInfoCost, manualCost, developmentWeaponCount, developmentArmorCount, scrollOffset, isToolType
         ));

@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.approval_birds;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.AiSpecialEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
@@ -21,12 +22,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class ApprovalBirdWeapon extends BaseEgoWeapon {
+public class ApprovalBirdWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapon {
+    @Override public double aiSpecialAttackRange() { return 4.0D; }
     public ApprovalBirdWeapon() {
         super(
                 new ModTier.WeaponTier(),
                 1,
-                -2.0f,
+                MathUtil.toSpeedModifier(0.9f),
                 new Properties().stacksTo(1).fireResistant()
         );
     }
@@ -70,7 +72,8 @@ public class ApprovalBirdWeapon extends BaseEgoWeapon {
         }
         if (!canUseItem(player))
             return false;
-        if (entity instanceof LivingEntity livingEntity && player.getAttackStrengthScale(0.0f) == 1.0f) {
+        if (entity instanceof LivingEntity livingEntity) {
+            float attackMultiplier = BaseEgoWeapon.currentLeftClickDamageMultiplier(player);
             player.playSound(ModSounds.APPROVAL_BIRD_WEAPON_ATTACK.get());
             if (!player.level.isClientSide) {
                 player.getServer().execute(() -> {
@@ -84,15 +87,15 @@ public class ApprovalBirdWeapon extends BaseEgoWeapon {
                         @Override
                         public void onEnd(@NotNull Player living) {
                             EntityUtil.clearHurtTime(livingEntity, () -> {
-                                livingEntity.hurt(DamageHelper.getDamage(player, "blue"), 1 + player.random.nextInt(2) + 1 + EntityUtil.addMaxHealthPercentageDamage(livingEntity, 0.02f, 0.03f, 3f));
+                                livingEntity.hurt(DamageHelper.getDamage(player, "blue"), attackMultiplier * (1 + player.random.nextInt(2) + 1 + EntityUtil.addMaxHealthPercentageDamage(livingEntity, 0.02f, 0.03f, 3f)));
                                 EntityUtil.clearHurtTime(livingEntity, () -> {
-                                    livingEntity.hurt(DamageHelper.getDamage(player, "blue"), 1 + player.random.nextInt(2) + 1 + EntityUtil.addMaxHealthPercentageDamage(livingEntity, 0.02f, 0.03f, 3f));
+                                    livingEntity.hurt(DamageHelper.getDamage(player, "blue"), attackMultiplier * (1 + player.random.nextInt(2) + 1 + EntityUtil.addMaxHealthPercentageDamage(livingEntity, 0.02f, 0.03f, 3f)));
                                     EntityUtil.clearHurtTime(livingEntity, () -> {
-                                        livingEntity.hurt(DamageHelper.getDamage(player, "blue"), 1 + player.random.nextInt(2) + 1 + EntityUtil.addMaxHealthPercentageDamage(livingEntity, 0.02f, 0.03f, 3f));
+                                        livingEntity.hurt(DamageHelper.getDamage(player, "blue"), attackMultiplier * (1 + player.random.nextInt(2) + 1 + EntityUtil.addMaxHealthPercentageDamage(livingEntity, 0.02f, 0.03f, 3f)));
                                         EntityUtil.clearHurtTime(livingEntity, () -> {
-                                            livingEntity.hurt(DamageHelper.getDamage(player, "blue"), 1 + player.random.nextInt(2) + 1 + EntityUtil.addMaxHealthPercentageDamage(livingEntity, 0.02f, 0.03f, 3f));
+                                            livingEntity.hurt(DamageHelper.getDamage(player, "blue"), attackMultiplier * (1 + player.random.nextInt(2) + 1 + EntityUtil.addMaxHealthPercentageDamage(livingEntity, 0.02f, 0.03f, 3f)));
                                             EntityUtil.clearHurtTime(livingEntity, () -> livingEntity.hurt(DamageHelper.getDamage(player, "blue"),
-                                                    1 + player.random.nextInt(2) + 1 + EntityUtil.addMaxHealthPercentageDamage(livingEntity, 0.02f, 0.04f, 3f)));
+                                                    attackMultiplier * (1 + player.random.nextInt(2) + 1 + EntityUtil.addMaxHealthPercentageDamage(livingEntity, 0.02f, 0.04f, 3f))));
                                         });
                                     });
                                 });

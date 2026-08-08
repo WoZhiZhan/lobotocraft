@@ -22,6 +22,10 @@ public class CommandRegistry {
         registerCommand(new CompleteDailyWorkCommand());
         registerCommand(new CompleteCoreSuppressionCommand());
         registerCommand(new ReloadCommand());
+        registerCommand(new EmployeeCommand());
+        registerCommand(new LlmConfigCommand());
+        registerCommand(new EgoAuthorizationCommand());
+        registerCommand(new DebugCommand());
     }
     
     /**

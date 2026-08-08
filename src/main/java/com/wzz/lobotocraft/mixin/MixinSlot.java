@@ -1,10 +1,15 @@
 package com.wzz.lobotocraft.mixin;
 
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
+import com.wzz.lobotocraft.ego.EgoLoadoutService;
+import com.wzz.lobotocraft.ego.EgoProjectionRules;
+import com.wzz.lobotocraft.item.CaptureUnitItem;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoArmor;
+import com.wzz.lobotocraft.util.SuppressorCounterUtil;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.ResultSlot;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Final;
@@ -28,6 +33,21 @@ public abstract class MixinSlot {
     @Inject(method = "mayPickup", at = @At("HEAD"), cancellable = true)
     private void mayPickup(Player player, CallbackInfoReturnable<Boolean> cir) {
         ItemStack itemstack = this.getItem();
+        if (EgoLoadoutService.isProjection(itemstack)) {
+            cir.setReturnValue(EgoProjectionRules.mayPickUp(
+                    EgoLoadoutService.isWeaponProjection(itemstack),
+                    this.container == player.getInventory(),
+                    EgoLoadoutService.isProjectionOwnedBy(itemstack, player.getUUID()),
+                    player.isCreative()));
+            return;
+        }
+        if (!player.level().isClientSide
+                && (Object) this instanceof ResultSlot
+                && itemstack.getItem() instanceof CaptureUnitItem
+                && SuppressorCounterUtil.get(player) < SuppressorCounterUtil.capacity(player)) {
+            cir.setReturnValue(false);
+            return;
+        }
         if (itemstack.getItem() instanceof BaseEgoArmor) {
             if (lobotocraft$isArmorSlot(this.container, this.slot)) {
                 player.getCapability(CompanyDailyDataProvider.COMPANY_DAILY_DATA).ifPresent(data -> {

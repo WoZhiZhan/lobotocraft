@@ -1,5 +1,16 @@
 package com.wzz.lobotocraft.entity.data;
 
+import com.mojang.logging.LogUtils;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
+import org.slf4j.Logger;
+
+import javax.xml.XMLConstants;
+import javax.xml.parsers.DocumentBuilderFactory;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -7,6 +18,27 @@ import java.util.Map;
  * 异想体图鉴数据注册表 - 支持可变数量的管理须知
  */
 public class AbnormalityEncyclopediaData {
+
+    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final String BUNDLED_STORY_ROOT = "/assets/lobotocraft/stories/cn/";
+    private static final String[] BUNDLED_STORY_FILES = {
+            "Nullthing_cn.xml", "Onebadmanygood_cn.xml", "Happyteddy_cn.xml",
+            "IronMaiden_cn.xml", "MeatIdol_cn.xml", "StraitJacket_cn.xml",
+            "Bigbird_cn.xml", "SmallBird_cn.xml", "LongBird_cn.xml",
+            "Matchgirl_cn.xml", "Fairy_cn.xml", "QueenBee_cn.xml",
+            "RedShoes_cn.xml", "SnowQueen_cn.xml", "Ppodae_cn.xml",
+            "GalaxyBoy_cn.xml", "LittleWitch_cn.xml", "BlueStar_cn.xml",
+            "Porccu_cn.xml", "BossBird_cn.xml", "Helper_cn.xml",
+            "Cosmos_cn.xml", "BigBadWolf_cn.xml", "Butterfly_cn.xml",
+            "RedHood_cn.xml", "PinkCorps_cn.xml", "ArmorCreature_cn.xml",
+            "OldLady_cn.xml", "DangoCreature_cn.xml"
+    };
+
+    public record StoryEntry(int openLevel, String text) {
+        public boolean isUnlockedAt(int observationLevel) {
+            return observationLevel >= openLevel;
+        }
+    }
 
     /**
      * @param manuals 可变数量的管理须知
@@ -32,6 +64,8 @@ public class AbnormalityEncyclopediaData {
     }
 
     private static final Map<String, EntryData> ENCYCLOPEDIA_DATA = new HashMap<>();
+    private static final Map<String, StoryEntry[]> ORIGINAL_STORY_CACHE = new HashMap<>();
+    private static boolean originalStoriesLoaded;
 
     static {
         //一无所有 - O-06-20
@@ -375,5 +409,123 @@ public class AbnormalityEncyclopediaData {
     public static EntryData getData(String abnormalityCode) {
         return ENCYCLOPEDIA_DATA.getOrDefault(abnormalityCode,
                 new EntryData(new String[]{"未知"}, "未知"));
+    }
+
+    public static StoryEntry[] getStories(String abnormalityCode) {
+        if ("S-03-07".equals(abnormalityCode)) {
+            return new StoryEntry[]{new StoryEntry(0,
+                    "该异想体并非脑叶公司原版异想体，暂无原版故事档案。")};
+        }
+        if ("S-03-07-1".equals(abnormalityCode)) {
+            return new StoryEntry[]{new StoryEntry(0,
+                    "该实体并非脑叶公司原版异想体，暂无原版故事档案。")};
+        }
+        ensureOriginalStoriesLoaded();
+        String normalized = "0-02-62".equals(abnormalityCode) ? "O-02-62" : abnormalityCode;
+        StoryEntry[] stories = ORIGINAL_STORY_CACHE.get(normalized);
+        if (stories == null || stories.length == 0) {
+            return new StoryEntry[]{new StoryEntry(0, "暂无原版故事档案。")};
+        }
+        return stories.clone();
+    }
+
+    private static synchronized void ensureOriginalStoriesLoaded() {
+        if (originalStoriesLoaded) return;
+        originalStoriesLoaded = true;
+
+        for (String fileName : BUNDLED_STORY_FILES) {
+            String resourcePath = BUNDLED_STORY_ROOT + fileName;
+            try (InputStream stream = AbnormalityEncyclopediaData.class
+                    .getResourceAsStream(resourcePath)) {
+                if (stream == null) {
+                    LOGGER.warn("Missing bundled abnormality story resource {}", resourcePath);
+                    continue;
+                }
+                loadOriginalStoryStream(stream, resourcePath);
+            } catch (Exception exception) {
+                LOGGER.warn("Unable to load bundled abnormality story resource {}",
+                        resourcePath, exception);
+            }
+        }
+
+        // An explicit development path may override bundled translations.
+        for (Path directory : originalCreatureStoryDirectories()) {
+            if (directory == null) continue;
+            if (!Files.isDirectory(directory)) continue;
+            try (java.util.stream.Stream<Path> stream = Files.list(directory)) {
+                stream.filter(path -> path.getFileName().toString().endsWith("_cn.xml"))
+                        .forEach(AbnormalityEncyclopediaData::loadOriginalStoryFile);
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    private static Path[] originalCreatureStoryDirectories() {
+        String override = System.getProperty("lobotocraft.lobotomycorp.creatures");
+        return new Path[]{override == null || override.isBlank() ? null : Path.of(override)};
+    }
+
+    private static void loadOriginalStoryFile(Path path) {
+        if (path == null) return;
+        try (InputStream stream = Files.newInputStream(path)) {
+            loadOriginalStoryStream(stream, path.toString());
+        } catch (Exception exception) {
+            LOGGER.debug("Unable to load external abnormality story resource {}", path, exception);
+        }
+    }
+
+    private static void loadOriginalStoryStream(InputStream stream, String sourceName) {
+        if (stream == null) return;
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            factory.setXIncludeAware(false);
+            factory.setExpandEntityReferences(false);
+            factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+            Document document = factory.newDocumentBuilder().parse(stream);
+            NodeList codeNodes = document.getElementsByTagName("codeNo");
+            if (codeNodes.getLength() == 0) return;
+            String code = codeNodes.item(0).getTextContent().trim();
+            if (code.isEmpty()) return;
+            NodeList descNodes = document.getElementsByTagName("desc");
+            java.util.List<StoryEntry> stories = new java.util.ArrayList<>(descNodes.getLength());
+            for (int index = 0; index < descNodes.getLength(); index++) {
+                if (!(descNodes.item(index) instanceof Element desc)) continue;
+                String text = cleanOriginalStoryText(desc.getTextContent());
+                if (!text.isBlank()) {
+                    int openLevel = 0;
+                    try {
+                        openLevel = Integer.parseInt(desc.getAttribute("openLevel").trim());
+                    } catch (NumberFormatException ignored) {
+                    }
+                    stories.add(new StoryEntry(Math.max(0, openLevel), text));
+                }
+            }
+            if (!stories.isEmpty()) ORIGINAL_STORY_CACHE.put(code, stories.toArray(StoryEntry[]::new));
+        } catch (Exception exception) {
+            LOGGER.warn("Unable to parse abnormality story resource {}", sourceName, exception);
+        }
+    }
+
+    private static String cleanOriginalStoryText(String raw) {
+        if (raw == null) return "";
+        String text = raw.replace("\r\n", "\n").replace('\r', '\n')
+                .replaceAll("(?i)</?color[^>]*>", "")
+                .replaceAll("(?i)</?b>", "");
+        StringBuilder result = new StringBuilder(text.length());
+        for (String line : text.split("\n")) {
+            String trimmed = line.trim();
+            if (trimmed.equals("[") || trimmed.equals("]") || trimmed.isBlank()) continue;
+            if (trimmed.startsWith("{")) trimmed = trimmed.substring(1).trim();
+            if (trimmed.endsWith(",")) trimmed = trimmed.substring(0, trimmed.length() - 1).trim();
+            if (trimmed.endsWith("}")) trimmed = trimmed.substring(0, trimmed.length() - 1).trim();
+            if (trimmed.isBlank()) continue;
+            if (!result.isEmpty()) result.append("\n");
+            result.append(trimmed);
+        }
+        return result.toString();
     }
 }

@@ -47,13 +47,13 @@ import software.bernie.geckolib.core.object.PlayState;
 /**
  * 琥珀色的黎明 - 新鲜的食物。
  */
-public class EntityAmberDawn extends BaseGeoEntity {
+public class EntityAmberDawn extends BaseGeoEntity implements OrdealEntity {
     private static final EntityDataAccessor<String> ANIM =
             SynchedEntityData.defineId(EntityAmberDawn.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<Integer> ANIM_VERSION =
             SynchedEntityData.defineId(EntityAmberDawn.class, EntityDataSerializers.INT);
 
-    private static final int TELEPORT_INTERVAL_TICKS = 40 * 20;
+    private static final int TELEPORT_INTERVAL_TICKS = 2 * 60 * 20;
     private static final int ATTACK_ANIM_TICKS = 20;
     private static final int ATTACK_HIT_TICK = 12;
     private static final int ATTACK_COOLDOWN_TICKS = 22;
@@ -136,6 +136,10 @@ public class EntityAmberDawn extends BaseGeoEntity {
         return ordealSpawn;
     }
 
+    public boolean isActiveOrdealSpawn() {
+        return ordealSpawn && !countedDeath && !deathAnimationStarted && !isRemoved();
+    }
+
     public void setOrdealSpawn(boolean ordealSpawn) {
         this.ordealSpawn = ordealSpawn;
     }
@@ -165,6 +169,7 @@ public class EntityAmberDawn extends BaseGeoEntity {
         super.tick();
         if (this.level().isClientSide) return;
         if (!(this.level() instanceof ServerLevel level)) return;
+        AmberDawnEvent.updateAmberDawnTracking(this);
 
         if (deathAnimationStarted) {
             tickDeathAnimation();
@@ -231,6 +236,7 @@ public class EntityAmberDawn extends BaseGeoEntity {
         }
         if (distance >= HARD_HOME_RANGE_SQR) {
             this.teleportTo(returnPos.getX() + 0.5D, returnPos.getY(), returnPos.getZ() + 0.5D);
+            AmberDawnEvent.updateAmberDawnTracking(this);
         } else {
             this.getNavigation().moveTo(returnPos.getX() + 0.5D, returnPos.getY(), returnPos.getZ() + 0.5D, 1.2D);
         }
@@ -267,6 +273,7 @@ public class EntityAmberDawn extends BaseGeoEntity {
                 behind.x + halfWidth, behind.y + this.getBbHeight(), behind.z + halfWidth);
         if (this.level().noCollision(this, box)) {
             this.teleportTo(behind.x, behind.y, behind.z);
+            AmberDawnEvent.updateAmberDawnTracking(this);
         }
     }
 
@@ -291,6 +298,7 @@ public class EntityAmberDawn extends BaseGeoEntity {
         if (!diggingOut && digTick >= DIG_IN_TICKS) {
             BlockPos destination = homePos == null ? this.blockPosition() : homePos;
             this.teleportTo(destination.getX() + 0.5D, destination.getY(), destination.getZ() + 0.5D);
+            AmberDawnEvent.updateAmberDawnTracking(this);
             level.playSound(null, this.blockPosition(), ModSounds.AMBER_DAWN_DIG.get(), SoundSource.HOSTILE, 1.0F, 1.0F);
             diggingOut = true;
             digTick = 1;
@@ -315,7 +323,7 @@ public class EntityAmberDawn extends BaseGeoEntity {
         }
         if (this.level() instanceof ServerLevel level && ordealSpawn && !countedDeath) {
             countedDeath = true;
-            AmberDawnEvent.onAmberDawnKilled(level);
+            AmberDawnEvent.onAmberDawnKilled(level, this.getUUID());
         }
         deathAnimationStarted = true;
         deathAnimationTick = 0;

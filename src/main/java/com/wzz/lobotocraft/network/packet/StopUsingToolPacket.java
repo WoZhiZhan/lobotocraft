@@ -44,7 +44,7 @@ public class StopUsingToolPacket implements IMessage {
             Entity entity = player.level().getEntity(abnormalityId);
             if (entity instanceof IAbnormality abnormality) {
                 // 检查是否为持续使用型工具
-                if (abnormality.isContinuousUseTool()) {
+                if (abnormality.isToolType() && abnormality.isContinuousUseTool() && abnormality.isUsing(player)) {
                     // 调用接口方法停止使用
                     abnormality.stopUsing(player);
                 } else {

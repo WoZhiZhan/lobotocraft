@@ -1,5 +1,7 @@
 package com.wzz.lobotocraft.entity.ai;
 
+import com.wzz.lobotocraft.event.listener.EgoAttackOwnershipPolicy;
+import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
@@ -94,8 +96,12 @@ public class AttackAI {
                         player.jumpFromGround();
                     }
 
-                    targetEntity.hurt(player.damageSources().mobAttack(player), 4.0f);
-                    player.attack(targetEntity);
+                    ItemStack stack = player.getMainHandItem();
+                    boolean handledByItem = stack.getItem().onLeftClickEntity(stack, player, targetEntity);
+                    if (EgoAttackOwnershipPolicy.shouldUseVanillaFallback(
+                            handledByItem, stack.getItem() instanceof BaseEgoWeapon)) {
+                        player.attack(targetEntity);
+                    }
                 }
             }
 

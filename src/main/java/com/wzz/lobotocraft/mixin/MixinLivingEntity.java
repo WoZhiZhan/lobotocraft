@@ -14,17 +14,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(LivingEntity.class)
 public class MixinLivingEntity {
 
-    @Inject(method = "knockback", at = @At("HEAD"), cancellable = true)
-    private void onKnockback(double p_147241_, double p_147242_, double p_147243_, CallbackInfo ci) {
-        LivingEntity self = (LivingEntity) (Object) this;
-        if (self instanceof Player)
-            ci.cancel();
-    }
-
     @Inject(method = "aiStep", at = @At("HEAD"), cancellable = true)
     private void aiStep(CallbackInfo ci) {
         LivingEntity self = (LivingEntity) (Object) this;
-        if (self.getPersistentData().getBoolean("NotMove"))
+        if (self.getPersistentData().getBoolean("NotMove")
+                || self.getPersistentData().getBoolean("isSnowQueen"))
             ci.cancel();
         if (!(self instanceof Player)) {
             MobEffectInstance kissEffect = self.getEffect(ModMobEffects.KISS.get());
@@ -40,7 +34,8 @@ public class MixinLivingEntity {
     @Inject(method = "travel", at = @At("HEAD"), cancellable = true)
     private void travel(CallbackInfo ci) {
         LivingEntity self = (LivingEntity) (Object) this;
-        if (self.getPersistentData().getBoolean("NotMove"))
+        if (self.getPersistentData().getBoolean("NotMove")
+                || self.getPersistentData().getBoolean("isSnowQueen"))
             ci.cancel();
     }
 

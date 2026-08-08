@@ -1,35 +1,58 @@
 package com.wzz.lobotocraft.client.screen;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.wzz.lobotocraft.client.performance.ClientPerformanceMonitor;
+import com.wzz.lobotocraft.client.core.CoreSuppressionClientState;
+import com.wzz.lobotocraft.client.room.FacilityLayoutTemplate;
+import com.wzz.lobotocraft.client.room.FacilityMonitorVisibility;
 import com.wzz.lobotocraft.client.room.RoomMapViewState;
 import com.wzz.lobotocraft.client.room.RoomViewClient;
+import com.wzz.lobotocraft.client.ui.LobotomyUiTheme;
+import com.wzz.lobotocraft.employee.EmployeeDepartment;
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.BindRoomAbnormalityPacket;
+import com.wzz.lobotocraft.network.packet.AssignRoomEmployeeWorkPacket;
+import com.wzz.lobotocraft.network.packet.AssignEmployeesMoveAreaPacket;
 import com.wzz.lobotocraft.network.packet.OpenRoomAbnormalityInfoPacket;
 import com.wzz.lobotocraft.network.packet.RequestNearbyAbnormalitiesPacket;
+import com.wzz.lobotocraft.network.packet.RequestRoomWorkCandidatesPacket;
+import com.wzz.lobotocraft.network.packet.RequestRoomSuppressionCandidatesPacket;
+import com.wzz.lobotocraft.network.packet.AssignRoomEmployeeSuppressionPacket;
 import com.wzz.lobotocraft.network.packet.RoomTeleportRequestPacket;
-import com.wzz.lobotocraft.network.packet.StartRoomWorkPacket;
 import com.wzz.lobotocraft.network.packet.SetFloorNamePacket;
+import com.wzz.lobotocraft.network.packet.ToggleGlobalTT2Packet;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.world.data.AbnormalityCandidate;
+import com.wzz.lobotocraft.world.data.FacilityAreaEntry;
+import com.wzz.lobotocraft.world.data.FacilityAreaSelection;
 import com.wzz.lobotocraft.world.data.FloorEntry;
 import com.wzz.lobotocraft.world.data.RoomEntry;
+import com.wzz.lobotocraft.world.data.RoomEmployeeSnapshot;
+import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
  * 二维设施平面图。
@@ -40,67 +63,139 @@ import java.util.UUID;
  * <p>
  * 操作：
  * <ul>
- *   <li>左键房间：传送过去</li>
- *   <li>右键房间：打开这只异想体的图鉴</li>
- *   <li>Ctrl + 左键拖房间：调整它在图上的显示位置（只影响 GUI，房间太挤时用），会记住</li>
+ *   <li>左键房间：选择异想体并打开工作派遣草稿</li>
+ *   <li>左键空白拖动：框选员工</li>
+ *   <li>右键收容单元：资料；Shift+右键：传送；Ctrl+右键：更改住户</li>
+ *   <li>框选员工后右键区域：移动；右键或中键拖动：平移视角</li>
  *   <li>左键楼层条：切换楼层；右键楼层条：给这层改名</li>
- *   <li>滚轮缩放 / 拖动平移，位置每层单独记忆，下次打开还在原处</li>
- *   <li>空格复位视野，Ctrl+空格清掉所有手动挪动的房间位置</li>
+ *   <li>滚轮缩放，视野位置会记忆</li>
+ *   <li>R 复位视野</li>
  * </ul>
  */
 public class RoomMapScreen extends Screen {
 
     private static final ResourceLocation QUESTION_MARK =
             ResourceUtil.createInstance("textures/gui/question_mark.png");
+    private static final ResourceLocation[] WORK_ICONS = {
+            ResourceUtil.createInstance("textures/gui/work_pref_instinct.png"),
+            ResourceUtil.createInstance("textures/gui/work_pref_insight.png"),
+            ResourceUtil.createInstance("textures/gui/work_pref_attachment.png"),
+            ResourceUtil.createInstance("textures/gui/work_pref_repression.png")
+    };
+    private static final ResourceLocation MALKUTH_UNKNOWN_WORK =
+            ResourceUtil.createInstance("textures/gui/core_suppression/malkuth_unknown_work.png");
+    private static final String[] WORK_NAMES = {"本能", "洞察", "沟通", "压迫"};
+    private static final ResourceLocation[] STAT_ICONS = {
+            ResourceUtil.createInstance("textures/gui/theme/stat_fortitude.png"),
+            ResourceUtil.createInstance("textures/gui/theme/stat_prudence.png"),
+            ResourceUtil.createInstance("textures/gui/theme/stat_temperance.png"),
+            ResourceUtil.createInstance("textures/gui/theme/stat_justice.png")
+    };
+    private static final ResourceLocation PAGE_ARROW =
+            ResourceUtil.createInstance("textures/gui/monitor/page_arrow.png");
+    private static final ResourceLocation PAGE_ARROW_HOVER =
+            ResourceUtil.createInstance("textures/gui/monitor/page_arrow_hover.png");
+    private static final ResourceLocation DEPARTMENT_HEADER =
+            ResourceUtil.createInstance("textures/gui/monitor/department_header.png");
 
     /** 右上角显示的名字。按你的要求写死 */
     private static final String FACILITY_NAME = "公司";
 
     private static final int HEADER_H = 32;
 
-    private static final int CARD_W = 120;
-    private static final int CARD_H = 146;
-    private static final int PORTRAIT = 64;
+    private static final int CARD_W = 94;
+    private static final int CARD_H = 72;
+    private static final int PORTRAIT = 30;
 
-    private static final int TAB_W = 132;
-    private static final int TAB_H = 32;
-    private static final int TAB_GAP = 4;
-    private static final int TAB_X = 10;
-    private static final int TAB_TOP = HEADER_H + 22;
+    private static final int GUTTER_W = 108;
+    private static final int FLOOR_LABEL_H = 28;
+    private static final int FLOOR_HEADER_H = 20;
+    private static final int NODE_X_PITCH = 112;
+    private static final int NODE_Y_PITCH = 88;
+    private static final int MAX_NODES_PER_ROW = 8;
+    private static final int FLOOR_GAP = 18;
+    private static final String OVERVIEW_VIEW_KEY = "__facility_overview__";
+    private static final double TEMPLATE_WIDTH = 1700.0D;
+    private static final double TEMPLATE_HEIGHT = 1700.0D;
+    private static final int TAB_X = 8;
+    private static final int TAB_W = GUTTER_W - 16;
+    private static final int TAB_H = FLOOR_LABEL_H;
+    private static final int TAB_GAP = 0;
+    private static final int TAB_TOP = HEADER_H;
 
     /** 没有楼层标记方块时，自动分层用的 Y 容差 */
     private static final int AUTO_FLOOR_TOLERANCE = 6;
 
-    private static final int COLOR_BG = 0xC8060A12;
-    private static final int COLOR_GRID = 0x1A5FA8D3;
-    private static final int COLOR_GRID_MAJOR = 0x335FA8D3;
-    private static final int COLOR_CARD_BG = 0xE00C1220;
-    private static final int COLOR_CARD_BG_HOVER = 0xF0142236;
-    private static final int COLOR_PANEL = 0xE0080D16;
-    private static final int COLOR_TEXT = 0xFFE8EEF5;
-    private static final int COLOR_TEXT_DIM = 0xFF8A99AD;
-    private static final int COLOR_ACCENT = 0xFF5FA8D3;
+    private static final int COLOR_BG = LobotomyUiTheme.BG_SCRIM;
+    private static final int COLOR_CARD_BG = LobotomyUiTheme.BG_PANEL_SOLID;
+    private static final int COLOR_CARD_BG_HOVER = LobotomyUiTheme.BG_INSET;
+    private static final int COLOR_PANEL = LobotomyUiTheme.BG_PANEL_SOLID;
+    private static final int COLOR_TEXT = LobotomyUiTheme.TEXT_TITLE;
+    private static final int COLOR_TEXT_DIM = LobotomyUiTheme.TEXT_MUTED;
+    private static final int COLOR_ACCENT = LobotomyUiTheme.ACCENT;
 
-    private static final int STATUS_OCCUPIED = 0xFF4ADE80;
-    private static final int STATUS_ESCAPED = 0xFFEF4444;
-    private static final int STATUS_EMPTY = 0xFF7A8798;
-    private static final int STATUS_LOST = 0xFFD9A036;
+    private static final int STATUS_OCCUPIED = LobotomyUiTheme.ENERGY_GREEN;
+    private static final int STATUS_ESCAPED = LobotomyUiTheme.ALERT_RED;
+    private static final int STATUS_EMPTY = LobotomyUiTheme.TEXT_DISABLED;
+    private static final int STATUS_LOST = LobotomyUiTheme.WARN_YELLOW;
+    private static final int STATUS_UNEXPANDED = 0xFF74808E;
 
     private static final int PICKER_W = 340;
     private static final int PICKER_ROW_H = 30;
     private static final int PICKER_HEADER_H = 26;
     private static final int PICKER_FOOTER_H = 28;
     private static final int PICKER_MAX_ROWS = 8;
+    private static final int DETAILS_W = 126;
+    private static final int DETAILS_H = 218;
+    private static final int CANDIDATE_W = 174;
+    private static final int CANDIDATE_H = 256;
+    private static final int COMMAND_GAP = 4;
+    private static final int DETAILS_MARGIN = 10;
+    private static final int DETAILS_TOP = HEADER_H + 10;
+    private static final int WORK_ICON_SIZE = 38;
+    private static final int WORK_ICON_GAP = 10;
+    private static final int ACTIVE_WORK_ICON_SIZE = 8;
+    private static final int ACTIVE_WORK_ICON_GAP = 3;
+    private static final int CANDIDATE_ROW_H = 44;
+    private static final int CANDIDATES_PER_PAGE = 5;
+    // Lobotomy Corporation's SefiraManager.Init order, with the two Tiphereth
+    // sections represented by this mod's single Central department.
+    private static final List<EmployeeDepartment> CANDIDATE_DEPARTMENT_ORDER = List.of(
+            EmployeeDepartment.CONTROL,
+            EmployeeDepartment.INFORMATION,
+            EmployeeDepartment.TRAINING,
+            EmployeeDepartment.SAFETY,
+            EmployeeDepartment.CENTRAL,
+            EmployeeDepartment.DISCIPLINARY,
+            EmployeeDepartment.WELFARE,
+            EmployeeDepartment.EXTRACTION,
+            EmployeeDepartment.RECORD,
+            EmployeeDepartment.ARCHITECTURE);
+    private static final int SUPPRESSION_SELECTION = WorkType.values().length;
+    private static final double BOX_SELECT_THRESHOLD_SQ = 16.0D;
 
     private List<RoomEntry> rooms;
     private List<FloorEntry> floorEntries;
+    private List<FacilityAreaEntry> areas;
+    private List<RoomEmployeeSnapshot> employees;
+    private Set<String> dangerousAreaIds;
     private long serverGameTime;
+    private boolean globalTt2Enabled;
+    private long snapshotReceivedAtMillis;
     private final ResourceLocation dimension;
 
     private final List<Floor> floors = new ArrayList<>();
     private int selectedFloor = 0;
     private String selectedLabel = null;
-    private double tabScroll = 0;
+    private final Map<String, LayoutPoint> roomLayout = new HashMap<>();
+    private final Map<String, String> roomAreaIds = new HashMap<>();
+    private final FacilityLayoutTemplate facilityLayout = FacilityLayoutTemplate.defaultLayout();
+    private FacilityMonitorVisibility facilityVisibility = FacilityMonitorVisibility.empty();
+    private double layoutMinX;
+    private double layoutMaxX;
+    private double layoutMinY;
+    private double layoutMaxY;
+    private double tabScroll = 0.0D;
 
     /** 正在改名的楼层下标，-1 = 没有 */
     private int renamingFloor = -1;
@@ -116,8 +211,40 @@ public class RoomMapScreen extends Screen {
 
     private final long openedAt = Util.getMillis();
     private RoomEntry hovered;
+    private FacilityLayoutTemplate.Area hoveredFacilityArea;
+    private RoomEntry selectedRoom;
+    private int selectedWork = -1;
+    private int hoveredWork = -1;
+
+    private boolean selectionArmed;
+    private boolean selectingEmployees;
+    private int cameraPanButton = -1;
+    private boolean moveCommandArmed;
+    private double moveCommandStartX;
+    private double moveCommandStartY;
+    private String pendingMoveGroupId;
+    private String movePulseGroupId;
+    private long movePulseAt;
+    private double selectionStartX;
+    private double selectionStartY;
+    private double selectionEndX;
+    private double selectionEndY;
+    private final List<EmployeeMapMarker> employeeMarkers = new ArrayList<>();
+    private final Set<UUID> selectedEmployees = new HashSet<>();
+    private Consumer<Set<UUID>> employeeSelectionListener = ignored -> { };
+    private List<RoomEmployeeSnapshot> workCandidates = List.of();
+    private List<CandidatePage> candidatePages = List.of();
+    private int candidatePage;
+    private boolean candidatesLoading;
+    private String candidateError = "";
+    private String assignmentMessage = "";
+    private boolean assignmentSucceeded;
+    private long assignmentMessageAt;
+    private long workSelectedAt;
+    private RoomEmployeeSnapshot hoveredCandidate;
+    private RoomEmployeeSnapshot hoveredMapEmployee;
+    private boolean hoveredTt2Button;
     /** Ctrl 拖拽中的房间 */
-    private RoomEntry dragging;
 
     /** "更改住户"选单。null = 没打开 */
     private RoomEntry pickerRoom;
@@ -125,13 +252,29 @@ public class RoomMapScreen extends Screen {
     private int pickerScroll = 0;
 
     public RoomMapScreen(List<RoomEntry> rooms, List<FloorEntry> floorEntries,
-                         long serverGameTime, ResourceLocation dimension) {
+                         List<FacilityAreaEntry> areas, List<RoomEmployeeSnapshot> employees,
+                         Set<String> dangerousAreaIds, long serverGameTime,
+                         boolean globalTt2Enabled, ResourceLocation dimension) {
         super(Component.literal("设施监控"));
         this.rooms = new ArrayList<>(rooms);
         this.floorEntries = new ArrayList<>(floorEntries);
+        this.areas = new ArrayList<>(areas);
+        this.facilityVisibility = FacilityMonitorVisibility.fromAreas(this.areas);
+        this.employees = new ArrayList<>(employees);
+        this.dangerousAreaIds = Set.copyOf(dangerousAreaIds);
         this.serverGameTime = serverGameTime;
+        this.globalTt2Enabled = globalTt2Enabled;
+        this.snapshotReceivedAtMillis = Util.getMillis();
         this.dimension = dimension;
         this.selectedLabel = RoomMapViewState.getLastFloorLabel();
+    }
+
+    public RoomMapScreen(List<RoomEntry> rooms, List<FloorEntry> floorEntries,
+                         List<FacilityAreaEntry> areas, List<RoomEmployeeSnapshot> employees,
+                         Set<String> dangerousAreaIds, long serverGameTime,
+                         ResourceLocation dimension) {
+        this(rooms, floorEntries, areas, employees, dangerousAreaIds, serverGameTime,
+                false, dimension);
     }
 
     @Override
@@ -139,6 +282,7 @@ public class RoomMapScreen extends Screen {
         super.init();
         buildFloors();
         restoreOrFitView();
+        rebuildEmployeeMarkers();
     }
 
     // ------------------------------------------------------------ 楼层分组
@@ -149,6 +293,9 @@ public class RoomMapScreen extends Screen {
         final BlockPos markerPos;
         int topY = Integer.MIN_VALUE;
         final List<RoomEntry> rooms = new ArrayList<>();
+        double layoutTop;
+        double layoutBottom;
+        double layoutCenter;
 
         Floor(String label, BlockPos markerPos) {
             this.label = label;
@@ -162,6 +309,80 @@ public class RoomMapScreen extends Screen {
             }
             return count;
         }
+    }
+
+    private record LayoutPoint(double x, double y) {
+    }
+
+    private record ScreenBounds(int left, int top, int right, int bottom) {
+        int width() {
+            return Math.max(0, right - left);
+        }
+
+        int height() {
+            return Math.max(0, bottom - top);
+        }
+
+        boolean contains(double x, double y) {
+            return x >= left && x < right && y >= top && y < bottom;
+        }
+    }
+
+    /**
+     * Pure-client adapter for the later employee snapshot. Coordinates use this screen's layout
+     * world (the same coordinate space returned by {@link #screenToLayout(double, double)}).
+     */
+    public record EmployeeMapMarker(UUID employeeId, String displayName, String departmentId,
+                                    double layoutX, double layoutY,
+                                    int areaIndex, int areaPopulation, boolean commandable) {
+    }
+
+    private record EmployeeMarkerDraft(RoomEmployeeSnapshot employee, String areaKey,
+                                       double layoutX, double layoutY) {
+    }
+
+    private record MarkerScreenPoint(double x, double y) {
+    }
+
+    /** Immutable work-selection draft exposed to the dispatch controls. */
+    public record WorkDispatchSelection(RoomEntry room, WorkType workType, Set<UUID> employeeIds) {
+        public WorkDispatchSelection {
+            employeeIds = Set.copyOf(employeeIds);
+        }
+    }
+
+    private record CandidatePage(String departmentId, List<RoomEmployeeSnapshot> employees) {
+    }
+
+    /** Converts a screen point to the stable schematic coordinate space used by employee markers. */
+    public double[] screenToLayout(double screenX, double screenY) {
+        return new double[]{screenToWorldX(screenX), screenToWorldZ(screenY)};
+    }
+
+    /** Replaces the employee markers without coupling this screen to a packet or snapshot format. */
+    public void setEmployeeMarkers(List<EmployeeMapMarker> markers) {
+        employeeMarkers.clear();
+        if (markers != null) employeeMarkers.addAll(markers);
+        Set<UUID> available = new HashSet<>();
+        for (EmployeeMapMarker marker : employeeMarkers) available.add(marker.employeeId());
+        if (selectedEmployees.retainAll(available)) notifyEmployeeSelectionChanged();
+    }
+
+    public void setEmployeeSelectionListener(Consumer<Set<UUID>> listener) {
+        employeeSelectionListener = listener == null ? ignored -> { } : listener;
+    }
+
+    public Set<UUID> selectedEmployeeIds() {
+        return Set.copyOf(selectedEmployees);
+    }
+
+    public Optional<WorkDispatchSelection> workDispatchSelection() {
+        if (selectedRoom == null || selectedWork < 0 || selectedWork >= WorkType.values().length) {
+            return Optional.empty();
+        }
+        if (selectedRoom.status == RoomEntry.STATUS_UNEXPANDED) return Optional.empty();
+        return Optional.of(new WorkDispatchSelection(
+                selectedRoom, WorkType.values()[selectedWork], selectedEmployees));
     }
 
     private void buildFloors() {
@@ -226,104 +447,566 @@ public class RoomMapScreen extends Screen {
         if (!floors.isEmpty()) {
             selectedLabel = floors.get(selectedFloor).label;
         }
+        buildOverviewLayout();
     }
 
     private List<RoomEntry> visibleRooms() {
-        if (floors.isEmpty()) return new ArrayList<>();
-        return floors.get(Mth.clamp(selectedFloor, 0, floors.size() - 1)).rooms;
+        return rooms;
     }
 
     private boolean showTabs() {
-        return floors.size() >= 2;
+        return !floors.isEmpty();
     }
 
     private int mapLeft() {
-        return showTabs() ? TAB_X + TAB_W + 11 : 0;
+        return showTabs() ? GUTTER_W : 0;
     }
 
     private void selectFloor(int index) {
         if (floors.isEmpty()) return;
-        saveCurrentView();
         cancelRename();
         selectedFloor = Mth.clamp(index, 0, floors.size() - 1);
         selectedLabel = floors.get(selectedFloor).label;
         RoomMapViewState.setLastFloorLabel(selectedLabel);
-        restoreOrFitView();
+        focusFloor(floors.get(selectedFloor));
+    }
+
+    /** Builds the whole-company schematic and assigns each room to one stable template slot. */
+    private void buildOverviewLayout() {
+        roomLayout.clear();
+        roomAreaIds.clear();
+
+        List<RoomEntry> orderedRooms = new ArrayList<>();
+
+        for (Floor floor : floors) {
+            floor.rooms.sort(Comparator
+                    .comparingInt((RoomEntry room) -> room.pos.getZ())
+                    .thenComparingInt(room -> room.pos.getX())
+                    .thenComparingInt(room -> room.pos.getY())
+                    .thenComparing(RoomEntry::key));
+            orderedRooms.addAll(floor.rooms);
+        }
+
+        List<FacilityLayoutTemplate.Area> containmentSlots = facilityLayout.allAreas().stream()
+                .filter(area -> area.role() == FacilityLayoutTemplate.AreaRole.CONTAINMENT_ROOM
+                        && facilityVisibility.isVisible(area))
+                .toList();
+        Set<String> usedAreaIds = new HashSet<>();
+        Set<String> assignedRoomKeys = new HashSet<>();
+
+        // A groupId equal to a template areaId is the explicit binding interface for real coordinates.
+        for (RoomEntry room : orderedRooms) {
+            Optional<FacilityLayoutTemplate.Area> explicit = explicitTemplateArea(room);
+            if (explicit.isPresent() && usedAreaIds.add(explicit.get().areaId())) {
+                assignRoomToArea(room, explicit.get());
+                assignedRoomKeys.add(room.key());
+            }
+        }
+
+        // Department ownership is the normal automatic binding path.
+        for (RoomEntry room : orderedRooms) {
+            if (assignedRoomKeys.contains(room.key()) || room.departmentId == null
+                    || room.departmentId.isBlank()) continue;
+            for (FacilityLayoutTemplate.Area slot : facilityLayout.areasForDepartment(room.departmentId)) {
+                if (slot.role() == FacilityLayoutTemplate.AreaRole.CONTAINMENT_ROOM
+                        && facilityVisibility.isVisible(slot)
+                        && usedAreaIds.add(slot.areaId())) {
+                    assignRoomToArea(room, slot);
+                    assignedRoomKeys.add(room.key());
+                    break;
+                }
+            }
+        }
+
+        // Old saves do not have department metadata. Preserve deterministic top-to-bottom placement.
+        int nextSlot = 0;
+        for (RoomEntry room : orderedRooms) {
+            if (assignedRoomKeys.contains(room.key())) continue;
+            while (nextSlot < containmentSlots.size()
+                    && usedAreaIds.contains(containmentSlots.get(nextSlot).areaId())) {
+                nextSlot++;
+            }
+            if (nextSlot < containmentSlots.size()) {
+                FacilityLayoutTemplate.Area slot = containmentSlots.get(nextSlot++);
+                usedAreaIds.add(slot.areaId());
+                assignRoomToArea(room, slot);
+                assignedRoomKeys.add(room.key());
+            }
+        }
+
+        // More rooms than the reference layout supports remain visible in an overflow row.
+        int overflowIndex = 0;
+        int overflowColumns = Math.max(1, Math.min(MAX_NODES_PER_ROW,
+                orderedRooms.size() - assignedRoomKeys.size()));
+        for (RoomEntry room : orderedRooms) {
+            if (assignedRoomKeys.contains(room.key())) continue;
+            int row = overflowIndex / overflowColumns;
+            int column = overflowIndex % overflowColumns;
+            double x = (column - (overflowColumns - 1) / 2.0D) * NODE_X_PITCH;
+            double y = TEMPLATE_HEIGHT + CARD_H + row * NODE_Y_PITCH;
+            roomLayout.put(room.key(), new LayoutPoint(x, y));
+            overflowIndex++;
+        }
+
+        for (int floorIndex = 0; floorIndex < floors.size(); floorIndex++) {
+            Floor floor = floors.get(floorIndex);
+            double minY = Double.POSITIVE_INFINITY;
+            double maxY = Double.NEGATIVE_INFINITY;
+            for (RoomEntry room : floor.rooms) {
+                LayoutPoint point = roomLayout.get(room.key());
+                if (point == null) continue;
+                minY = Math.min(minY, point.y());
+                maxY = Math.max(maxY, point.y());
+            }
+            if (!Double.isFinite(minY)) {
+                double step = TEMPLATE_HEIGHT / Math.max(1, floors.size());
+                minY = maxY = (floorIndex + 0.5D) * step;
+            }
+            floor.layoutTop = minY - CARD_H / 2.0D - 8.0D;
+            floor.layoutBottom = maxY + CARD_H / 2.0D + 8.0D;
+            floor.layoutCenter = (floor.layoutTop + floor.layoutBottom) / 2.0D;
+        }
+
+        layoutMinX = -TEMPLATE_WIDTH / 2.0D;
+        layoutMaxX = TEMPLATE_WIDTH / 2.0D;
+        layoutMinY = 0.0D;
+        layoutMaxY = overflowIndex == 0 ? TEMPLATE_HEIGHT
+                : TEMPLATE_HEIGHT + CARD_H * 1.5D
+                + ((overflowIndex - 1) / overflowColumns) * NODE_Y_PITCH;
+    }
+
+    private Optional<FacilityLayoutTemplate.Area> explicitTemplateArea(RoomEntry room) {
+        for (FacilityAreaEntry area : areas) {
+            if (!area.markerPos.equals(room.pos) || area.dimension == null
+                    || !area.dimension.equals(room.dimension)
+                    || area.groupId == null || area.groupId.isBlank()) continue;
+            Optional<FacilityLayoutTemplate.Area> templateArea = facilityLayout.areaById(area.groupId);
+            if (templateArea.isPresent()
+                    && templateArea.get().role() == FacilityLayoutTemplate.AreaRole.CONTAINMENT_ROOM) {
+                return templateArea;
+            }
+        }
+        return Optional.empty();
+    }
+
+    private void assignRoomToArea(RoomEntry room, FacilityLayoutTemplate.Area area) {
+        FacilityLayoutTemplate.Point center = area.center();
+        roomLayout.put(room.key(), new LayoutPoint(templateWorldX(center.x()), templateWorldY(center.y())));
+        roomAreaIds.put(room.key(), area.areaId());
     }
 
     // ------------------------------------------------------------ 视野
 
     /** 有记住的位置就用记住的，没有就自动适配 */
     private void restoreOrFitView() {
-        if (selectedLabel != null) {
-            double[] saved = RoomMapViewState.getFloorView(selectedLabel);
-            if (saved != null && saved[2] > 0) {
-                computeCenter();
-                panX = saved[0];
-                panY = saved[1];
-                zoom = saved[2];
-                return;
-            }
+        double[] saved = RoomMapViewState.getFloorView(OVERVIEW_VIEW_KEY);
+        if (saved != null && saved[2] > 0) {
+            computeCenter();
+            panX = saved[0];
+            panY = saved[1];
+            zoom = saved[2];
+            return;
         }
         fitToView();
     }
 
     private void computeCenter() {
-        List<RoomEntry> visible = visibleRooms();
-        if (visible.isEmpty()) return;
-        double minX = Double.MAX_VALUE, maxX = -Double.MAX_VALUE;
-        double minZ = Double.MAX_VALUE, maxZ = -Double.MAX_VALUE;
-        for (RoomEntry entry : visible) {
-            double[] off = RoomMapViewState.getRoomOffset(entry.key());
-            double x = entry.pos.getX() + off[0];
-            double z = entry.pos.getZ() + off[1];
-            minX = Math.min(minX, x);
-            maxX = Math.max(maxX, x);
-            minZ = Math.min(minZ, z);
-            maxZ = Math.max(maxZ, z);
-        }
-        centerWorldX = (minX + maxX) / 2.0D;
-        centerWorldZ = (minZ + maxZ) / 2.0D;
+        centerWorldX = (layoutMinX + layoutMaxX) / 2.0D;
+        centerWorldZ = (layoutMinY + layoutMaxY) / 2.0D;
     }
 
     private void fitToView() {
-        List<RoomEntry> visible = visibleRooms();
-        if (visible.isEmpty()) return;
+        if (floors.isEmpty()) return;
 
         computeCenter();
+        double spanX = Math.max(CARD_W, layoutMaxX - layoutMinX + CARD_W);
+        double spanY = Math.max(CARD_H, layoutMaxY - layoutMinY + 24.0D);
+        double usableW = Math.max(120.0D, this.width - mapLeft() - 30.0D);
+        double usableH = Math.max(120.0D, this.height - HEADER_H - 36.0D);
 
-        double minX = Double.MAX_VALUE, maxX = -Double.MAX_VALUE;
-        double minZ = Double.MAX_VALUE, maxZ = -Double.MAX_VALUE;
-        for (RoomEntry entry : visible) {
-            double[] off = RoomMapViewState.getRoomOffset(entry.key());
-            minX = Math.min(minX, entry.pos.getX() + off[0]);
-            maxX = Math.max(maxX, entry.pos.getX() + off[0]);
-            minZ = Math.min(minZ, entry.pos.getZ() + off[1]);
-            maxZ = Math.max(maxZ, entry.pos.getZ() + off[1]);
-        }
-
-        double spanX = Math.max(1, maxX - minX);
-        double spanZ = Math.max(1, maxZ - minZ);
-        double usableW = (this.width - mapLeft()) - CARD_W - 40;
-        double usableH = (this.height - HEADER_H) - CARD_H - 50;
-
-        this.zoom = Mth.clamp(Math.min(usableW / spanX, usableH / spanZ), 0.35D, 6.0D);
+        this.zoom = Mth.clamp(Math.min(usableW / spanX, usableH / spanY), 0.45D, 1.35D);
         this.panX = 0;
         this.panY = 0;
         saveCurrentView();
     }
 
     private void saveCurrentView() {
-        if (selectedLabel != null) {
-            RoomMapViewState.setFloorView(selectedLabel, panX, panY, zoom);
+        RoomMapViewState.setFloorView(OVERVIEW_VIEW_KEY, panX, panY, zoom);
+    }
+
+    private void focusFloor(Floor floor) {
+        computeCenter();
+        panX = 0.0D;
+        panY = -(floor.layoutCenter - centerWorldZ) * zoom;
+        saveCurrentView();
+    }
+
+    public void onDataRefreshed(List<RoomEntry> newRooms, List<FloorEntry> newFloors,
+                                List<FacilityAreaEntry> newAreas,
+                                List<RoomEmployeeSnapshot> newEmployees,
+                                Set<String> newDangerousAreaIds, long newServerGameTime,
+                                boolean newGlobalTt2Enabled) {
+        long sectionStarted = ClientPerformanceMonitor.beginSection("room_map_refresh");
+        try {
+            applyDataRefresh(newRooms, newFloors, newAreas, newEmployees,
+                    newDangerousAreaIds, newServerGameTime, newGlobalTt2Enabled);
+        } finally {
+            ClientPerformanceMonitor.endSection("room_map_refresh", sectionStarted);
         }
     }
 
-    public void onDataRefreshed(List<RoomEntry> newRooms, List<FloorEntry> newFloors, long newServerGameTime) {
-        this.rooms = new ArrayList<>(newRooms);
-        this.floorEntries = new ArrayList<>(newFloors);
+    private void applyDataRefresh(List<RoomEntry> newRooms, List<FloorEntry> newFloors,
+                                  List<FacilityAreaEntry> newAreas,
+                                  List<RoomEmployeeSnapshot> newEmployees,
+                                  Set<String> newDangerousAreaIds, long newServerGameTime,
+                                  boolean newGlobalTt2Enabled) {
+        boolean layoutChanged = !hasSameLayout(newRooms, newFloors, newAreas);
+        boolean employeeMarkerLayoutChanged = layoutChanged
+                || !hasSameEmployeeMarkerLayout(this.employees, newEmployees);
+        String selectedKey = selectedRoom == null ? null : selectedRoom.key();
+        if (layoutChanged) {
+            this.rooms = new ArrayList<>(newRooms);
+            this.floorEntries = new ArrayList<>(newFloors);
+            this.areas = new ArrayList<>(newAreas);
+            this.facilityVisibility = FacilityMonitorVisibility.fromAreas(this.areas);
+        } else {
+            updateRoomSnapshotsInPlace(newRooms);
+        }
+        this.employees = new ArrayList<>(newEmployees);
+        this.dangerousAreaIds = Set.copyOf(newDangerousAreaIds);
         this.serverGameTime = newServerGameTime;
-        buildFloors();
+        this.globalTt2Enabled = newGlobalTt2Enabled;
+        this.snapshotReceivedAtMillis = Util.getMillis();
+
+        if (layoutChanged) {
+            buildFloors();
+            computeCenter();
+            selectedRoom = null;
+            if (selectedKey != null) {
+                for (RoomEntry room : rooms) {
+                    if (selectedKey.equals(room.key())) {
+                        selectedRoom = room;
+                        break;
+                    }
+                }
+            }
+        }
+        if (selectedRoom == null) selectedWork = -1;
+        else if (isSuppressionSelection() && selectedRoom.status != RoomEntry.STATUS_ESCAPED) {
+            selectedWork = -1;
+            workCandidates = List.of();
+            candidatePages = List.of();
+        }
+        if (employeeMarkerLayoutChanged) rebuildEmployeeMarkers();
+    }
+
+    public void onDataRefreshed(List<RoomEntry> newRooms, List<FloorEntry> newFloors,
+                                List<FacilityAreaEntry> newAreas,
+                                List<RoomEmployeeSnapshot> newEmployees,
+                                Set<String> newDangerousAreaIds, long newServerGameTime) {
+        onDataRefreshed(newRooms, newFloors, newAreas, newEmployees,
+                newDangerousAreaIds, newServerGameTime, globalTt2Enabled);
+    }
+
+    private boolean hasSameLayout(List<RoomEntry> newRooms, List<FloorEntry> newFloors,
+                                  List<FacilityAreaEntry> newAreas) {
+        if (rooms.size() != newRooms.size() || floorEntries.size() != newFloors.size()
+                || areas.size() != newAreas.size()) return false;
+
+        for (int index = 0; index < rooms.size(); index++) {
+            RoomEntry current = rooms.get(index);
+            RoomEntry updated = newRooms.get(index);
+            if (!java.util.Objects.equals(current.dimension, updated.dimension)
+                    || !java.util.Objects.equals(current.pos, updated.pos)
+                    || !java.util.Objects.equals(current.departmentId, updated.departmentId)
+                    || current.floorIndex != updated.floorIndex
+                    || !java.util.Objects.equals(current.floorName, updated.floorName)
+                    || current.floorY != updated.floorY) return false;
+        }
+        for (int index = 0; index < floorEntries.size(); index++) {
+            FloorEntry current = floorEntries.get(index);
+            FloorEntry updated = newFloors.get(index);
+            if (!java.util.Objects.equals(current.dimension, updated.dimension)
+                    || !java.util.Objects.equals(current.pos, updated.pos)
+                    || !java.util.Objects.equals(current.name, updated.name)) return false;
+        }
+        for (int index = 0; index < areas.size(); index++) {
+            if (!sameAreaGeometry(areas.get(index), newAreas.get(index))) return false;
+        }
+        return true;
+    }
+
+    private static boolean sameAreaGeometry(FacilityAreaEntry current, FacilityAreaEntry updated) {
+        return java.util.Objects.equals(current.dimension, updated.dimension)
+                && java.util.Objects.equals(current.key, updated.key)
+                && java.util.Objects.equals(current.markerPos, updated.markerPos)
+                && java.util.Objects.equals(current.minPos, updated.minPos)
+                && java.util.Objects.equals(current.maxPos, updated.maxPos)
+                && java.util.Objects.equals(current.departmentId, updated.departmentId)
+                && current.type == updated.type
+                && java.util.Objects.equals(current.groupId, updated.groupId)
+                && current.floorIndex == updated.floorIndex;
+    }
+
+    private static boolean hasSameEmployeeMarkerLayout(List<RoomEmployeeSnapshot> current,
+                                                       List<RoomEmployeeSnapshot> updated) {
+        if (current.size() != updated.size()) return false;
+        for (int index = 0; index < current.size(); index++) {
+            RoomEmployeeSnapshot before = current.get(index);
+            RoomEmployeeSnapshot after = updated.get(index);
+            if (!before.id().equals(after.id())
+                    || !java.util.Objects.equals(before.name(), after.name())
+                    || !java.util.Objects.equals(before.departmentId(), after.departmentId())
+                    || !java.util.Objects.equals(before.dimension(), after.dimension())
+                    || !java.util.Objects.equals(before.position(), after.position())
+                    || before.commandable() != after.commandable()) return false;
+        }
+        return true;
+    }
+
+    private void updateRoomSnapshotsInPlace(List<RoomEntry> snapshots) {
+        for (int index = 0; index < rooms.size(); index++) {
+            copyRoomSnapshot(rooms.get(index), snapshots.get(index));
+        }
+    }
+
+    private static void copyRoomSnapshot(RoomEntry target, RoomEntry source) {
+        target.dimension = source.dimension;
+        target.pos = source.pos;
+        target.departmentId = source.departmentId;
+        target.abnormalityCode = source.abnormalityCode;
+        target.abnormalityName = source.abnormalityName;
+        target.riskName = source.riskName;
+        target.riskColor = source.riskColor;
+        target.toolType = source.toolType;
+        target.status = source.status;
+        target.qliphoth = source.qliphoth;
+        target.maxQliphoth = source.maxQliphoth;
+        target.healthPercent = source.healthPercent;
+        target.playersInside = source.playersInside;
+        target.escapeDistance = source.escapeDistance;
+        target.meltdownActive = source.meltdownActive;
+        target.meltdownRemainingTicks = source.meltdownRemainingTicks;
+        target.lastUpdate = source.lastUpdate;
+        target.floorIndex = source.floorIndex;
+        target.floorName = source.floorName;
+        target.floorY = source.floorY;
+    }
+
+    private void rebuildEmployeeMarkers() {
+        List<EmployeeMarkerDraft> drafts = new ArrayList<>();
+        Map<String, Integer> areaPopulations = new HashMap<>();
+        for (RoomEmployeeSnapshot employee : employees) {
+            FacilityAreaEntry worldArea = smallestAreaContaining(employee.dimension(), employee.position());
+            FacilityLayoutTemplate.Area templateArea = worldArea == null
+                    ? null : facilityLayout.areaById(worldArea.groupId).orElse(null);
+            if (worldArea != null && templateArea != null) {
+                String areaKey = employee.dimension() + "@" + worldArea.groupId;
+                drafts.add(new EmployeeMarkerDraft(employee, areaKey,
+                        templateWorldX(templateArea.center().x()),
+                        templateWorldY(templateArea.center().y())));
+                areaPopulations.merge(areaKey, 1, Integer::sum);
+                continue;
+            }
+
+            FacilityAreaEntry nearest = nearestMappedPassage(employee);
+            FacilityLayoutTemplate.Area nearestTemplate = nearest == null
+                    ? null : facilityLayout.areaById(nearest.groupId).orElse(null);
+            if (nearestTemplate != null) {
+                String areaKey = employee.dimension() + "@" + nearest.groupId;
+                drafts.add(new EmployeeMarkerDraft(employee, areaKey,
+                        templateWorldX(nearestTemplate.center().x()),
+                        templateWorldY(nearestTemplate.center().y())));
+                areaPopulations.merge(areaKey, 1, Integer::sum);
+            }
+        }
+
+        List<EmployeeMapMarker> markers = new ArrayList<>(drafts.size());
+        Map<String, Integer> areaIndices = new HashMap<>();
+        for (EmployeeMarkerDraft draft : drafts) {
+            int index = areaIndices.getOrDefault(draft.areaKey(), 0);
+            areaIndices.put(draft.areaKey(), index + 1);
+            RoomEmployeeSnapshot employee = draft.employee();
+            markers.add(new EmployeeMapMarker(employee.id(), employee.name(), employee.departmentId(),
+                    draft.layoutX(), draft.layoutY(), index,
+                    areaPopulations.getOrDefault(draft.areaKey(), 1), employee.commandable()));
+        }
+        setEmployeeMarkers(markers);
+    }
+
+    private FacilityAreaEntry smallestAreaContaining(ResourceLocation employeeDimension, BlockPos pos) {
+        return FacilityAreaSelection.containing(areas, employeeDimension, pos).orElse(null);
+    }
+
+    private FacilityAreaEntry nearestMappedPassage(RoomEmployeeSnapshot employee) {
+        FacilityAreaEntry nearest = null;
+        double nearestScore = Double.POSITIVE_INFINITY;
+        for (FacilityAreaEntry area : areas) {
+            if (area == null || area.dimension == null
+                    || !area.dimension.equals(employee.dimension())
+                    || area.type == com.wzz.lobotocraft.world.data.FacilityAreaType.CONTAINMENT
+                    || area.groupId == null || area.groupId.isBlank()
+                    || facilityLayout.areaById(area.groupId).isEmpty()) continue;
+            double score = squaredDistanceToArea(employee.position(), area);
+            if (!area.departmentId.equals(employee.departmentId())) {
+                score += 1_000_000.0D;
+            }
+            if (score < nearestScore) {
+                nearest = area;
+                nearestScore = score;
+            }
+        }
+        return nearest;
+    }
+
+    private static double squaredDistanceToArea(BlockPos position, FacilityAreaEntry area) {
+        int dx = Math.max(area.minPos.getX() - position.getX(),
+                Math.max(0, position.getX() - area.maxPos.getX()));
+        int dy = Math.max(area.minPos.getY() - position.getY(),
+                Math.max(0, position.getY() - area.maxPos.getY()));
+        int dz = Math.max(area.minPos.getZ() - position.getZ(),
+                Math.max(0, position.getZ() - area.maxPos.getZ()));
+        return (double) dx * dx + (double) dy * dy + (double) dz * dz;
+    }
+
+    private static double normalizedWithin(int value, int min, int max) {
+        return min >= max ? 0.5D : Mth.clamp((value - min) / (double) (max - min), 0.0D, 1.0D);
+    }
+
+    public void showWorkCandidates(BlockPos roomPos, WorkType workType,
+                                   List<RoomEmployeeSnapshot> candidates, String error) {
+        if (selectedRoom == null || !selectedRoom.pos.equals(roomPos)
+                || selectedWork < 0 || selectedWork >= WorkType.values().length
+                || WorkType.values()[selectedWork] != workType) return;
+        String preferredDepartment = roomDepartmentId(selectedRoom);
+        List<RoomEmployeeSnapshot> ordered = new ArrayList<>(candidates == null ? List.of() : candidates);
+        ordered.sort(Comparator
+                .comparingInt((RoomEmployeeSnapshot candidate) ->
+                        candidateDepartmentRank(candidate.departmentId()))
+                .thenComparing(RoomEmployeeSnapshot::departmentId,
+                        Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+                .thenComparing(RoomEmployeeSnapshot::name, String.CASE_INSENSITIVE_ORDER));
+        workCandidates = List.copyOf(ordered);
+        rebuildCandidatePages(preferredDepartment);
+        candidatesLoading = false;
+        candidateError = error == null ? "" : error;
+    }
+
+    public void showSuppressionCandidates(BlockPos roomPos,
+                                          List<RoomEmployeeSnapshot> candidates, String error) {
+        if (selectedRoom == null || !selectedRoom.pos.equals(roomPos) || !isSuppressionSelection()) return;
+        String preferredDepartment = roomDepartmentId(selectedRoom);
+        List<RoomEmployeeSnapshot> ordered = new ArrayList<>(candidates == null ? List.of() : candidates);
+        ordered.sort(Comparator
+                .comparingInt((RoomEmployeeSnapshot candidate) ->
+                        candidateDepartmentRank(candidate.departmentId()))
+                .thenComparing(RoomEmployeeSnapshot::departmentId,
+                        Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+                .thenComparing(RoomEmployeeSnapshot::name, String.CASE_INSENSITIVE_ORDER));
+        workCandidates = List.copyOf(ordered);
+        rebuildCandidatePages(preferredDepartment);
+        candidatesLoading = false;
+        candidateError = error == null ? "" : error;
+    }
+
+    public void onWorkAssignmentResult(UUID employeeId, boolean success, String message) {
+        assignmentSucceeded = success;
+        assignmentMessage = message == null ? "" : message;
+        assignmentMessageAt = Util.getMillis();
+        if (success) {
+            selectedRoom = null;
+            selectedWork = -1;
+            workCandidates = List.of();
+            candidatePages = List.of();
+            playUiSound(1.35F);
+        } else {
+            playUiSound(0.55F);
+            if (this.minecraft != null && this.minecraft.player != null && !assignmentMessage.isEmpty()) {
+                this.minecraft.player.displayClientMessage(Component.literal("§c" + assignmentMessage), true);
+            }
+        }
+    }
+
+    public void onSuppressionAssignmentResult(UUID employeeId, boolean success, String message) {
+        assignmentSucceeded = success;
+        assignmentMessage = message == null ? "" : message;
+        assignmentMessageAt = Util.getMillis();
+        playUiSound(success ? 1.25F : 0.55F);
+        if (!success && this.minecraft != null && this.minecraft.player != null && !assignmentMessage.isEmpty()) {
+            this.minecraft.player.displayClientMessage(Component.literal("§c" + assignmentMessage), true);
+        }
+        if (selectedRoom != null && isSuppressionSelection()) requestSuppressionCandidates();
+    }
+
+    private boolean isSuppressionSelection() {
+        return selectedWork == SUPPRESSION_SELECTION;
+    }
+
+    private void beginSuppressionSelection(RoomEntry room) {
+        selectedRoom = room;
+        selectedWork = SUPPRESSION_SELECTION;
+        workSelectedAt = Util.getMillis();
+        workCandidates = List.of();
+        candidatePages = List.of();
+        candidatePage = 0;
+        candidateError = "";
+        candidatesLoading = true;
+        requestSuppressionCandidates();
+    }
+
+    private void requestSuppressionCandidates() {
+        if (selectedRoom == null) return;
+        MessageLoader.getLoader().sendToServer(new RequestRoomSuppressionCandidatesPacket(
+                selectedRoom.dimension, selectedRoom.pos));
+    }
+
+    private void rebuildCandidatePages(String preferredDepartment) {
+        Set<String> departmentIds = new HashSet<>();
+        for (FacilityLayoutTemplate.Area area : facilityLayout.allAreas()) {
+            if (area.role() == FacilityLayoutTemplate.AreaRole.DEPARTMENT_BACKGROUND
+                    && facilityVisibility.isVisible(area)) {
+                departmentIds.add(area.departmentId());
+            }
+        }
+        for (RoomEmployeeSnapshot candidate : workCandidates) {
+            if (candidate.departmentId() != null && !candidate.departmentId().isBlank()) {
+                departmentIds.add(candidate.departmentId());
+            }
+        }
+        if (preferredDepartment != null && !preferredDepartment.isBlank()) {
+            departmentIds.add(preferredDepartment);
+        }
+        List<String> departments = new ArrayList<>(departmentIds);
+        departments.sort(Comparator
+                .comparingInt(RoomMapScreen::candidateDepartmentRank)
+                .thenComparing(Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
+
+        List<CandidatePage> pages = new ArrayList<>();
+        for (String department : departments) {
+            List<RoomEmployeeSnapshot> departmentEmployees = workCandidates.stream()
+                    .filter(candidate -> Objects.equals(candidate.departmentId(), department)).toList();
+            pages.add(new CandidatePage(department, List.copyOf(departmentEmployees)));
+        }
+        candidatePages = List.copyOf(pages);
+        candidatePage = 0;
+        for (int index = 0; index < candidatePages.size(); index++) {
+            if (Objects.equals(candidatePages.get(index).departmentId(), preferredDepartment)) {
+                candidatePage = index;
+                break;
+            }
+        }
+    }
+
+    static int candidateDepartmentRank(String departmentId) {
+        EmployeeDepartment department = EmployeeDepartment.byId(departmentId);
+        int rank = CANDIDATE_DEPARTMENT_ORDER.indexOf(department);
+        return rank >= 0 ? rank : CANDIDATE_DEPARTMENT_ORDER.size();
+    }
+
+    static int moveCandidatePage(int current, int pageCount, int delta) {
+        if (pageCount <= 0) return 0;
+        int direction = Integer.compare(delta, 0);
+        return Math.max(0, Math.min(pageCount - 1, current + direction));
     }
 
     private double mapCenterX() {
@@ -350,13 +1033,95 @@ public class RoomMapScreen extends Screen {
         return (screenY - mapCenterY() - panY) / zoom + centerWorldZ;
     }
 
+    private static double templateWorldX(double normalizedX) {
+        return (normalizedX - 0.5D) * TEMPLATE_WIDTH;
+    }
+
+    private static double templateWorldY(double normalizedY) {
+        return normalizedY * TEMPLATE_HEIGHT;
+    }
+
+    private static double templateNormalizedX(double worldX) {
+        return worldX / TEMPLATE_WIDTH + 0.5D;
+    }
+
+    private static double templateNormalizedY(double worldY) {
+        return worldY / TEMPLATE_HEIGHT;
+    }
+
+    /** Stable screen-to-area adapter used by selection and movement dispatch. */
+    public Optional<FacilityLayoutTemplate.Area> hitFacilityArea(double screenX, double screenY) {
+        if (screenX < mapLeft() || screenY < HEADER_H || screenX > this.width || screenY > this.height) {
+            return Optional.empty();
+        }
+        return facilityLayout.hitTestAll(
+                        templateNormalizedX(screenToWorldX(screenX)),
+                        templateNormalizedY(screenToWorldZ(screenY))).stream()
+                .filter(facilityVisibility::isVisible)
+                .findFirst();
+    }
+
+    /** Resolves a template area to the synchronized world area bound through groupId. */
+    public Optional<FacilityAreaEntry> worldAreaFor(String templateAreaId) {
+        for (FacilityAreaEntry area : areas) {
+            if (templateAreaId.equals(area.groupId)) return Optional.of(area);
+        }
+        for (RoomEntry room : rooms) {
+            if (!templateAreaId.equals(roomAreaIds.get(room.key()))) continue;
+            for (FacilityAreaEntry area : areas) {
+                if (area.markerPos.equals(room.pos) && area.dimension != null
+                        && area.dimension.equals(room.dimension)) {
+                    return Optional.of(area);
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
     /** 房间在图上的位置 = 真实坐标 + 手动偏移 */
     private double cardWorldX(RoomEntry entry) {
-        return entry.pos.getX() + RoomMapViewState.getRoomOffset(entry.key())[0];
+        LayoutPoint point = roomLayout.get(entry.key());
+        return point == null ? 0.0D : point.x();
     }
 
     private double cardWorldZ(RoomEntry entry) {
-        return entry.pos.getZ() + RoomMapViewState.getRoomOffset(entry.key())[1];
+        LayoutPoint point = roomLayout.get(entry.key());
+        return point == null ? 0.0D : point.y();
+    }
+
+    private double nodeScale() {
+        return Mth.clamp(zoom, 0.45D, 1.0D);
+    }
+
+    private Optional<ScreenBounds> containmentScreenBounds(RoomEntry entry) {
+        String areaId = roomAreaIds.get(entry.key());
+        if (areaId == null) return Optional.empty();
+
+        FacilityLayoutTemplate.Area area = facilityLayout.areaById(areaId).orElse(null);
+        if (area == null || area.role() != FacilityLayoutTemplate.AreaRole.CONTAINMENT_ROOM) {
+            return Optional.empty();
+        }
+
+        FacilityLayoutTemplate.Bounds bounds = area.bounds();
+        int left = (int) Math.round(worldToScreenX(templateWorldX(bounds.minX())));
+        int top = (int) Math.round(worldToScreenY(templateWorldY(bounds.minY())));
+        int right = (int) Math.round(worldToScreenX(templateWorldX(bounds.maxX())));
+        int bottom = (int) Math.round(worldToScreenY(templateWorldY(bounds.maxY())));
+        return Optional.of(new ScreenBounds(
+                Math.min(left, right), Math.min(top, bottom),
+                Math.max(left, right), Math.max(top, bottom)));
+    }
+
+    private ScreenBounds roomScreenBounds(RoomEntry entry) {
+        Optional<ScreenBounds> containment = containmentScreenBounds(entry);
+        if (containment.isPresent()) return containment.get();
+
+        int cx = (int) Math.round(worldToScreenX(cardWorldX(entry)));
+        int cy = (int) Math.round(worldToScreenY(cardWorldZ(entry)));
+        int scaledW = (int) Math.ceil(CARD_W * nodeScale());
+        int scaledH = (int) Math.ceil(CARD_H * nodeScale());
+        return new ScreenBounds(cx - scaledW / 2, cy - scaledH / 2,
+                cx + (scaledW + 1) / 2, cy + (scaledH + 1) / 2);
     }
 
     // ------------------------------------------------------------ 渲染
@@ -366,16 +1131,18 @@ public class RoomMapScreen extends Screen {
         float alpha = Mth.clamp((Util.getMillis() - openedAt) / 260.0F, 0F, 1F);
 
         graphics.fill(0, 0, this.width, this.height, withAlpha(COLOR_BG, alpha));
-        renderGrid(graphics, alpha);
+        graphics.enableScissor(mapLeft(), HEADER_H + 1, this.width, this.height - 18);
+        this.hoveredFacilityArea = hitFacilityArea(mouseX, mouseY).orElse(null);
+        renderFacilityTemplate(graphics, alpha);
+        renderMoveCommandPulse(graphics, alpha);
 
         List<RoomEntry> visible = visibleRooms();
 
         this.hovered = null;
-        if (mouseX >= mapLeft() && mouseY >= HEADER_H) {
+        boolean pointerOnDetails = pointerOnCommandWindow(mouseX, mouseY);
+        if (mouseX >= mapLeft() && mouseY >= HEADER_H && !pointerOnDetails) {
             for (RoomEntry entry : visible) {
-                int left = (int) (worldToScreenX(cardWorldX(entry)) - CARD_W / 2.0D);
-                int top = (int) (worldToScreenY(cardWorldZ(entry)) - CARD_H / 2.0D);
-                if (mouseX >= left && mouseX <= left + CARD_W && mouseY >= top && mouseY <= top + CARD_H) {
+                if (roomScreenBounds(entry).contains(mouseX, mouseY)) {
                     this.hovered = entry;
                 }
             }
@@ -387,19 +1154,581 @@ public class RoomMapScreen extends Screen {
         if (hovered != null) {
             renderCard(graphics, hovered, true, alpha);
         }
+        renderSelectedRoomOutline(graphics, alpha);
+        hoveredMapEmployee = null;
+        renderEmployeeMarkers(graphics, mouseX, mouseY, alpha);
+        if (selectingEmployees) renderEmployeeSelectionBox(graphics, alpha);
+        graphics.disableScissor();
 
         if (showTabs()) {
-            renderFloorTabs(graphics, mouseX, mouseY, alpha);
+            renderFloorGutter(graphics, mouseX, mouseY, alpha);
         }
-        renderHeader(graphics, alpha);
+        renderHeader(graphics, mouseX, mouseY, alpha);
+        renderFooter(graphics, alpha);
+        hoveredWork = -1;
+        hoveredCandidate = null;
+        if (selectedRoom != null) {
+            renderRoomDetails(graphics, mouseX, mouseY, alpha);
+            if (selectedWork >= 0) renderCandidatePanel(graphics, mouseX, mouseY, alpha);
+        }
 
         super.render(graphics, mouseX, mouseY, partialTick);
 
         if (pickerRoom != null) {
             renderPicker(graphics, mouseX, mouseY, alpha);
-        } else if (hovered != null && dragging == null) {
+        } else if (hoveredTt2Button) {
+            graphics.renderComponentTooltip(this.font, List.of(
+                    Component.literal("§f全局 TT2 协议"),
+                    Component.literal("§7启用后，所有真人玩家与 AI 员工的工作速度变为 §f2 倍§7。")),
+                    mouseX, mouseY);
+        } else if (hoveredCandidate != null) {
+            graphics.renderComponentTooltip(this.font, buildEmployeeTooltip(hoveredCandidate), mouseX, mouseY);
+        } else if (hoveredMapEmployee != null) {
+            graphics.renderComponentTooltip(this.font, buildEmployeeTooltip(hoveredMapEmployee), mouseX, mouseY);
+        } else if (hoveredWork >= 0) {
+            graphics.renderTooltip(this.font, Component.literal(
+                    CoreSuppressionClientState.isActive(CoreSuppressionType.MALKUTH)
+                            ? "???" : WORK_NAMES[hoveredWork]), mouseX, mouseY);
+        } else if (hovered != null) {
             graphics.renderComponentTooltip(this.font, buildTooltip(hovered), mouseX, mouseY);
+        } else if (hoveredFacilityArea != null) {
+            graphics.renderComponentTooltip(this.font, buildAreaTooltip(hoveredFacilityArea), mouseX, mouseY);
         }
+    }
+
+    private ScreenBounds detailsBounds() {
+        if (selectedRoom == null) {
+            return new ScreenBounds(this.width, DETAILS_TOP, this.width, DETAILS_TOP + DETAILS_H);
+        }
+        ScreenBounds room = roomScreenBounds(selectedRoom);
+        int fullWidth = DETAILS_W + COMMAND_GAP + CANDIDATE_W;
+        int left = room.right() + 8;
+        if (left + fullWidth > this.width - DETAILS_MARGIN) {
+            left = room.left() - fullWidth - 8;
+        }
+        left = Mth.clamp(left, mapLeft() + 4,
+                Math.max(mapLeft() + 4, this.width - DETAILS_MARGIN - fullWidth));
+        int fullHeight = Math.max(DETAILS_H, CANDIDATE_H);
+        int top = Mth.clamp(room.top() - 18, DETAILS_TOP,
+                Math.max(DETAILS_TOP, this.height - 22 - fullHeight));
+        return new ScreenBounds(left, top, left + DETAILS_W, top + DETAILS_H);
+    }
+
+    private ScreenBounds candidateTargetBounds() {
+        ScreenBounds details = detailsBounds();
+        int left = details.right() + COMMAND_GAP;
+        return new ScreenBounds(left, details.top(), left + CANDIDATE_W, details.top() + CANDIDATE_H);
+    }
+
+    private float candidatePanelProgress() {
+        if (selectedWork < 0) return 0.0F;
+        float raw = Mth.clamp((Util.getMillis() - workSelectedAt) / 180.0F, 0.0F, 1.0F);
+        float inverse = 1.0F - raw;
+        return 1.0F - inverse * inverse * inverse;
+    }
+
+    private ScreenBounds candidateBounds() {
+        ScreenBounds target = candidateTargetBounds();
+        int offset = Math.round((1.0F - candidatePanelProgress()) * (CANDIDATE_W + COMMAND_GAP));
+        return new ScreenBounds(target.left() - offset, target.top(),
+                target.right() - offset, target.bottom());
+    }
+
+    private boolean pointerOnCommandWindow(double mouseX, double mouseY) {
+        if (selectedRoom == null) return false;
+        if (detailsBounds().contains(mouseX, mouseY)) return true;
+        return selectedWork >= 0 && candidatePanelProgress() > 0.05F
+                && candidateBounds().contains(mouseX, mouseY);
+    }
+
+    private void renderSelectedRoomOutline(GuiGraphics graphics, float alpha) {
+        if (selectedRoom == null) return;
+        ScreenBounds bounds = roomScreenBounds(selectedRoom);
+        if (bounds.right() < mapLeft() || bounds.left() > this.width
+                || bounds.bottom() < HEADER_H || bounds.top() > this.height) return;
+        drawBorder(graphics, bounds.left() - 1, bounds.top() - 1,
+                bounds.width() + 2, bounds.height() + 2,
+                withAlpha(LobotomyUiTheme.LINE_BRIGHT, alpha));
+    }
+
+    private void renderEmployeeMarkers(GuiGraphics graphics, int mouseX, int mouseY, float alpha) {
+        for (EmployeeMapMarker marker : employeeMarkers) {
+            MarkerScreenPoint point = markerScreenPoint(marker);
+            int x = (int) Math.round(point.x());
+            int y = (int) Math.round(point.y());
+            if (x < mapLeft() + 4 || x > this.width - 4 || y < HEADER_H + 5 || y > this.height - 22) {
+                continue;
+            }
+            boolean selected = selectedEmployees.contains(marker.employeeId());
+            int color = marker.departmentId() == null || marker.departmentId().isBlank()
+                    ? LobotomyUiTheme.ACCENT
+                    : LobotomyUiTheme.departmentColor(marker.departmentId());
+            if (selected && marker.commandable()) {
+                graphics.fill(x - 5, y - 6, x + 6, y + 7,
+                        withAlpha(LobotomyUiTheme.BG_PANEL_SOLID, alpha * 0.92F));
+                drawBorder(graphics, x - 5, y - 6, 11, 13,
+                        withAlpha(LobotomyUiTheme.LINE_BRIGHT, alpha));
+            }
+            // Compact employee glyph: head, shoulders and department-colored body.
+            graphics.fill(x - 2, y - 5, x + 3, y - 1, withAlpha(color, alpha));
+            graphics.fill(x - 4, y, x + 5, y + 2, withAlpha(color, alpha));
+            graphics.fill(x - 2, y + 2, x + 3, y + 6, withAlpha(color, alpha));
+
+            RoomEmployeeSnapshot employee = employeeSnapshot(marker.employeeId());
+            if (!pointerOnCommandWindow(mouseX, mouseY)
+                    && mouseX >= x - 6 && mouseX <= x + 6
+                    && mouseY >= y - 7 && mouseY <= y + 7) {
+                hoveredMapEmployee = employee;
+            }
+        }
+    }
+
+    private MarkerScreenPoint markerScreenPoint(EmployeeMapMarker marker) {
+        double centerX = worldToScreenX(marker.layoutX());
+        double centerY = worldToScreenY(marker.layoutY());
+        int population = Math.max(1, marker.areaPopulation());
+        int columns = Math.min(5, population);
+        int rows = (population + columns - 1) / columns;
+        int row = marker.areaIndex() / columns;
+        int column = marker.areaIndex() % columns;
+        int rowStart = row * columns;
+        int columnsInRow = Math.min(columns, population - rowStart);
+        double offsetX = (column - (columnsInRow - 1) * 0.5D) * 11.0D;
+        double offsetY = (row - (rows - 1) * 0.5D) * 14.0D;
+        return new MarkerScreenPoint(centerX + offsetX, centerY + offsetY);
+    }
+
+    private RoomEmployeeSnapshot employeeSnapshot(UUID employeeId) {
+        for (RoomEmployeeSnapshot employee : employees) {
+            if (employee.id().equals(employeeId)) return employee;
+        }
+        return null;
+    }
+
+    private void renderEmployeeSelectionBox(GuiGraphics graphics, float alpha) {
+        int left = (int) Math.max(mapLeft(), Math.min(selectionStartX, selectionEndX));
+        int right = (int) Math.min(this.width, Math.max(selectionStartX, selectionEndX));
+        int top = (int) Math.max(HEADER_H + 1, Math.min(selectionStartY, selectionEndY));
+        int bottom = (int) Math.min(this.height - 18, Math.max(selectionStartY, selectionEndY));
+        if (right <= left || bottom <= top) return;
+        graphics.fill(left, top, right, bottom, withAlpha(LobotomyUiTheme.ACCENT, alpha * 0.10F));
+        drawBorder(graphics, left, top, right - left, bottom - top,
+                withAlpha(LobotomyUiTheme.LINE_ACCENT, alpha));
+    }
+
+    private void renderMoveCommandPulse(GuiGraphics graphics, float alpha) {
+        if (movePulseGroupId == null) return;
+        long elapsed = Util.getMillis() - movePulseAt;
+        if (elapsed >= 650L) {
+            movePulseGroupId = null;
+            return;
+        }
+        FacilityLayoutTemplate.Area area = facilityLayout.areaById(movePulseGroupId).orElse(null);
+        if (area == null) return;
+        FacilityLayoutTemplate.Bounds source = area.bounds();
+        int left = (int) Math.round(worldToScreenX(templateWorldX(source.minX())));
+        int right = (int) Math.round(worldToScreenX(templateWorldX(source.maxX())));
+        int top = (int) Math.round(worldToScreenY(templateWorldY(source.minY())));
+        int bottom = (int) Math.round(worldToScreenY(templateWorldY(source.maxY())));
+        float progress = elapsed / 650.0F;
+        int expand = 1 + Math.round(progress * 6.0F);
+        int pulseAlpha = withAlpha(LobotomyUiTheme.LINE_BRIGHT,
+                alpha * (1.0F - progress) * (1.0F - progress));
+        drawBorder(graphics, Math.min(left, right) - expand, Math.min(top, bottom) - expand,
+                Math.abs(right - left) + expand * 2, Math.abs(bottom - top) + expand * 2, pulseAlpha);
+    }
+
+    private void renderRoomDetails(GuiGraphics graphics, int mouseX, int mouseY, float alpha) {
+        ScreenBounds panel = detailsBounds();
+        int left = panel.left();
+        int top = panel.top();
+        int right = panel.right();
+        int department = roomDepartmentColor(selectedRoom);
+
+        graphics.fill(left, top, right, panel.bottom(), withAlpha(LobotomyUiTheme.BG_PANEL, alpha));
+        drawBorder(graphics, left, top, panel.width(), panel.height(),
+                withAlpha(LobotomyUiTheme.LINE_MID, alpha));
+        graphics.fill(left, top, right, top + 2, withAlpha(department, alpha));
+
+        int closeX = right - 15;
+        int closeY = top + 8;
+        int closeColor = mouseX >= closeX - 3 && mouseX < right - 3
+                && mouseY >= closeY - 3 && mouseY < closeY + 10
+                ? LobotomyUiTheme.TEXT_TITLE : LobotomyUiTheme.TEXT_MUTED;
+        graphics.fill(closeX, closeY, closeX + 1, closeY + 1, withAlpha(closeColor, alpha));
+        graphics.fill(closeX + 6, closeY, closeX + 7, closeY + 1, withAlpha(closeColor, alpha));
+        for (int i = 1; i < 6; i++) {
+            graphics.fill(closeX + i, closeY + i, closeX + i + 1, closeY + i + 1,
+                    withAlpha(closeColor, alpha));
+            graphics.fill(closeX + 6 - i, closeY + i, closeX + 7 - i, closeY + i + 1,
+                    withAlpha(closeColor, alpha));
+        }
+
+        int portraitX = left + 8;
+        int portraitY = top + 14;
+        int portraitSize = 42;
+        graphics.fill(portraitX, portraitY, portraitX + portraitSize, portraitY + portraitSize,
+                withAlpha(LobotomyUiTheme.BG_INSET, alpha));
+        drawBorder(graphics, portraitX, portraitY, portraitSize, portraitSize,
+                withAlpha(department, alpha * 0.78F));
+        if (!selectedRoom.abnormalityCode.isEmpty()) {
+            RenderSystem.enableBlend();
+            graphics.setColor(1F, 1F, 1F, alpha);
+            graphics.blit(resolvePortrait(selectedRoom.abnormalityCode), portraitX + 1, portraitY + 1,
+                    0, 0, portraitSize - 2, portraitSize - 2, portraitSize - 2, portraitSize - 2);
+            graphics.setColor(1F, 1F, 1F, 1F);
+        } else {
+            drawCentered(graphics, "-", portraitX + portraitSize / 2,
+                    portraitY + 19, withAlpha(COLOR_TEXT_DIM, alpha));
+        }
+
+        int textX = portraitX + portraitSize + 6;
+        int textW = Math.max(24, right - textX - 8);
+        drawFittedString(graphics, selectedRoom.resolveTitle(), textX, portraitY,
+                textW, withAlpha(COLOR_TEXT, alpha));
+        drawFittedString(graphics, selectedRoom.abnormalityCode, textX,
+                portraitY + 12, textW, withAlpha(COLOR_TEXT_DIM, alpha));
+        if (!selectedRoom.riskName.isEmpty()) {
+            drawFittedString(graphics, selectedRoom.riskName, textX,
+                    portraitY + 24, textW, withAlpha(selectedRoom.riskColor, alpha));
+        }
+        drawFittedString(graphics, roomStatusText(selectedRoom), textX,
+                portraitY + 36, textW, withAlpha(statusColor(selectedRoom), alpha));
+
+        int barTop = portraitY + portraitSize + 6;
+        int barLeft = left + 8;
+        int barRight = right - 8;
+        graphics.fill(barLeft, barTop, barRight, barTop + 3,
+                withAlpha(LobotomyUiTheme.BAR_TRACK, alpha));
+        if (hasActiveOccupant(selectedRoom)) {
+            int hpRight = barLeft + (int) ((barRight - barLeft)
+                    * Mth.clamp(selectedRoom.healthPercent, 0F, 1F));
+            graphics.fill(barLeft, barTop, hpRight, barTop + 3,
+                    withAlpha(statusColor(selectedRoom), alpha));
+        }
+        String hp = !hasActiveOccupant(selectedRoom)
+                ? "--" : Math.round(selectedRoom.healthPercent * 100) + "%";
+        graphics.drawString(this.font, hp, barRight - this.font.width(hp), barTop + 6,
+                withAlpha(COLOR_TEXT_DIM, alpha), false);
+
+        if (selectedRoom.maxQliphoth > 0) {
+            String qliphoth = "Q " + selectedRoom.qliphoth + " / " + selectedRoom.maxQliphoth;
+            graphics.drawString(this.font, qliphoth, barLeft, barTop + 6,
+                    withAlpha(LobotomyUiTheme.GOLD, alpha), false);
+        }
+
+        int dividerY = barTop + 20;
+        graphics.fill(left + 8, dividerY, right - 8, dividerY + 1,
+                withAlpha(LobotomyUiTheme.LINE_FAINT, alpha));
+        graphics.drawString(this.font, isSuppressionSelection() ? "镇压派遣"
+                        : selectedRoom.toolType ? "工具派遣" : "工作类型", left + 8, dividerY + 8,
+                withAlpha(COLOR_TEXT_DIM, alpha), false);
+
+        if (selectedRoom.status == RoomEntry.STATUS_UNEXPANDED) {
+            drawCentered(graphics, "收容单元尚未扩建", left + panel.width() / 2,
+                    dividerY + 34, withAlpha(STATUS_UNEXPANDED, alpha));
+            return;
+        }
+
+        if (selectedRoom.toolType) {
+            drawCentered(graphics, "选择员工使用工具", left + panel.width() / 2,
+                    dividerY + 35, withAlpha(LobotomyUiTheme.GOLD, alpha));
+            return;
+        }
+
+        if (isSuppressionSelection()) {
+            drawCentered(graphics, "选择员工执行镇压任务", left + panel.width() / 2,
+                    dividerY + 35, withAlpha(LobotomyUiTheme.ALERT_RED, alpha));
+            return;
+        }
+
+        int iconsTop = dividerY + 22;
+        int iconsWidth = WORK_ICON_SIZE * 2 + WORK_ICON_GAP;
+        int iconsLeft = left + (panel.width() - iconsWidth) / 2;
+        for (int i = 0; i < WORK_ICONS.length; i++) {
+            int iconX = iconsLeft + (i % 2) * (WORK_ICON_SIZE + WORK_ICON_GAP);
+            int iconY = iconsTop + (i / 2) * (WORK_ICON_SIZE + WORK_ICON_GAP);
+            boolean iconHovered = mouseX >= iconX && mouseX < iconX + WORK_ICON_SIZE
+                    && mouseY >= iconY && mouseY < iconY + WORK_ICON_SIZE;
+            if (iconHovered) hoveredWork = i;
+            if (selectedWork == i || iconHovered) {
+                graphics.fill(iconX - 2, iconY - 2,
+                        iconX + WORK_ICON_SIZE + 2, iconY + WORK_ICON_SIZE + 2,
+                        withAlpha(selectedWork == i ? LobotomyUiTheme.GOLD
+                                : LobotomyUiTheme.BG_ROW_HOVER, selectedWork == i ? alpha * 0.28F : alpha));
+                drawBorder(graphics, iconX - 2, iconY - 2,
+                        WORK_ICON_SIZE + 4, WORK_ICON_SIZE + 4,
+                        withAlpha(selectedWork == i
+                                ? LobotomyUiTheme.GOLD : LobotomyUiTheme.LINE_MID, alpha));
+            }
+            RenderSystem.enableBlend();
+            graphics.setColor(1F, 1F, 1F, alpha);
+            if (CoreSuppressionClientState.isActive(CoreSuppressionType.MALKUTH)) {
+                graphics.pose().pushPose();
+                graphics.pose().translate(iconX, iconY, 0.0F);
+                graphics.pose().scale(WORK_ICON_SIZE / 136.0F, WORK_ICON_SIZE / 184.0F, 1.0F);
+                graphics.blit(MALKUTH_UNKNOWN_WORK, 0, 0, 0, 0,
+                        136, 184, 136, 184);
+                graphics.pose().popPose();
+            } else {
+                graphics.blit(WORK_ICONS[i], iconX, iconY, 0, 0,
+                        WORK_ICON_SIZE, WORK_ICON_SIZE, WORK_ICON_SIZE, WORK_ICON_SIZE);
+            }
+            graphics.setColor(1F, 1F, 1F, 1F);
+        }
+    }
+
+    private void renderCandidatePanel(GuiGraphics graphics, int mouseX, int mouseY, float alpha) {
+        float progress = candidatePanelProgress();
+        if (progress <= 0.001F) return;
+        ScreenBounds panel = candidateBounds();
+        ScreenBounds target = candidateTargetBounds();
+        int department = roomDepartmentColor(selectedRoom);
+        float panelAlpha = alpha * progress;
+
+        graphics.enableScissor(target.left(), target.top(), target.right(), target.bottom());
+        graphics.fill(panel.left(), panel.top(), panel.right(), panel.bottom(),
+                withAlpha(LobotomyUiTheme.BG_PANEL, panelAlpha));
+        drawBorder(graphics, panel.left(), panel.top(), panel.width(), panel.height(),
+                withAlpha(LobotomyUiTheme.LINE_MID, panelAlpha));
+        graphics.fill(panel.left(), panel.top(), panel.right(), panel.top() + 2,
+                withAlpha(department, panelAlpha));
+
+        RenderSystem.enableBlend();
+        graphics.setColor(1F, 1F, 1F, panelAlpha);
+        graphics.blit(DEPARTMENT_HEADER, panel.left() + 2, panel.top() + 3, 0, 0,
+                panel.width() - 4, 23, 203, 38);
+        graphics.setColor(1F, 1F, 1F, 1F);
+
+        String employeeState = "员工";
+        if (!candidatePages.isEmpty()) {
+            CandidatePage page = candidatePages.get(Mth.clamp(candidatePage, 0, candidatePages.size() - 1));
+            employeeState = departmentName(page.departmentId());
+        }
+        drawCentered(graphics, employeeState, panel.left() + panel.width() / 2,
+                panel.top() + 9, withAlpha(COLOR_TEXT, panelAlpha));
+
+        renderWorkCandidates(graphics, panel, mouseX, mouseY, panelAlpha);
+        graphics.disableScissor();
+    }
+
+    private void renderWorkCandidates(GuiGraphics graphics, ScreenBounds panel,
+                                      int mouseX, int mouseY, float alpha) {
+        if (selectedWork < 0) return;
+        int rowsTop = candidateRowsTop(panel);
+        int available = panel.bottom() - 8 - rowsTop;
+        int visibleRows = Math.min(CANDIDATES_PER_PAGE, Math.max(0, available / CANDIDATE_ROW_H));
+
+        if (visibleRows <= 0) return;
+        if (candidatesLoading) {
+            graphics.drawString(this.font, "...", panel.left() + 12, rowsTop + 8,
+                    withAlpha(COLOR_TEXT_DIM, alpha), false);
+            return;
+        }
+        if (!candidateError.isEmpty()) {
+            drawFittedString(graphics, candidateError, panel.left() + 12, rowsTop + 8,
+                    panel.width() - 24, withAlpha(LobotomyUiTheme.ALERT_RED, alpha));
+            return;
+        }
+        candidatePage = Mth.clamp(candidatePage, 0, Math.max(0, candidatePages.size() - 1));
+        CandidatePage page = candidatePages.isEmpty() ? null : candidatePages.get(candidatePage);
+        if (page == null || page.employees().isEmpty()) {
+            graphics.drawString(this.font, "--", panel.left() + 12, rowsTop + 8,
+                    withAlpha(LobotomyUiTheme.TEXT_DISABLED, alpha), false);
+            if (candidatePages.size() > 1) {
+                renderCandidatePageArrows(graphics, panel, mouseX, mouseY, alpha);
+            }
+            return;
+        }
+        int rowLeft = panel.left() + 10;
+        int rowRight = panel.right() - 10;
+        for (int row = 0; row < Math.min(visibleRows, page.employees().size()); row++) {
+            RoomEmployeeSnapshot candidate = page.employees().get(row);
+            int y = rowsTop + row * CANDIDATE_ROW_H;
+            boolean hovered = mouseX >= rowLeft && mouseX < rowRight
+                    && mouseY >= y && mouseY < y + CANDIDATE_ROW_H;
+            if (hovered) hoveredCandidate = candidate;
+            int bg = (row & 1) == 0 ? LobotomyUiTheme.BG_ROW_EVEN : LobotomyUiTheme.BG_ROW_ODD;
+            graphics.fill(rowLeft, y, rowRight, y + CANDIDATE_ROW_H - 1, withAlpha(bg, alpha));
+            if (hovered) {
+                graphics.fill(rowLeft, y, rowRight, y + CANDIDATE_ROW_H - 1,
+                        withAlpha(LobotomyUiTheme.BG_ROW_HOVER, alpha));
+            }
+            int department = candidate.departmentId() == null || candidate.departmentId().isBlank()
+                    ? LobotomyUiTheme.ACCENT
+                    : LobotomyUiTheme.departmentColor(candidate.departmentId());
+            graphics.fill(rowLeft, y, rowLeft + 2, y + CANDIDATE_ROW_H - 1,
+                    withAlpha(candidate.eligible() ? department : LobotomyUiTheme.TEXT_DISABLED, alpha));
+
+            int textColor = candidate.eligible() ? COLOR_TEXT : LobotomyUiTheme.TEXT_DISABLED;
+            drawFittedString(graphics, candidate.name(), rowLeft + 7, y + 4,
+                    rowRight - rowLeft - 56, withAlpha(textColor, alpha));
+            String level = "LV " + candidate.employeeLevel();
+            graphics.drawString(this.font, level, rowRight - this.font.width(level) - 5, y + 4,
+                    withAlpha(candidate.eligible() ? department : LobotomyUiTheme.TEXT_DISABLED, alpha), false);
+
+            int barLeft = rowLeft + 7;
+            int barRight = rowLeft + 68;
+            int hpY = y + 17;
+            graphics.fill(barLeft, hpY, barRight, hpY + 2,
+                    withAlpha(LobotomyUiTheme.BAR_TRACK, alpha));
+            graphics.fill(barLeft, hpY,
+                    barLeft + (int) ((barRight - barLeft) * ratio(candidate.health(), candidate.maxHealth())),
+                    hpY + 2, withAlpha(LobotomyUiTheme.BAR_HP, alpha));
+            graphics.fill(barLeft, hpY + 5, barRight, hpY + 7,
+                    withAlpha(LobotomyUiTheme.BAR_TRACK, alpha));
+            graphics.fill(barLeft, hpY + 5,
+                    barLeft + (int) ((barRight - barLeft) * ratio(candidate.mental(), candidate.maxMental())),
+                    hpY + 7, withAlpha(LobotomyUiTheme.BAR_SP, alpha));
+
+            String preview = candidate.eligible()
+                    ? isSuppressionSelection() ? "可派遣"
+                    : candidate.successRate() < 0.0F ? "???"
+                    : Math.round(candidate.successRate() * 100.0F) + "%  " + candidate.estimatedSeconds() + "s"
+                    : candidate.unavailableReason();
+            drawFittedString(graphics, preview, barRight + 8, y + 18,
+                    rowRight - barRight - 13,
+                    withAlpha(candidate.eligible() ? COLOR_TEXT_DIM : LobotomyUiTheme.ALERT_RED, alpha));
+
+            int[] stats = {candidate.fortitude(), candidate.prudence(),
+                    candidate.temperance(), candidate.justice()};
+            int statX = rowLeft + 7;
+            for (int stat = 0; stat < stats.length; stat++) {
+                RenderSystem.enableBlend();
+                graphics.setColor(1F, 1F, 1F, alpha);
+                graphics.blit(STAT_ICONS[stat], statX, y + 29, 0, 0, 8, 8, 8, 8);
+                graphics.setColor(1F, 1F, 1F, 1F);
+                String value = Integer.toString(stats[stat]);
+                graphics.drawString(this.font, value, statX + 9, y + 29,
+                        withAlpha(COLOR_TEXT_DIM, alpha), false);
+                statX += 34;
+            }
+        }
+
+        if (candidatePages.size() > 1) {
+            renderCandidatePageArrows(graphics, panel, mouseX, mouseY, alpha);
+        }
+    }
+
+    private void renderCandidatePageArrows(GuiGraphics graphics, ScreenBounds panel,
+                                           int mouseX, int mouseY, float alpha) {
+        int y = panel.top() + 8;
+        int previousX = panel.left() + 7;
+        int nextX = panel.right() - 17;
+        if (candidatePage > 0) {
+            renderPageArrow(graphics, previousX, y,
+                    mouseX >= previousX && mouseX < previousX + 10
+                            && mouseY >= y && mouseY < y + 10, true, alpha);
+        }
+        if (candidatePage + 1 < candidatePages.size()) {
+            renderPageArrow(graphics, nextX, y,
+                    mouseX >= nextX && mouseX < nextX + 10
+                            && mouseY >= y && mouseY < y + 10, false, alpha);
+        }
+    }
+
+    private void renderPageArrow(GuiGraphics graphics, int x, int y, boolean hovered,
+                                 boolean mirror, float alpha) {
+        ResourceLocation texture = hovered ? PAGE_ARROW_HOVER : PAGE_ARROW;
+        int source = hovered ? 32 : 25;
+        RenderSystem.enableBlend();
+        graphics.setColor(1F, 1F, 1F, alpha);
+        graphics.pose().pushPose();
+        if (mirror) {
+            graphics.pose().translate(x + 10.0F, y, 0.0F);
+            graphics.pose().scale(-1.0F, 1.0F, 1.0F);
+            graphics.blit(texture, 0, 0, 0, 0, 10, 10, source, source);
+        } else {
+            graphics.blit(texture, x, y, 0, 0, 10, 10, source, source);
+        }
+        graphics.pose().popPose();
+        graphics.setColor(1F, 1F, 1F, 1F);
+    }
+
+    private int candidateRowsTop(ScreenBounds panel) {
+        return panel.top() + 28;
+    }
+
+    private static float ratio(float value, float maximum) {
+        return maximum <= 0.0F ? 0.0F : Mth.clamp(value / maximum, 0.0F, 1.0F);
+    }
+
+    private int detailsWorkIconAt(double mouseX, double mouseY) {
+        if (selectedRoom == null || selectedRoom.toolType || selectedRoom.status == RoomEntry.STATUS_UNEXPANDED
+                || selectedRoom.status == RoomEntry.STATUS_ESCAPED || isSuppressionSelection()) return -1;
+        ScreenBounds panel = detailsBounds();
+        int barTop = panel.top() + 14 + 42 + 6;
+        int dividerY = barTop + 20;
+        int iconsTop = dividerY + 22;
+        int iconsWidth = WORK_ICON_SIZE * 2 + WORK_ICON_GAP;
+        int iconsLeft = panel.left() + (panel.width() - iconsWidth) / 2;
+        for (int i = 0; i < WORK_ICONS.length; i++) {
+            int iconX = iconsLeft + (i % 2) * (WORK_ICON_SIZE + WORK_ICON_GAP);
+            int iconY = iconsTop + (i / 2) * (WORK_ICON_SIZE + WORK_ICON_GAP);
+            if (mouseX >= iconX && mouseX < iconX + WORK_ICON_SIZE
+                    && mouseY >= iconY && mouseY < iconY + WORK_ICON_SIZE) return i;
+        }
+        return -1;
+    }
+
+    private int candidatePageDeltaAt(double mouseX, double mouseY) {
+        if (candidatePages.size() <= 1) return 0;
+        ScreenBounds panel = candidateBounds();
+        int y = panel.top() + 6;
+        if (mouseY < y || mouseY >= y + 14) return 0;
+        if (candidatePage > 0
+                && mouseX >= panel.left() + 4 && mouseX < panel.left() + 20) return -1;
+        if (candidatePage + 1 < candidatePages.size()
+                && mouseX >= panel.right() - 20 && mouseX < panel.right() - 4) return 1;
+        return 0;
+    }
+
+    private RoomEmployeeSnapshot candidateAt(double mouseX, double mouseY) {
+        if (candidatePages.isEmpty()) return null;
+        ScreenBounds panel = candidateBounds();
+        int rowsTop = candidateRowsTop(panel);
+        int row = (int) ((mouseY - rowsTop) / CANDIDATE_ROW_H);
+        if (mouseY < rowsTop || row < 0 || row >= CANDIDATES_PER_PAGE) return null;
+        CandidatePage page = candidatePages.get(Mth.clamp(candidatePage, 0, candidatePages.size() - 1));
+        if (row >= page.employees().size()) return null;
+        return mouseX >= panel.left() + 10 && mouseX < panel.right() - 10
+                ? page.employees().get(row) : null;
+    }
+
+    private boolean detailsCloseAt(double mouseX, double mouseY) {
+        ScreenBounds panel = detailsBounds();
+        return mouseX >= panel.right() - 18 && mouseX < panel.right() - 3
+                && mouseY >= panel.top() + 5 && mouseY < panel.top() + 20;
+    }
+
+    private EmployeeMapMarker employeeMarkerAt(double mouseX, double mouseY) {
+        for (int i = employeeMarkers.size() - 1; i >= 0; i--) {
+            EmployeeMapMarker marker = employeeMarkers.get(i);
+            MarkerScreenPoint point = markerScreenPoint(marker);
+            if (Math.abs(mouseX - point.x()) <= 6.0D
+                    && Math.abs(mouseY - point.y()) <= 7.0D) return marker;
+        }
+        return null;
+    }
+
+    private void finishEmployeeBoxSelection() {
+        double left = Math.min(selectionStartX, selectionEndX);
+        double right = Math.max(selectionStartX, selectionEndX);
+        double top = Math.min(selectionStartY, selectionEndY);
+        double bottom = Math.max(selectionStartY, selectionEndY);
+        if (!hasShiftDown()) selectedEmployees.clear();
+        for (EmployeeMapMarker marker : employeeMarkers) {
+            MarkerScreenPoint point = markerScreenPoint(marker);
+            if (point.x() >= left && point.x() <= right
+                    && point.y() >= top && point.y() <= bottom) {
+                if (marker.commandable()) selectedEmployees.add(marker.employeeId());
+            }
+        }
+        notifyEmployeeSelectionChanged();
+    }
+
+    private void notifyEmployeeSelectionChanged() {
+        employeeSelectionListener.accept(Set.copyOf(selectedEmployees));
     }
 
     // ------------------------------------------------------------ 更改住户选单
@@ -408,6 +1737,7 @@ public class RoomMapScreen extends Screen {
     public void showAbnormalityPicker(BlockPos roomPos, List<AbnormalityCandidate> candidates) {
         for (RoomEntry entry : rooms) {
             if (entry.pos.equals(roomPos)) {
+                if (entry.status == RoomEntry.STATUS_UNEXPANDED) return;
                 this.pickerRoom = entry;
                 this.pickerCandidates = candidates;
                 this.pickerScroll = 0;
@@ -581,34 +1911,482 @@ public class RoomMapScreen extends Screen {
         return true;
     }
 
-    private void renderGrid(GuiGraphics graphics, float alpha) {
-        double step = 16 * zoom;
-        if (step < 8) return;
-
-        int minor = withAlpha(COLOR_GRID, alpha);
-        int major = withAlpha(COLOR_GRID_MAJOR, alpha);
-        int left = mapLeft();
-
-        double worldLeft = screenToWorldX(left);
-        double worldRight = screenToWorldX(this.width);
-        double worldTop = screenToWorldZ(HEADER_H);
-        double worldBottom = screenToWorldZ(this.height);
-
-        int startX = (int) (Math.floor(worldLeft / 16) * 16);
-        for (int wx = startX; wx <= worldRight; wx += 16) {
-            int sx = (int) worldToScreenX(wx);
-            if (sx < left) continue;
-            graphics.fill(sx, HEADER_H, sx + 1, this.height, (wx % 64 == 0) ? major : minor);
+    private void renderFacilityTemplate(GuiGraphics graphics, float alpha) {
+        for (FacilityLayoutTemplate.Area area : facilityLayout.allAreas()) {
+            if (!facilityVisibility.isVisible(area)) continue;
+            renderFacilityArea(graphics, area, area.equals(hoveredFacilityArea), alpha);
         }
-        int startZ = (int) (Math.floor(worldTop / 16) * 16);
-        for (int wz = startZ; wz <= worldBottom; wz += 16) {
-            int sy = (int) worldToScreenY(wz);
-            if (sy < HEADER_H) continue;
-            graphics.fill(left, sy, this.width, sy + 1, (wz % 64 == 0) ? major : minor);
+    }
+
+    private void renderFacilityArea(GuiGraphics graphics, FacilityLayoutTemplate.Area area,
+                                    boolean hoveredArea, float alpha) {
+        FacilityLayoutTemplate.Bounds bounds = area.bounds();
+        int left = (int) Math.round(worldToScreenX(templateWorldX(bounds.minX())));
+        int top = (int) Math.round(worldToScreenY(templateWorldY(bounds.minY())));
+        int right = (int) Math.round(worldToScreenX(templateWorldX(bounds.maxX())));
+        int bottom = (int) Math.round(worldToScreenY(templateWorldY(bounds.maxY())));
+        if (right < mapLeft() || left > this.width || bottom < HEADER_H || top > this.height) return;
+
+        int width = Math.max(1, right - left);
+        int height = Math.max(1, bottom - top);
+        int color = LobotomyUiTheme.departmentColor(area.departmentId());
+        boolean danger = dangerousAreaIds.contains(area.areaId());
+        float fillAlpha;
+        float borderAlpha;
+        switch (area.role()) {
+            case DEPARTMENT_BACKGROUND -> {
+                fillAlpha = hoveredArea ? 0.055F : 0.016F;
+                borderAlpha = hoveredArea ? 0.48F : 0.0F;
+            }
+            case CORRIDOR -> {
+                fillAlpha = hoveredArea ? 0.15F : 0.065F;
+                borderAlpha = hoveredArea ? 0.90F : 0.36F;
+            }
+            case ELEVATOR_ROOM -> {
+                fillAlpha = hoveredArea ? 0.20F : 0.09F;
+                borderAlpha = hoveredArea ? 1.00F : 0.64F;
+            }
+            case ELEVATOR_SHAFT -> {
+                fillAlpha = hoveredArea ? 0.13F : 0.035F;
+                borderAlpha = hoveredArea ? 1.00F : 0.72F;
+            }
+            case REST_ROOM, MAIN_HALL -> {
+                fillAlpha = hoveredArea ? 0.22F : 0.12F;
+                borderAlpha = hoveredArea ? 1.00F : 0.78F;
+            }
+            default -> {
+                fillAlpha = hoveredArea ? 0.16F : 0.045F;
+                borderAlpha = hoveredArea ? 1.00F : 0.48F;
+            }
+        }
+        if (danger) {
+            float pulse = 0.55F + 0.45F * (float) Math.sin((Util.getMillis() % 900L) / 900.0D * Math.PI * 2.0D);
+            color = LobotomyUiTheme.ALERT_RED;
+            fillAlpha = Math.max(fillAlpha, 0.16F + pulse * 0.14F);
+            borderAlpha = Math.max(borderAlpha, 0.72F + pulse * 0.28F);
+        }
+        graphics.fill(left, top, right, bottom, withAlpha(color, alpha * fillAlpha));
+        if (borderAlpha > 0.0F) {
+            drawBorder(graphics, left, top, width, height, withAlpha(color, alpha * borderAlpha));
+        }
+
+        if (area.role() == FacilityLayoutTemplate.AreaRole.ELEVATOR_SHAFT && width >= 3) {
+            int centerX = left + width / 2;
+            graphics.fill(centerX, top + 1, centerX + 1, bottom - 1,
+                    withAlpha(color, alpha * 0.74F));
+        } else if (area.role() == FacilityLayoutTemplate.AreaRole.DEPARTMENT_BACKGROUND) {
+            String label = departmentLabel(area);
+            if (width >= this.font.width(label) + 8 && height >= 13) {
+                graphics.drawString(this.font, label, left + 4, top + 3,
+                        withAlpha(color, alpha * 0.92F), false);
+            }
+        }
+    }
+
+    private void renderFloorBands(GuiGraphics graphics, float alpha) {
+        int contentLeft = (int) worldToScreenX(layoutMinX - CARD_W / 2.0D);
+        int contentRight = (int) worldToScreenX(layoutMaxX + CARD_W / 2.0D);
+        double scaledCardHalfWidth = CARD_W * nodeScale() / 2.0D;
+
+        for (int floorIndex = 0; floorIndex < floors.size(); floorIndex++) {
+            Floor floor = floors.get(floorIndex);
+            int top = (int) worldToScreenY(floor.layoutTop);
+            int bottom = (int) worldToScreenY(floor.layoutBottom);
+            if (bottom < HEADER_H || top > this.height) continue;
+
+            int color = floorDepartmentColor(floor);
+            graphics.fill(contentLeft, top, contentRight, bottom,
+                    withAlpha(color, alpha * (floorIndex == selectedFloor ? 0.10F : 0.055F)));
+            graphics.fill(contentLeft, top, contentRight, top + 1, withAlpha(color, alpha * 0.72F));
+            graphics.fill(contentLeft, bottom - 1, contentRight, bottom, withAlpha(color, alpha * 0.42F));
+
+            Map<Integer, List<LayoutPoint>> rows = new HashMap<>();
+            for (RoomEntry room : floor.rooms) {
+                LayoutPoint point = roomLayout.get(room.key());
+                if (point != null) {
+                    rows.computeIfAbsent((int) Math.round(point.y()), ignored -> new ArrayList<>()).add(point);
+                }
+            }
+
+            List<Integer> rowKeys = new ArrayList<>(rows.keySet());
+            rowKeys.sort(Integer::compareTo);
+            int spineX = (int) worldToScreenX(0.0D);
+            int firstRowY = Integer.MAX_VALUE;
+            int lastRowY = Integer.MIN_VALUE;
+            for (Integer rowKey : rowKeys) {
+                List<LayoutPoint> points = rows.get(rowKey);
+                points.sort(Comparator.comparingDouble(LayoutPoint::x));
+                int rowY = (int) worldToScreenY(points.get(0).y());
+                firstRowY = Math.min(firstRowY, rowY);
+                lastRowY = Math.max(lastRowY, rowY);
+                if (points.size() > 1) {
+                    int left = (int) (worldToScreenX(points.get(0).x()) + scaledCardHalfWidth);
+                    int right = (int) (worldToScreenX(points.get(points.size() - 1).x()) - scaledCardHalfWidth);
+                    if (right > left) {
+                        graphics.fill(left, rowY, right, rowY + 1, withAlpha(color, alpha * 0.70F));
+                    }
+                }
+            }
+            if (lastRowY > firstRowY) {
+                graphics.fill(spineX, firstRowY, spineX + 1, lastRowY + 1,
+                        withAlpha(color, alpha * 0.70F));
+            }
         }
     }
 
     private void renderCard(GuiGraphics graphics, RoomEntry entry, boolean isHovered, float alpha) {
+        Optional<ScreenBounds> containmentBounds = containmentScreenBounds(entry);
+        if (containmentBounds.isPresent()) {
+            renderContainedRoom(graphics, entry, containmentBounds.get(), isHovered, alpha);
+            return;
+        }
+
+        int cx = (int) worldToScreenX(cardWorldX(entry));
+        int cy = (int) worldToScreenY(cardWorldZ(entry));
+        double scale = nodeScale();
+        int scaledW = (int) Math.ceil(CARD_W * scale);
+        int scaledH = (int) Math.ceil(CARD_H * scale);
+        if (cx + scaledW / 2 < mapLeft() || cx - scaledW / 2 > this.width
+                || cy + scaledH / 2 < HEADER_H || cy - scaledH / 2 > this.height) {
+            return;
+        }
+
+        int left = -CARD_W / 2;
+        int top = -CARD_H / 2;
+        int status = statusColor(entry);
+        int department = roomDepartmentColor(entry);
+        int border = entry.status == RoomEntry.STATUS_ESCAPED ? STATUS_ESCAPED : department;
+        if (entry.status == RoomEntry.STATUS_ESCAPED) {
+            float pulse = 0.65F + 0.35F * Mth.sin((Util.getMillis() % 1000L) / 1000.0F
+                    * (float) Math.PI * 2F);
+            border = withAlpha(border, pulse);
+        }
+
+        graphics.pose().pushPose();
+        graphics.pose().translate(cx, cy, 0.0D);
+        graphics.pose().scale((float) scale, (float) scale, 1.0F);
+
+        graphics.fill(left, top, left + CARD_W, top + CARD_H,
+                withAlpha(isHovered ? COLOR_CARD_BG_HOVER : COLOR_CARD_BG, alpha));
+        graphics.fill(left + 1, top + 1, left + CARD_W - 1, top + CARD_H - 1,
+                withAlpha(department, alpha * (isHovered ? 0.10F : 0.045F)));
+        drawBorder(graphics, left, top, CARD_W, CARD_H, withAlpha(border, alpha));
+
+        int portraitX = left + 5;
+        int portraitY = top + 6;
+        graphics.fill(portraitX, portraitY, portraitX + PORTRAIT, portraitY + PORTRAIT,
+                withAlpha(LobotomyUiTheme.BG_INSET, alpha));
+        if (!entry.abnormalityCode.isEmpty()) {
+            RenderSystem.enableBlend();
+            graphics.setColor(1F, 1F, 1F, alpha);
+            graphics.blit(resolvePortrait(entry.abnormalityCode), portraitX, portraitY, 0, 0,
+                    PORTRAIT, PORTRAIT, PORTRAIT, PORTRAIT);
+            graphics.setColor(1F, 1F, 1F, 1F);
+        } else {
+            drawCentered(graphics, "-", portraitX + PORTRAIT / 2, portraitY + 11,
+                    withAlpha(COLOR_TEXT_DIM, alpha));
+        }
+
+        int textX = left + 40;
+        int textWidth = CARD_W - 44;
+        String title = this.font.plainSubstrByWidth(entry.resolveTitle(), textWidth);
+        graphics.drawString(this.font, title, textX, top + 6, withAlpha(COLOR_TEXT, alpha), false);
+        String code = entry.abnormalityCode.isEmpty()
+                ? entry.pos.getX() + "," + entry.pos.getZ()
+                : entry.abnormalityCode;
+        graphics.drawString(this.font, this.font.plainSubstrByWidth(code, textWidth), textX, top + 18,
+                withAlpha(COLOR_TEXT_DIM, alpha), false);
+        if (!entry.riskName.isEmpty()) {
+            graphics.drawString(this.font, this.font.plainSubstrByWidth(entry.riskName, textWidth),
+                    textX, top + 30, withAlpha(entry.riskColor, alpha), false);
+        }
+
+        int barLeft = left + 5;
+        int barRight = left + CARD_W - 5;
+        int barY = top + 43;
+        graphics.fill(barLeft, barY, barRight, barY + 3, withAlpha(LobotomyUiTheme.BAR_TRACK, alpha));
+        if (hasActiveOccupant(entry)) {
+            int fill = (int) ((barRight - barLeft) * Mth.clamp(entry.healthPercent, 0F, 1F));
+            graphics.fill(barLeft, barY, barLeft + fill, barY + 3, withAlpha(status, alpha));
+        }
+
+        RoomEmployeeSnapshot activeWork = roomWorkSnapshot(entry);
+        if (activeWork != null) {
+            renderRoomWorkSlots(graphics, activeWork, left + 5, top + 50, CARD_W - 10, alpha);
+        } else if (entry.maxQliphoth > 0) {
+            int count = Math.min(entry.maxQliphoth, 8);
+            int pipWidth = 4;
+            int totalWidth = count * pipWidth + Math.max(0, count - 1) * 2;
+            int pipX = left + (CARD_W - totalWidth) / 2;
+            for (int i = 0; i < count; i++) {
+                graphics.fill(pipX, top + 50, pipX + pipWidth, top + 54,
+                        withAlpha(i < entry.qliphoth ? LobotomyUiTheme.GOLD : LobotomyUiTheme.LINE_MID, alpha));
+                pipX += pipWidth + 2;
+            }
+        }
+
+        String statusText = switch (entry.status) {
+            case RoomEntry.STATUS_OCCUPIED -> "收容中";
+            case RoomEntry.STATUS_ESCAPED -> "出逃";
+            case RoomEntry.STATUS_LOST -> "失联";
+            case RoomEntry.STATUS_UNEXPANDED -> "未扩建";
+            default -> "空置";
+        };
+        if (entry.playersInside > 0) statusText += "  x" + entry.playersInside;
+        drawCentered(graphics, statusText, 0, top + 59, withAlpha(status, alpha));
+        renderMeltdownFrame(graphics, entry, left, top, CARD_W, CARD_H, alpha);
+        graphics.pose().popPose();
+    }
+
+    private void renderContainedRoom(GuiGraphics graphics, RoomEntry entry, ScreenBounds bounds,
+                                     boolean isHovered, float alpha) {
+        int left = bounds.left();
+        int top = bounds.top();
+        int right = bounds.right();
+        int bottom = bounds.bottom();
+        int width = bounds.width();
+        int height = bounds.height();
+        if (width < 2 || height < 2 || right < mapLeft() || left > this.width
+                || bottom < HEADER_H || top > this.height) {
+            return;
+        }
+
+        int status = statusColor(entry);
+        int department = roomDepartmentColor(entry);
+        graphics.fill(left + 1, top + 1, right - 1, bottom - 1,
+                withAlpha(isHovered ? COLOR_CARD_BG_HOVER : COLOR_CARD_BG, alpha * 0.84F));
+        graphics.fill(left + 1, top + 1, right - 1, bottom - 1,
+                withAlpha(department, alpha * (isHovered ? 0.12F : 0.05F)));
+
+        int border = entry.status == RoomEntry.STATUS_ESCAPED ? STATUS_ESCAPED : department;
+        float borderAlpha = isHovered ? 1.0F : 0.72F;
+        if (entry.status == RoomEntry.STATUS_ESCAPED) {
+            borderAlpha *= 0.65F + 0.35F * Mth.sin((Util.getMillis() % 1000L) / 1000.0F
+                    * (float) Math.PI * 2F);
+        }
+        drawBorder(graphics, left, top, width, height, withAlpha(border, alpha * borderAlpha));
+
+        int clipLeft = Math.max(mapLeft(), left + 1);
+        int clipTop = Math.max(HEADER_H + 1, top + 1);
+        int clipRight = Math.min(this.width, right - 1);
+        int clipBottom = Math.min(this.height - 18, bottom - 1);
+        if (clipRight <= clipLeft || clipBottom <= clipTop) return;
+
+        graphics.enableScissor(clipLeft, clipTop, clipRight, clipBottom);
+        int inset = width >= 12 && height >= 12 ? 3 : 2;
+        int contentLeft = left + inset;
+        int contentTop = top + inset;
+        int contentRight = right - inset;
+        int statusBarHeight = height >= 20 ? 2 : 1;
+        int contentBottom = bottom - inset - statusBarHeight - 1;
+        int contentWidth = Math.max(0, contentRight - contentLeft);
+        RoomEmployeeSnapshot activeWork = roomWorkSnapshot(entry);
+        int workSlotsHeight = activeWork == null
+                ? 0 : roomWorkSlotsHeight(contentWidth, activeWork.workBoxCapacity());
+        if (workSlotsHeight > 0) contentBottom -= workSlotsHeight + 2;
+
+        if (contentWidth > 0) {
+            graphics.fill(contentLeft, bottom - inset - statusBarHeight,
+                    contentRight, bottom - inset, withAlpha(LobotomyUiTheme.BAR_TRACK, alpha));
+            int statusWidth = !hasActiveOccupant(entry)
+                    ? contentWidth
+                    : Math.max(1, (int) Math.round(contentWidth
+                    * Mth.clamp(entry.healthPercent, 0F, 1F)));
+            graphics.fill(contentLeft, bottom - inset - statusBarHeight,
+                    contentLeft + statusWidth, bottom - inset, withAlpha(status, alpha));
+        }
+
+        boolean detailed = zoom >= 1.20D && width >= 68 && height >= 40;
+        if (detailed) {
+            renderContainedRoomDetails(graphics, entry, contentLeft, contentTop,
+                    contentRight, contentBottom, status, alpha);
+        } else {
+            renderContainedRoomOverview(graphics, entry, contentLeft, contentTop,
+                    contentRight, contentBottom, status, alpha);
+        }
+        if (activeWork != null && workSlotsHeight > 0) {
+            renderRoomWorkSlots(graphics, activeWork, contentLeft,
+                    contentBottom + 2, contentWidth, alpha);
+        }
+        graphics.disableScissor();
+        renderMeltdownFrame(graphics, entry, left, top, width, height, alpha);
+    }
+
+    private void renderMeltdownFrame(GuiGraphics graphics, RoomEntry entry,
+                                     int left, int top, int width, int height, float alpha) {
+        if (!entry.meltdownActive) return;
+        float pulse = 0.78F + 0.22F * Mth.sin((Util.getMillis() % 800L) / 800.0F
+                * (float) Math.PI * 2.0F);
+        int red = withAlpha(0xFFFF3B3B, alpha * pulse);
+        drawBorder(graphics, left, top, width, height, red);
+        int remainingTicks = remainingMeltdownTicks(entry.meltdownRemainingTicks,
+                Util.getMillis() - snapshotReceivedAtMillis);
+        int seconds = (remainingTicks + 19) / 20;
+        String timer = seconds + "s";
+        int timerX = left + width + 3;
+        if (timerX + this.font.width(timer) > this.width) {
+            timerX = Math.max(left + 2, left + width - this.font.width(timer) - 2);
+        }
+        int timerY = Math.max(HEADER_H + 1, top + 2);
+        graphics.drawString(this.font, timer, timerX, timerY, red, true);
+    }
+
+    static int remainingMeltdownTicks(int snapshotTicks, long elapsedMillis) {
+        long elapsedTicks = Math.max(0L, elapsedMillis) / 50L;
+        return (int) Math.max(0L, (long) Math.max(0, snapshotTicks) - elapsedTicks);
+    }
+
+    private RoomEmployeeSnapshot roomWorkSnapshot(RoomEntry room) {
+        for (RoomEmployeeSnapshot employee : employees) {
+            if (!employee.isWorking() || employee.workRoomDimension() == null
+                    || employee.workRoomPosition() == null) continue;
+            if (employee.workRoomDimension().equals(room.dimension)
+                    && employee.workRoomPosition().equals(room.pos)) return employee;
+        }
+        return null;
+    }
+
+    private static int roomWorkSlotsHeight(int availableWidth, int capacity) {
+        if (availableWidth < 2 || capacity <= 0) return 0;
+        int slotsWidth = Math.max(2,
+                availableWidth - ACTIVE_WORK_ICON_SIZE - ACTIVE_WORK_ICON_GAP);
+        int columns = Math.min(capacity, Math.max(1, (slotsWidth + 1) / 3));
+        int rows = (capacity + columns - 1) / columns;
+        return Math.max(ACTIVE_WORK_ICON_SIZE, rows * 3 - 1);
+    }
+
+    private void renderRoomWorkSlots(GuiGraphics graphics, RoomEmployeeSnapshot work,
+                                     int left, int top, int availableWidth, float alpha) {
+        int capacity = Math.max(0, work.workBoxCapacity());
+        if (capacity <= 0 || availableWidth < 2) return;
+        int slotsLeft = left;
+        int slotsWidth = availableWidth;
+        if (work.currentWorkType() != null && availableWidth >= ACTIVE_WORK_ICON_SIZE + 2) {
+            renderActiveWorkIcon(graphics, work.currentWorkType(), left, top, alpha);
+            slotsLeft += ACTIVE_WORK_ICON_SIZE + ACTIVE_WORK_ICON_GAP;
+            slotsWidth -= ACTIVE_WORK_ICON_SIZE + ACTIVE_WORK_ICON_GAP;
+        }
+        int columns = Math.min(capacity, Math.max(1, (slotsWidth + 1) / 3));
+        int totalWidth = columns * 2 + Math.max(0, columns - 1);
+        int startX = slotsLeft + Math.max(0, (slotsWidth - totalWidth) / 2);
+        int failureCount = Mth.clamp(work.workFailureBoxes(), 0, capacity);
+        int successCount = Mth.clamp(work.workSuccessBoxes(), 0, capacity - failureCount);
+        for (int slot = 0; slot < capacity; slot++) {
+            int row = slot / columns;
+            int column = slot % columns;
+            int x = startX + column * 3;
+            int y = top + row * 3;
+            int color;
+            if (slot < failureCount) color = 0xFFE35D62;
+            else if (slot >= capacity - successCount) color = 0xFF48C979;
+            else color = 0xFF353B3C;
+            graphics.fill(x, y, x + 2, y + 2, withAlpha(color, alpha));
+        }
+    }
+
+    private void renderActiveWorkIcon(GuiGraphics graphics, WorkType workType,
+                                      int x, int y, float alpha) {
+        RenderSystem.enableBlend();
+        graphics.setColor(1.0F, 1.0F, 1.0F, alpha);
+        graphics.blit(WORK_ICONS[workType.ordinal()], x, y, 0, 0,
+                ACTIVE_WORK_ICON_SIZE, ACTIVE_WORK_ICON_SIZE,
+                ACTIVE_WORK_ICON_SIZE, ACTIVE_WORK_ICON_SIZE);
+        graphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+    }
+
+    private void renderContainedRoomOverview(GuiGraphics graphics, RoomEntry entry,
+                                             int left, int top, int right, int bottom,
+                                             int status, float alpha) {
+        int width = Math.max(0, right - left);
+        int height = Math.max(0, bottom - top);
+        if (width < 4 || height < 4) return;
+
+        String statusText = roomStatusText(entry);
+        boolean showStatusText = height >= 20 && width >= this.font.width(statusText) + 2;
+        int portraitBottom = showStatusText ? bottom - this.font.lineHeight - 1 : bottom;
+        int portraitSize = Math.min(PORTRAIT,
+                Math.min(width, Math.max(0, portraitBottom - top)));
+        if (portraitSize >= 4) {
+            int portraitX = left + (width - portraitSize) / 2;
+            int portraitY = top + Math.max(0, (portraitBottom - top - portraitSize) / 2);
+            renderContainedPortrait(graphics, entry, portraitX, portraitY, portraitSize, alpha);
+        }
+        if (showStatusText) {
+            drawCentered(graphics, statusText, left + width / 2,
+                    bottom - this.font.lineHeight, withAlpha(status, alpha));
+        }
+    }
+
+    private void renderContainedRoomDetails(GuiGraphics graphics, RoomEntry entry,
+                                            int left, int top, int right, int bottom,
+                                            int status, float alpha) {
+        int width = Math.max(0, right - left);
+        int height = Math.max(0, bottom - top);
+        int portraitSize = Math.min(PORTRAIT, Math.min(height, Math.max(12, width / 3)));
+        renderContainedPortrait(graphics, entry, left, top, portraitSize, alpha);
+
+        int textX = left + portraitSize + 4;
+        int textWidth = right - textX;
+        if (textWidth < 18) return;
+
+        int lineY = top;
+        drawFittedString(graphics, entry.resolveTitle(), textX, lineY,
+                textWidth, withAlpha(COLOR_TEXT, alpha));
+        lineY += this.font.lineHeight + 1;
+
+        if (lineY + this.font.lineHeight <= bottom && !entry.riskName.isEmpty()) {
+            drawFittedString(graphics, entry.riskName, textX, lineY,
+                    textWidth, withAlpha(entry.riskColor, alpha));
+            lineY += this.font.lineHeight + 1;
+        }
+
+        if (lineY + this.font.lineHeight <= bottom) {
+            String values = !hasActiveOccupant(entry)
+                    ? roomStatusText(entry)
+                    : "HP " + Math.round(entry.healthPercent * 100) + "%";
+            if (entry.maxQliphoth > 0) {
+                values += "  Q " + entry.qliphoth + "/" + entry.maxQliphoth;
+            }
+            drawFittedString(graphics, values, textX, lineY,
+                    textWidth, withAlpha(status, alpha));
+        }
+    }
+
+    private void renderContainedPortrait(GuiGraphics graphics, RoomEntry entry,
+                                         int x, int y, int size, float alpha) {
+        if (size < 2) return;
+        graphics.fill(x, y, x + size, y + size, withAlpha(LobotomyUiTheme.BG_INSET, alpha));
+        if (!entry.abnormalityCode.isEmpty()) {
+            RenderSystem.enableBlend();
+            graphics.setColor(1F, 1F, 1F, alpha);
+            graphics.blit(resolvePortrait(entry.abnormalityCode), x, y, 0, 0,
+                    size, size, size, size);
+            graphics.setColor(1F, 1F, 1F, 1F);
+        } else if (size >= this.font.lineHeight) {
+            drawCentered(graphics, "-", x + size / 2,
+                    y + (size - this.font.lineHeight) / 2, withAlpha(COLOR_TEXT_DIM, alpha));
+        }
+    }
+
+    private void drawFittedString(GuiGraphics graphics, String text, int x, int y,
+                                  int maxWidth, int color) {
+        if (maxWidth <= 0 || text == null || text.isEmpty()) return;
+        String fitted = this.font.plainSubstrByWidth(text, maxWidth);
+        if (!fitted.isEmpty()) graphics.drawString(this.font, fitted, x, y, color, false);
+    }
+
+    private static String roomStatusText(RoomEntry entry) {
+        String statusText = switch (entry.status) {
+            case RoomEntry.STATUS_OCCUPIED -> "收容中";
+            case RoomEntry.STATUS_ESCAPED -> "出逃";
+            case RoomEntry.STATUS_LOST -> "失联";
+            case RoomEntry.STATUS_UNEXPANDED -> "未扩建";
+            default -> "空置";
+        };
+        return entry.playersInside > 0 ? statusText + "  x" + entry.playersInside : statusText;
+    }
+
+    private void renderLegacyCard(GuiGraphics graphics, RoomEntry entry, boolean isHovered, float alpha) {
         int cx = (int) worldToScreenX(cardWorldX(entry));
         int cy = (int) worldToScreenY(cardWorldZ(entry));
         int left = cx - CARD_W / 2;
@@ -627,7 +2405,7 @@ public class RoomMapScreen extends Screen {
             float pulse = 0.6F + 0.4F * Mth.sin((Util.getMillis() % 1000L) / 1000.0F * (float) Math.PI * 2F);
             borderColor = withAlpha(STATUS_ESCAPED, pulse * alpha);
         } else {
-            int base = (entry.riskColor != 0 && entry.status != RoomEntry.STATUS_EMPTY)
+            int base = (entry.riskColor != 0 && hasActiveOccupant(entry))
                     ? entry.riskColor : statusColor;
             borderColor = withAlpha(base, (isHovered ? 1.0F : 0.75F) * alpha);
         }
@@ -676,7 +2454,7 @@ public class RoomMapScreen extends Screen {
             }
         }
 
-        if (entry.status != RoomEntry.STATUS_EMPTY) {
+        if (hasActiveOccupant(entry)) {
             // 血条
             int barLeft = left + 10;
             int barRight = left + CARD_W - 10;
@@ -707,6 +2485,7 @@ public class RoomMapScreen extends Screen {
             case RoomEntry.STATUS_ESCAPED -> entry.escapeDistance > 0
                     ? "出逃中 " + entry.escapeDistance + "格" : "出逃中";
             case RoomEntry.STATUS_LOST -> "失联";
+            case RoomEntry.STATUS_UNEXPANDED -> "未扩建";
             default -> "空置";
         };
         if (entry.playersInside > 0) {
@@ -721,7 +2500,42 @@ public class RoomMapScreen extends Screen {
         }
     }
 
-    private void renderFloorTabs(GuiGraphics graphics, int mouseX, int mouseY, float alpha) {
+    private void renderFloorGutter(GuiGraphics graphics, int mouseX, int mouseY, float alpha) {
+        graphics.fill(0, HEADER_H, GUTTER_W, this.height, withAlpha(COLOR_PANEL, alpha));
+        graphics.fill(GUTTER_W - 1, HEADER_H, GUTTER_W, this.height,
+                withAlpha(LobotomyUiTheme.LINE_MID, alpha));
+        graphics.drawString(this.font, "楼层", 9, HEADER_H + 6,
+                withAlpha(COLOR_TEXT_DIM, alpha), false);
+
+        for (int i = 0; i < floors.size(); i++) {
+            Floor floor = floors.get(i);
+            int centerY = (int) worldToScreenY(floor.layoutCenter);
+            int top = centerY - FLOOR_LABEL_H / 2;
+            if (top + FLOOR_LABEL_H < HEADER_H + 16 || top > this.height - 18) continue;
+
+            boolean selected = i == selectedFloor;
+            boolean hoveredFloor = mouseX >= 6 && mouseX <= GUTTER_W - 6
+                    && mouseY >= top && mouseY <= top + FLOOR_LABEL_H;
+            int color = floorDepartmentColor(floor);
+            if (selected || hoveredFloor) {
+                graphics.fill(6, top, GUTTER_W - 6, top + FLOOR_LABEL_H,
+                        withAlpha(color, alpha * (selected ? 0.16F : 0.08F)));
+            }
+            graphics.fill(6, top, 8, top + FLOOR_LABEL_H,
+                    withAlpha(floor.escaped() > 0 ? STATUS_ESCAPED : color, alpha));
+
+            if (renamingFloor == i && renameBox != null) continue;
+            String label = this.font.plainSubstrByWidth(floor.label, GUTTER_W - 25);
+            graphics.drawString(this.font, label, 13, top + 4,
+                    withAlpha(selected ? COLOR_TEXT : COLOR_TEXT_DIM, alpha), false);
+            String info = floor.rooms.size() + " 间";
+            if (floor.escaped() > 0) info += "  出逃 " + floor.escaped();
+            graphics.drawString(this.font, info, 13, top + 16,
+                    withAlpha(floor.escaped() > 0 ? STATUS_ESCAPED : COLOR_TEXT_DIM, alpha), false);
+        }
+    }
+
+    private void renderLegacyFloorTabs(GuiGraphics graphics, int mouseX, int mouseY, float alpha) {
         int panelRight = TAB_X + TAB_W + 10;
         graphics.fill(0, HEADER_H, panelRight, this.height, withAlpha(COLOR_PANEL, alpha));
         graphics.fill(panelRight, HEADER_H, panelRight + 1, this.height, withAlpha(COLOR_ACCENT, alpha * 0.6F));
@@ -759,7 +2573,7 @@ public class RoomMapScreen extends Screen {
         }
     }
 
-    private void renderHeader(GuiGraphics graphics, float alpha) {
+    private void renderHeader(GuiGraphics graphics, int mouseX, int mouseY, float alpha) {
         graphics.fill(0, 0, this.width, HEADER_H, withAlpha(0xF00A1018, alpha));
         graphics.fill(0, HEADER_H, this.width, HEADER_H + 1, withAlpha(COLOR_ACCENT, alpha));
 
@@ -776,17 +2590,48 @@ public class RoomMapScreen extends Screen {
 
         String stats = "收容间 " + rooms.size() + "   收容中 " + contained
                 + "   出逃 " + escaped + "   楼层 " + floors.size();
-        graphics.drawString(this.font, stats, x, 11,
-                withAlpha(escaped > 0 ? STATUS_ESCAPED : COLOR_TEXT_DIM, alpha), false);
+        ScreenBounds tt2 = tt2ButtonBounds();
+        int statsWidth = Math.max(0, tt2.left() - x - 10);
+        if (statsWidth > 12) {
+            drawFittedString(graphics, stats, x, 11, statsWidth,
+                    withAlpha(escaped > 0 ? STATUS_ESCAPED : COLOR_TEXT_DIM, alpha));
+        }
+
+        hoveredTt2Button = tt2.contains(mouseX, mouseY);
+        int tt2Background = globalTt2Enabled ? 0xFF173A2B : 0xFF202630;
+        int tt2Border = globalTt2Enabled ? LobotomyUiTheme.ENERGY_GREEN : LobotomyUiTheme.LINE_MID;
+        if (hoveredTt2Button) {
+            tt2Background = globalTt2Enabled ? 0xFF20513A : 0xFF303A48;
+            tt2Border = LobotomyUiTheme.LINE_BRIGHT;
+        }
+        graphics.fill(tt2.left(), tt2.top(), tt2.right(), tt2.bottom(),
+                withAlpha(tt2Background, alpha));
+        drawBorder(graphics, tt2.left(), tt2.top(), tt2.width(), tt2.height(),
+                withAlpha(tt2Border, alpha));
+        drawCentered(graphics, globalTt2Enabled ? "TT2 x2  开启" : "TT2 x2  关闭",
+                tt2.left() + tt2.width() / 2, tt2.top() + 6,
+                withAlpha(globalTt2Enabled ? LobotomyUiTheme.ENERGY_GREEN : COLOR_TEXT_DIM, alpha));
 
         graphics.drawString(this.font, FACILITY_NAME,
                 this.width - this.font.width(FACILITY_NAME) - 12, 11,
                 withAlpha(COLOR_TEXT, alpha), false);
 
-        String hint = "空格开始工作   左键传送   右键查资料   Ctrl+左键拖动   Ctrl+右键改住户   ↑↓ 换层   R 复位   ESC 返回";
-        graphics.drawString(this.font, hint,
-                (this.width - this.font.width(hint)) / 2, this.height - 16,
-                withAlpha(COLOR_TEXT_DIM, alpha), false);
+    }
+
+    private ScreenBounds tt2ButtonBounds() {
+        int companyLeft = this.width - this.font.width(FACILITY_NAME) - 12;
+        int right = companyLeft - 12;
+        return new ScreenBounds(right - 94, 6, right, HEADER_H - 6);
+    }
+
+    private void renderFooter(GuiGraphics graphics, float alpha) {
+        int top = this.height - 18;
+        graphics.fill(0, top, this.width, this.height, withAlpha(0xF00A1018, alpha));
+        graphics.fill(0, top, this.width, top + 1, withAlpha(LobotomyUiTheme.LINE_FAINT, alpha));
+        String hint = "左键房间 派遣工作  ·  空白拖拽 框选员工  ·  右键房间 查看资料  ·  "
+                + "Shift+右键 传送  ·  Ctrl+右键 更换住户  ·  选中员工后右键区域 移动  ·  滚轮 缩放";
+        drawFittedString(graphics, hint, 10, top + 5, Math.max(1, this.width - 20),
+                withAlpha(COLOR_TEXT_DIM, alpha));
     }
 
     private List<Component> buildTooltip(RoomEntry entry) {
@@ -808,13 +2653,27 @@ public class RoomMapScreen extends Screen {
             case RoomEntry.STATUS_ESCAPED -> "§c出逃中"
                     + (entry.escapeDistance > 0 ? " §7(离房间 §c" + entry.escapeDistance + " §7格)" : "");
             case RoomEntry.STATUS_LOST -> "§6失联 §7(被回收 / 死亡待复活 / 区块未加载)";
+            case RoomEntry.STATUS_UNEXPANDED -> "§7未扩建";
             default -> "§8空置";
         }));
-        if (entry.status != RoomEntry.STATUS_EMPTY) {
+        if (hasActiveOccupant(entry)) {
             lines.add(Component.literal("§7生命：§f" + Math.round(entry.healthPercent * 100) + "%"));
             if (entry.maxQliphoth > 0) {
                 lines.add(Component.literal("§7计数器：§f" + entry.qliphoth + " / " + entry.maxQliphoth));
             }
+        }
+        if (entry.meltdownActive) {
+            lines.add(Component.literal("\u00a7c\u878d\u6bc1\u4e2d  \u00a7f"
+                    + Math.max(0, (entry.meltdownRemainingTicks + 19) / 20) + "s"));
+        }
+        RoomEmployeeSnapshot activeWork = roomWorkSnapshot(entry);
+        if (activeWork != null) {
+            String workName = activeWork.currentWorkType() == null
+                    ? "未知" : activeWork.currentWorkType().getDisplayName();
+            lines.add(Component.literal("§7工作类型：§f" + workName));
+            lines.add(Component.literal("§a正 PE-BOX " + activeWork.workSuccessBoxes()
+                    + "  §c负 PE-BOX " + activeWork.workFailureBoxes()
+                    + "  §7/ §f" + activeWork.workBoxCapacity()));
         }
         lines.add(Component.literal("§7坐标：§f"
                 + entry.pos.getX() + ", " + entry.pos.getY() + ", " + entry.pos.getZ()));
@@ -825,8 +2684,88 @@ public class RoomMapScreen extends Screen {
         if (lag > 100) {
             lines.add(Component.literal("§6数据延迟 " + (lag / 20) + " 秒（区块未加载）"));
         }
-        lines.add(Component.literal("§8空格开工   左键传送   右键查资料   Ctrl+左键拖动   Ctrl+右键改住户"));
         return lines;
+    }
+
+    private List<Component> buildEmployeeTooltip(RoomEmployeeSnapshot employee) {
+        List<Component> lines = new ArrayList<>();
+        lines.add(Component.literal("§f" + employee.name() + "  §7LV " + employee.employeeLevel()));
+        lines.add(Component.literal("§7" + departmentName(employee.departmentId())
+                + "  §8" + employee.status()));
+        lines.add(Component.literal("§cHP " + Math.round(employee.health()) + "/"
+                + Math.round(employee.maxHealth()) + "  §fSP " + Math.round(employee.mental())
+                + "/" + Math.round(employee.maxMental())));
+        lines.add(Component.literal("§c勇气 " + employee.fortitude()
+                + "  §9谨慎 " + employee.prudence()
+                + "  §a自律 " + employee.temperance()
+                + "  §e正义 " + employee.justice()));
+        lines.add(Component.literal("§7武器  §f" + employee.weaponName()));
+        lines.add(Component.literal("§7防具  §f" + employee.armorName()));
+        if (employee.eligible() && employee.successRate() >= 0.0F) {
+            lines.add(Component.literal("§a成功率 " + Math.round(employee.successRate() * 100.0F)
+                    + "%  §7预计 " + employee.estimatedSeconds() + " 秒"));
+        } else if (employee.eligible() && employee.successRate() < 0.0F
+                && selectedRoom != null && selectedWork >= 0 && !isSuppressionSelection()) {
+            lines.add(Component.literal("§7成功率 ???  预计时间 ???"));
+        } else if (!employee.eligible()) {
+            lines.add(Component.literal("§c" + employee.unavailableReason()));
+        }
+        return lines;
+    }
+
+    private List<Component> buildAreaTooltip(FacilityLayoutTemplate.Area area) {
+        List<Component> lines = new ArrayList<>();
+        lines.add(Component.literal("§f" + departmentLabel(area)));
+        lines.add(Component.literal("§7区域：§f" + areaTypeLabel(area.role())));
+        worldAreaFor(area.areaId()).ifPresent(world -> lines.add(Component.literal("§7锚点：§f"
+                + world.markerPos.getX() + ", " + world.markerPos.getY() + ", " + world.markerPos.getZ())));
+        return lines;
+    }
+
+    private static String departmentLabel(FacilityLayoutTemplate.Area area) {
+        if (area.areaId().startsWith("dept/central/upper/")) return "中央本部 上层";
+        if (area.areaId().startsWith("dept/central/lower/")) return "中央本部 下层";
+        return switch (area.departmentId()) {
+            case "control" -> "控制部";
+            case "information" -> "情报部";
+            case "training" -> "培训部";
+            case "safety" -> "安保部";
+            case "central" -> "中央本部";
+            case "welfare" -> "福利部";
+            case "disciplinary" -> "惩戒部";
+            case "record" -> "记录部";
+            case "extraction" -> "研发部";
+            case "architecture" -> "构筑部";
+            default -> "未分配区域";
+        };
+    }
+
+    private static String departmentName(String departmentId) {
+        return switch (departmentId == null ? "" : departmentId) {
+            case "control" -> "控制部";
+            case "information" -> "情报部";
+            case "training" -> "培训部";
+            case "safety" -> "安保部";
+            case "central" -> "中央本部";
+            case "welfare" -> "福利部";
+            case "disciplinary" -> "惩戒部";
+            case "record" -> "记录部";
+            case "extraction" -> "研发部";
+            case "architecture" -> "构筑部";
+            default -> "未分配";
+        };
+    }
+
+    private static String areaTypeLabel(FacilityLayoutTemplate.AreaRole role) {
+        return switch (role) {
+            case DEPARTMENT_BACKGROUND -> "部门";
+            case CORRIDOR -> "走廊";
+            case ELEVATOR_ROOM -> "电梯间";
+            case ELEVATOR_SHAFT -> "电梯井";
+            case CONTAINMENT_ROOM -> "收容单元";
+            case REST_ROOM -> "休息室";
+            case MAIN_HALL -> "主厅";
+        };
     }
 
     // ------------------------------------------------------------ 楼层改名
@@ -843,7 +2782,7 @@ public class RoomMapScreen extends Screen {
         }
         cancelRename();
 
-        int top = (int) (TAB_TOP + index * (TAB_H + TAB_GAP) - tabScroll);
+        int top = (int) worldToScreenY(floor.layoutCenter) - FLOOR_LABEL_H / 2;
         renamingFloor = index;
         renameBox = new EditBox(this.font, TAB_X + 5, top + 8, TAB_W - 10, 16, Component.literal("楼层名"));
         renameBox.setMaxLength(24);
@@ -876,6 +2815,24 @@ public class RoomMapScreen extends Screen {
 
     // ------------------------------------------------------------ 交互
 
+    private int floorAt(double mouseY) {
+        for (int i = 0; i < floors.size(); i++) {
+            int centerY = (int) worldToScreenY(floors.get(i).layoutCenter);
+            int top = centerY - FLOOR_LABEL_H / 2;
+            if (mouseY >= top && mouseY <= top + FLOOR_LABEL_H) return i;
+        }
+        return -1;
+    }
+
+    private RoomEntry roomAt(double mouseX, double mouseY) {
+        if (mouseX < mapLeft() || mouseY < HEADER_H) return null;
+        RoomEntry result = null;
+        for (RoomEntry room : visibleRooms()) {
+            if (roomScreenBounds(room).contains(mouseX, mouseY)) result = room;
+        }
+        return result;
+    }
+
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         // 更改住户选单是模态的，优先吃掉所有点击
@@ -888,16 +2845,66 @@ public class RoomMapScreen extends Screen {
             confirmRename();
             return true;
         }
+        if (button == 0 && tt2ButtonBounds().contains(mouseX, mouseY)) {
+            MessageLoader.getLoader().sendToServer(new ToggleGlobalTT2Packet());
+            playUiSound(globalTt2Enabled ? 0.95F : 1.15F);
+            return true;
+        }
+        if (button == 2) {
+            cameraPanButton = button;
+            return true;
+        }
+        if (button == 1 && !pointerOnCommandWindow(mouseX, mouseY)) {
+            RoomEntry room = roomAt(mouseX, mouseY);
+            if (room != null) return handleRoomRightClick(room);
+        }
+        if (button == 1) {
+            cameraPanButton = button;
+            moveCommandStartX = mouseX;
+            moveCommandStartY = mouseY;
+            pendingMoveGroupId = selectedEmployees.isEmpty() || pointerOnCommandWindow(mouseX, mouseY)
+                    ? null : moveTargetAreaAt(mouseX, mouseY).orElse(null);
+            moveCommandArmed = pendingMoveGroupId != null;
+            return true;
+        }
 
         // 楼层条
-        if (showTabs() && mouseX <= TAB_X + TAB_W && mouseY >= HEADER_H) {
-            for (int i = 0; i < floors.size(); i++) {
-                int top = (int) (TAB_TOP + i * (TAB_H + TAB_GAP) - tabScroll);
-                if (mouseX >= TAB_X && mouseY >= top && mouseY <= top + TAB_H) {
-                    if (button == 1) {
-                        startRename(i);
-                    } else if (button == 0) {
-                        selectFloor(i);
+        if (showTabs() && mouseX < GUTTER_W && mouseY >= HEADER_H) {
+            int floorIndex = floorAt(mouseY);
+            if (floorIndex >= 0) {
+                if (button == 0) {
+                    selectFloor(floorIndex);
+                }
+            }
+            return true;
+        }
+
+        if (selectedRoom != null && selectedWork >= 0 && candidatePanelProgress() >= 0.95F
+                && candidateBounds().contains(mouseX, mouseY)) {
+            if (button == 0) {
+                int pageDelta = candidatePageDeltaAt(mouseX, mouseY);
+                if (pageDelta != 0 && !candidatePages.isEmpty()) {
+                    candidatePage = moveCandidatePage(candidatePage, candidatePages.size(), pageDelta);
+                    playUiSound(1.2F);
+                    return true;
+                }
+                RoomEmployeeSnapshot candidate = candidateAt(mouseX, mouseY);
+                if (candidate != null) {
+                    if (!isSuppressionSelection()) selectedEmployees.clear();
+                    selectedEmployees.add(candidate.id());
+                    notifyEmployeeSelectionChanged();
+                    if (candidate.eligible()) {
+                        playUiSound(0.9F);
+                        if (isSuppressionSelection()) {
+                            MessageLoader.getLoader().sendToServer(new AssignRoomEmployeeSuppressionPacket(
+                                    selectedRoom.dimension, selectedRoom.pos, candidate.id()));
+                        } else {
+                            MessageLoader.getLoader().sendToServer(new AssignRoomEmployeeWorkPacket(
+                                    selectedRoom.dimension, selectedRoom.pos,
+                                    candidate.id(), WorkType.values()[selectedWork]));
+                        }
+                    } else {
+                        playUiSound(0.55F);
                     }
                     return true;
                 }
@@ -905,41 +2912,127 @@ public class RoomMapScreen extends Screen {
             return true;
         }
 
-        if (hovered != null) {
-            // Ctrl + 左键 = 抓住这张卡片挪位置
-            if (button == 0 && hasControlDown()) {
-                dragging = hovered;
+        if (selectedRoom != null && detailsBounds().contains(mouseX, mouseY)) {
+            if (button == 0 && detailsCloseAt(mouseX, mouseY)) {
+                selectedRoom = null;
+                selectedWork = -1;
+                playUiSound(0.75F);
                 return true;
             }
-            // 左键 = 传送
             if (button == 0) {
-                MessageLoader.getLoader().sendToServer(
-                        new RoomTeleportRequestPacket(hovered.dimension, hovered.pos));
-                saveCurrentView();
-                onClose();
+                int work = detailsWorkIconAt(mouseX, mouseY);
+                if (work >= 0) {
+                    selectedWork = work;
+                    workSelectedAt = Util.getMillis();
+                    workCandidates = List.of();
+                    candidatePages = List.of();
+                    candidatePage = 0;
+                    candidateError = "";
+                    candidatesLoading = true;
+                    playUiSound(1.05F);
+                    MessageLoader.getLoader().sendToServer(new RequestRoomWorkCandidatesPacket(
+                            selectedRoom.dimension, selectedRoom.pos, WorkType.values()[work]));
+                    return true;
+                }
+            }
+            return true;
+        }
+
+        if (mouseX < mapLeft() || mouseY < HEADER_H) return false;
+
+        if (button != 0) return super.mouseClicked(mouseX, mouseY, button);
+
+        EmployeeMapMarker employee = employeeMarkerAt(mouseX, mouseY);
+        if (employee != null) {
+            if (!employee.commandable()) {
+                playUiSound(0.55F);
                 return true;
             }
-            // Ctrl + 右键 = 更改这个房间登记的异想体
-            if (button == 1 && hasControlDown()) {
-                MessageLoader.getLoader().sendToServer(
-                        new RequestNearbyAbnormalitiesPacket(hovered.dimension, hovered.pos));
+            if (!hasShiftDown()) selectedEmployees.clear();
+            if (hasShiftDown() && selectedEmployees.contains(employee.employeeId())) {
+                selectedEmployees.remove(employee.employeeId());
+            } else {
+                selectedEmployees.add(employee.employeeId());
+            }
+            notifyEmployeeSelectionChanged();
+            return true;
+        }
+
+        RoomEntry room = roomAt(mouseX, mouseY);
+        if (room != null) {
+            if (room.status == RoomEntry.STATUS_ESCAPED) {
+                beginSuppressionSelection(room);
+                playUiSound(1.1F);
                 return true;
             }
-            // 右键 = 打开异想体图鉴
-            if (button == 1) {
-                if (hovered.abnormalityCode.isEmpty()) {
-                    if (this.minecraft != null && this.minecraft.player != null) {
-                        this.minecraft.player.displayClientMessage(
-                                Component.literal("§7这个收容间是空的。"), true);
-                    }
-                } else {
-                    MessageLoader.getLoader().sendToServer(
-                            new OpenRoomAbnormalityInfoPacket(hovered.dimension, hovered.pos));
+            if (selectedRoom == null || !selectedRoom.key().equals(room.key())) selectedWork = -1;
+            selectedRoom = room;
+            if (room.toolType && room.status == RoomEntry.STATUS_OCCUPIED) {
+                // Tool abnormalities skip the four normal work buttons and open the
+                // employee picker immediately. The server dispatch path is TOOL_USE.
+                selectedWork = 0;
+                workSelectedAt = Util.getMillis();
+                workCandidates = List.of();
+                candidatePages = List.of();
+                candidatePage = 0;
+                candidateError = "";
+                candidatesLoading = true;
+                MessageLoader.getLoader().sendToServer(new RequestRoomWorkCandidatesPacket(
+                        room.dimension, room.pos, WorkType.values()[0]));
+            }
+            playUiSound(0.8F);
+            return true;
+        }
+
+        selectionArmed = true;
+        selectingEmployees = false;
+        selectionStartX = selectionEndX = mouseX;
+        selectionStartY = selectionEndY = mouseY;
+        return true;
+    }
+
+    private boolean handleRoomRightClick(RoomEntry room) {
+        if (hasControlDown()) {
+            MessageLoader.getLoader().sendToServer(
+                    new RequestNearbyAbnormalitiesPacket(room.dimension, room.pos));
+            playUiSound(1.15F);
+            return true;
+        }
+        if (hasShiftDown()) {
+            MessageLoader.getLoader().sendToServer(
+                    new RoomTeleportRequestPacket(room.dimension, room.pos));
+            playUiSound(1.35F);
+            saveCurrentView();
+            onClose();
+            return true;
+        }
+        if (!selectedEmployees.isEmpty()
+                && room.status != RoomEntry.STATUS_UNEXPANDED
+                && room.abnormalityCode != null && !room.abnormalityCode.isEmpty()) {
+            String containmentArea = roomAreaIds.get(room.key());
+            if (containmentArea != null && !containmentArea.isBlank()) {
+                dispatchAreaMove(containmentArea);
+                if (this.minecraft != null && this.minecraft.player != null) {
+                    this.minecraft.player.displayClientMessage(Component.literal(
+                            "§b[对讲机] §f已命令所选员工进入“"
+                                    + room.abnormalityName + "”的收容单元。"), true);
                 }
                 return true;
             }
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        if (room.abnormalityCode == null || room.abnormalityCode.isEmpty()) {
+            if (this.minecraft != null && this.minecraft.player != null) {
+                this.minecraft.player.displayClientMessage(
+                        Component.literal(room.status == RoomEntry.STATUS_UNEXPANDED
+                                ? "§7该收容单元尚未扩建。" : "§7该收容单元当前没有住户。"), true);
+            }
+            playUiSound(0.55F);
+            return true;
+        }
+        MessageLoader.getLoader().sendToServer(
+                new OpenRoomAbnormalityInfoPacket(room.dimension, room.pos));
+        playUiSound(0.95F);
+        return true;
     }
 
     @Override
@@ -950,14 +3043,23 @@ public class RoomMapScreen extends Screen {
         if (renameBox != null) {
             return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
         }
-        // Ctrl 拖房间：偏移量按世界坐标存，缩放时相对关系不会乱
-        if (dragging != null) {
-            double[] off = RoomMapViewState.getRoomOffset(dragging.key());
-            RoomMapViewState.setRoomOffset(dragging.key(),
-                    off[0] + dragX / zoom, off[1] + dragY / zoom);
+        if (button == 0 && selectionArmed) {
+            selectionEndX = mouseX;
+            selectionEndY = mouseY;
+            double dx = selectionEndX - selectionStartX;
+            double dy = selectionEndY - selectionStartY;
+            if (dx * dx + dy * dy >= BOX_SELECT_THRESHOLD_SQ) selectingEmployees = true;
             return true;
         }
-        if ((button == 0 || button == 2) && mouseX >= mapLeft()) {
+        if (button == cameraPanButton && (button == 1 || button == 2)) {
+            if (button == 1 && moveCommandArmed) {
+                double totalX = mouseX - moveCommandStartX;
+                double totalY = mouseY - moveCommandStartY;
+                if (totalX * totalX + totalY * totalY >= BOX_SELECT_THRESHOLD_SQ) {
+                    moveCommandArmed = false;
+                    pendingMoveGroupId = null;
+                }
+            }
             panX += dragX;
             panY += dragY;
             return true;
@@ -967,13 +3069,78 @@ public class RoomMapScreen extends Screen {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (dragging != null) {
-            dragging = null;
-            RoomMapViewState.save();
+        if (button == 0 && selectionArmed) {
+            selectionEndX = mouseX;
+            selectionEndY = mouseY;
+            if (selectingEmployees) {
+                finishEmployeeBoxSelection();
+            } else if (!hasShiftDown() && !isSuppressionSelection()) {
+                selectedRoom = null;
+                selectedWork = -1;
+                if (!selectedEmployees.isEmpty()) {
+                    selectedEmployees.clear();
+                    notifyEmployeeSelectionChanged();
+                }
+            }
+            selectionArmed = false;
+            selectingEmployees = false;
             return true;
         }
+        if (button == 1 && cameraPanButton == 1) {
+            String targetGroup = moveCommandArmed ? pendingMoveGroupId : null;
+            cameraPanButton = -1;
+            moveCommandArmed = false;
+            pendingMoveGroupId = null;
+            if (targetGroup != null) dispatchAreaMove(targetGroup);
+            saveCurrentView();
+            return true;
+        }
+        if (button == cameraPanButton) cameraPanButton = -1;
         saveCurrentView();
         return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    private Optional<String> moveTargetAreaAt(double mouseX, double mouseY) {
+        FacilityLayoutTemplate.Area selected = hitFacilityArea(mouseX, mouseY).orElse(null);
+        if (selected == null || selected.role() == FacilityLayoutTemplate.AreaRole.DEPARTMENT_BACKGROUND) {
+            return Optional.empty();
+        }
+        if (selected.role() == FacilityLayoutTemplate.AreaRole.CONTAINMENT_ROOM
+                && isUnexpandedContainment(selected.areaId())) return Optional.empty();
+        if (worldAreaFor(selected.areaId()).isPresent()) return Optional.of(selected.areaId());
+        if (selected.role() != FacilityLayoutTemplate.AreaRole.ELEVATOR_SHAFT) return Optional.empty();
+
+        return facilityLayout.allConnections().stream()
+                .filter(connection -> connection.connects(selected.areaId()))
+                .map(connection -> connection.fromAreaId().equals(selected.areaId())
+                        ? connection.toAreaId() : connection.fromAreaId())
+                .map(areaId -> facilityLayout.areaById(areaId).orElse(null))
+                .filter(area -> area != null
+                        && area.role() == FacilityLayoutTemplate.AreaRole.ELEVATOR_ROOM
+                        && worldAreaFor(area.areaId()).isPresent())
+                .min(Comparator.comparingDouble(area -> {
+                    double dx = area.center().x() - selected.center().x();
+                    double dy = area.center().y() - selected.center().y();
+                    return dx * dx + dy * dy;
+                }))
+                .map(FacilityLayoutTemplate.Area::areaId);
+    }
+
+    private boolean isUnexpandedContainment(String areaId) {
+        for (RoomEntry room : rooms) {
+            if (room.status == RoomEntry.STATUS_UNEXPANDED
+                    && areaId.equals(roomAreaIds.get(room.key()))) return true;
+        }
+        return false;
+    }
+
+    private void dispatchAreaMove(String groupId) {
+        if (groupId == null || selectedEmployees.isEmpty()) return;
+        MessageLoader.getLoader().sendToServer(
+                new AssignEmployeesMoveAreaPacket(groupId, selectedEmployees));
+        movePulseGroupId = groupId;
+        movePulseAt = Util.getMillis();
+        playUiSound(1.25F);
     }
 
     @Override
@@ -985,21 +3152,23 @@ public class RoomMapScreen extends Screen {
             pickerScroll = Mth.clamp(pickerScroll - (int) Math.signum(delta), 0, max);
             return true;
         }
-
-        // 楼层列表上滚 -> 滚动列表
-        if (showTabs() && mouseX <= TAB_X + TAB_W + 10) {
-            double totalHeight = floors.size() * (TAB_H + TAB_GAP);
-            double available = this.height - TAB_TOP - 20;
-            double max = Math.max(0, totalHeight - available);
-            tabScroll = Mth.clamp(tabScroll - delta * 24, 0, max);
-            cancelRename();
+        if (selectedRoom != null && selectedWork >= 0 && candidatePanelProgress() >= 0.95F
+                && candidateBounds().contains(mouseX, mouseY)) {
+            if (selectedWork >= 0 && candidatePages.size() > 1) {
+                int moved = moveCandidatePage(candidatePage, candidatePages.size(), delta < 0 ? 1 : -1);
+                if (moved != candidatePage) {
+                    candidatePage = moved;
+                    playUiSound(1.2F);
+                }
+            }
             return true;
         }
+        if (selectedRoom != null && detailsBounds().contains(mouseX, mouseY)) return true;
 
         double worldX = screenToWorldX(mouseX);
         double worldZ = screenToWorldZ(mouseY);
 
-        zoom = Mth.clamp(zoom * (delta > 0 ? 1.18D : 1 / 1.18D), 0.15D, 24.0D);
+        zoom = Mth.clamp(zoom * (delta > 0 ? 1.18D : 1 / 1.18D), 0.45D, 4.0D);
 
         panX += mouseX - worldToScreenX(worldX);
         panY += mouseY - worldToScreenY(worldZ);
@@ -1031,18 +3200,7 @@ public class RoomMapScreen extends Screen {
         }
 
         switch (keyCode) {
-            case GLFW.GLFW_KEY_SPACE -> {
-                startWorkOnHovered();
-                return true;
-            }
             case GLFW.GLFW_KEY_R -> {
-                if (hasControlDown()) {
-                    RoomMapViewState.clearRoomOffsets();
-                    if (this.minecraft != null && this.minecraft.player != null) {
-                        this.minecraft.player.displayClientMessage(
-                                Component.literal("§7已清除所有手动调整的房间位置。"), true);
-                    }
-                }
                 fitToView();
                 return true;
             }
@@ -1068,34 +3226,6 @@ public class RoomMapScreen extends Screen {
         return super.charTyped(codePoint, modifiers);
     }
 
-    /**
-     * 空格：对鼠标指着的房间直接开工。
-     * <p>
-     * 服务端会做全部检查（工具类 / 已在工作 / 精神状态 / 异想体自己的回调），
-     * 并且因为 WorkManager 全程要求 10 格以内，必要时会先把你传送到那个房间。
-     * 之后打开的就是原本那个工作选择界面。
-     */
-    private void startWorkOnHovered() {
-        if (hovered == null) {
-            if (this.minecraft != null && this.minecraft.player != null) {
-                this.minecraft.player.displayClientMessage(
-                        Component.literal("§7把鼠标指到一个房间上再按空格。"), true);
-            }
-            return;
-        }
-        if (hovered.abnormalityCode.isEmpty()) {
-            if (this.minecraft != null && this.minecraft.player != null) {
-                this.minecraft.player.displayClientMessage(
-                        Component.literal("§7这个收容间是空的。"), true);
-            }
-            return;
-        }
-        MessageLoader.getLoader().sendToServer(
-                new StartRoomWorkPacket(hovered.dimension, hovered.pos));
-        saveCurrentView();
-        onClose();
-    }
-
     @Override
     public void onClose() {
         saveCurrentView();
@@ -1119,11 +3249,34 @@ public class RoomMapScreen extends Screen {
             case RoomEntry.STATUS_OCCUPIED -> STATUS_OCCUPIED;
             case RoomEntry.STATUS_ESCAPED -> STATUS_ESCAPED;
             case RoomEntry.STATUS_LOST -> STATUS_LOST;
+            case RoomEntry.STATUS_UNEXPANDED -> STATUS_UNEXPANDED;
             default -> STATUS_EMPTY;
         };
     }
 
+    private static boolean hasActiveOccupant(RoomEntry entry) {
+        return entry.status != RoomEntry.STATUS_EMPTY
+                && entry.status != RoomEntry.STATUS_UNEXPANDED;
+    }
+
     /** 立绘路径和图鉴界面保持一致；缺图时退化成问号，不会出现紫黑格 */
+    private int floorDepartmentColor(Floor floor) {
+        if (floor.rooms.isEmpty()) return LobotomyUiTheme.ACCENT;
+        return roomDepartmentColor(floor.rooms.get(0));
+    }
+
+    private int roomDepartmentColor(RoomEntry entry) {
+        String departmentId = roomDepartmentId(entry);
+        return departmentId == null || departmentId.isBlank()
+                ? LobotomyUiTheme.ACCENT
+                : LobotomyUiTheme.departmentColor(departmentId);
+    }
+
+    /** Single adapter point for room ownership; never infer it from coordinates. */
+    private String roomDepartmentId(RoomEntry entry) {
+        return entry.departmentId;
+    }
+
     private ResourceLocation resolvePortrait(String code) {
         return portraitCache.computeIfAbsent(code, key -> {
             ResourceLocation candidate = ResourceUtil.createInstance(
@@ -1138,6 +3291,12 @@ public class RoomMapScreen extends Screen {
 
     private void drawCentered(GuiGraphics graphics, String text, int centerX, int y, int color) {
         graphics.drawString(this.font, text, centerX - this.font.width(text) / 2, y, color, false);
+    }
+
+    private void playUiSound(float pitch) {
+        if (this.minecraft == null) return;
+        this.minecraft.getSoundManager().play(
+                SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK.get(), pitch, 0.55F));
     }
 
     private static void drawBorder(GuiGraphics graphics, int x, int y, int w, int h, int color) {

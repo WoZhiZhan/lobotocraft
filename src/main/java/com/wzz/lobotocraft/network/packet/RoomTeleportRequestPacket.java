@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.network.packet;
 
 import com.wzz.lobotocraft.init.ModItems;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.network.IMessage;
 import com.wzz.lobotocraft.world.data.CompanyRoomData;
 import com.wzz.lobotocraft.world.data.RoomEntry;
@@ -77,6 +78,15 @@ public class RoomTeleportRequestPacket implements IMessage {
         RoomEntry entry = CompanyRoomData.get(current).findRoom(dimension, pos);
         if (entry == null) {
             player.displayClientMessage(Component.literal("§c该收容间信标已失效。"), true);
+            return;
+        }
+
+        FacilityAccessService.ContainmentAccess access = FacilityAccessService.containmentAccess(
+                player.server, dimension, pos);
+        if (access != FacilityAccessService.ContainmentAccess.OPEN) {
+            player.displayClientMessage(Component.literal(access
+                    == FacilityAccessService.ContainmentAccess.UNEXPANDED
+                    ? "§c该收容单元尚未扩建。" : "§c该收容单元所属部门尚未开放。"), true);
             return;
         }
 

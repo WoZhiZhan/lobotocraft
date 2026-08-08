@@ -17,7 +17,8 @@ public class AlertBGMSoundInstance extends AbstractTickableSoundInstance {
         this.looping = true;
         this.attenuation = Attenuation.NONE;
         this.relative = true; // 跟随玩家，不受位置影响
-        this.volume = 0.8f;
+        // Alert tracks are intentionally 10 dB below their prior mix level.
+        this.volume = 0.8f * 0.31622776f;
         this.pitch = 1.0f;
         this.x = 0; this.y = 0; this.z = 0;
     }
@@ -29,6 +30,11 @@ public class AlertBGMSoundInstance extends AbstractTickableSoundInstance {
     @Override
     public boolean isStopped() {
         return stopped;
+    }
+
+    @Override
+    public boolean canStartSilent() {
+        return true;
     }
 
     public void forceStop() {

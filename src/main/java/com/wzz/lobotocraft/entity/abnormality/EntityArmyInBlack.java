@@ -1,7 +1,7 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
-import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.EscapeTracker;
@@ -15,6 +15,7 @@ import com.wzz.lobotocraft.item.TargetMarkerItem;
 import com.wzz.lobotocraft.util.*;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
+import com.wzz.lobotocraft.world.data.ArmyEscapeGroupData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -99,6 +100,11 @@ public class EntityArmyInBlack extends AbstractAbnormality {
 
     private static final Map<UUID, EscapeGroupState> ESCAPE_GROUPS = new ConcurrentHashMap<>();
 
+    /** Escape-group coordination is rebuilt from loaded entity NBT on startup. */
+    public static void clearEscapeGroupRuntimeState() {
+        ESCAPE_GROUPS.clear();
+    }
+
     public EntityArmyInBlack(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
         this.setPersistenceRequired();
@@ -171,6 +177,14 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     public void tick() {
         super.tick();
         if (this.level().isClientSide) {
+            return;
+        }
+
+        if (escapeGroupId != null && level() instanceof ServerLevel serverLevel
+                && ArmyEscapeGroupData.get(serverLevel).isClosed(escapeGroupId)) {
+            UUID closedGroup = escapeGroupId;
+            stopAsGroupMember();
+            ArmyEscapeGroupData.get(serverLevel).acknowledgeCleanup(closedGroup, getUUID());
             return;
         }
 
@@ -312,7 +326,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         if (player == null
                 || player.level() != this.level()
                 || !player.isAlive()
-                || MentalValueUtil.getMentalValue(player) <= 0.0F
+                || MentalValueUtil.isPanic(player)
                 || this.level().getGameTime() >= this.protectionEndsAt) {
             stopProtection();
             return false;
@@ -442,7 +456,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         long until = player.getPersistentData().getLong(PROTECTION_UNTIL_TAG);
         if (until <= player.level().getGameTime()
                 || !player.isAlive()
-                || MentalValueUtil.getMentalValue(player) <= 0.0F) {
+                || MentalValueUtil.isPanic(player)) {
             player.getPersistentData().remove(PROTECTION_UNTIL_TAG);
             return false;
         }
@@ -481,7 +495,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
             if (!spawnPoints.isEmpty()) {
                 UUID groupId = UUID.randomUUID();
                 int groupSize = spawnPoints.size();
-                createEscapeGroup(groupId, groupSize);
+                createEscapeGroup(serverLevel, groupId, groupSize);
                 spawnPoints.sort((a, b) -> Boolean.compare(
                         b.level.dimension().equals(serverLevel.dimension()),
                         a.level.dimension().equals(serverLevel.dimension())));
@@ -497,7 +511,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
                 }
             } else {
                 UUID groupId = UUID.randomUUID();
-                createEscapeGroup(groupId, 1);
+                createEscapeGroup(serverLevel, groupId, 1);
                 initializeEscapeGroup(groupId, 1);
                 targetReactorPos = findNearestReactor(serverLevel, blockPosition());
             }
@@ -559,6 +573,11 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     private void tickEscapedState(ServerLevel level) {
         setTarget(null);
         if (selfDetonated) {
+            if (escapeGroupId != null && ArmyEscapeGroupData.get(level).markDetonated(
+                    escapeGroupId, getUUID(), Math.max(1, escapeGroupSize))) {
+                finishEscapeGroup(level, escapeGroupId);
+                return;
+            }
             waitForGroupDetonation();
             return;
         }
@@ -569,7 +588,9 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         if (attackCooldownTicks > 0) {
             attackCooldownTicks--;
         }
-        if (targetReactorPos == null || tickCount % 100 == 0 || !(level.getBlockEntity(targetReactorPos) instanceof RegenerationReactorBlockEntity)) {
+        if (targetReactorPos == null || tickCount % 100 == 0
+                || !(level.getBlockEntity(targetReactorPos) instanceof RegenerationReactorBlockEntity)
+                || !isOpenFacilityPosition(level, targetReactorPos)) {
             targetReactorPos = findNearestReactor(level, blockPosition());
         }
         if (attackChargeTicks > 0) {
@@ -628,7 +649,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         }
         // 反应堆目标必须稳定；随机大范围取点会让路径每次刷新都切到另一侧。
         BlockPos walkPos = EntityUtil.findReactorSpawnPositionInCompany(level, targetReactorPos, 0);
-        if (walkPos == null)
+        if (walkPos == null || !isOpenFacilityPosition(level, walkPos))
             return;
         getNavigation().moveTo(walkPos.getX() + 0.5D, walkPos.getY(), walkPos.getZ() + 0.5D, ESCAPE_REACTOR_SPEED);
         reactorRepathTicks = 20;
@@ -740,7 +761,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
 
     private ArmySpawnPoint findPlayerArmySpawnPoint(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
-        List<BlockPos> escapeBlocks = new ArrayList<>(EscapeBlockEntity.getEscapeBlocks(level.dimension()));
+        List<BlockPos> escapeBlocks = new ArrayList<>(FacilityAccessService.openEscapeBlocks(level));
         if (escapeBlocks.isEmpty()) {
             return null;
         }
@@ -773,7 +794,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     private List<ArmySpawnPoint> collectArmySpawnCandidates(ServerLevel originLevel) {
         List<ArmySpawnPoint> candidates = new ArrayList<>();
         for (ServerLevel level : originLevel.getServer().getAllLevels()) {
-            List<BlockPos> escapeBlocks = new ArrayList<>(EscapeBlockEntity.getEscapeBlocks(level.dimension()));
+            List<BlockPos> escapeBlocks = new ArrayList<>(FacilityAccessService.openEscapeBlocks(level));
             if (escapeBlocks.isEmpty()) {
                 continue;
             }
@@ -796,7 +817,8 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     private List<BlockPos> collectReactorPositions(ServerLevel level) {
         List<BlockPos> reactors = new ArrayList<>();
         for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level)) {
-            if (blockEntity instanceof RegenerationReactorBlockEntity) {
+            if (blockEntity instanceof RegenerationReactorBlockEntity
+                    && isOpenFacilityPosition(level, blockEntity.getBlockPos())) {
                 reactors.add(blockEntity.getBlockPos());
             }
         }
@@ -834,6 +856,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
             ServerLevel level = spawnPoint.level;
             EntityArmyInBlack army = ModEntities.army_in_black.get().create(level);
             if (army == null) {
+                ArmyEscapeGroupData.get(level).recordSpawnFailure(groupId);
                 continue;
             }
             BlockPos pos = spawnPoint.escapeBlockPos;
@@ -845,6 +868,8 @@ public class EntityArmyInBlack extends AbstractAbnormality {
             if (level.addFreshEntity(army)) {
                 army.decreaseAllPlayersTodayWorkCount();
                 EscapeTracker.getInstance().onEscapeStart(army);
+            } else {
+                ArmyEscapeGroupData.get(level).removeUnspawnedMember(groupId, army.getUUID());
             }
         }
     }
@@ -956,7 +981,8 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         BlockPos best = null;
         double bestDistance = Double.MAX_VALUE;
         for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level, origin, 128)) {
-            if (blockEntity instanceof RegenerationReactorBlockEntity) {
+            if (blockEntity instanceof RegenerationReactorBlockEntity
+                    && isOpenFacilityPosition(level, blockEntity.getBlockPos())) {
                 double distance = blockEntity.getBlockPos().distSqr(origin);
                 if (distance < bestDistance) {
                     bestDistance = distance;
@@ -965,6 +991,11 @@ public class EntityArmyInBlack extends AbstractAbnormality {
             }
         }
         return best;
+    }
+
+    private boolean isOpenFacilityPosition(ServerLevel level, BlockPos pos) {
+        return FacilityAccessService.isPositionOpen(level.getServer(),
+                level.dimension().location(), pos);
     }
 
     private boolean isValidRetaliationTarget(LivingEntity living) {
@@ -998,8 +1029,9 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         }
     }
 
-    private static void createEscapeGroup(UUID groupId, int groupSize) {
+    private static void createEscapeGroup(ServerLevel level, UUID groupId, int groupSize) {
         ESCAPE_GROUPS.put(groupId, new EscapeGroupState(groupSize));
+        ArmyEscapeGroupData.get(level).create(groupId, groupSize);
     }
 
     private void initializeEscapeGroup(UUID groupId, int groupSize) {
@@ -1010,6 +1042,9 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         EscapeGroupState state = ESCAPE_GROUPS.computeIfAbsent(groupId, id -> new EscapeGroupState(groupSize));
         state.groupSize = Math.max(state.groupSize, groupSize);
         state.members.add(this.getUUID());
+        if (level() instanceof ServerLevel serverLevel) {
+            ArmyEscapeGroupData.get(serverLevel).register(groupId, getUUID(), groupSize);
+        }
     }
 
     private void clearEscapeGroup() {
@@ -1038,7 +1073,8 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         state.groupSize = Math.max(state.groupSize, Math.max(1, escapeGroupSize));
         state.members.add(getUUID());
         state.detonated.add(getUUID());
-        return state.detonated.size() >= state.groupSize;
+        return ArmyEscapeGroupData.get(level).markDetonated(
+                escapeGroupId, getUUID(), Math.max(1, escapeGroupSize));
     }
 
     private void removeUndetonatedGroupMember(ServerLevel level) {
@@ -1046,12 +1082,11 @@ public class EntityArmyInBlack extends AbstractAbnormality {
             return;
         }
         EscapeGroupState state = ESCAPE_GROUPS.get(escapeGroupId);
-        if (state == null || state.detonated.contains(getUUID())) {
-            return;
+        if (state != null && !state.detonated.contains(getUUID())) {
+            state.members.remove(getUUID());
+            state.groupSize = Math.max(0, state.groupSize - 1);
         }
-        state.members.remove(getUUID());
-        state.groupSize = Math.max(0, state.groupSize - 1);
-        if (state.groupSize <= 0 || state.detonated.size() >= state.groupSize) {
+        if (ArmyEscapeGroupData.get(level).removeUndetonatedMember(escapeGroupId, getUUID())) {
             finishEscapeGroup(level, escapeGroupId);
         }
     }
@@ -1060,9 +1095,13 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         if (groupId == null) {
             return;
         }
+        ArmyEscapeGroupData data = ArmyEscapeGroupData.get(level);
+        data.close(groupId);
         ESCAPE_GROUPS.remove(groupId);
         for (EntityArmyInBlack army : findGroupMembers(level, groupId)) {
+            UUID memberId = army.getUUID();
             army.stopAsGroupMember();
+            data.acknowledgeCleanup(groupId, memberId);
         }
     }
 
@@ -1070,9 +1109,13 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         if (groupId == null) {
             return;
         }
+        ArmyEscapeGroupData data = ArmyEscapeGroupData.get(level);
+        data.close(groupId);
         ESCAPE_GROUPS.remove(groupId);
         for (EntityArmyInBlack army : findGroupMembers(level, groupId)) {
+            UUID memberId = army.getUUID();
             army.stopAsGroupMember();
+            data.acknowledgeCleanup(groupId, memberId);
         }
     }
 
@@ -1098,6 +1141,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
             }
         } finally {
             suppressGroupStop = false;
+            if (escapeGroupId != null) clearEscapeGroup();
         }
     }
 
@@ -1213,6 +1257,14 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         this.escapeGroupSize = tag.getInt("EscapeGroupSize");
         this.selfDetonated = tag.getBoolean("SelfDetonated");
         if (this.escapeGroupId != null && this.escapeGroupSize > 0) {
+            if (level() instanceof ServerLevel serverLevel) {
+                ArmyEscapeGroupData data = ArmyEscapeGroupData.get(serverLevel);
+                if (data.isClosed(this.escapeGroupId)) return;
+                data.register(this.escapeGroupId, getUUID(), this.escapeGroupSize);
+                if (this.selfDetonated) {
+                    data.markDetonated(this.escapeGroupId, getUUID(), this.escapeGroupSize);
+                }
+            }
             EscapeGroupState state = ESCAPE_GROUPS.computeIfAbsent(this.escapeGroupId,
                     id -> new EscapeGroupState(this.escapeGroupSize));
             state.groupSize = Math.max(state.groupSize, this.escapeGroupSize);

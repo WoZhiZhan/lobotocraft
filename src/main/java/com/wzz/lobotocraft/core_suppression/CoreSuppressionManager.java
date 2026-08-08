@@ -1,5 +1,8 @@
 package com.wzz.lobotocraft.core_suppression;
 
+import com.lobotocraft.facility.day.DayTransitionService;
+import com.lobotocraft.facility.data.FacilityDayData;
+import com.lobotocraft.facility.FacilityManager;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.capability.CompanyDailyData;
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
@@ -7,10 +10,12 @@ import com.wzz.lobotocraft.capability.EmployeeStats;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
 import com.wzz.lobotocraft.command.KillCommand;
+import com.wzz.lobotocraft.employee.EmployeeRuntimeManager;
+import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
 import com.wzz.lobotocraft.entity.abnormality.EntityDarkSkadi;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.base.EscapeTracker;
 import com.wzz.lobotocraft.event.definition.company.CompanyDayAdvanceEvent;
-import com.wzz.lobotocraft.event.definition.work.WorkCompleteEvent;
 import com.wzz.lobotocraft.event.definition.work.WorkDamageEvent;
 import com.wzz.lobotocraft.event.listener.BlueMiddayEvent;
 import com.wzz.lobotocraft.event.listener.EmployeeStatsApplier;
@@ -20,6 +25,7 @@ import com.wzz.lobotocraft.item.WorkDeviceItem;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
 import com.wzz.lobotocraft.network.packet.CoreSuppressionSyncPacket;
+import com.wzz.lobotocraft.network.packet.CoreSuppressionWarningPacket;
 import com.wzz.lobotocraft.network.packet.EmployeeStatsSyncPacket;
 import com.wzz.lobotocraft.network.packet.OrdealTitlePacket;
 import com.wzz.lobotocraft.util.EntityUtil;
@@ -31,7 +37,9 @@ import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -57,19 +65,31 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.WeakHashMap;
+import java.util.function.Consumer;
 
 @Mod.EventBusSubscriber(modid = ModMain.MODID)
 public final class CoreSuppressionManager {
     public static final int REQUIRED_DAY = 26;
     public static final int REQUIRED_FULL_OBSERVATIONS = 26;
     public static final int REQUIRED_COMPANY_ABNORMALITIES = 26;
-    public static final int REQUIRED_DAWNS = 3;
-    public static final int REQUIRED_MIDDAYS = 2;
+    /** Legacy ordeal telemetry used by debug tooling; no longer a completion requirement. */
+    @Deprecated public static final int REQUIRED_DAWNS = 2;
+    /** Legacy ordeal telemetry used by debug tooling; no longer a completion requirement. */
+    @Deprecated public static final int REQUIRED_MIDDAYS = 1;
     public static final int MELTDOWN_WORK_INTERVAL = 10;
     public static final int MELTDOWN_DURATION_TICKS = 60 * 20;
     public static final int MELTDOWN_WORK_PENALTY = 5;
+    public static final float MALKUTH_COMPLETION_SUCCESS_BONUS = 0.10F;
+    public static final int VISUAL_WARNING_DURATION_TICKS = 60 * 20;
+    private static final String STOP_SUPPRESSION_COMMAND = "/lobotocraft debug suppression end false";
 
     private static final String RETURN_X = "lobotocraft:LotoOldX";
     private static final String RETURN_Y = "lobotocraft:LotoOldY";
@@ -85,6 +105,8 @@ public final class CoreSuppressionManager {
             UUID.fromString("5772de32-b59d-4dbf-a0b4-a2f5f4f485f5");
     private static final double NETZACH_HEALTH_BONUS = 5.0D;
     private static final int WORLD_SEARCH_LIMIT = 30_000_000;
+    private static final Map<MinecraftServer, PendingChallenge> PENDING_CHALLENGES =
+            Collections.synchronizedMap(new WeakHashMap<>());
 
     private CoreSuppressionManager() {
     }
@@ -93,6 +115,9 @@ public final class CoreSuppressionManager {
         CoreSuppressionData state = CoreSuppressionData.get(player.serverLevel());
         if (state.isActive()) {
             return "当前已有核心抑制正在进行：" + state.getActiveType().getDisplayName();
+        }
+        if (!type.isImplemented()) {
+            return type.getDisplayName() + " 核心抑制尚未实装。";
         }
         if (state.hasCompleted(type)) {
             return type.getDisplayName() + " 核心抑制已经完成。";
@@ -140,7 +165,48 @@ public final class CoreSuppressionManager {
         return null;
     }
 
-    public static boolean startChallenge(ServerPlayer player, CoreSuppressionType type) {
+    public static boolean requestChallenge(ServerPlayer player, CoreSuppressionType type) {
+        String denial = getStartDenialReason(player, type);
+        if (denial != null) {
+            player.sendSystemMessage(Component.literal("§c" + denial));
+            return false;
+        }
+
+        MinecraftServer server = player.getServer();
+        if (PENDING_CHALLENGES.containsKey(server)) {
+            player.sendSystemMessage(Component.literal("§c已有核心抑制正在等待全员视觉安全确认。"));
+            return false;
+        }
+
+        Set<UUID> participants = new HashSet<>();
+        for (ServerPlayer participant : server.getPlayerList().getPlayers()) {
+            participants.add(participant.getUUID());
+        }
+        PendingChallenge pending = new PendingChallenge(type, player.getUUID(),
+                server.overworld().getGameTime() + VISUAL_WARNING_DURATION_TICKS,
+                participants, false);
+        PENDING_CHALLENGES.put(server, pending);
+        sendPendingState(server, pending);
+        server.getPlayerList().broadcastSystemMessage(Component.literal(
+                "§e[核心抑制] 正在等待全员完成视觉安全确认，最多等待 60 秒。"), false);
+        return true;
+    }
+
+    public static void submitVisualChoice(ServerPlayer player, boolean fullEffects) {
+        MinecraftServer server = player.getServer();
+        PendingChallenge pending = PENDING_CHALLENGES.get(server);
+        if (pending == null || !pending.participants.contains(player.getUUID())
+                || pending.visualChoices.containsKey(player.getUUID())) return;
+        pending.visualChoices.put(player.getUUID(), fullEffects);
+        if (pending.visualChoices.size() >= pending.participants.size()) {
+            launchPendingChallenge(server, pending);
+        } else {
+            sendPendingState(server, pending);
+        }
+    }
+
+    private static boolean beginChallenge(ServerPlayer player, CoreSuppressionType type,
+                                          Map<UUID, Boolean> visualChoices) {
         String denial = getStartDenialReason(player, type);
         if (denial != null) {
             player.sendSystemMessage(Component.literal("§c" + denial));
@@ -153,15 +219,10 @@ public final class CoreSuppressionManager {
             return false;
         }
 
-        daily.setOwner(player);
-        int oldDay = daily.getCurrentDay();
-        daily.advanceToNextDay();
-        if (daily.getCurrentDay() == oldDay) {
+        if (!DayTransitionService.beginSuppressionDay(player)) {
             player.sendSystemMessage(Component.literal("§c新一天无法开始，核心抑制已取消。"));
             return false;
         }
-        daily.setTodayWorkCount(0);
-        daily.setHasSleep(false);
 
         MinecraftServer server = player.getServer();
         KillCommand.queueActiveOrdealTargets(server);
@@ -170,7 +231,9 @@ public final class CoreSuppressionManager {
 
         CoreSuppressionData state = CoreSuppressionData.get(server.overworld());
         state.start(type, player.getUUID(), player.getGameProfile().getName(), daily.getCurrentDay(),
-                ordeal.getDawnTriggerSerialToday(), ordeal.getMiddayTriggerSerialToday());
+                ordeal.getDawnTriggerSerialToday(), ordeal.getMiddayTriggerSerialToday(), visualChoices);
+        initializeMalkuthWorkState(server, state);
+        reconcileHodEmployees(server, state);
 
         for (ServerPlayer participant : server.getPlayerList().getPlayers()) {
             if (participant.level().dimension() == ModDimensions.LOBOTO_KEY) {
@@ -184,8 +247,70 @@ public final class CoreSuppressionManager {
         server.getPlayerList().broadcastSystemMessage(Component.literal(
                 "§6[核心抑制] §f" + player.getGameProfile().getName() + " 开启了 "
                         + type.getDisplayName() + " 核心抑制。"), false);
+        broadcastStopCommand(server);
         syncAll(server);
         return true;
+    }
+
+    /** Queues an implemented suppression without admission checks, but keeps the visual safety vote. */
+    public static boolean debugStartChallenge(ServerPlayer player, CoreSuppressionType type) {
+        if (type == null || !type.isImplemented()) return false;
+        MinecraftServer server = player.getServer();
+        CoreSuppressionData state = CoreSuppressionData.get(server.overworld());
+        if (state.isActive() || PENDING_CHALLENGES.containsKey(server)) return false;
+
+        Set<UUID> participants = new HashSet<>();
+        for (ServerPlayer participant : server.getPlayerList().getPlayers()) {
+            participants.add(participant.getUUID());
+        }
+        PendingChallenge pending = new PendingChallenge(type, player.getUUID(),
+                server.overworld().getGameTime() + VISUAL_WARNING_DURATION_TICKS,
+                participants, true);
+        PENDING_CHALLENGES.put(server, pending);
+        sendPendingState(server, pending);
+        server.getPlayerList().broadcastSystemMessage(Component.literal(
+                "§e[核心抑制] 强制挑战正在等待全员视觉安全确认，最多等待 60 秒。"), false);
+        return true;
+    }
+
+    private static boolean beginDebugChallenge(ServerPlayer player, CoreSuppressionType type,
+                                               Map<UUID, Boolean> visualChoices) {
+        MinecraftServer server = player.getServer();
+        CoreSuppressionData state = CoreSuppressionData.get(server.overworld());
+        if (state.isActive()) return false;
+        CompanyDailyData daily = getDailyData(player);
+        if (daily == null) return false;
+        KillCommand.queueActiveOrdealTargets(server);
+        FacilityManager.debugResetSuppressionProgress(server.overworld());
+        OrdealData ordeal = OrdealData.get(server.overworld());
+        ordeal.resetForChallenge(daily.getCurrentDay());
+        state.start(type, player.getUUID(), player.getGameProfile().getName(), daily.getCurrentDay(),
+                ordeal.getDawnTriggerSerialToday(), ordeal.getMiddayTriggerSerialToday(), visualChoices);
+        initializeMalkuthWorkState(server, state);
+        reconcileHodEmployees(server, state);
+        for (ServerPlayer participant : server.getPlayerList().getPlayers()) {
+            if (participant.level().dimension() == ModDimensions.LOBOTO_KEY) WorkDeviceItem.disableAll(participant);
+        }
+        teleportToCompany(player);
+        syncDaily(player, daily);
+        broadcastTitle(server, type, "核心抑制", type.getDisplayName(), "调试挑战开始", type.getColor());
+        broadcastStopCommand(server);
+        syncAll(server);
+        return true;
+    }
+
+    private static void broadcastStopCommand(MinecraftServer server) {
+        Component message = Component.literal("[核心抑制] ").withStyle(ChatFormatting.GOLD)
+                .append(Component.literal("若视觉效果妨碍操作，可").withStyle(ChatFormatting.WHITE))
+                .append(Component.literal("点击这里").withStyle(style -> style
+                        .withColor(ChatFormatting.RED)
+                        .withUnderlined(true)
+                        .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND,
+                                STOP_SUPPRESSION_COMMAND))
+                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                                Component.literal("填入：" + STOP_SUPPRESSION_COMMAND)))))
+                .append(Component.literal("以停止抑制（不视为完成）。").withStyle(ChatFormatting.WHITE));
+        server.getPlayerList().broadcastSystemMessage(message, false);
     }
 
     public static boolean isActive(Level level, CoreSuppressionType type) {
@@ -212,7 +337,8 @@ public final class CoreSuppressionManager {
     }
 
     public static float getWorkSuccessBonus(ServerPlayer player) {
-        return hasReward(player, CoreSuppressionType.MALKUTH) ? 0.10F : 0.0F;
+        return hasReward(player, CoreSuppressionType.MALKUTH)
+                ? MALKUTH_COMPLETION_SUCCESS_BONUS : 0.0F;
     }
 
     public static int getAttributeGrowthMultiplier(ServerPlayer player) {
@@ -234,8 +360,20 @@ public final class CoreSuppressionManager {
 
     public static WorkType randomizeWorkType(ServerPlayer player, WorkType selected) {
         if (!isActive(player.level(), CoreSuppressionType.MALKUTH)) return selected;
-        WorkType[] types = WorkType.values();
-        return types[player.getRandom().nextInt(types.length)];
+        MinecraftServer server = player.getServer();
+        CoreSuppressionData state = CoreSuppressionData.get(server.overworld());
+        refreshMalkuthWorkState(server, state);
+        return MalkuthWorkPolicy.map(selected, state.getMalkuthWorkMapping());
+    }
+
+    public static boolean isMalkuthWorkScrambled(Level level) {
+        return isActive(level, CoreSuppressionType.MALKUTH);
+    }
+
+    public static boolean isMalkuthWorkCancellationLocked(Level level) {
+        if (!isMalkuthWorkScrambled(level) || !(level instanceof ServerLevel serverLevel)) return false;
+        return MalkuthWorkPolicy.isCancellationLockedForStoredLevel(
+                FacilityDayData.get(serverLevel.getServer().overworld()).getMeltdownLevel());
     }
 
     public static boolean isNetzachReactorDisabled(Level level) {
@@ -255,42 +393,27 @@ public final class CoreSuppressionManager {
     }
 
     public static void tickMeltdown(AbstractAbnormality abnormality) {
-        if (!(abnormality.level() instanceof ServerLevel level) || !isMeltdownActive(abnormality)) return;
-        if (!CoreSuppressionData.get(level).isActive()) {
-            clearMeltdownVisualAndData(abnormality);
-            return;
-        }
-
-        CompoundTag tag = abnormality.getPersistentData();
-        long gameTime = level.getServer().overworld().getGameTime();
-        if (gameTime < tag.getLong(MELTDOWN_DEADLINE)) {
-            if (gameTime % 20L == 0L) applyMeltdownVisual(abnormality);
-            return;
-        }
-
-        UUID triggeringPlayer = tag.hasUUID(MELTDOWN_PLAYER) ? tag.getUUID(MELTDOWN_PLAYER) : null;
-        String name = abnormality.getAbnormalityName();
-        CoreSuppressionData state = CoreSuppressionData.get(level);
-        int challengeDay = state.getChallengeDay();
+        // Migrate saves from the retired per-player meltdown implementation.
+        // FacilityDayData is now the only authority for core-suppression meltdowns.
         clearMeltdownVisualAndData(abnormality);
-
-        int counter = abnormality.getQliphothCounter();
-        if (counter > 0) {
-            abnormality.decreaseQliphothCounter(counter);
-        } else {
-            abnormality.setQliphothCounter(0);
-        }
-
-        int deducted = applyMeltdownPenalty(level.getServer(), state, triggeringPlayer, challengeDay);
-        String penaltyText = deducted >= 0
-                ? "，触发玩家的当日工作次数 -" + deducted
-                : "，触发玩家离线，工作次数惩罚将在上线时结算";
-        level.getServer().getPlayerList().broadcastSystemMessage(Component.literal(
-                "§4[融毁失败] §c" + name + " 的逆卡巴拉计数器已归零" + penaltyText + "。"), false);
     }
 
-    private static boolean isMeltdownActive(AbstractAbnormality abnormality) {
+    /** Removes retired per-entity meltdown tags from pre-migration saves. */
+    public static void retireLegacyMeltdown(AbstractAbnormality abnormality) {
+        clearMeltdownVisualAndData(abnormality);
+    }
+
+    /** Server-authoritative state used by work validation and monitoring snapshots. */
+    public static boolean isMeltdownActive(AbstractAbnormality abnormality) {
         return abnormality.getPersistentData().getBoolean(MELTDOWN_ACTIVE);
+    }
+
+    /** Remaining core-suppression meltdown time, or zero when inactive/expired. */
+    public static int getMeltdownRemainingTicks(AbstractAbnormality abnormality) {
+        if (!isMeltdownActive(abnormality) || !(abnormality.level() instanceof ServerLevel level)) return 0;
+        long now = level.getServer().overworld().getGameTime();
+        long remaining = abnormality.getPersistentData().getLong(MELTDOWN_DEADLINE) - now;
+        return (int) Math.max(0L, Math.min(Integer.MAX_VALUE, remaining));
     }
 
     private static void triggerRandomMeltdown(ServerPlayer player, AbstractAbnormality completedAbnormality) {
@@ -401,6 +524,10 @@ public final class CoreSuppressionManager {
     private static void applyPendingMeltdownPenalty(ServerPlayer player) {
         CoreSuppressionData state = CoreSuppressionData.get(player.serverLevel());
         int[] pending = state.takePendingMeltdownPenalty(player.getUUID());
+        // Pending entries were written by the retired per-player meltdown
+        // implementation. Reading removes them; never apply its obsolete
+        // work-count penalty after upgrading a save.
+        if (pending != null) return;
         if (pending == null || pending.length < 2) return;
         CompanyDailyData daily = getDailyData(player);
         if (daily == null || daily.getCurrentDay() != pending[0]) return;
@@ -410,19 +537,21 @@ public final class CoreSuppressionManager {
     }
 
     public static boolean requirementsMet(MinecraftServer server, CoreSuppressionData state) {
-        if (!state.isActive() || state.getDawnCompleted() < REQUIRED_DAWNS
-                || state.getMiddayCompleted() < REQUIRED_MIDDAYS) {
+        CoreSuppressionType type = state.getActiveType();
+        if (!state.isActive() || type == null || !type.isImplemented()
+                || type.getRequiredBossPhases() > 0) {
             return false;
         }
-        ServerPlayer owner = server.getPlayerList().getPlayer(state.getOwnerUuid());
-        CompanyDailyData daily = owner == null ? null : getDailyData(owner);
-        return daily != null && daily.hasCompletedTodayWork();
+        FacilityDayData facility = FacilityDayData.get(server.overworld());
+        return type.isFacilityObjectiveMet(
+                facility.getEnergy(), facility.getEnergyQuota(), facility.getMeltdownLevel());
     }
 
     @SubscribeEvent
     public static void onServerTick(TickEvent.ServerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         MinecraftServer server = event.getServer();
+        processPendingChallenge(server);
         if (server.getTickCount() % 20 == 0) {
             processChallenge(server);
             syncAll(server);
@@ -457,10 +586,15 @@ public final class CoreSuppressionManager {
         CoreSuppressionData state = CoreSuppressionData.get(server.overworld());
         if (!state.isActive()) return;
 
+        reconcileHodEmployees(server, state);
+
         OrdealData ordeal = OrdealData.get(server.overworld());
         int dawnSerial = ordeal.getDawnTriggerSerialToday();
         int middaySerial = ordeal.getMiddayTriggerSerialToday();
         CoreSuppressionType type = state.getActiveType();
+        if (type == CoreSuppressionType.MALKUTH) {
+            refreshMalkuthWorkState(server, state);
+        }
 
         for (int i = state.getSeenDawnTriggerSerial(); i < dawnSerial; i++) {
             handleOrdealTrigger(server, state, type, false, i == 0);
@@ -472,13 +606,27 @@ public final class CoreSuppressionManager {
         state.setProgress(ordeal.getDawnCompletionsToday(), ordeal.getMiddayCompletionsToday());
     }
 
+    private static void initializeMalkuthWorkState(MinecraftServer server, CoreSuppressionData state) {
+        if (state.getActiveType() != CoreSuppressionType.MALKUTH) return;
+        int meltdownLevel = FacilityDayData.get(server.overworld()).getMeltdownLevel();
+        state.setMalkuthWorkState(
+                MalkuthWorkPolicy.generateMapping(server.overworld().getRandom()::nextInt),
+                meltdownLevel);
+    }
+
+    private static void refreshMalkuthWorkState(MinecraftServer server, CoreSuppressionData state) {
+        if (!state.isActive() || state.getActiveType() != CoreSuppressionType.MALKUTH) return;
+        int meltdownLevel = FacilityDayData.get(server.overworld()).getMeltdownLevel();
+        if (state.hasMalkuthWorkMapping()
+                && state.getMalkuthObservedMeltdownLevel() == meltdownLevel) return;
+        state.setMalkuthWorkState(
+                MalkuthWorkPolicy.generateMapping(server.overworld().getRandom()::nextInt),
+                meltdownLevel);
+    }
+
     private static void handleOrdealTrigger(MinecraftServer server, CoreSuppressionData state,
                                             CoreSuppressionType type, boolean midday, boolean firstOfTier) {
-        if (type == CoreSuppressionType.HOD) {
-            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-                applyRandomHodPenalty(player, state);
-            }
-        } else if (type == CoreSuppressionType.NETZACH) {
+        if (type == CoreSuppressionType.NETZACH) {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 if (!player.isAlive()) continue;
                 player.setHealth(player.getMaxHealth());
@@ -493,54 +641,66 @@ public final class CoreSuppressionManager {
         }
     }
 
-    private static void applyRandomHodPenalty(ServerPlayer player, CoreSuppressionData state) {
-        int statIndex = player.getRandom().nextInt(4);
+    private static void reconcileHodEmployees(MinecraftServer server, CoreSuppressionData state) {
+        int penalty = state.isActive() && state.getActiveType() == CoreSuppressionType.HOD
+                ? HodPenaltyPolicy.penalty(FacilityDayData.get(server.overworld()).getMeltdownLevel())
+                : 0;
+        forEachEmployee(server, player -> applyHodPenalty(player, penalty));
+    }
+
+    /** Reconciles one real or simulated employee after login, respawn, or AI creation. */
+    public static void reconcileHodState(ServerPlayer player) {
+        CoreSuppressionData state = CoreSuppressionData.get(player.serverLevel());
+        int penalty = state.isActive() && state.getActiveType() == CoreSuppressionType.HOD
+                ? HodPenaltyPolicy.penalty(FacilityDayData.get(player.serverLevel()).getMeltdownLevel())
+                : 0;
+        applyHodPenalty(player, penalty);
+    }
+
+    private static void applyHodPenalty(ServerPlayer player, int penalty) {
         player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(stats -> {
-            int before;
-            switch (statIndex) {
-                case 0 -> {
-                    before = stats.getFortitude();
-                    stats.setFortitude(before - 20);
-                }
-                case 1 -> {
-                    before = stats.getPrudence();
-                    stats.setPrudence(before - 20);
-                }
-                case 2 -> {
-                    before = stats.getTemperance();
-                    stats.setTemperance(before - 20);
-                }
-                default -> {
-                    before = stats.getJustice();
-                    stats.setJustice(before - 20);
-                }
-            }
-            int after = switch (statIndex) {
-                case 0 -> stats.getFortitude();
-                case 1 -> stats.getPrudence();
-                case 2 -> stats.getTemperance();
-                default -> stats.getJustice();
-            };
-            state.addHodPenalty(player.getUUID(), statIndex, before - after);
+            if (!(stats instanceof EmployeeStats values) || values.getHodPenalty() == penalty) return;
+            values.setHodPenalty(penalty);
             EmployeeStatsApplier.applyAllAttributes(player);
-            syncStats(player);
-            player.sendSystemMessage(Component.literal("§cHod核心抑制：随机属性等级暂时下降。"));
+            if (!(player instanceof EmployeeServerPlayer)) syncStats(player);
         });
+    }
+
+    private static void forEachEmployee(MinecraftServer server, Consumer<ServerPlayer> action) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) action.accept(player);
+        for (EmployeeServerPlayer employee : EmployeeRuntimeManager.activePlayers()) action.accept(employee);
     }
 
     private static void applyPendingHodRestore(ServerPlayer player) {
         CoreSuppressionData state = CoreSuppressionData.get(player.serverLevel());
         int[] restore = state.takePendingHodRestore(player.getUUID());
-        if (restore == null) return;
+        if (restore == null) {
+            reconcileHodState(player);
+            return;
+        }
         player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(stats -> {
-            stats.setFortitude(stats.getFortitude() + restore[0]);
-            stats.setPrudence(stats.getPrudence() + restore[1]);
-            stats.setTemperance(stats.getTemperance() + restore[2]);
-            stats.setJustice(stats.getJustice() + restore[3]);
+            if (stats instanceof EmployeeStats values) {
+                // Legacy saves stored Hod's reduction as a mutation of the base
+                // values. Restore those values from the unmodified base once;
+                // the current overlay path never populates this map.
+                values.clearHodPenalty();
+                values.setFortitude(values.getBaseFortitude() + restore[0]);
+                values.setPrudence(values.getBasePrudence() + restore[1]);
+                values.setTemperance(values.getBaseTemperance() + restore[2]);
+                values.setJustice(values.getBaseJustice() + restore[3]);
+            } else {
+                stats.setFortitude(stats.getFortitude() + restore[0]);
+                stats.setPrudence(stats.getPrudence() + restore[1]);
+                stats.setTemperance(stats.getTemperance() + restore[2]);
+                stats.setJustice(stats.getJustice() + restore[3]);
+            }
             EmployeeStatsApplier.applyAllAttributes(player);
-            syncStats(player);
-            player.sendSystemMessage(Component.literal("§aHod核心抑制造成的临时属性降低已恢复。"));
+            if (!(player instanceof EmployeeServerPlayer)) {
+                syncStats(player);
+                player.sendSystemMessage(Component.literal("§aHod核心抑制造成的临时属性降低已恢复。"));
+            }
         });
+        reconcileHodState(player);
     }
 
     private static void applyNetzachHealthBonus(ServerPlayer player) {
@@ -583,29 +743,15 @@ public final class CoreSuppressionManager {
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onWorkComplete(WorkCompleteEvent event) {
-        ServerPlayer player = event.getEntity();
-        if (event.isForcedEnd()
-                || player.level().dimension() != ModDimensions.LOBOTO_KEY
-                || !(event.getAbnormality() instanceof AbstractAbnormality abnormality)) {
-            return;
-        }
-        CoreSuppressionData state = CoreSuppressionData.get(player.serverLevel());
-        if (state.isActive() && state.recordMeltdownWork(player.getUUID(), MELTDOWN_WORK_INTERVAL)) {
-            triggerRandomMeltdown(player, abnormality);
-        }
-    }
-
-    @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onDayAdvance(CompanyDayAdvanceEvent event) {
         MinecraftServer server = event.getPlayer().getServer();
         CoreSuppressionData state = CoreSuppressionData.get(server.overworld());
         if (!state.isActive()) return;
 
-        if (!event.getPlayer().getUUID().equals(state.getOwnerUuid()) || !requirementsMet(server, state)) {
+        if (!requirementsMet(server, state)) {
             event.setCanceled(true);
             event.getPlayer().sendSystemMessage(Component.literal(
-                    "§c核心抑制结束前无法进入下一天。需要完成三次黎明、两次正午和当日工作。"));
+                    "§c核心抑制结束前无法进入下一天。需要完成当天能源配额并到达逆卡巴拉熔毁等级 VI。"));
             return;
         }
         finishChallenge(server, true, "考验完成");
@@ -617,14 +763,9 @@ public final class CoreSuppressionManager {
         CoreSuppressionData state = CoreSuppressionData.get(player.serverLevel());
         if (!state.isActive()) return;
 
-        boolean ownerReady = player.getUUID().equals(state.getOwnerUuid())
-                && player.level().dimension() == ModDimensions.LOBOTO_KEY
-                && requirementsMet(player.getServer(), state);
-        if (!ownerReady) {
-            event.setResult(Player.BedSleepingProblem.OTHER_PROBLEM);
-            player.sendSystemMessage(Component.literal(
-                    "§c核心抑制结束前无法休息。仅接取者在完成全部目标后可以结束这一天。"));
-        }
+        event.setResult(Player.BedSleepingProblem.OTHER_PROBLEM);
+        player.sendSystemMessage(Component.literal(
+                "§c核心抑制期间不能通过睡觉结束当天，请使用设施的结束日操作。"));
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
@@ -632,24 +773,40 @@ public final class CoreSuppressionManager {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         CoreSuppressionData state = CoreSuppressionData.get(player.serverLevel());
         if (!state.isActive()) return;
-        boolean ownerReady = player.getUUID().equals(state.getOwnerUuid())
-                && player.level().dimension() == ModDimensions.LOBOTO_KEY
-                && requirementsMet(player.getServer(), state);
-        event.setResult(ownerReady ? Event.Result.ALLOW : Event.Result.DENY);
+        event.setResult(Event.Result.DENY);
     }
 
     @SubscribeEvent
     public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        MinecraftServer server = player.getServer();
+        PendingChallenge pending = PENDING_CHALLENGES.get(server);
+        if (pending != null) {
+            if (player.getUUID().equals(pending.ownerUuid)) {
+                cancelPendingChallenge(server, pending, "发起者退出了游戏，核心抑制确认已取消。");
+            } else if (pending.participants.remove(player.getUUID())) {
+                pending.visualChoices.remove(player.getUUID());
+                if (pending.visualChoices.size() >= pending.participants.size()) {
+                    launchPendingChallenge(server, pending);
+                } else {
+                    sendPendingState(server, pending);
+                }
+            }
+        }
         CoreSuppressionData state = CoreSuppressionData.get(player.serverLevel());
         if (state.isActive() && player.getUUID().equals(state.getOwnerUuid())) {
-            finishChallenge(player.getServer(), false, "接取者退出了游戏");
+            finishChallenge(server, false, "接取者退出了游戏");
         }
     }
 
     @SubscribeEvent
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        PendingChallenge pending = PENDING_CHALLENGES.get(player.getServer());
+        if (pending != null && player.getServer().overworld().getGameTime() < pending.deadline) {
+            pending.participants.add(player.getUUID());
+            sendPendingState(player.getServer(), pending);
+        }
         applyPendingHodRestore(player);
         applyPendingMeltdownPenalty(player);
         grantCompletedAdvancements(player);
@@ -661,12 +818,20 @@ public final class CoreSuppressionManager {
     public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             applyNetzachHealthBonus(player);
+            reconcileHodState(player);
         }
     }
 
     public static void failChallenge(MinecraftServer server, String reason) {
         CoreSuppressionData state = CoreSuppressionData.get(server.overworld());
         if (state.isActive()) finishChallenge(server, false, reason);
+    }
+
+    /** Finishes the active suppression without checking its completion conditions. */
+    public static boolean debugFinishChallenge(MinecraftServer server, boolean success) {
+        if (!CoreSuppressionData.get(server.overworld()).isActive()) return false;
+        finishChallenge(server, success, "调试命令");
+        return true;
     }
 
     private static void finishChallenge(MinecraftServer server, boolean success, String reason) {
@@ -676,9 +841,7 @@ public final class CoreSuppressionManager {
 
         if (type == CoreSuppressionType.HOD) state.prepareHodRestores();
         state.finish(success);
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            applyPendingHodRestore(player);
-        }
+        forEachEmployee(server, CoreSuppressionManager::applyPendingHodRestore);
 
         if (success) {
             KillCommand.queueAllSuppressionTargets(server);
@@ -695,6 +858,9 @@ public final class CoreSuppressionManager {
                     "§c[核心抑制] " + type.getDisplayName() + " 挑战失败：" + reason), false);
         }
         syncAll(server);
+        // Alert packets are ignored while suppression is active. Send the
+        // authoritative level only after clients receive the inactive state.
+        EscapeTracker.getInstance().syncAll(server);
     }
 
     public static void grantCompletedAdvancements(ServerPlayer player) {
@@ -722,32 +888,119 @@ public final class CoreSuppressionManager {
         MinecraftServer server = player.getServer();
         CoreSuppressionData state = CoreSuppressionData.get(server.overworld());
         boolean active = state.isActive();
-        int work = 0;
-        int required = 0;
+        FacilityDayData facility = FacilityDayData.get(server.overworld());
+        int energy = active ? facility.getEnergy() : 0;
+        int energyQuota = active ? facility.getEnergyQuota() : 0;
+        int meltdownLevel = active ? facility.getMeltdownLevel() : 0;
         int stage = 0;
         if (active) {
-            ServerPlayer owner = server.getPlayerList().getPlayer(state.getOwnerUuid());
-            CompanyDailyData daily = owner == null ? null : getDailyData(owner);
-            if (daily != null) {
-                work = daily.getTodayWorkCount();
-                required = daily.getRequiredWorkCount();
-            }
-            OrdealData ordeal = OrdealData.get(server.overworld());
-            stage = ordeal.getMiddayTriggerSerialToday() > 0 ? 3
-                    : ordeal.getDawnTriggerSerialToday() > 0 ? 2 : 1;
+            // The original upper-layer suppressions change phase at Qliphoth
+            // overload levels I and III. FacilityDayData stores the next level,
+            // so completed activations I and III are represented by II and IV.
+            stage = HodPenaltyPolicy.visualStage(meltdownLevel);
         }
         CoreSuppressionType type = state.getActiveType();
         MessageLoader.getLoader().sendToPlayer(player, new CoreSuppressionSyncPacket(
                 active,
                 type == null ? -1 : type.ordinal(),
                 state.getOwnerName(),
-                state.getDawnCompleted(),
-                state.getMiddayCompleted(),
-                work,
-                required,
+                energy,
+                energyQuota,
+                meltdownLevel,
+                type == null ? 0 : type.getRequiredMeltdownLevel(),
                 stage,
-                state.getCompletedMask()
+                state.getCompletedMask(),
+                state.usesFullVisualEffects(player.getUUID())
         ));
+    }
+
+    private static void processPendingChallenge(MinecraftServer server) {
+        PendingChallenge pending = PENDING_CHALLENGES.get(server);
+        if (pending == null) return;
+        if (server.getPlayerList().getPlayer(pending.ownerUuid) == null) {
+            cancelPendingChallenge(server, pending, "发起者已离线，核心抑制确认已取消。");
+            return;
+        }
+        long remaining = pending.deadline - server.overworld().getGameTime();
+        if (remaining <= 0L || pending.visualChoices.size() >= pending.participants.size()) {
+            launchPendingChallenge(server, pending);
+            return;
+        }
+        int seconds = remainingSeconds(remaining);
+        if (seconds != pending.lastBroadcastSeconds) {
+            pending.lastBroadcastSeconds = seconds;
+            sendPendingState(server, pending);
+        }
+    }
+
+    private static void launchPendingChallenge(MinecraftServer server, PendingChallenge pending) {
+        if (PENDING_CHALLENGES.get(server) != pending) return;
+        PENDING_CHALLENGES.remove(server);
+        for (UUID participant : pending.participants) {
+            pending.visualChoices.putIfAbsent(participant, false);
+        }
+        ServerPlayer owner = server.getPlayerList().getPlayer(pending.ownerUuid);
+        boolean started = owner != null && (pending.debug
+                ? beginDebugChallenge(owner, pending.type, pending.visualChoices)
+                : beginChallenge(owner, pending.type, pending.visualChoices));
+        if (!started) {
+            clearPendingScreens(server, pending);
+        }
+    }
+
+    private static void cancelPendingChallenge(MinecraftServer server, PendingChallenge pending,
+                                               String reason) {
+        if (PENDING_CHALLENGES.get(server) != pending) return;
+        PENDING_CHALLENGES.remove(server);
+        clearPendingScreens(server, pending);
+        server.getPlayerList().broadcastSystemMessage(Component.literal("§c[核心抑制] " + reason), false);
+    }
+
+    private static void clearPendingScreens(MinecraftServer server, PendingChallenge pending) {
+        for (UUID participantId : pending.participants) {
+            ServerPlayer participant = server.getPlayerList().getPlayer(participantId);
+            if (participant != null) {
+                MessageLoader.getLoader().sendToPlayer(participant,
+                        new CoreSuppressionWarningPacket(-1, 0, 0, 0, false));
+            }
+        }
+    }
+
+    private static void sendPendingState(MinecraftServer server, PendingChallenge pending) {
+        long remaining = Math.max(0L, pending.deadline - server.overworld().getGameTime());
+        int seconds = remainingSeconds(remaining);
+        int confirmed = pending.visualChoices.size();
+        int total = pending.participants.size();
+        for (UUID participantId : pending.participants) {
+            ServerPlayer participant = server.getPlayerList().getPlayer(participantId);
+            if (participant == null) continue;
+            boolean needsChoice = !pending.visualChoices.containsKey(participantId);
+            MessageLoader.getLoader().sendToPlayer(participant, new CoreSuppressionWarningPacket(
+                    pending.type.ordinal(), seconds, confirmed, total, needsChoice));
+        }
+    }
+
+    private static int remainingSeconds(long ticks) {
+        return (int) Math.max(0L, Math.min(60L, (ticks + 19L) / 20L));
+    }
+
+    private static final class PendingChallenge {
+        private final CoreSuppressionType type;
+        private final UUID ownerUuid;
+        private final long deadline;
+        private final Set<UUID> participants;
+        private final boolean debug;
+        private final Map<UUID, Boolean> visualChoices = new HashMap<>();
+        private int lastBroadcastSeconds = -1;
+
+        private PendingChallenge(CoreSuppressionType type, UUID ownerUuid,
+                                 long deadline, Set<UUID> participants, boolean debug) {
+            this.type = type;
+            this.ownerUuid = ownerUuid;
+            this.deadline = deadline;
+            this.participants = new HashSet<>(participants);
+            this.debug = debug;
+        }
     }
 
     private static CompanyDailyData getDailyData(ServerPlayer player) {

@@ -2,6 +2,8 @@ package com.wzz.lobotocraft.event.listener;
 
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.client.ShaderQuality;
+import com.wzz.lobotocraft.client.performance.ClientPerformanceMonitor;
+import com.wzz.lobotocraft.logger.ModLogger;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
@@ -11,68 +13,127 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 @Mod.EventBusSubscriber(modid = ModMain.MODID, value = Dist.CLIENT)
-public class ResolutionShaderHandler {
+public final class ResolutionShaderHandler {
+
+    private static final int MIN_RELOAD_DELAY_TICKS = 20;
+    private static final int MAX_RELOAD_DELAY_TICKS = 600;
 
     private static ShaderQuality current = ShaderQuality.NATIVE;
-    private static int remainingTicks = 0;      // 剩余持续tick数，0表示永久
+    private static int remainingTicks;
+    private static long clientTicks;
+    private static long nextReloadTick;
+    private static int consecutiveReloadFailures;
 
-    /**
-     * 应用画质（永久）
-     */
+    private ResolutionShaderHandler() {
+    }
+
+    /** Applies a shader quality until another quality is selected. */
     public static void apply(ShaderQuality quality) {
         apply(quality, 0);
     }
 
     /**
-     * 应用画质，持续指定时间后自动恢复NATIVE
-     * @param quality 目标画质
-     * @param durationTicks 持续时间（tick），<=0 表示永久
+     * Applies a shader quality and optionally restores native rendering after the given duration.
+     * Re-applying the already active quality only refreshes its duration; it does not synchronously
+     * tear down and reload the same post chain again.
      */
     public static void apply(ShaderQuality quality, int durationTicks) {
-        current = quality;
-        remainingTicks = durationTicks;
+        ShaderQuality requested = quality == null ? ShaderQuality.NATIVE : quality;
+        boolean qualityChanged = requested != current;
+        current = requested;
+        remainingTicks = Math.max(0, durationTicks);
 
-        Minecraft mc = Minecraft.getInstance();
-        mc.gameRenderer.shutdownEffect();
-        if (quality.effect != null) {
-            mc.gameRenderer.loadEffect(quality.effect);
+        Minecraft minecraft = Minecraft.getInstance();
+        if (requested.effect == null) {
+            if (qualityChanged || minecraft.gameRenderer.currentEffect() != null) {
+                minecraft.gameRenderer.shutdownEffect();
+            }
+            resetReloadBackoff();
+            return;
         }
+
+        if (!qualityChanged && minecraft.gameRenderer.currentEffect() != null) {
+            resetReloadBackoff();
+            return;
+        }
+
+        if (qualityChanged) {
+            minecraft.gameRenderer.shutdownEffect();
+            resetReloadBackoff();
+        }
+        tryReload(minecraft, qualityChanged);
     }
 
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) return;
+        clientTicks++;
+
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level == null) return;
 
         if (remainingTicks > 0) {
             remainingTicks--;
             if (remainingTicks == 0) {
                 apply(ShaderQuality.NATIVE);
-                if (mc.player != null) {
-                    mc.player.displayClientMessage(Component.literal("画质已恢复"), true);
+                if (minecraft.player != null) {
+                    minecraft.player.displayClientMessage(Component.literal("画质已恢复"), true);
                 }
                 return;
             }
         }
 
-        // 重载检查（防止着色器丢失）
-        if (current.effect == null) return;
-        if (mc.gameRenderer.currentEffect() == null) {
-            mc.gameRenderer.loadEffect(current.effect);
+        if (current.effect != null && minecraft.gameRenderer.currentEffect() == null) {
+            tryReload(minecraft, false);
         }
     }
 
     @SubscribeEvent
     public static void onLogin(ClientPlayerNetworkEvent.LoggingIn event) {
-        // 登录时如果有计时任务，保留状态继续计时
-        if (current != ShaderQuality.NATIVE) {
-            // 重设着色器，保留剩余时间
-            Minecraft mc = Minecraft.getInstance();
-            mc.gameRenderer.shutdownEffect();
-            if (current.effect != null) {
-                mc.gameRenderer.loadEffect(current.effect);
+        if (current == ShaderQuality.NATIVE) return;
+
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.gameRenderer.shutdownEffect();
+        resetReloadBackoff();
+        tryReload(minecraft, true);
+    }
+
+    private static void tryReload(Minecraft minecraft, boolean force) {
+        if (current.effect == null || (!force && clientTicks < nextReloadTick)) return;
+
+        long sectionStarted = ClientPerformanceMonitor.beginSection("shader_reload");
+        try {
+            minecraft.gameRenderer.loadEffect(current.effect);
+        } catch (RuntimeException exception) {
+            registerReloadFailure();
+            if (consecutiveReloadFailures == 1) {
+                ModLogger.LOGGER.warn("Unable to load resolution shader {}; retrying with backoff",
+                        current.effect, exception);
             }
+            return;
+        } finally {
+            ClientPerformanceMonitor.endSection("shader_reload", sectionStarted);
         }
+
+        if (minecraft.gameRenderer.currentEffect() != null) {
+            resetReloadBackoff();
+        } else {
+            registerReloadFailure();
+        }
+    }
+
+    private static void registerReloadFailure() {
+        consecutiveReloadFailures = Math.min(consecutiveReloadFailures + 1, 30);
+        nextReloadTick = clientTicks + reloadDelayTicks(consecutiveReloadFailures);
+    }
+
+    private static void resetReloadBackoff() {
+        consecutiveReloadFailures = 0;
+        nextReloadTick = clientTicks;
+    }
+
+    static int reloadDelayTicks(int consecutiveFailures) {
+        int exponent = Math.max(0, Math.min(consecutiveFailures - 1, 5));
+        return Math.min(MAX_RELOAD_DELAY_TICKS, MIN_RELOAD_DELAY_TICKS << exponent);
     }
 }

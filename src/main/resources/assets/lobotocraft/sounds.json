@@ -1595,6 +1595,18 @@
       }
     ]
   },
+  "normal_work_0": {"sounds": [{"name": "lobotocraft:normal/normal_work_0", "stream": true}]},
+  "normal_work_1": {"sounds": [{"name": "lobotocraft:normal/normal_work_1", "stream": true}]},
+  "normal_work_2": {"sounds": [{"name": "lobotocraft:normal/normal_work_2", "stream": true}]},
+  "normal_work_3": {"sounds": [{"name": "lobotocraft:normal/normal_work_3", "stream": true}]},
+  "core.malkuth_1": {"sounds": [{"name": "lobotocraft:core/malkuth_1", "stream": true}]},
+  "core.malkuth_2": {"sounds": [{"name": "lobotocraft:core/malkuth_2", "stream": true}]},
+  "core.yesod_1": {"sounds": [{"name": "lobotocraft:core/yesod_1", "stream": true}]},
+  "core.yesod_2": {"sounds": [{"name": "lobotocraft:core/yesod_2", "stream": true}]},
+  "core.hod_1": {"sounds": [{"name": "lobotocraft:core/hod_1", "stream": true}]},
+  "core.hod_2": {"sounds": [{"name": "lobotocraft:core/hod_2", "stream": true}]},
+  "core.netzach_1": {"sounds": [{"name": "lobotocraft:core/netzach_1", "stream": true}]},
+  "core.netzach_2": {"sounds": [{"name": "lobotocraft:core/netzach_2", "stream": true}]},
   "core_meltdown_alarm": {
     "sounds": [
       {

@@ -463,6 +463,11 @@ public interface IAbnormality {
      * @param player 尝试取消的玩家
      * @return true表示可以安全取消，false表示取消会触发惩罚
      */
+    /** Returns whether this player owns the active continuous-tool session. */
+    default boolean isUsing(net.minecraft.server.level.ServerPlayer player) {
+        return false;
+    }
+
     default boolean canSafelyCancelUsing(net.minecraft.server.level.ServerPlayer player) {
         return true; // 默认可以安全取消
     }

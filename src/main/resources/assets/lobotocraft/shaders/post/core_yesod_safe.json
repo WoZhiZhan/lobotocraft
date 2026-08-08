@@ -1,0 +1,7 @@
+{
+  "targets": [ "swap" ],
+  "passes": [
+    { "name": "lobotocraft:core_pixelisation", "intarget": "minecraft:main", "outtarget": "swap" },
+    { "name": "minecraft:blit", "intarget": "swap", "outtarget": "minecraft:main" }
+  ]
+}

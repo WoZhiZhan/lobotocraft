@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.event.listener.TeddyExecutionManager;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.WorkResult;
@@ -264,6 +265,12 @@ public class EntityHappyTeddy extends AbstractAbnormality {
      * @param player 被拥抱的员工
      */
     public void triggerHugDeath(ServerPlayer player) {
+        if (!TeddyExecutionManager.begin(this, player)) {
+            player.getPersistentData().putBoolean("lobotocraft_abnormality_executed", true);
+            player.hurt(player.damageSources().fellOutOfWorld(), Float.MAX_VALUE);
+            if (player.isAlive()) player.getPersistentData().remove("lobotocraft_abnormality_executed");
+            return;
+        }
         this.huggedPlayerUUID = player.getUUID();
         this.hugAnimationPhase = 0;
         this.hugAnimationTimer = 0;
@@ -372,6 +379,13 @@ public class EntityHappyTeddy extends AbstractAbnormality {
                     .getPlayerList().getPlayer(huggedPlayerUUID);
 
             if (player != null && player.isAlive()) {
+                if (!TeddyExecutionManager.tick(this, player)) {
+                    huggedPlayerUUID = null;
+                    hugAnimationPhase = 0;
+                    hugAnimationTimer = 0;
+                    setCurrentAnimation("empty");
+                    return;
+                }
                 hugAnimationTimer++;
 
                 // 动画阶段转换
@@ -396,6 +410,9 @@ public class EntityHappyTeddy extends AbstractAbnormality {
                     DamageSources damageSources = player.damageSources();
                     DamageSource genericKill = damageSources.fellOutOfWorld();
                     player.hurt(genericKill, Float.MAX_VALUE);
+                    if (player.isAlive()) {
+                        player.getPersistentData().remove("lobotocraft_abnormality_executed");
+                    }
                     releaseHuggedPlayer(player);
 
                     player.sendSystemMessage(Component.literal(
@@ -411,9 +428,7 @@ public class EntityHappyTeddy extends AbstractAbnormality {
 
                 // 在处决前保持玩家位置（拉向快乐泰迪）
                 if (hugAnimationPhase < 2) {
-                    player.teleportTo(this.getX(), this.getY(), this.getZ());
-                    player.setNoGravity(true);
-                    player.setDeltaMovement(0, 0, 0);
+                    TeddyExecutionManager.enforce(player);
                 }
             } else {
                 // 玩家已经死亡或离线，重置状态
@@ -430,10 +445,23 @@ public class EntityHappyTeddy extends AbstractAbnormality {
 
     /** 恢复拥抱机制临时施加的移动状态，兼容免死、复活和限伤效果。 */
     private void releaseHuggedPlayer(ServerPlayer player) {
-        player.setNoGravity(false);
-        player.setShiftKeyDown(false);
-        player.setDeltaMovement(0.0D, 0.0D, 0.0D);
-        player.fallDistance = 0.0F;
+        TeddyExecutionManager.finish(player);
+    }
+
+    public void cancelExecution() {
+        if (level() instanceof ServerLevel serverLevel) {
+            TeddyExecutionManager.releaseSource(serverLevel, getUUID());
+        }
+        huggedPlayerUUID = null;
+        hugAnimationPhase = 0;
+        hugAnimationTimer = 0;
+        setCurrentAnimation("empty");
+    }
+
+    @Override
+    public void remove(net.minecraft.world.entity.Entity.RemovalReason reason) {
+        cancelExecution();
+        super.remove(reason);
     }
 
     @Override

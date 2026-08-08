@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.network.IMessage;
 import com.wzz.lobotocraft.work.WorkManager;
+import com.wzz.lobotocraft.work.WorkStartAuthorizations;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -32,7 +33,9 @@ public class StartWorkPacket implements IMessage {
     @Override
     public void fromBytes(FriendlyByteBuf buf) {
         this.abnormalityId = buf.readInt();
-        this.workType = WorkType.values()[buf.readInt()];
+        int ordinal = buf.readInt();
+        WorkType[] values = WorkType.values();
+        this.workType = ordinal >= 0 && ordinal < values.length ? values[ordinal] : null;
     }
 
     @Override
@@ -46,11 +49,22 @@ public class StartWorkPacket implements IMessage {
         ctx.enqueueWork(() -> {
             ServerPlayer player = ctx.getSender();
             if (player == null) return;
+            if (workType == null) return;
 
             // 获取异想体实体
             Entity entity = player.level().getEntity(abnormalityId);
             if (!(entity instanceof AbstractAbnormality abnormality)) {
                 player.sendSystemMessage(Component.literal("§c异想体不存在或已消失"));
+                return;
+            }
+
+            if (abnormality.isToolType()) {
+                player.sendSystemMessage(Component.literal("§c工具型异想体不能进入普通工作流程"));
+                return;
+            }
+
+            if (!WorkStartAuthorizations.consume(player, abnormality.getUUID())) {
+                player.sendSystemMessage(Component.literal("§c工作授权已失效，请重新与收容单元交互"));
                 return;
             }
 

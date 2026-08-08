@@ -2,13 +2,12 @@ package com.wzz.lobotocraft.util;
 
 import com.wzz.lobotocraft.capability.IMentalValue;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
+import com.wzz.lobotocraft.capability.PanicType;
 import com.wzz.lobotocraft.event.definition.mental_value.MentalValueEvent;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.MentalValueSyncPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
-
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MentalValueUtil {
     
@@ -32,10 +31,22 @@ public class MentalValueUtil {
     }
 
     // 检测恐慌状态
-    public static boolean isPanic(ServerPlayer player) {
-        AtomicBoolean panic = new AtomicBoolean(false);
-        player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> panic.set(mental.isMentalValueEmpty()));
-        return panic.get();
+    public static boolean isPanic(Player player) {
+        if (player == null) return false;
+        if (player.getPersistentData().getBoolean("isharmla_panic")) return true;
+        return player.getCapability(MentalValueProvider.MENTAL_VALUE)
+                .map(MentalValueUtil::isPanic)
+                .orElse(false);
+    }
+
+    public static boolean isPanic(IMentalValue mental) {
+        return mental != null && PanicType.isActive(mental.getPanicType(),
+                mental.getMentalValue(), mental.getEffectiveMaxMentalValue());
+    }
+
+    public static boolean hasRecoveredFromPanic(IMentalValue mental) {
+        return mental != null && PanicType.hasRecovered(
+                mental.getMentalValue(), mental.getEffectiveMaxMentalValue());
     }
 
     public static void reduceMentalValue(ServerPlayer player, float amount, MentalValueEvent.ChangeType changeType) {
@@ -95,6 +106,8 @@ public class MentalValueUtil {
     public static float getExtraMentalValue(Player player) {
         return player.getCapability(MentalValueProvider.MENTAL_VALUE)
                 .map(IMentalValue::getExtraMentalValue)
-                .orElse(20f);
+                // "额外"精神值缺省必须是 0：capability 缺失时不应凭空虚报 20 点加成。
+                //（上面 getEffectiveMaxMentalValue 的 orElse(20f) 是"上限"兜底，那个是对的，勿动）
+                .orElse(0f);
     }
 }

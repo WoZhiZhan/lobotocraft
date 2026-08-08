@@ -1,12 +1,15 @@
 package com.wzz.lobotocraft.capability;
 
 import com.wzz.lobotocraft.entity.data.AbnormalityEncyclopediaData;
+import com.wzz.lobotocraft.ego.EgoItemSpec;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -22,6 +25,11 @@ public class PlayerAbnormalityData {
     // 装备研发进度 Map<异想体编号, Map<装备类型, 已研发数量>>
     // 装备类型: "weapon" 或 "armor"
     private Map<String, Map<String, Integer>> equipmentDevelopment = new HashMap<>();
+
+    // 个人E.G.O研发结果。装备本体只是服务端根据这些ID生成的锁定投影。
+    private Map<String, Map<String, List<EgoItemSpec>>> personalEgoItems = new HashMap<>();
+    private String equippedPersonalWeapon = "";
+    private String equippedPersonalArmor = "";
 
     /**
      * 获取异想体的观察等级
@@ -145,7 +153,65 @@ public class PlayerAbnormalityData {
     public void addEquipmentDevelopmentCount(String abnormalityCode, String equipmentType, int amount) {
         equipmentDevelopment
             .computeIfAbsent(abnormalityCode, k -> new HashMap<>())
-            .merge(equipmentType, amount, Integer::sum);
+            .compute(equipmentType, (key, current) -> Math.max(0,
+                    Math.min(1, (current == null ? 0 : current) + amount)));
+    }
+
+    public boolean researchPersonalEgo(String abnormalityCode, String equipmentType, List<String> itemIds) {
+        return researchPersonalEgoSpecs(abnormalityCode, equipmentType, EgoItemSpec.fromItemIds(itemIds));
+    }
+
+    public boolean researchPersonalEgoSpecs(String abnormalityCode, String equipmentType,
+                                            List<EgoItemSpec> itemSpecs) {
+        List<EgoItemSpec> normalized = EgoItemSpec.normalizeLegacyVariants(
+                abnormalityCode, equipmentType, itemSpecs);
+        if (normalized.isEmpty()) return false;
+        // 老存档兼容：personalEgoItems 是后加的字段，旧档里研发计数已是 1 但没有物品记录。
+        // 若只看计数就拒绝，那件 E.G.O 会永久锁死——既不能再研发，又拿不到任何装备。
+        // 因此仅当「计数已满 且 确实存有物品」时才拒绝；计数满但无物品的放行，让其补齐数据。
+        boolean alreadyResearched = getEquipmentDevelopmentCount(abnormalityCode, equipmentType) >= 1
+                && !getPersonalEgoItems(abnormalityCode, equipmentType).isEmpty();
+        if (alreadyResearched) {
+            return false;
+        }
+        equipmentDevelopment.computeIfAbsent(abnormalityCode, key -> new HashMap<>())
+                .put(equipmentType, 1);
+        personalEgoItems.computeIfAbsent(abnormalityCode, key -> new HashMap<>())
+                .put(equipmentType, normalized);
+        return true;
+    }
+
+    public List<String> getPersonalEgoItems(String abnormalityCode, String equipmentType) {
+        return getPersonalEgoItemSpecs(abnormalityCode, equipmentType).stream()
+                .map(EgoItemSpec::itemId).toList();
+    }
+
+    public List<EgoItemSpec> getPersonalEgoItemSpecs(String abnormalityCode, String equipmentType) {
+        Map<String, List<EgoItemSpec>> byType = personalEgoItems.get(abnormalityCode);
+        return byType == null ? List.of() : List.copyOf(byType.getOrDefault(equipmentType, List.of()));
+    }
+
+    public Map<String, Map<String, List<String>>> getPersonalEgoResearch() {
+        Map<String, Map<String, List<String>>> result = new HashMap<>();
+        personalEgoItems.forEach((code, byType) -> {
+            Map<String, List<String>> copy = new HashMap<>();
+            byType.forEach((type, items) -> copy.put(type,
+                    items.stream().map(EgoItemSpec::itemId).toList()));
+            result.put(code, copy);
+        });
+        return result;
+    }
+
+    public String getEquippedPersonalEgo(String equipmentType) {
+        return "weapon".equals(equipmentType) ? equippedPersonalWeapon : equippedPersonalArmor;
+    }
+
+    public void setEquippedPersonalEgo(String equipmentType, String abnormalityCode) {
+        if ("weapon".equals(equipmentType)) {
+            equippedPersonalWeapon = abnormalityCode == null ? "" : abnormalityCode;
+        } else if ("armor".equals(equipmentType)) {
+            equippedPersonalArmor = abnormalityCode == null ? "" : abnormalityCode;
+        }
     }
 
     /**
@@ -161,6 +227,15 @@ public class PlayerAbnormalityData {
         for (Map.Entry<String, Map<String, Integer>> entry : source.equipmentDevelopment.entrySet()) {
             this.equipmentDevelopment.put(entry.getKey(), new HashMap<>(entry.getValue()));
         }
+
+        this.personalEgoItems = new HashMap<>();
+        source.personalEgoItems.forEach((code, byType) -> {
+            Map<String, List<EgoItemSpec>> copy = new HashMap<>();
+            byType.forEach((type, items) -> copy.put(type, List.copyOf(items)));
+            this.personalEgoItems.put(code, copy);
+        });
+        this.equippedPersonalWeapon = source.equippedPersonalWeapon;
+        this.equippedPersonalArmor = source.equippedPersonalArmor;
     }
 
     /**
@@ -195,6 +270,23 @@ public class PlayerAbnormalityData {
             listTag.add(tag);
         }
         nbt.put("EquipmentCount", listTag);
+
+        ListTag researchList = new ListTag();
+        personalEgoItems.forEach((code, byType) -> byType.forEach((type, itemIds) -> {
+            CompoundTag entry = new CompoundTag();
+            entry.putString("AbnormalityCode", code);
+            entry.putString("EquipmentType", type);
+            ListTag items = new ListTag();
+            itemIds.forEach(item -> items.add(StringTag.valueOf(item.itemId())));
+            entry.put("Items", items);
+            ListTag itemSpecs = new ListTag();
+            itemIds.forEach(item -> itemSpecs.add(item.save()));
+            entry.put("ItemSpecs", itemSpecs);
+            researchList.add(entry);
+        }));
+        nbt.put("PersonalEgoResearch", researchList);
+        nbt.putString("EquippedPersonalWeapon", equippedPersonalWeapon);
+        nbt.putString("EquippedPersonalArmor", equippedPersonalArmor);
     }
 
     /**
@@ -235,10 +327,39 @@ public class PlayerAbnormalityData {
             CompoundTag equipmentTag = tag.getCompound("Equipment");
             Map<String, Integer> equipmentMap = new HashMap<>();
             for (String key : equipmentTag.getAllKeys()) {
-                equipmentMap.put(key, equipmentTag.getInt(key));
+                equipmentMap.put(key, Math.min(1, equipmentTag.getInt(key)));
             }
             equipmentDevelopment.put(abnormalityCode, equipmentMap);
         }
+
+        personalEgoItems.clear();
+        ListTag researchList = nbt.getList("PersonalEgoResearch", Tag.TAG_COMPOUND);
+        for (int i = 0; i < researchList.size(); i++) {
+            CompoundTag entry = researchList.getCompound(i);
+            String code = entry.getString("AbnormalityCode");
+            String type = entry.getString("EquipmentType");
+            List<EgoItemSpec> itemSpecs;
+            if (entry.contains("ItemSpecs", Tag.TAG_LIST)) {
+                itemSpecs = EgoItemSpec.readList(entry.getList("ItemSpecs", Tag.TAG_COMPOUND));
+            } else {
+                itemSpecs = List.of();
+            }
+            if (itemSpecs.isEmpty()) {
+                ListTag items = entry.getList("Items", Tag.TAG_STRING);
+                java.util.ArrayList<String> itemIds = new java.util.ArrayList<>();
+                for (int itemIndex = 0; itemIndex < items.size(); itemIndex++) {
+                    itemIds.add(items.getString(itemIndex));
+                }
+                itemSpecs = EgoItemSpec.fromItemIds(itemIds);
+            }
+            itemSpecs = EgoItemSpec.normalizeLegacyVariants(code, type, itemSpecs);
+            if (!code.isEmpty() && !type.isEmpty() && !itemSpecs.isEmpty()) {
+                personalEgoItems.computeIfAbsent(code, key -> new HashMap<>())
+                        .put(type, itemSpecs);
+            }
+        }
+        equippedPersonalWeapon = nbt.getString("EquippedPersonalWeapon");
+        equippedPersonalArmor = nbt.getString("EquippedPersonalArmor");
     }
 
     /**

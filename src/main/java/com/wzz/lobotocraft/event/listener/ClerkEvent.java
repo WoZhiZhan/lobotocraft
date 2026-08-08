@@ -4,11 +4,13 @@ import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
 import com.wzz.lobotocraft.block.entity.TombstoneBlockEntity;
 import com.wzz.lobotocraft.entity.EntityClerk;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.entity.abnormality.EntityBlueStar;
 import com.wzz.lobotocraft.entity.abnormality.EntityCleaner;
 import com.wzz.lobotocraft.entity.abnormality.EntityIronMaiden;
 import com.wzz.lobotocraft.entity.abnormality.EntityWorkerBee;
 import com.wzz.lobotocraft.event.definition.company.CompanyDayAdvanceEvent;
+import com.lobotocraft.facility.day.FacilityDayCommittedEvent;
 import com.wzz.lobotocraft.init.ModBlocks;
 import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.init.ModEntities;
@@ -42,9 +44,8 @@ public class ClerkEvent {
     private static final int PLAYER_DEATH_CLERK_RESPAWN_COUNT = 3;
 
     @SubscribeEvent
-    public static void onDayAdvance(CompanyDayAdvanceEvent event) {
-        if (event.getPlayer().getServer() == null) return;
-        ServerLevel level = event.getPlayer().getServer().getLevel(ModDimensions.LOBOTO_KEY);
+    public static void onDayAdvance(FacilityDayCommittedEvent event) {
+        ServerLevel level = event.getServer().getLevel(ModDimensions.LOBOTO_KEY);
         if (level == null) return;
 
         resetDayClerks(level);
@@ -194,7 +195,8 @@ public class ClerkEvent {
         }
 
         for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level)) {
-            if (blockEntity instanceof RegenerationReactorBlockEntity) {
+            if (blockEntity instanceof RegenerationReactorBlockEntity
+                    && isOpenPosition(level, blockEntity.getBlockPos())) {
                 reactorPositions.add(blockEntity.getBlockPos().immutable());
             }
         }
@@ -211,14 +213,16 @@ public class ClerkEvent {
         for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
             for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
                 LevelChunk chunk = level.getChunk(chunkX, chunkZ);
-                collectReactorsInChunk(chunk, reactorPositions);
+                collectReactorsInChunk(level, chunk, reactorPositions);
             }
         }
     }
 
-    private static void collectReactorsInChunk(LevelChunk chunk, Set<BlockPos> reactorPositions) {
+    private static void collectReactorsInChunk(ServerLevel level, LevelChunk chunk,
+                                               Set<BlockPos> reactorPositions) {
         for (BlockEntity blockEntity : new ArrayList<>(chunk.getBlockEntities().values())) {
-            if (blockEntity instanceof RegenerationReactorBlockEntity) {
+            if (blockEntity instanceof RegenerationReactorBlockEntity
+                    && isOpenPosition(level, blockEntity.getBlockPos())) {
                 reactorPositions.add(blockEntity.getBlockPos().immutable());
             }
         }
@@ -232,7 +236,16 @@ public class ClerkEvent {
     }
 
     private static boolean spawnClerk(ServerLevel level, BlockPos reactorPos) {
-        BlockPos spawnPos = EntityUtil.findReactorSpawnPositionInCompany(level, reactorPos, 8);
+        if (!isOpenPosition(level, reactorPos)) return false;
+        BlockPos spawnPos = null;
+        for (int range : new int[]{0, 2, 4, 8}) {
+            BlockPos candidate = EntityUtil.findReactorSpawnPositionInCompany(level, reactorPos, range);
+            if (isOpenPosition(level, candidate)) {
+                spawnPos = candidate;
+                break;
+            }
+        }
+        if (spawnPos == null) return false;
         EntityClerk clerk = ModEntities.clerk.get().create(level);
         if (clerk == null) return false;
 
@@ -240,8 +253,12 @@ public class ClerkEvent {
                 level.random.nextFloat() * 360.0F, 0.0F);
         clerk.setReactorPos(reactorPos);
         clerk.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), MobSpawnType.EVENT, null, null);
-        level.addFreshEntity(clerk);
-        return true;
+        return level.addFreshEntity(clerk);
+    }
+
+    private static boolean isOpenPosition(ServerLevel level, BlockPos pos) {
+        return pos != null && FacilityAccessService.isPositionOpen(level.getServer(),
+                level.dimension().location(), pos);
     }
 
     private static boolean isSpecialDeath(DamageSource source) {

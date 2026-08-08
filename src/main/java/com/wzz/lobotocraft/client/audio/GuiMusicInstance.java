@@ -23,7 +23,7 @@ public class GuiMusicInstance extends AbstractTickableSoundInstance {
     private boolean hasSetStartPosition = false;
 
     public GuiMusicInstance(SoundEvent sound, float maxVolume, boolean loop, String category, float startTimeSeconds) {
-        super(sound, SoundSource.RECORDS, SoundInstance.createUnseededRandom());
+        super(sound, SoundSource.MUSIC, SoundInstance.createUnseededRandom());
 
         this.category = category;
         this.maxVolume = maxVolume;

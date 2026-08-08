@@ -1,9 +1,11 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
+import com.lobotocraft.facility.FacilityManager;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.util.EntityUtil;
+import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.work.WorkManager;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -31,7 +33,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import org.jetbrains.annotations.Nullable;
@@ -42,7 +43,6 @@ import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 
 import java.util.List;
-import java.util.Random;
 import java.util.UUID;
 
 /**
@@ -54,33 +54,39 @@ import java.util.UUID;
  * - 创造模式和红色抗性≤0的玩家无法使用
  */
 public class EntityIronMaiden extends AbstractAbnormality {
+    public static final String SACRIFICE_LOCKED = "lobotocraft_iron_maiden_locked";
+    public static final String SACRIFICE_MACHINE = "lobotocraft_iron_maiden_machine";
+    public static final String SACRIFICE_LOCK_TIME = "lobotocraft_iron_maiden_lock_time";
+    public static final String SACRIFICE_OLD_NO_AI = "lobotocraft_iron_maiden_old_no_ai";
+    public static final String SACRIFICE_OLD_NO_GRAVITY = "lobotocraft_iron_maiden_old_no_gravity";
+    public static final String SACRIFICE_OLD_NO_PHYSICS = "lobotocraft_iron_maiden_old_no_physics";
 
     // 正在使用的员工UUID
     private UUID usingPlayerUUID = null;
 
     // 被使用的牺牲目标UUID（村民或文职）
     private UUID targetVillagerUUID = null;
+    private boolean sacrificeStateCaptured;
+    private boolean sacrificeOriginalNoAi;
+    private boolean sacrificeOriginalNoGravity;
+    private boolean sacrificeOriginalNoPhysics;
 
     // 使用计时器（tick）
     private int usageTimer = 0;
 
-    // 伤害计时器
-    private int damageTimer = 0;
-
-    // 当前伤害间隔（tick）初始20tick = 1秒
-    private float currentDamageInterval = 20.0f;
+    // Original generation pulse interval, initially 2 seconds.
+    private float currentDamageInterval = 40.0f;
 
     // 能源产出计时器
     private int energyTimer = 0;
 
-    // 当前能源间隔（初始5秒）
-    private int currentEnergyInterval = 100;
+    private int currentEnergyInterval = 40;
 
-    // 当前能源产出
-    private int currentEnergyOutput = 1;
+    // Whole facility energy accepted by the most recent pulse.
+    private float currentEnergyOutput;
 
     // 总能源产出（用于统计）
-    private int totalEnergyProduced = 0;
+    private float totalEnergyProduced = 0.0F;
 
     // 数据同步器
     private static final EntityDataAccessor<String> DATA_ANIMATION =
@@ -93,11 +99,9 @@ public class EntityIronMaiden extends AbstractAbnormality {
     private int animationPhase = 0;
     private int animationTimer = 0;
 
-    // 上一次发送警告的时间（用于防止刷屏）
-    private int lastWarningTick = 0;
-
     // 随机数生成器
-    private final Random random = new Random();
+    /** Completed original-generation pulses. */
+    private int generationPulseCount;
 
     public EntityIronMaiden(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -231,7 +235,7 @@ public class EntityIronMaiden extends AbstractAbnormality {
         BlockPos pos = this.blockPosition();
         AABB searchBox = new AABB(pos).inflate(5.0);
         List<LivingEntity> sacrifices = this.level().getEntitiesOfClass(LivingEntity.class, searchBox,
-                EntityIronMaiden::isSacrificeCandidate);
+                EntityIronMaiden::isAvailableSacrificeCandidate);
 
         if (!sacrifices.isEmpty()) {
             LivingEntity sacrifice = sacrifices.get(0);
@@ -243,6 +247,77 @@ public class EntityIronMaiden extends AbstractAbnormality {
 
     private static boolean isSacrificeCandidate(LivingEntity entity) {
         return entity instanceof Villager || entity instanceof EntityClerk;
+    }
+
+    private static boolean isAvailableSacrificeCandidate(LivingEntity entity) {
+        return isSacrificeCandidate(entity)
+                && !entity.getPersistentData().getBoolean(SACRIFICE_LOCKED);
+    }
+
+    private void lockSacrifice(LivingEntity sacrifice) {
+        sacrificeStateCaptured = true;
+        sacrificeOriginalNoGravity = sacrifice.isNoGravity();
+        sacrificeOriginalNoPhysics = sacrifice.noPhysics;
+        sacrificeOriginalNoAi = sacrifice instanceof Mob mob && mob.isNoAi();
+
+        CompoundTag data = sacrifice.getPersistentData();
+        data.putBoolean(SACRIFICE_LOCKED, true);
+        data.putUUID(SACRIFICE_MACHINE, this.getUUID());
+        data.putLong(SACRIFICE_LOCK_TIME, this.level().getGameTime());
+        data.putBoolean(SACRIFICE_OLD_NO_AI, sacrificeOriginalNoAi);
+        data.putBoolean(SACRIFICE_OLD_NO_GRAVITY, sacrificeOriginalNoGravity);
+        data.putBoolean(SACRIFICE_OLD_NO_PHYSICS, sacrificeOriginalNoPhysics);
+
+        sacrifice.setNoGravity(true);
+        sacrifice.noPhysics = true;
+        if (sacrifice instanceof Mob mob) mob.setNoAi(true);
+    }
+
+    public static void restoreSacrificeState(LivingEntity sacrifice) {
+        CompoundTag data = sacrifice.getPersistentData();
+        if (!data.getBoolean(SACRIFICE_LOCKED)) return;
+        sacrifice.setNoGravity(data.getBoolean(SACRIFICE_OLD_NO_GRAVITY));
+        sacrifice.noPhysics = data.getBoolean(SACRIFICE_OLD_NO_PHYSICS);
+        if (sacrifice instanceof Mob mob) mob.setNoAi(data.getBoolean(SACRIFICE_OLD_NO_AI));
+        clearSacrificeLockData(data);
+    }
+
+    private static void clearSacrificeLockData(CompoundTag data) {
+        data.remove(SACRIFICE_LOCKED);
+        data.remove(SACRIFICE_MACHINE);
+        data.remove(SACRIFICE_LOCK_TIME);
+        data.remove(SACRIFICE_OLD_NO_AI);
+        data.remove(SACRIFICE_OLD_NO_GRAVITY);
+        data.remove(SACRIFICE_OLD_NO_PHYSICS);
+    }
+
+    public boolean holdsSacrifice(UUID targetUuid) {
+        return targetVillagerUUID != null && targetVillagerUUID.equals(targetUuid)
+                && usingPlayerUUID != null && animationPhase > 0 && animationPhase < 3;
+    }
+
+    private void releaseSacrifice() {
+        if (targetVillagerUUID != null && this.level() instanceof ServerLevel serverLevel) {
+            Entity target = serverLevel.getEntity(targetVillagerUUID);
+            if (target instanceof LivingEntity sacrifice) {
+                CompoundTag data = sacrifice.getPersistentData();
+                boolean ownedLock = data.getBoolean(SACRIFICE_LOCKED)
+                        && data.hasUUID(SACRIFICE_MACHINE)
+                        && this.getUUID().equals(data.getUUID(SACRIFICE_MACHINE));
+                if (ownedLock) {
+                    restoreSacrificeState(sacrifice);
+                } else if (!data.getBoolean(SACRIFICE_LOCKED) && sacrificeStateCaptured) {
+                    sacrifice.setNoGravity(sacrificeOriginalNoGravity);
+                    sacrifice.noPhysics = sacrificeOriginalNoPhysics;
+                    if (sacrifice instanceof Mob mob) mob.setNoAi(sacrificeOriginalNoAi);
+                }
+            }
+        }
+        targetVillagerUUID = null;
+        sacrificeStateCaptured = false;
+        sacrificeOriginalNoAi = false;
+        sacrificeOriginalNoGravity = false;
+        sacrificeOriginalNoPhysics = false;
     }
 
     /**
@@ -264,12 +339,11 @@ public class EntityIronMaiden extends AbstractAbnormality {
 
         this.usingPlayerUUID = player.getUUID();
         this.usageTimer = 0;
-        this.damageTimer = 0;
         this.energyTimer = 0;
-        this.currentDamageInterval = 20.0f; // 初始1秒1次
-        this.currentEnergyInterval = 100; // 5秒
-        this.currentEnergyOutput = 1;
-        this.lastWarningTick = 0;
+        this.generationPulseCount = 0;
+        this.currentEnergyInterval = IronMaidenGenerationPolicy.intervalTicks(0);
+        this.currentDamageInterval = this.currentEnergyInterval;
+        this.currentEnergyOutput = 0.0F;
         this.animationPhase = 1; // 闭合动画
         this.animationTimer = 0;
         setCurrentAnimation("closing"); // 闭合动画
@@ -277,6 +351,7 @@ public class EntityIronMaiden extends AbstractAbnormality {
         // 如果有牺牲目标，传送到机器内部并完全控制
         if (sacrifice != null) {
             sacrifice.teleportTo(this.getX(), this.getY() + 1, this.getZ());
+            lockSacrifice(sacrifice);
             sacrifice.setNoGravity(true);
             sacrifice.setDeltaMovement(0, 0, 0);
             sacrifice.noPhysics = true; // 设置为无碰撞，防止被挤出来
@@ -416,74 +491,28 @@ public class EntityIronMaiden extends AbstractAbnormality {
                 }
             }
 
-            // 每20秒更新一次伤害参数
-            if (usageTimer % 400 == 0) {
-                updateDamageParameters();
-
-                // 发送状态更新消息
-                int seconds = usageTimer / 20;
-                player.sendSystemMessage(Component.literal(
-                        String.format("§6机器运行时间：%d秒 | 伤害间隔：%.2f秒",
-                                seconds, currentDamageInterval / 20.0f)
-                ));
-            }
-
             // 每秒发送一次状态更新到客户端UI
             if (usageTimer % 20 == 0) {
                 sendStatusUpdate(player);
             }
 
-            // 造成伤害（在阶段2：造成伤害中）
-            if (animationPhase == 2) {
-                damageTimer++;
-                if (damageTimer >= (int)currentDamageInterval) {
-                    damageTimer = 0;
-
-                    // 随机1-3点伤害
-                    float damage = 1.0f + random.nextFloat() * 2.0f; // 1.0 到 3.0
-
-                    // 优先选择10格范围内的村民或文职造成伤害
-                    BlockPos pos = this.blockPosition();
-                    AABB damageBox = new AABB(pos).inflate(10.0); // 10格范围
-                    List<LivingEntity> nearbySacrifices = this.level().getEntitiesOfClass(LivingEntity.class,
-                            damageBox, EntityIronMaiden::isSacrificeCandidate);
-
-                    if (!nearbySacrifices.isEmpty()) {
-                        // 有牺牲目标在范围内，随机选择一个造成伤害
-                        LivingEntity targetSacrifice = nearbySacrifices.get(random.nextInt(nearbySacrifices.size()));
-                        if (currentDamageInterval == 1.0f)
-                            EntityUtil.clearHurtTime(targetSacrifice);
-                        if (targetSacrifice instanceof EntityClerk clerk && damage >= clerk.getHealth()) {
-                            EntityClerk.markNoTombstone(clerk);
-                        }
-                        targetSacrifice.hurt(DamageHelper.getDamage(this, "lobotocraft:red"), damage);
-                    } else {
-                        if (currentDamageInterval == 1.0f)
-                            EntityUtil.clearHurtTime(player);
-                        player.hurt(
-                                DamageHelper.getDamage(this, "lobotocraft:red"),
-                                damage
-                        );
-                        if (usageTimer - lastWarningTick >= 600) {
-                            lastWarningTick = usageTimer;
-                            player.sendSystemMessage(Component.literal(
-                                    String.format("§c机器正在对你造成红色伤害！(%.1f点/次)", damage)
-                            ));
-                        }
-                    }
-
-                    // 播放伤害音效
-                    playSound("damage");
-                }
-            }
-
-            // 产出能源
+            // The original script starts its timer on entry. The first pulse
+            // therefore coincides with the end of this two-second closing phase.
             energyTimer++;
-            if (energyTimer >= currentEnergyInterval) {
+            if (animationPhase == 2 && energyTimer >= currentEnergyInterval) {
                 energyTimer = 0;
-                produceEnergy(player);
+                runOriginalGenerationPulse(player, sacrifice);
             }
         }
+    }
+
+    @Override
+    public void remove(Entity.RemovalReason reason) {
+        if (!this.level().isClientSide) {
+            releaseSacrifice();
+            usingPlayerUUID = null;
+        }
+        super.remove(reason);
     }
 
     /**
@@ -501,6 +530,7 @@ public class EntityIronMaiden extends AbstractAbnormality {
         playSound("end_music");
 
         // 清理牺牲目标引用并恢复所有状态
+        releaseSacrifice();
         if (targetVillagerUUID != null) {
             Entity targetEntity = ((ServerLevel)this.level()).getEntity(targetVillagerUUID);
             if (targetEntity instanceof LivingEntity sacrifice && sacrifice.isAlive()) {
@@ -519,51 +549,39 @@ public class EntityIronMaiden extends AbstractAbnormality {
                     .getPlayerList().getPlayer(usingPlayerUUID);
             if (player != null) {
                 player.sendSystemMessage(Component.literal(
-                        "§a机器运转结束，共产出 " + totalEnergyProduced + " 个PE-BOX"
+                        String.format("§a机器运转结束，共向当日能源池提供 %.2f 点能源",
+                                totalEnergyProduced)
                 ));
             }
             usingPlayerUUID = null;
         }
     }
 
-    /**
-     * 更新伤害参数
-     * 每20秒调用一次，伤害间隔减少10tick（0.5秒）
-     */
-    private void updateDamageParameters() {
-        // 伤害间隔逐渐缩短，最低1 tick（1秒20次）
-        if (currentDamageInterval > 1.0f) {
-            currentDamageInterval = Math.max(1.0f, currentDamageInterval - 10.0f);
-        }
-        // 能源间隔逐渐缩短（最低40 tick = 2秒）
-        if (currentEnergyInterval > 40) {
-            currentEnergyInterval = Math.max(40, currentEnergyInterval - 10);
-        }
-
-        // 能源产出增加
-        currentEnergyOutput += 1;
-    }
-
-    /**
-     * 产出能源
-     */
-    private void produceEnergy(ServerPlayer player) {
-        // 给予PE-BOX物品
-        ItemStack peBox = com.wzz.lobotocraft.item.PEBoxItem.create(
-                this.getAbnormalityCode(),
-                this.getAbnormalityName()
-        );
-        peBox.setCount(currentEnergyOutput);
-
-        if (!player.addItem(peBox)) {
-            player.drop(peBox, false);
+    private void runOriginalGenerationPulse(ServerPlayer operator,
+                                            @Nullable LivingEntity lockedSacrifice) {
+        IronMaidenGenerationPolicy.Pulse pulse =
+                IronMaidenGenerationPolicy.nextPulse(generationPulseCount);
+        LivingEntity victim = lockedSacrifice != null ? lockedSacrifice : operator;
+        float damage = (float) pulse.damage();
+        if (damage > 0.0F && victim.isAlive()) {
+            EntityUtil.clearHurtTime(victim);
+            if (victim instanceof EntityClerk clerk && damage >= clerk.getHealth()) {
+                EntityClerk.markNoTombstone(clerk);
+            }
+            victim.hurt(DamageHelper.getDamage(this, "lobotocraft:red"), damage);
         }
 
-        // 增加总能源产出计数
-        totalEnergyProduced += currentEnergyOutput;
-
-        // 每次产出能源时发送状态更新
-        sendStatusUpdate(player);
+        generationPulseCount = pulse.completedPulses();
+        currentEnergyInterval = pulse.nextIntervalTicks();
+        currentDamageInterval = currentEnergyInterval;
+        currentEnergyOutput = (float) pulse.generatedEnergy();
+        if (this.level() instanceof ServerLevel serverLevel) {
+            double credited = FacilityManager.creditToolEnergy(
+                    serverLevel, pulse.generatedEnergy());
+            totalEnergyProduced += (float) credited;
+        }
+        playSound("damage");
+        sendStatusUpdate(operator);
     }
 
     /**
@@ -575,7 +593,7 @@ public class EntityIronMaiden extends AbstractAbnormality {
                 new com.wzz.lobotocraft.network.packet.ToolUsageUpdatePacket(
                         this.getId(),
                         usageTimer / 20,
-                        0, // 不显示固定伤害值，因为是随机的
+                        (float) IronMaidenGenerationPolicy.damageForPulse(generationPulseCount),
                         currentDamageInterval / 20.0f,
                         totalEnergyProduced,
                         currentEnergyOutput,
@@ -587,6 +605,11 @@ public class EntityIronMaiden extends AbstractAbnormality {
     }
 
     @Override
+    public boolean isUsing(ServerPlayer player) {
+        return player != null && player.getUUID().equals(usingPlayerUUID);
+    }
+
+    @Override
     public void stopUsing(ServerPlayer player) {
         player.sendSystemMessage(Component.literal("§c取消失败..."));
     }
@@ -595,29 +618,26 @@ public class EntityIronMaiden extends AbstractAbnormality {
      * 检查员工是否恐慌
      */
     private boolean isPlayerPanicking(ServerPlayer player) {
-        // 根据精神值系统判断恐慌
-        return player.getCapability(com.wzz.lobotocraft.capability.MentalValueProvider.MENTAL_VALUE)
-                .map(mental -> mental.getMentalValue() <= 0)
-                .orElse(false);
+        return MentalValueUtil.isPanic(player);
     }
 
     /**
      * 重置使用状态（在结束动画播放完后调用）
      */
     private void resetUsage() {
+        releaseSacrifice();
         usingPlayerUUID = null;
         targetVillagerUUID = null;
         usageTimer = 0;
-        damageTimer = 0;
         energyTimer = 0;
-        currentDamageInterval = 20.0f;
-        currentEnergyInterval = 100;
-        currentEnergyOutput = 1;
-        totalEnergyProduced = 0;
+        generationPulseCount = 0;
+        currentEnergyInterval = IronMaidenGenerationPolicy.intervalTicks(0);
+        currentDamageInterval = currentEnergyInterval;
+        currentEnergyOutput = 0.0F;
+        totalEnergyProduced = 0.0F;
         setCurrentAnimation("empty");
         animationPhase = 0;
         animationTimer = 0;
-        lastWarningTick = 0;
     }
 
     // ==================== 逆卡巴拉计数器 ====================
@@ -682,8 +702,8 @@ public class EntityIronMaiden extends AbstractAbnormality {
     @Override
     public String[] getToolWarningMessages() {
         return new String[]{
-                "§c机器会对10格范围内的村民或使用者造成递增的红色伤害",
-                "§c优先攻击范围内的村民，如果没有村民则伤害使用者",
+                "§c机器会对被关入的员工或文职造成按原版公式递增的红色伤害",
+                "§c伤害与能源脉冲会持续加速，最低间隔为0.1秒",
                 "§c创造模式和红色抗性≤0的玩家无法使用"
         };
     }
@@ -711,17 +731,20 @@ public class EntityIronMaiden extends AbstractAbnormality {
             tag.putUUID("TargetSacrificeUUID", targetVillagerUUID);
             tag.putUUID("TargetVillagerUUID", targetVillagerUUID);
         }
+        tag.putBoolean("SacrificeStateCaptured", sacrificeStateCaptured);
+        tag.putBoolean("SacrificeOriginalNoAi", sacrificeOriginalNoAi);
+        tag.putBoolean("SacrificeOriginalNoGravity", sacrificeOriginalNoGravity);
+        tag.putBoolean("SacrificeOriginalNoPhysics", sacrificeOriginalNoPhysics);
         tag.putInt("UsageTimer", usageTimer);
-        tag.putInt("DamageTimer", damageTimer);
         tag.putInt("EnergyTimer", energyTimer);
         tag.putFloat("CurrentDamageInterval", currentDamageInterval);
         tag.putInt("CurrentEnergyInterval", currentEnergyInterval);
-        tag.putInt("CurrentEnergyOutput", currentEnergyOutput);
-        tag.putInt("TotalEnergyProduced", totalEnergyProduced);
+        tag.putFloat("CurrentEnergyOutput", currentEnergyOutput);
+        tag.putFloat("TotalEnergyProduced", totalEnergyProduced);
+        tag.putInt("GenerationPulseCount", generationPulseCount);
         tag.putString("CurrentAnimation", currentAnimation);
         tag.putInt("AnimationPhase", animationPhase);
         tag.putInt("AnimationTimer", animationTimer);
-        tag.putInt("LastWarningTick", lastWarningTick);
     }
 
     @Override
@@ -735,16 +758,26 @@ public class EntityIronMaiden extends AbstractAbnormality {
         } else if (tag.hasUUID("TargetVillagerUUID")) {
             targetVillagerUUID = tag.getUUID("TargetVillagerUUID");
         }
+        sacrificeStateCaptured = tag.getBoolean("SacrificeStateCaptured");
+        sacrificeOriginalNoAi = tag.getBoolean("SacrificeOriginalNoAi");
+        sacrificeOriginalNoGravity = tag.getBoolean("SacrificeOriginalNoGravity");
+        sacrificeOriginalNoPhysics = tag.getBoolean("SacrificeOriginalNoPhysics");
         usageTimer = tag.getInt("UsageTimer");
-        damageTimer = tag.getInt("DamageTimer");
         energyTimer = tag.getInt("EnergyTimer");
         currentDamageInterval = tag.getFloat("CurrentDamageInterval");
         currentEnergyInterval = tag.getInt("CurrentEnergyInterval");
-        currentEnergyOutput = tag.getInt("CurrentEnergyOutput");
-        totalEnergyProduced = tag.getInt("TotalEnergyProduced");
+        currentEnergyOutput = tag.getFloat("CurrentEnergyOutput");
+        totalEnergyProduced = tag.getFloat("TotalEnergyProduced");
+        if (tag.contains("GenerationPulseCount")) {
+            generationPulseCount = Math.max(0, tag.getInt("GenerationPulseCount"));
+        } else {
+            generationPulseCount = 0;
+            currentEnergyInterval = IronMaidenGenerationPolicy.intervalTicks(0);
+            currentDamageInterval = currentEnergyInterval;
+            currentEnergyOutput = 0.0F;
+        }
         currentAnimation = tag.getString("CurrentAnimation");
         animationPhase = tag.getInt("AnimationPhase");
         animationTimer = tag.getInt("AnimationTimer");
-        lastWarningTick = tag.getInt("LastWarningTick");
     }
 }

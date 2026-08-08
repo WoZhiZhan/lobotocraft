@@ -6,6 +6,7 @@ import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.AiSpecialEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -27,8 +28,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class SmilingCorpseMountainWeapon extends BaseEgoWeapon {
+public class SmilingCorpseMountainWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapon {
     private static final double ATTACK_RANGE = 4.0;
+    @Override public double aiSpecialAttackRange() { return ATTACK_RANGE; }
 
     // ===== 腐败效果参数 =====
     /** 最高层数 = 5 (amplifier 0..4 表示 1..5 层) */
@@ -67,8 +69,11 @@ public class SmilingCorpseMountainWeapon extends BaseEgoWeapon {
         );
         float damage = 16;
         target.hurt(DamageHelper.getDamage(player, "black"), damage);
-        // 普攻施加 1 层腐败(封顶刷新)
-        applyCorruption(target);
+        // Partial swings still deal their scaled hit, but only a fully charged attack
+        // may add or refresh corruption stacks.
+        if (CorruptionStackPolicy.shouldApply(currentLeftClickDamageMultiplier(player))) {
+            applyCorruption(target);
+        }
         SoundUtil.playSound(player, ModSounds.SMILING_CORPSE_MOUNTAIN_NORMAL_ATTACK.get());
         return true;
     }

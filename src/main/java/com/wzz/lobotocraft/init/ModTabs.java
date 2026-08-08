@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.init;
 
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.item.ego.butterfly_funeral.ButterflyFuneralWeapon;
+import com.wzz.lobotocraft.item.PEBoxItem;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
@@ -66,7 +67,7 @@ public class ModTabs {
 
 	public static final RegistryObject<CreativeModeTab> TAB_LOBOTOCRAFT_CORE = REGISTRY.register("tablobotocraft_core",
 			() -> CreativeModeTab.builder().title(Component.translatable("itemGroup.lobotocraft_core")).icon(() -> new ItemStack(ModItems.ICON.get())).displayItems((parameters, tabData) -> {
-						tabData.accept(ModItems.PE_BOX.get());
+						tabData.accept(PEBoxItem.createUniversal());
 						tabData.accept(ModItems.CONVEYER.get());
 						tabData.accept(ModItems.REGENERATION_REACTOR.get());
 						tabData.accept(ModItems.ARMOR_LOCK.get());
@@ -136,10 +137,6 @@ public class ModTabs {
 						tabData.accept(ModItems.THORN_BUS_BOOTS.get());
 						tabData.accept(ModItems.THORN_BUS_WEAPON.get());
 						tabData.accept(ModItems.THORN_BUS_CURIO.get());
-						tabData.accept(ModItems.END_BIRD_CHESTPLATE.get());
-						tabData.accept(ModItems.END_BIRD_LEGGINGS.get());
-						tabData.accept(ModItems.END_BIRD_BOOTS.get());
-						tabData.accept(ModItems.END_BIRD_WEAPON.get());
 						tabData.accept(ModItems.END_BIRD_CURIO.get());
 						tabData.accept(ModItems.PPODAE_CHESTPLATE.get());
 						tabData.accept(ModItems.PPODAE_LEGGINGS.get());

@@ -254,7 +254,9 @@ public class EntityApprovalBird extends AbstractAbnormality {
 
     @Override
     public void stopEscape() {
+        boolean wasEscaped = hasEscape();
         super.stopEscape();
+        if (!wasEscaped || hasEscape()) return;
         resetChargeState();
         setAnimation("idle");
         setTarget(null);
@@ -263,6 +265,14 @@ public class EntityApprovalBird extends AbstractAbnormality {
     private void resetChargeState() {
         isCharging = false;
         chargeTick = 0;
+    }
+
+    public void resetForBlackForestRestore() {
+        setEscape(false);
+        resetChargeState();
+        cooldownTick = 0;
+        setAnimation("idle");
+        setTarget(null);
     }
 
     // ── 克苏勒计数器 ────────────────────────────────────────────

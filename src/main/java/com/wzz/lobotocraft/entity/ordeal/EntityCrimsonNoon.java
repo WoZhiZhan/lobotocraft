@@ -48,7 +48,7 @@ import software.bernie.geckolib.core.object.PlayState;
 /**
  * 血色的正午 - 汁水大合唱。
  */
-public class EntityCrimsonNoon extends BaseGeoEntity {
+public class EntityCrimsonNoon extends BaseGeoEntity implements OrdealEntity {
     private static final EntityDataAccessor<String> ANIM =
             SynchedEntityData.defineId(EntityCrimsonNoon.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<Integer> ANIM_VERSION =

@@ -222,9 +222,14 @@ public class EntityAbandonedMurderer extends AbstractAbnormality {
 
     @Override
     public void stopEscape() {
+        boolean wasEscaped = hasEscape();
         super.stopEscape();
+        if (!wasEscaped || hasEscape()) return;
         hasPlayedEscapeAnimation = false;
         attackPending = false;
+        attackAnimationTimer = 0;
+        attackCooldown = 0;
+        attackSoundTimer = 0;
         setCurrentAnimation("model.2");
     }
 

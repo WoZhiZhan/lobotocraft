@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.mixin;
 
 import com.wzz.lobotocraft.item.api.IProhibitDiscarding;
+import com.wzz.lobotocraft.ego.EgoLoadoutService;
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -32,7 +33,8 @@ public abstract class MixinInventory {
     )
     private Predicate<ItemStack> modifyPredicate(Predicate<ItemStack> original) {
         return stack -> {
-            if (stack.getItem() instanceof IProhibitDiscarding && !player.isCreative()) {
+            if (EgoLoadoutService.isProjection(stack)
+                    || stack.getItem() instanceof IProhibitDiscarding && !player.isCreative()) {
                 return false;
             }
             return original.test(stack);
@@ -45,7 +47,8 @@ public abstract class MixinInventory {
             for (List<ItemStack> list : this.compartments) {
                 for (int i = 0; i < list.size(); ++i) {
                     ItemStack itemstack = list.get(i);
-                    if (!itemstack.isEmpty() && !(itemstack.getItem() instanceof IProhibitDiscarding)) {
+                    if (!itemstack.isEmpty() && !EgoLoadoutService.isProjection(itemstack)
+                            && !(itemstack.getItem() instanceof IProhibitDiscarding)) {
                         this.player.drop(itemstack, true, false);
                         list.set(i, ItemStack.EMPTY);
                     }
@@ -65,6 +68,16 @@ public abstract class MixinInventory {
                         continue;
                     }
                     list.set(i, ItemStack.EMPTY);
+                }
+            }
+            ci.cancel();
+        } else {
+            // Even operator/creative inventory wipes must not turn projections into
+            // dropped or externally persisted items. Remove only ordinary stacks;
+            // the entitlement service reconciles projections on the next tick.
+            for (List<ItemStack> list : this.compartments) {
+                for (int i = 0; i < list.size(); i++) {
+                    if (!EgoLoadoutService.isProjection(list.get(i))) list.set(i, ItemStack.EMPTY);
                 }
             }
             ci.cancel();
