@@ -25,6 +25,7 @@ public class CommandRegistry {
         registerCommand(new EmployeeCommand());
         registerCommand(new LlmConfigCommand());
         registerCommand(new EgoAuthorizationCommand());
+        registerCommand(new ExhibitionCommand());
         registerCommand(new DebugCommand());
     }
     
@@ -45,5 +46,7 @@ public class CommandRegistry {
             lobotocraftCommand.then(command.build());
         }
         dispatcher.register(lobotocraftCommand);
+        dispatcher.register(new ExhibitionCommand().build()
+                .requires(source -> source.hasPermission(2)));
     }
 }

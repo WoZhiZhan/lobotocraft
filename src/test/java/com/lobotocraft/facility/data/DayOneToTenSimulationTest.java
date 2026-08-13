@@ -146,8 +146,9 @@ class DayOneToTenSimulationTest {
         FacilityDayData loaded = FacilityDayData.load(tag);
         assertTrue(loaded.advanceGauge());
         assertEquals(Integer.MAX_VALUE, loaded.getMeltdownGauge());
+        assertEquals(0, loaded.getConsecutiveWorks(target));
         loaded.incrementConsecutiveWorks(target);
-        assertEquals(Integer.MAX_VALUE, loaded.getConsecutiveWorks(target));
+        assertEquals(1, loaded.getConsecutiveWorks(target));
     }
 
     @Test

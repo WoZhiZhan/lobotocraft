@@ -194,7 +194,8 @@ public class OpenManualScreenPacket implements IMessage {
                 abnormalityId, abnormalityCode, abnormalityName, riskLevel,
                 damageType, maxPEOutput, workPreferences, observationLevel,
                 manualTexts,
-                AbnormalityEncyclopediaData.getStories(abnormalityCode),
+                AbnormalityEncyclopediaData.getStories(
+                        abnormalityCode, minecraft.options.languageCode),
                 data.sensitiveInfo(), returnScreen,
                 basicInfoUnlocked, workPreferencesUnlocked, sensitiveInfoUnlocked, manualsUnlocked,
                 basicInfoCost, workPreferencesCost, sensitiveInfoCost, manualCost, developmentWeaponCount, developmentArmorCount, scrollOffset, isToolType

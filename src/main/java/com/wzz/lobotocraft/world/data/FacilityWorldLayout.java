@@ -100,6 +100,8 @@ public final class FacilityWorldLayout {
                                     -CONTAINMENT_FOOTPRINT_RADIUS),
                             marker.offset(CONTAINMENT_FOOTPRINT_RADIUS, 0,
                                     CONTAINMENT_FOOTPRINT_RADIUS));
+            sectionBounds(boundsBySection, binding.departmentId, binding.groupId)
+                    .include(binding.escapePos, binding.escapePos);
         }
 
         Set<ChunkPos> chunks = new HashSet<>();
@@ -212,9 +214,10 @@ public final class FacilityWorldLayout {
             for (JsonElement element : root.getAsJsonArray("containments")) {
                 JsonObject value = element.getAsJsonObject();
                 BlockPos marker = blockPos(value.getAsJsonArray("marker"));
+                BlockPos escape = blockPos(value.getAsJsonArray("escape"));
                 ContainmentBinding binding = new ContainmentBinding(
                         dimension, marker, requireText(value, "department"),
-                        requireText(value, "group"), value.get("slot").getAsInt());
+                        requireText(value, "group"), value.get("slot").getAsInt(), escape);
                 if (binding.slotIndex < 0) {
                     throw new IllegalStateException("Negative containment slot at " + marker);
                 }
@@ -308,6 +311,7 @@ public final class FacilityWorldLayout {
     }
 
     public record ContainmentBinding(ResourceLocation dimension, BlockPos markerPos,
-                                     String departmentId, String groupId, int slotIndex) {
+                                     String departmentId, String groupId, int slotIndex,
+                                     BlockPos escapePos) {
     }
 }

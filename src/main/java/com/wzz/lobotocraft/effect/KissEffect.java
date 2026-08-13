@@ -8,7 +8,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.world.phys.Vec3;
 
@@ -86,21 +85,12 @@ public class KissEffect extends MobEffect {
             living.setLastHurtByMob(null);
         }
 
-        // 如果是服务端，额外处理
-        if (!level.isClientSide() && level instanceof ServerLevel serverLevel) {
-            // 移除AI（如果适用）
-            if (living instanceof net.minecraft.world.entity.Mob mob) {
-                mob.setNoAi(true);
-                mob.setTarget(null);
-                mob.getPersistentData().putBoolean("isFreezeKiss", true);
-                serverLevel.getServer().tell(new net.minecraft.server.TickTask(
-                        serverLevel.getServer().getTickCount() + 120,
-                        () ->  {
-                            mob.setNoAi(false);
-                            mob.getPersistentData().putBoolean("isFreezeKiss", false);
-                        }
-                ));
-            }
+        if (!level.isClientSide() && living instanceof net.minecraft.world.entity.Mob mob) {
+            // aiStep is already cancelled while the three-stack effect is active.
+            // Do not take ownership of NoAI: containment and other mechanics may
+            // legitimately require it to remain enabled after the kiss is removed.
+            mob.setTarget(null);
+            mob.getPersistentData().putBoolean("isFreezeKiss", true);
         }
     }
 
@@ -148,14 +138,21 @@ public class KissEffect extends MobEffect {
 
     // 效果结束时清理
     public void onEffectRemoved(LivingEntity living) {
+        clearFreezeState(living);
+    }
+
+    /** Clears every transient state owned by the three-stack kiss freeze. */
+    public static void clearFreezeState(LivingEntity living) {
+        if (living == null) return;
         // 移除速度修饰符
         if (living.getAttribute(Attributes.MOVEMENT_SPEED) != null) {
             living.getAttribute(Attributes.MOVEMENT_SPEED).removeModifier(SPEED_MODIFIER_UUID);
         }
 
-        // 恢复AI
+        // Only clear state owned by this effect. The mob's NoAI value belongs to
+        // its containment or other controlling mechanic and must be preserved.
         if (living instanceof net.minecraft.world.entity.Mob mob) {
-            mob.setNoAi(false);
+            mob.getPersistentData().remove("isFreezeKiss");
         }
     }
 }

@@ -35,11 +35,23 @@ final class SetEmployeeAppearancePacketTest {
     }
 
     @Test
-    void registryAppendsPacketAsServerbound() {
+    void registryKeepsAppearancePacketServerboundBeforeWelcomeNotice() {
         int id = PacketRegistry.idOf(SetEmployeeAppearancePacket.class);
+        int noticeId = PacketRegistry.idOf(OpenWelcomeNoticePacket.class);
 
-        assertEquals(PacketRegistry.size() - 1, id);
+        assertEquals(PacketRegistry.size() - 4, id);
         assertTrue(PacketRegistry.accepts(id, false));
         assertFalse(PacketRegistry.accepts(id, true));
+        assertEquals(PacketRegistry.size() - 3, noticeId);
+        assertFalse(PacketRegistry.accepts(noticeId, false));
+        assertTrue(PacketRegistry.accepts(noticeId, true));
+        int acknowledgementId = PacketRegistry.idOf(AcknowledgeWelcomeNoticePacket.class);
+        assertEquals(PacketRegistry.size() - 2, acknowledgementId);
+        assertTrue(PacketRegistry.accepts(acknowledgementId, false));
+        assertFalse(PacketRegistry.accepts(acknowledgementId, true));
+        int meterId = PacketRegistry.idOf(MustOpenPathMeterSyncPacket.class);
+        assertEquals(PacketRegistry.size() - 1, meterId);
+        assertFalse(PacketRegistry.accepts(meterId, false));
+        assertTrue(PacketRegistry.accepts(meterId, true));
     }
 }

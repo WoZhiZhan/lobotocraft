@@ -19,6 +19,14 @@ class EmployeeLevelCalculatorTest {
         assertEquals(5, EmployeeLevelCalculator.displayedStatLevel(99));
         assertEquals(6, EmployeeLevelCalculator.displayedStatLevel(100));
         assertEquals("EX", EmployeeLevelCalculator.statGrade(110));
+        assertEquals("EX", EmployeeLevelCalculator.levelGrade(6));
+    }
+
+    @Test
+    void equipmentRequirementsUseRawStatsForExOnly() {
+        assertEquals(5, EmployeeLevelCalculator.levelForEquipmentRequirement(99, 5, 6));
+        assertEquals(6, EmployeeLevelCalculator.levelForEquipmentRequirement(100, 5, 6));
+        assertEquals(5, EmployeeLevelCalculator.levelForEquipmentRequirement(100, 5, 5));
     }
 
     @Test

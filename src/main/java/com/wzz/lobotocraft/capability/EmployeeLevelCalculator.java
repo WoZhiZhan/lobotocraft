@@ -20,7 +20,12 @@ public final class EmployeeLevelCalculator {
     }
 
     public static String statGrade(int value) {
-        return switch (displayedStatLevel(value)) {
+        return levelGrade(displayedStatLevel(value));
+    }
+
+    /** Formats an already-calculated I-V/EX level. */
+    public static String levelGrade(int level) {
+        return switch (level) {
             case 2 -> "II";
             case 3 -> "III";
             case 4 -> "IV";
@@ -28,6 +33,12 @@ public final class EmployeeLevelCalculator {
             case 6 -> "EX";
             default -> "I";
         };
+    }
+
+    /** EX requirements inspect the raw stat; ordinary requirements use the I-V level. */
+    public static int levelForEquipmentRequirement(int rawStat, int ordinaryLevel,
+                                                   int requiredLevel) {
+        return requiredLevel >= 6 ? displayedStatLevel(rawStat) : ordinaryLevel;
     }
 
     /** Calculates the employee level from four already-converted levels. */

@@ -1,10 +1,12 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.MentalValueUtil;
+import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.event.listener.SkadiBlessingManager;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
@@ -88,12 +90,55 @@ public class EntityDarkSkadi extends AbstractAbnormality {
                 new ObservationLevelBonus(0.04f, 0),                       // Ⅰ 成功率+4%
                 new ObservationLevelBonus(0.0f, 2),                        // Ⅱ 工作速度+2
                 new ObservationLevelBonus(0.04f, 0),                       // Ⅲ 成功率+4%
-                new ObservationLevelBonus(0.0f, 2, true, true, true)       // Ⅳ 速度+2、解锁饰品/护甲/武器
+                new ObservationLevelBonus(0.0f, 2, false, true, true)      // Ⅳ 速度+2、解锁护甲/武器
         };
     }
 
     @Override
     public int getBasicInfoCost() { return 30; }
+
+    @Override
+    public int getWeaponDevelopmentCost() { return 222; }
+
+    @Override
+    public int getArmorDevelopmentCost() { return 120; }
+
+    @Override
+    public int getWeaponDevelopmentMaxCount() { return 1; }
+
+    @Override
+    public int getArmorDevelopmentMaxCount() { return 1; }
+
+    /** The curio is a suppression trophy, not an observation/research unlock. */
+    @Override
+    public float getGiftProbability() { return -1.0F; }
+
+    @Override
+    public EGOEquipmentData.GiftData getEGOGiftData() {
+        return new EGOEquipmentData.GiftData(
+                ResourceUtil.createInstance("textures/curio/must_open_path_curio.png"),
+                "必须开辟的道路", "头部", "must_open_path_curio",
+                "最大生命值+10", "攻击速度+20"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.WeaponData getEGOWeaponData() {
+        return new EGOEquipmentData.WeaponData(
+                ResourceUtil.createInstance("textures/item/must_open_path_weapon.png"),
+                "必须开辟的道路", getRiskLevel(), "RED", "27-32", "0.6", "不变",
+                getWeaponDevelopmentMaxCount(), "must_open_path_weapon"
+        );
+    }
+
+    @Override
+    public EGOEquipmentData.ArmorData getEGOArmorData() {
+        return new EGOEquipmentData.ArmorData(
+                ResourceUtil.createInstance("textures/armor/must_open_path_chestplate.png"),
+                "必须开辟的道路", getRiskLevel(), 1.0F, 1.0F, 1.0F, 1.0F,
+                getArmorDevelopmentMaxCount(), "must_open_path"
+        );
+    }
 
     @Override
     public int getSensitiveInfoCost() { return 30; }

@@ -17,4 +17,14 @@ class AiEgoRepositoryDataTest {
         assertEquals(0, data.researchSpecsToMaximum("O-00-00", "weapon", rewards, 5));
         assertEquals(5, data.stock("O-00-00", "weapon").maximum());
     }
+
+    @Test
+    void uniqueSuppressionRewardNeverExceedsOne() {
+        AiEgoRepositoryData data = new AiEgoRepositoryData();
+        List<EgoItemSpec> rewards = List.of(new EgoItemSpec("minecraft:iron_sword", null));
+
+        assertEquals(1, data.researchSpecsToMaximum("S-03-07", "weapon", rewards, 1));
+        assertEquals(0, data.researchSpecsToMaximum("S-03-07", "weapon", rewards, 1));
+        assertEquals(1, data.total("S-03-07", "weapon"));
+    }
 }

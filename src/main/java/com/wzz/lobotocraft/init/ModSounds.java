@@ -51,6 +51,13 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> IRON_MAIDEN_DAMAGE = register("iron_maiden_damage");
 	public static final RegistryObject<SoundEvent> IRON_MAIDEN_OPENING = register("iron_maiden_opening");
 	public static final RegistryObject<SoundEvent> IRON_MAIDEN_END_MUSIC = register("iron_maiden_end_music");
+	public static final RegistryObject<SoundEvent> LUMBERJACK_ESCAPE = register("lumberjack_escape");
+	public static final RegistryObject<SoundEvent> LUMBERJACK_AMBIENT = register("lumberjack_ambient");
+	public static final RegistryObject<SoundEvent> LUMBERJACK_ATTACK = register("lumberjack_attack");
+	public static final RegistryObject<SoundEvent> LUMBERJACK_SPECIAL_ATTACK = register("lumberjack_special_attack");
+	public static final RegistryObject<SoundEvent> LUMBERJACK_SPECIAL = register("lumberjack_special");
+	public static final RegistryObject<SoundEvent> LUMBERJACK_DEATH_1 = register("lumberjack_death_1");
+	public static final RegistryObject<SoundEvent> LUMBERJACK_DEATH_2 = register("lumberjack_death_2");
 	public static final RegistryObject<SoundEvent> ABANDONED_MURDERER_ESCAPE = register("abandoned_murderer_escape");
 	public static final RegistryObject<SoundEvent> ABANDONED_MURDERER_WARNING = register("abandoned_murderer_warning");
 	public static final RegistryObject<SoundEvent> ABANDONED_MURDERER_ATTACK = register("abandoned_murderer_attack");
@@ -161,6 +168,15 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> ISHARMLA_TEAR_ATTACK = register("isharmla_tear_attack");
 	public static final RegistryObject<SoundEvent> ISHARMLA_TEAR_DEATH_NATURAL = register("isharmla_tear_death_natural");
 	public static final RegistryObject<SoundEvent> ISHARMLA_TEAR_DEATH_KILLED = register("isharmla_tear_death_killed");
+	public static final RegistryObject<SoundEvent> MUST_OPEN_PATH_THROW = register("must_open_path_throw");
+	public static final RegistryObject<SoundEvent> MUST_OPEN_PATH_HIT = register("must_open_path_hit");
+	public static final RegistryObject<SoundEvent> MUST_OPEN_PATH_RETURN = register("must_open_path_return");
+	public static final RegistryObject<SoundEvent> MUST_OPEN_PATH_ATTACK_0 = register("must_open_path_attack_0");
+	public static final RegistryObject<SoundEvent> MUST_OPEN_PATH_ATTACK_1 = register("must_open_path_attack_1");
+	public static final RegistryObject<SoundEvent> MUST_OPEN_PATH_ATTACK_2 = register("must_open_path_attack_2");
+	public static final RegistryObject<SoundEvent> MUST_OPEN_PATH_ATTACK_3 = register("must_open_path_attack_3");
+	public static final RegistryObject<SoundEvent> MUST_OPEN_PATH_KILL = register("must_open_path_kill");
+	public static final RegistryObject<SoundEvent> MUST_OPEN_PATH_DEATH = register("must_open_path_death");
 
 	// 野怪清道夫
 	public static final RegistryObject<SoundEvent> CLEANER_VOICE_1 = register("cleaner_voice_1");

@@ -26,6 +26,7 @@ import java.util.Map;
 public class NothingThereWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapon {
     private static final double ATTACK_RANGE = 4.0;
     private static final float NORMAL_HIT_COOLDOWN_RESET_CHANCE = 0.15F;
+    private static final float ATTACK_SOUND_VOLUME = 0.6F;
 
     public NothingThereWeapon() {
         super(
@@ -51,7 +52,8 @@ public class NothingThereWeapon extends BaseEgoWeapon implements AiSpecialEgoWea
         if (!canUseItem(player))
             return false;
         boolean isFullEGO = EgoArmorHelper.isFullEGO(player, "nothing_there");
-        SoundUtil.playSound(player, ModSounds.NOTHING_THERE_WEAPON_NORMAL_ATTACK.get());
+        SoundUtil.playSound(player.level, player, ModSounds.NOTHING_THERE_WEAPON_NORMAL_ATTACK.get(),
+                ATTACK_SOUND_VOLUME);
         stack.hurtAndBreak(1, player,
                 p -> p.broadcastBreakEvent(EquipmentSlot.MAINHAND)
         );
@@ -156,7 +158,8 @@ public class NothingThereWeapon extends BaseEgoWeapon implements AiSpecialEgoWea
                 float damage = 40f + entity.random.nextInt(51);
                 EntityUtil.clearHurtTime(entity, () ->  {
                     entity.hurt(damageSource, damage);
-                    SoundUtil.playSound(entity, ModSounds.NOTHING_THERE_WEAPON_SPECIAL_ATTACK.get());
+                    SoundUtil.playSound(entity.level, entity, ModSounds.NOTHING_THERE_WEAPON_SPECIAL_ATTACK.get(),
+                            ATTACK_SOUND_VOLUME);
                 });
             }
         }

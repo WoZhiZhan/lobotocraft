@@ -3,7 +3,6 @@ package com.wzz.lobotocraft.item.ego.children_galaxy;
 import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.item.base.IBodyPartRenderer.BodyPartType;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
-import com.wzz.lobotocraft.util.ClientInputUtil;
 import com.wzz.lobotocraft.util.CuriosUtil;
 import com.wzz.lobotocraft.util.EgoArmorHelper;
 import com.wzz.lobotocraft.util.MentalValueUtil;
@@ -119,20 +118,18 @@ public class ChildrenGalaxyCurio extends BaseEgoCurio {
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
         tooltip.add(Component.literal("  • 成功率 +3").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal("  • 工作速度 +3").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal("  • 每5.5秒恢复2点生命值与精神值").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("套装效果（武器 + 护甲 + 饰品）：").withStyle(ChatFormatting.AQUA));
-        if (ClientInputUtil.isShiftPressed()) {
-            tooltip.add(Component.literal("§6※玩家手持武器小小银河时回复效果提高50%。"));
-            tooltip.add(Component.literal("§6※触发饰品恢复时，10x10范围内其他玩家恢复一半数值。"));
-            tooltip.add(Component.literal("§6※持有友谊之证时，每次受伤立刻触发一次恢复。"));
-        } else {
-            tooltip.add(Component.literal("§6※玩家手持武器小小银河时回复效果提高50%。"));
-            tooltip.add(Component.literal("§6※触发饰品恢复时，10x10范围内其他玩家恢复一半数值。"));
-            tooltip.add(Component.literal("§7按住<Shift>查看详情"));
-        }
+        tooltip.add(Component.literal("套装效果（装备+武器+饰品）：").withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("  • 玩家手持武器小小银河时回复效果提高50%。")
+                .withStyle(ChatFormatting.LIGHT_PURPLE));
+        tooltip.add(Component.literal("  • 触发饰品恢复时，10x10范围内其他玩家恢复一半数值。")
+                .withStyle(ChatFormatting.LIGHT_PURPLE));
+        tooltip.add(Component.literal("  • 持有友谊之证时，每次受伤立刻触发一次恢复。")
+                .withStyle(ChatFormatting.LIGHT_PURPLE));
         super.appendHoverText(stack, level, tooltip, flag);
     }
 }

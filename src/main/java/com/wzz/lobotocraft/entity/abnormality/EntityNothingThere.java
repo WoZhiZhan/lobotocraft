@@ -46,6 +46,7 @@ import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 
 import java.util.List;
+import java.util.Comparator;
 import java.util.UUID;
 
 public class EntityNothingThere extends AbstractAbnormality {
@@ -103,6 +104,7 @@ public class EntityNothingThere extends AbstractAbnormality {
     private int ambientSoundTimer = 0;
     private boolean phase23AmbientStarted = false;
     private int phase23AmbientFallbackTimer = 0;
+    private boolean phase3Pending = false;
 
     private int lastDamagedTick = 0;
     private int animResetTimer = 0;
@@ -534,6 +536,12 @@ public class EntityNothingThere extends AbstractAbnormality {
         this.setDeltaMovement(0, this.getDeltaMovement().y, 0);
         tickPhase23AmbientFallback();
 
+        if (phase3Pending) {
+            this.setDeltaMovement(Vec3.ZERO);
+            if (this.tickCount % DIMENSION_RETRY_INTERVAL == 0) transitionToPhase3();
+            return;
+        }
+
         phaseTimer++;
         if (phaseTimer >= PHASE_DURATION) {
             phase23AmbientStarted = false;
@@ -843,6 +851,7 @@ public class EntityNothingThere extends AbstractAbnormality {
                 sound, SoundSource.HOSTILE, 1.0F, 1.0F);
     }
     public void transitionToPhase2() {
+        phase3Pending = false;
         setCurrentPhase(PHASE_2);
         this.setNoAi(true);
         phaseTimer = 0;
@@ -857,7 +866,31 @@ public class EntityNothingThere extends AbstractAbnormality {
     }
 
     public void transitionToPhase3() {
+        if (!(this.level() instanceof ServerLevel serverLevel)) return;
+        Vec3 safePosition = findPhase3TransitionPosition(serverLevel);
+        if (safePosition == null) {
+            phase3Pending = true;
+            phaseTimer = PHASE_DURATION;
+            this.setNoAi(true);
+            this.getNavigation().stop();
+            this.setDeltaMovement(Vec3.ZERO);
+            return;
+        }
+        if (safePosition.distanceToSqr(this.position()) > 1.0E-6D) {
+            this.moveTo(safePosition.x, safePosition.y, safePosition.z, this.getYRot(), this.getXRot());
+            this.getNavigation().stop();
+            this.setDeltaMovement(Vec3.ZERO);
+        }
+        phase3Pending = false;
         setCurrentPhase(PHASE_3);
+        if (getCollisionPhase() != PHASE_3) {
+            phase3Pending = true;
+            currentPhase = PHASE_2;
+            this.entityData.set(DATA_PHASE, PHASE_2);
+            this.setTexture(textureForPhase(PHASE_2));
+            this.setNoAi(true);
+            return;
+        }
         phaseTimer = 0;
         clearAttackState();
 
@@ -875,6 +908,20 @@ public class EntityNothingThere extends AbstractAbnormality {
 
         phase23AmbientStarted = false;
         phase23AmbientFallbackTimer = 0;
+    }
+
+    private Vec3 findPhase3TransitionPosition(ServerLevel level) {
+        Vec3 local = SafeTransformationUtil.findPositionForDimensions(
+                level, this, PHASE_3_SIZE, 12, 4);
+        if (local != null) return local;
+
+        return FacilityAccessService.openEscapeBlocks(level).stream()
+                .sorted(Comparator.comparingDouble(pos -> pos.distSqr(this.blockPosition())))
+                .map(pos -> SafeTransformationUtil.findPositionForDimensionsNear(
+                        level, this, PHASE_3_SIZE, pos.above(), 4, 3))
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .orElse(null);
     }
 
     public void clearAttackState() {
@@ -1030,10 +1077,11 @@ public class EntityNothingThere extends AbstractAbnormality {
         player.hurt(DamageHelper.getDamage(this, "lobotocraft:red"), damage);
         if (!player.isAlive() && player instanceof ServerPlayer serverPlayer) {
             int justiceLevel = getJusticeLevel(serverPlayer);
-            if (justiceLevel > 4) {
+            if (justiceLevel >= 4) {
                 disguisedAsPlayer = true;
                 disguisePlayerUUID = serverPlayer.getUUID();
                 disguisePlayerName = serverPlayer.getName().getString();
+                escapeImmediately();
             }
         }
     }
@@ -1056,13 +1104,11 @@ public class EntityNothingThere extends AbstractAbnormality {
     @Override
     public void onWorkComplete(ServerPlayer player, WorkType workType, WorkResult result) {
         if (result == WorkResult.BAD) {
-
-            killAndDisguise(player);
             return;
         }
 
         int justiceLevel = getJusticeLevel(player);
-        if (justiceLevel < 3) {
+        if (justiceLevel < 4) {
 
             escapeImmediately();
         }
@@ -1071,7 +1117,7 @@ public class EntityNothingThere extends AbstractAbnormality {
     @Override
     public boolean onWorkStart(ServerPlayer player, WorkType workType) {
         int justiceLevel = getJusticeLevel(player);
-        if (justiceLevel < 3) {
+        if (justiceLevel < 4) {
 
             return true;
         }
@@ -1093,18 +1139,6 @@ public class EntityNothingThere extends AbstractAbnormality {
         player.getCapability(com.wzz.lobotocraft.capability.EmployeeStatsProvider.EMPLOYEE_STATS)
                 .ifPresent(stats -> level[0] = stats.getJusticeLevel());
         return level[0];
-    }
-
-    private void killAndDisguise(ServerPlayer player) {
-        int justiceLevel = getJusticeLevel(player);
-        if (justiceLevel > 3) {
-
-            disguisedAsPlayer = true;
-            disguisePlayerUUID = player.getUUID();
-            disguisePlayerName = player.getName().getString();
-        }
-
-        player.hurt(DamageHelper.getDamage(this, "lobotocraft:red"), Float.MAX_VALUE);
     }
 
     private void escapeImmediately() {
@@ -1360,6 +1394,7 @@ public class EntityNothingThere extends AbstractAbnormality {
         tag.putInt("CurrentPhase", getCurrentPhase());
         tag.putInt("CollisionPhase", getCollisionPhase());
         tag.putInt("PhaseTimer", phaseTimer);
+        tag.putBoolean("Phase3Pending", phase3Pending);
         tag.putInt("AttackCooldown", attackCooldown);
         tag.putFloat("SpecialAttackProbability", specialAttackProbability);
         tag.putBoolean("DisguisedAsPlayer", disguisedAsPlayer);
@@ -1375,13 +1410,20 @@ public class EntityNothingThere extends AbstractAbnormality {
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
         int savedPhase = clampPhase(tag.getInt("CurrentPhase"));
+        int savedCollisionPhase = tag.contains("CollisionPhase")
+                ? clampPhase(tag.getInt("CollisionPhase")) : PHASE_1;
+        boolean legacyPendingPhase3 = savedPhase == PHASE_3 && savedCollisionPhase != PHASE_3;
+        if (legacyPendingPhase3) {
+            savedPhase = PHASE_2;
+            savedCollisionPhase = PHASE_2;
+        }
         currentPhase = savedPhase;
         this.entityData.set(DATA_PHASE, savedPhase);
-        this.entityData.set(DATA_COLLISION_PHASE,
-                tag.contains("CollisionPhase") ? clampPhase(tag.getInt("CollisionPhase")) : PHASE_1);
+        this.entityData.set(DATA_COLLISION_PHASE, savedCollisionPhase);
         this.setTexture(textureForPhase(savedPhase));
         this.refreshDimensions();
-        if (savedPhase == PHASE_2 || (savedPhase == PHASE_3 && getCollisionPhase() != PHASE_3)) {
+        phase3Pending = legacyPendingPhase3 || tag.getBoolean("Phase3Pending");
+        if (savedPhase == PHASE_2) {
             this.setNoAi(true);
         }
         phaseTimer = tag.getInt("PhaseTimer");

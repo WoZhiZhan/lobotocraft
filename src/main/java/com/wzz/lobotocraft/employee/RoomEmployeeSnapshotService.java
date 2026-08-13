@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.employee;
 
+import com.lobotocraft.facility.FacilityManager;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.EmployeeLevelCalculator;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
@@ -170,7 +171,8 @@ public final class RoomEmployeeSnapshotService {
             if (!suppression && workInfoUnlocked) {
                 WorkManager.WorkSession preview = new WorkManager.WorkSession(
                         employee, abnormality, workType, false);
-                successRate = preview.actualSuccessRate;
+                successRate = preview.actualSuccessRate
+                        - FacilityManager.repeatedWorkPenalty(employee.serverLevel(), abnormality);
                 int outputs = Math.max(1, abnormality.getMaxPEOutput());
                 estimatedSeconds = Math.max(1,
                         (int) Math.ceil(outputs * preview.extractionInterval / 20.0D));
@@ -190,12 +192,13 @@ public final class RoomEmployeeSnapshotService {
         WorkType currentWorkType = activeWork == null ? null : activeWork.workType;
 
         ResourceLocation dimension = employee.serverLevel().dimension().location();
+        String status = isControlled(employee) ? "CONTROLLED" : record.taskType().name();
         return new RoomEmployeeSnapshot(record.id(), record.name(), record.department().id(),
                 dimension, employee.blockPosition(), employee.getHealth(), employee.getMaxHealth(),
                 mental[0], mental[1], stats[0], stats[1], stats[2], stats[3], stats[4],
                 itemName(employee.getItemBySlot(EquipmentSlot.MAINHAND)),
                 itemName(employee.getItemBySlot(EquipmentSlot.CHEST)),
-                record.taskType().name(), commandable, eligible, reason, successRate, estimatedSeconds,
+                status, commandable, eligible, reason, successRate, estimatedSeconds,
                 workRoomDimension, workRoomPosition,
                 currentWorkType, workSuccessBoxes, workFailureBoxes, workBoxCapacity);
     }
@@ -222,8 +225,13 @@ public final class RoomEmployeeSnapshotService {
                 mental[0], mental[1], stats[0], stats[1], stats[2], stats[3], stats[4],
                 itemName(player.getItemBySlot(EquipmentSlot.MAINHAND)),
                 itemName(player.getItemBySlot(EquipmentSlot.CHEST)),
-                "PLAYER", false, false, "真人玩家不可调度", -1.0F, 0,
+                isControlled(player) ? "CONTROLLED" : "PLAYER",
+                false, false, "真人玩家不可调度", -1.0F, 0,
                 null, null, null, 0, 0, 0);
+    }
+
+    private static boolean isControlled(ServerPlayer player) {
+        return EntitySnowQueen.isFrozen(player) || EntityRedShoes.isRedShoesControlled(player);
     }
 
     static String monitoredPlayerDepartment(PlayerFacilityProfileData profiles, UUID playerId) {

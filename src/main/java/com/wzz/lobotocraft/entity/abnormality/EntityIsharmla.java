@@ -1065,11 +1065,9 @@ public class EntityIsharmla extends AbstractAbnormality {
         }
         super.die(source);
 
-        if (suppressionPlayer != null) {
-            com.wzz.lobotocraft.item.SpecialRecordItem.grantSkadiEgoReward(suppressionPlayer);
-        } else if (level() instanceof ServerLevel serverLevel) {
-            com.wzz.lobotocraft.ego.EgoAuthorizationService.grantSuppressionReward(
-                    serverLevel.getServer(), null, "S-03-07");
+        if (level() instanceof ServerLevel serverLevel) {
+            com.wzz.lobotocraft.ego.MustOpenPathRewardService.grantNormalSuppression(
+                    serverLevel.getServer(), suppressionPlayer);
         }
         
         if (level() instanceof ServerLevel sl) {

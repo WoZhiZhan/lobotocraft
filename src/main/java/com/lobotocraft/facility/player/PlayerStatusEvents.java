@@ -5,6 +5,8 @@ import com.lobotocraft.facility.network.PlayerStatusPacket;
 import com.wzz.lobotocraft.employee.EmployeeRuntimeManager;
 import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
 import com.wzz.lobotocraft.employee.EmployeeTaskType;
+import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
+import com.wzz.lobotocraft.entity.abnormality.EntitySnowQueen;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.work.WorkManager;
@@ -31,6 +33,8 @@ public final class PlayerStatusEvents {
     public static final int NAVIGATING = 3;
     /** 精神崩溃（恐慌）—— 优先级高于工作/寻路/战斗。 */
     public static final int PANIC = 4;
+    /** 异想体控制状态优先于恐慌、工作、寻路和战斗。 */
+    public static final int CONTROLLED = 5;
     private static final int COMBAT_WINDOW_TICKS = 100;
     private static final int SYNC_INTERVAL_TICKS = 10;
     private static final Map<UUID, Integer> LAST_DEALT = new HashMap<>();
@@ -110,8 +114,9 @@ public final class PlayerStatusEvents {
         for (ServerPlayer player : visiblePlayers.values()) {
             int state = IDLE;
             String target = "";
-            // 恐慌优先级最高：崩溃时一切正常指令均已被接管，不应再显示工作/寻路/战斗
-            if (MentalValueUtil.getMentalValue(player) <= 0.0F
+            if (isControlled(player)) {
+                state = CONTROLLED;
+            } else if (MentalValueUtil.getMentalValue(player) <= 0.0F
                     && MentalValueUtil.getEffectiveMaxMentalValue(player) > 0.0F) {
                 state = PANIC;
             } else if (WorkManager.isPlayerWorking(player)
@@ -141,5 +146,9 @@ public final class PlayerStatusEvents {
             if (recipient.isRemoved() || recipient.isChangingDimension()) continue;
             FacilityNetwork.send(recipient, packet);
         }
+    }
+
+    private static boolean isControlled(ServerPlayer player) {
+        return EntitySnowQueen.isFrozen(player) || EntityRedShoes.isRedShoesControlled(player);
     }
 }

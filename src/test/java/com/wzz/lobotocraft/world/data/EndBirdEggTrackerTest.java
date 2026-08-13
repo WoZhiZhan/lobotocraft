@@ -128,6 +128,7 @@ class EndBirdEggTrackerTest {
         assertTrue(loaded.isCompletionPending(fixture.endBird()));
         assertTrue(loaded.canEndBirdDie(fixture.endBird()));
         assertEquals(killer, loaded.getCompletionKillerUUID());
+        assertEquals(EndBirdEggTracker.EGG_EYE, loaded.getCompletionEggType());
     }
 
     @Test

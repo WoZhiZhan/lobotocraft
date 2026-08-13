@@ -36,6 +36,12 @@ public class ClerkTombstoneData extends SavedData {
         }
     }
 
+    public void remove(BlockPos pos) {
+        if (pos != null && positions.remove(pos.asLong())) {
+            setDirty();
+        }
+    }
+
     public Set<BlockPos> getPositions() {
         Set<BlockPos> result = new HashSet<>();
         for (long position : positions) {

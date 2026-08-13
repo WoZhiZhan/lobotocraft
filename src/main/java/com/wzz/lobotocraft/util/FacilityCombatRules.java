@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.util;
 
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
 import com.wzz.lobotocraft.entity.ordeal.OrdealEntity;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import net.minecraft.tags.DamageTypeTags;
@@ -47,13 +48,20 @@ public final class FacilityCombatRules {
     }
 
     public static boolean blocksEmployeeFriendlyFire(Entity victim, DamageSource source) {
+        // Controlled employees are rescue targets; normal employee friendly-fire
+        // protection must not prevent players or other employees from hitting them.
+        if (victim instanceof LivingEntity living && EntityRedShoes.isRedShoesControlled(living)) {
+            return false;
+        }
         Player attacker = resolvePlayerAttacker(source);
         CombatActor victimKind = combatActor(victim);
         CombatActor attackerKind = combatActor(attacker);
         if (!(victim instanceof net.minecraft.server.level.ServerPlayer target)
                 || !(attacker instanceof net.minecraft.server.level.ServerPlayer sourcePlayer)) return false;
+        boolean attackerHostile = MentalValueUtil.isPanic(sourcePlayer)
+                || EntityRedShoes.isRedShoesControlled(sourcePlayer);
         return blocksEmployeeFriendlyFire(victimKind, attackerKind, target == sourcePlayer,
-                MentalValueUtil.isPanic(sourcePlayer), MentalValueUtil.isPanic(target));
+                attackerHostile, MentalValueUtil.isPanic(target));
     }
 
     public static Player resolvePlayerAttacker(DamageSource source) {
@@ -71,15 +79,15 @@ public final class FacilityCombatRules {
         return null;
     }
 
-    static boolean blocksEmployeeFriendlyFire(boolean attackerPanicking, boolean victimPanicking) {
-        return !attackerPanicking && !victimPanicking;
+    static boolean blocksEmployeeFriendlyFire(boolean attackerHostile, boolean victimPanicking) {
+        return !attackerHostile && !victimPanicking;
     }
 
     static boolean blocksEmployeeFriendlyFire(CombatActor victim, CombatActor attacker,
-                                              boolean samePlayer, boolean attackerPanicking,
+                                              boolean samePlayer, boolean attackerHostile,
                                               boolean victimPanicking) {
         return victim.isEmployeePlayer() && attacker.isEmployeePlayer() && !samePlayer
-                && blocksEmployeeFriendlyFire(attackerPanicking, victimPanicking);
+                && blocksEmployeeFriendlyFire(attackerHostile, victimPanicking);
     }
 
     private static CombatActor combatActor(Entity entity) {

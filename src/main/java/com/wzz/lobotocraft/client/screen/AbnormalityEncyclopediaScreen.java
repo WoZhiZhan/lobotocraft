@@ -376,6 +376,11 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         enableLogicalScissor(graphics, STORY_VIEW_X, STORY_VIEW_Y,
                 STORY_VIEW_W, STORY_VIEW_H);
         int y = STORY_VIEW_Y + 14 - Mth.floor(scrollOffset);
+        if (storyEntries.length == 0) {
+            drawCenteredScaledText(graphics, "暂无故事档案",
+                    STORY_VIEW_X + STORY_VIEW_W / 2, STORY_VIEW_Y + STORY_VIEW_H / 2,
+                    2.5F, ARCHIVE_DIM, STORY_VIEW_W - 80);
+        }
         for (int index = 0; index < storyEntries.length; index++) {
             int height = storyEntryHeight(index);
             if (y + height >= STORY_VIEW_Y && y <= STORY_VIEW_Y + STORY_VIEW_H) {

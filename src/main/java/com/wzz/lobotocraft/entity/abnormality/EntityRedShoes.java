@@ -18,12 +18,14 @@ import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
 import com.wzz.lobotocraft.util.DamageHelper;
+import com.wzz.lobotocraft.util.FacilityCombatRules;
 import com.wzz.lobotocraft.util.ParticleUtil;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -74,6 +76,7 @@ public class EntityRedShoes extends AbstractAbnormality {
     private static final String CHARM_LEFT_CLICK_TAG = "lobotocraft_red_shoes_left_clicks";
     private static final String CHARM_HURT_COUNT_TAG = "lobotocraft_red_shoes_hurt_count";
     private static final String BLOODLUST_HEALED_TAG = "lobotocraft_red_shoes_healed";
+    private static final String BLOODLUST_HEALED_MAX_HEALTH_TAG = "lobotocraft_red_shoes_healed_max_health";
     private static final String BLOODLUST_TELEPORTED_TAG = "lobotocraft_red_shoes_teleported";
     private static final String BLOODLUST_SELECTED_SLOT_TAG = "lobotocraft_red_shoes_selected_slot";
     private static final String BLOODLUST_WEAPON_SLOT_TAG = "lobotocraft_red_shoes_weapon_slot";
@@ -167,7 +170,7 @@ public class EntityRedShoes extends AbstractAbnormality {
         boolean shouldWearRedShoes = shouldWearRedShoesOnWorkComplete(player);
         player.getPersistentData().remove(LOW_TEMPERANCE_WORK_TAG);
         if (shouldWearRedShoes) {
-            startBloodlust(player, this);
+            startJudgement(player, this);
             setQliphothCounter(getMaxQliphothCounter());
         }
     }
@@ -313,13 +316,23 @@ public class EntityRedShoes extends AbstractAbnormality {
     }
 
     private LivingEntity findJudgementTarget(ServerLevel serverLevel) {
-        List<LivingEntity> candidates = new ArrayList<>();
-        candidates.addAll(serverLevel.players().stream()
+        // Clerks have no employee stats and count as the lowest temperance.
+        List<EntityClerk> clerks = findConsumableClerks(serverLevel);
+        if (!clerks.isEmpty()) {
+            return clerks.get(this.random.nextInt(clerks.size()));
+        }
+
+        List<ServerPlayer> eligiblePlayers = serverLevel.players().stream()
                 .filter(EntityRedShoes::isCharmEligiblePlayer)
-                .toList());
-        candidates.addAll(findConsumableClerks(serverLevel));
-        if (!candidates.isEmpty()) {
-            return candidates.get(this.random.nextInt(candidates.size()));
+                .toList();
+        int lowestTemperance = eligiblePlayers.stream()
+                .mapToInt(EntityRedShoes::getTemperanceLevel)
+                .min().orElse(Integer.MAX_VALUE);
+        List<ServerPlayer> lowestPlayers = eligiblePlayers.stream()
+                .filter(player -> getTemperanceLevel(player) == lowestTemperance)
+                .toList();
+        if (!lowestPlayers.isEmpty()) {
+            return lowestPlayers.get(this.random.nextInt(lowestPlayers.size()));
         }
         return null;
     }
@@ -508,10 +521,7 @@ public class EntityRedShoes extends AbstractAbnormality {
                 BLOODLUST_DURATION, 0, false, true, true));
         applyBloodlustAttributes(target);
 
-        if (!data.getBoolean(BLOODLUST_HEALED_TAG)) {
-            target.setHealth(target.getMaxHealth());
-            data.putBoolean(BLOODLUST_HEALED_TAG, true);
-        }
+        restoreBloodlustHealthIfReady(target);
 
         if (target instanceof ServerPlayer player) {
             player.sendSystemMessage(Component.literal("§4你穿上了“红舞鞋”，血之渴望吞没了理智！"));
@@ -641,6 +651,18 @@ public class EntityRedShoes extends AbstractAbnormality {
         }
     }
 
+    private static void restoreBloodlustHealthIfReady(LivingEntity target) {
+        CompoundTag data = target.getPersistentData();
+        double currentMaxHealth = target.getMaxHealth();
+        double healedMaxHealth = data.getDouble(BLOODLUST_HEALED_MAX_HEALTH_TAG);
+        if (!data.contains(BLOODLUST_HEALED_MAX_HEALTH_TAG, Tag.TAG_DOUBLE)
+                || currentMaxHealth > healedMaxHealth + 0.001D) {
+            target.setHealth((float) currentMaxHealth);
+            data.putDouble(BLOODLUST_HEALED_MAX_HEALTH_TAG, currentMaxHealth);
+            data.putBoolean(BLOODLUST_HEALED_TAG, true);
+        }
+    }
+
     private static void removeBloodlustAttributes(LivingEntity target) {
         removeModifier(target, Attributes.MAX_HEALTH, BLOODLUST_HEALTH_UUID);
         removeModifier(target, ModAttributes.RED_DAMAGE_RESISTANCE.get(), BLOODLUST_RED_RESIST_UUID);
@@ -766,6 +788,9 @@ public class EntityRedShoes extends AbstractAbnormality {
         entity.addEffect(new MobEffectInstance(ModMobEffects.RED_SHOES_BLOODLUST.get(),
                 BLOODLUST_DURATION, 0, false, true, true));
         applyBloodlustAttributes(entity);
+        // Attribute modifiers may be recalculated after the transition tick. Retry the
+        // one-time full heal here so the employee reaches the newly raised max health.
+        restoreBloodlustHealthIfReady(entity);
 
         if (entity.tickCount % 5 == 0) {
             ParticleUtil.spawnParticles(entity,
@@ -801,7 +826,7 @@ public class EntityRedShoes extends AbstractAbnormality {
         }
 
         chaseBloodlustTarget(entity, target);
-        tryBloodlustAttack(entity, target);
+        tryBloodlustAttack(entity, target, source);
     }
 
     private static void forceSelectedWeaponSlot(ServerPlayer player) {
@@ -871,12 +896,22 @@ public class EntityRedShoes extends AbstractAbnormality {
         entity.hasImpulse = true;
     }
 
-    private static void tryBloodlustAttack(LivingEntity attacker, LivingEntity target) {
+    private static void tryBloodlustAttack(LivingEntity attacker, LivingEntity target,
+                                           EntityRedShoes source) {
         CompoundTag data = attacker.getPersistentData();
         if (data.getInt(BLOODLUST_ATTACK_COOLDOWN_TAG) > 0 || attacker.distanceToSqr(target) > 9.0D) {
             return;
         }
-        target.hurt(DamageHelper.getDamage(attacker, "lobotocraft:red"), BLOODLUST_ATTACK_DAMAGE);
+        boolean needsPvpBypass = target instanceof ServerPlayer && attacker instanceof Player
+                && target.getServer() != null && !target.getServer().isPvpAllowed()
+                && source != null && source.isAlive();
+        net.minecraft.world.damagesource.DamageSource damageSource = needsPvpBypass
+                ? DamageHelper.getDamage(attacker, source, "lobotocraft:red")
+                : DamageHelper.getDamage(attacker, "lobotocraft:red");
+        if (target.hurt(damageSource, BLOODLUST_ATTACK_DAMAGE) && needsPvpBypass
+                && target.isAlive()) {
+            target.setLastHurtByMob(attacker);
+        }
         data.putInt(BLOODLUST_ATTACK_COOLDOWN_TAG, BLOODLUST_ATTACK_INTERVAL);
     }
 
@@ -934,7 +969,8 @@ public class EntityRedShoes extends AbstractAbnormality {
     @SubscribeEvent
     public static void onLivingDeath(LivingDeathEvent event) {
         LivingEntity dead = event.getEntity();
-        Entity killer = event.getSource().getEntity();
+        Entity killer = FacilityCombatRules.resolvePlayerAttacker(event.getSource());
+        if (killer == null) killer = event.getSource().getEntity();
         if (killer instanceof LivingEntity livingKiller
                 && livingKiller.getPersistentData().getBoolean(BLOODLUST_TAG)) {
             livingKiller.heal(livingKiller.getMaxHealth() * 0.04F);
@@ -958,6 +994,7 @@ public class EntityRedShoes extends AbstractAbnormality {
         data.remove(BLOODLUST_TAG);
         data.remove(SOURCE_UUID_TAG);
         data.remove(BLOODLUST_HEALED_TAG);
+        data.remove(BLOODLUST_HEALED_MAX_HEALTH_TAG);
         data.remove(BLOODLUST_TELEPORTED_TAG);
         data.remove(BLOODLUST_SELECTED_SLOT_TAG);
         data.remove(BLOODLUST_WEAPON_SLOT_TAG);
@@ -967,6 +1004,15 @@ public class EntityRedShoes extends AbstractAbnormality {
             PlayerControlLock.unlock(player);
             removeMarkedBloodlustWeapons(player);
         }
+    }
+
+    public static void clearControlForRecovery(LivingEntity entity) {
+        if (entity == null) return;
+        CompoundTag data = entity.getPersistentData();
+        if (data.getBoolean(JUDGEMENT_TAG)) clearJudgement(entity, findSource(entity));
+        if (data.getBoolean(CHARMED_TAG)) clearCharm(entity, findSource(entity));
+        if (data.getBoolean(BLOODLUST_TAG)) cleanupBloodlust(entity);
+        if (entity instanceof Player player) PlayerControlLock.unlock(player);
     }
 
     @Override

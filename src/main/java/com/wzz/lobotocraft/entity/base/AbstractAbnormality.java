@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.entity.base;
 
 import com.lobotocraft.facility.data.FacilityDayData;
 import com.wzz.lobotocraft.api.NameProvider;
+import com.wzz.lobotocraft.block.EscapeBlock;
 import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
 import com.wzz.lobotocraft.block.entity.RoomMarkerBlockEntity;
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
@@ -12,11 +13,13 @@ import com.wzz.lobotocraft.entity.ai.goal.MoveToBlackForestDoorGoal;
 import com.wzz.lobotocraft.entity.abnormality.EntityIsharmla;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.employee.FacilityAccessService;
+import com.wzz.lobotocraft.effect.KissEffect;
 import com.wzz.lobotocraft.event.definition.abnormality.AbnormalityEscapeEvent;
 import com.wzz.lobotocraft.event.definition.abnormality.AbnormalityEscapeStopEvent;
 import com.wzz.lobotocraft.event.definition.abnormality.QliphothCounterEvent;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
+import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.FacilityCombatRules;
@@ -596,24 +599,48 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         return nearestCrossFloorFallback;
     }
 
-    /** Prefer an exit block physically belonging to this containment room. */
+    /** Prefer the nearest usable exit to the authoritative containment-room marker. */
     private List<EscapeDestination> findHomeRoomEscapeDestinations(ServerLevel serverLevel,
                                                                      BlockPos center) {
         if (homeRoomMarker == null || !serverLevel.dimension().location().equals(homeRoomDimension)) {
             return List.of();
         }
         if (!serverLevel.hasChunkAt(homeRoomMarker)) serverLevel.getChunkAt(homeRoomMarker);
-        if (!(serverLevel.getBlockEntity(homeRoomMarker) instanceof RoomMarkerBlockEntity roomMarker)) {
+        if (!(serverLevel.getBlockEntity(homeRoomMarker) instanceof RoomMarkerBlockEntity)) {
             return List.of();
         }
-        AABB roomBounds = roomMarker.getScanBox().inflate(4.0D);
+
+        // The generated facility has a stable marker -> doorway mapping. Resolve that
+        // coordinate directly so a doorway in another chunk cannot disappear merely
+        // because its block entity has not ticked yet.
+        List<EscapeDestination> fixed = new ArrayList<>();
+        FacilityWorldLayout.containmentAt(serverLevel.dimension().location(), homeRoomMarker)
+                .map(FacilityWorldLayout.ContainmentBinding::escapePos)
+                .map(position -> resolveEscapeDestination(serverLevel, position))
+                .ifPresent(destination -> fixed.add(destination));
+        if (!fixed.isEmpty()) return fixed;
+
+        // If the fixed doorway is blocked or was edited, use the remaining fixed
+        // doorways in geometric order before falling back to dynamic registrations.
+        List<BlockPos> fixedAlternatives = FacilityWorldLayout.containmentBindings(
+                        serverLevel.dimension().location()).stream()
+                .map(FacilityWorldLayout.ContainmentBinding::escapePos)
+                .filter(Objects::nonNull)
+                .distinct()
+                .sorted(Comparator.comparingDouble(position -> position.distSqr(center)))
+                .toList();
+        for (BlockPos position : fixedAlternatives) {
+            EscapeDestination destination = resolveEscapeDestination(serverLevel, position);
+            if (destination != null) return List.of(destination);
+        }
+
         List<EscapeDestination> result = new ArrayList<>();
         for (EscapeBlockEntity escapeBlock : EntityUtil.findEscapeBlocks(
                 serverLevel, homeRoomMarker, 32, 12)) {
             BlockPos marker = escapeBlock.getBlockPos();
-            Vec3 blockCenter = Vec3.atCenterOf(marker);
-            if (!roomBounds.contains(blockCenter)) continue;
-            if (!isNearestContainmentRoom(marker)) continue;
+            // The official facility places containment exits 21-23 blocks from
+            // room markers. RoomMarkerBlockEntity#getScanBox only describes the
+            // interior scan volume and must not be used as a doorway boundary.
             if (!FacilityAccessService.isPositionOpen(serverLevel.getServer(),
                     serverLevel.dimension().location(), marker)) continue;
             BlockPos safe = findSafeEscapePosition(marker);
@@ -624,15 +651,16 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         return result;
     }
 
-    private boolean isNearestContainmentRoom(BlockPos escapeBlock) {
-        double homeDistance = escapeBlock.distSqr(homeRoomMarker);
-        for (FacilityWorldLayout.ContainmentBinding binding
-                : FacilityWorldLayout.containmentBindings(level().dimension().location())) {
-            BlockPos candidate = binding.markerPos();
-            if (candidate.equals(homeRoomMarker)) continue;
-            if (escapeBlock.distSqr(candidate) + 0.01D < homeDistance) return false;
-        }
-        return true;
+    @Nullable
+    private EscapeDestination resolveEscapeDestination(ServerLevel serverLevel, BlockPos marker) {
+        if (marker == null || !isValidContainmentAnchor(serverLevel, marker)) return null;
+        if (!FacilityAccessService.isPositionOpen(serverLevel.getServer(),
+                serverLevel.dimension().location(), marker)) return null;
+        if (!serverLevel.hasChunkAt(marker)) serverLevel.getChunkAt(marker);
+        if (!(serverLevel.getBlockEntity(marker) instanceof EscapeBlockEntity)
+                || !(serverLevel.getBlockState(marker).getBlock() instanceof EscapeBlock)) return null;
+        BlockPos safe = findSafeEscapePosition(marker);
+        return safe == null ? null : new EscapeDestination(marker, safe);
     }
 
     private BlockPos findSafeEscapePosition(BlockPos spawnAnchor) {
@@ -861,6 +889,7 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
 
     private ContainmentReturnResult returnSameEntityToContainment(ServerLevel currentLevel) {
         prepareForContainmentReturn();
+        clearContainmentCombatState();
         ResourceLocation targetDimension = ContainmentReturnPolicy.selectTargetDimension(
                 homeRoomDimension, escapeDimension, currentLevel.dimension().location());
         ServerLevel targetLevel = currentLevel.getServer().getLevel(ResourceKey.create(
@@ -909,6 +938,9 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
             returned.pendingContainmentReturn = false;
             returned.pendingStopEscapeEvent = false;
             returned.stopEscape();
+            if (!returned.hasEscape() && !returned.pendingContainmentReturn) {
+                restoreContainmentBinding(targetLevel, marker, returned);
+            }
             // Forge normally preserves UUID across dimensions. If another teleporter replaces it,
             // the known source UUID is still the only additional identity that belongs here.
             EscapeTracker.getInstance().onEscapeStop(currentLevel.getServer(), getUUID());
@@ -929,8 +961,30 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         qliphothCounter = maxQliphothCounter;
         setTarget(null);
         setHealth(getMaxHealth());
+        restoreContainmentBinding(targetLevel, marker, this);
         EscapeTracker.getInstance().onEscapeStop(this);
         return ContainmentReturnResult.COMPLETED;
+    }
+
+    private void clearContainmentCombatState() {
+        removeEffect(ModMobEffects.KISS.get());
+        KissEffect.clearFreezeState(this);
+        getPersistentData().remove("SnowQueenWeaponIce");
+    }
+
+    private static void restoreContainmentBinding(ServerLevel targetLevel,
+                                                  @Nullable RoomMarkerBlockEntity marker,
+                                                  AbstractAbnormality returned) {
+        if (marker == null || returned == null || returned.isRemoved()
+                || returned.level() != targetLevel) return;
+        UUID returnedId = returned.getUUID();
+        String boundCode = marker.getBoundCode();
+        if (returnedId.equals(marker.getBoundAbnormality())
+                && (boundCode == null || boundCode.isBlank()
+                || boundCode.equals(returned.getAbnormalityCode()))) {
+            return;
+        }
+        marker.bindByUuid(targetLevel, returnedId);
     }
 
     private static boolean isValidContainmentAnchor(ServerLevel level, BlockPos pos) {

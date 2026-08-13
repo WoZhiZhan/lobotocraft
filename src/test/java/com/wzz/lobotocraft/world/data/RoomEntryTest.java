@@ -40,6 +40,20 @@ class RoomEntryTest {
     }
 
     @Test
+    void repeatedWorkPenaltySurvivesSnapshots() {
+        RoomEntry room = new RoomEntry(
+                ResourceLocation.fromNamespaceAndPath("lobotocraft", "loboto"),
+                new BlockPos(2, 70, 3));
+        room.repeatedWorkPenaltyPercent = 24;
+
+        assertEquals(24, RoomEntry.load(room.save()).repeatedWorkPenaltyPercent);
+        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+        room.write(buffer);
+        assertEquals(24, RoomEntry.read(buffer).repeatedWorkPenaltyPercent);
+        buffer.release();
+    }
+
+    @Test
     void meltdownMarkerSurvivesNetworkSnapshot() {
         RoomEntry room = new RoomEntry(
                 ResourceLocation.fromNamespaceAndPath("lobotocraft", "loboto"),

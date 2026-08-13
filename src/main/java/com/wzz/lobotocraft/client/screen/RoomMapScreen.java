@@ -2136,6 +2136,8 @@ public class RoomMapScreen extends Screen {
         drawCentered(graphics, statusText, 0, top + 59, withAlpha(status, alpha));
         renderMeltdownFrame(graphics, entry, left, top, CARD_W, CARD_H, alpha);
         graphics.pose().popPose();
+        renderRepeatedWorkPenalty(graphics, entry,
+                cx - scaledW / 2, cy - scaledH / 2, scaledW, scaledH, alpha);
     }
 
     private void renderContainedRoom(GuiGraphics graphics, RoomEntry entry, ScreenBounds bounds,
@@ -2210,6 +2212,22 @@ public class RoomMapScreen extends Screen {
         }
         graphics.disableScissor();
         renderMeltdownFrame(graphics, entry, left, top, width, height, alpha);
+        renderRepeatedWorkPenalty(graphics, entry, left, top, width, height, alpha);
+    }
+
+    private void renderRepeatedWorkPenalty(GuiGraphics graphics, RoomEntry entry,
+                                           int left, int top, int width, int height,
+                                           float alpha) {
+        if (entry.status != RoomEntry.STATUS_OCCUPIED
+                || entry.repeatedWorkPenaltyPercent <= 0) return;
+        String text = "-" + entry.repeatedWorkPenaltyPercent + "%";
+        int x = left + width + 3;
+        if (x + this.font.width(text) > this.width) {
+            x = Math.max(mapLeft() + 2, left + width - this.font.width(text) - 2);
+        }
+        int y = Math.max(HEADER_H + 1, top + 2);
+        graphics.drawString(this.font, text, x, y,
+                withAlpha(0xFFFF5555, alpha), true);
     }
 
     private void renderMeltdownFrame(GuiGraphics graphics, RoomEntry entry,
@@ -2691,7 +2709,7 @@ public class RoomMapScreen extends Screen {
         List<Component> lines = new ArrayList<>();
         lines.add(Component.literal("§f" + employee.name() + "  §7LV " + employee.employeeLevel()));
         lines.add(Component.literal("§7" + departmentName(employee.departmentId())
-                + "  §8" + employee.status()));
+                + "  §8" + employeeStatusText(employee.status())));
         lines.add(Component.literal("§cHP " + Math.round(employee.health()) + "/"
                 + Math.round(employee.maxHealth()) + "  §fSP " + Math.round(employee.mental())
                 + "/" + Math.round(employee.maxMental())));
@@ -2711,6 +2729,10 @@ public class RoomMapScreen extends Screen {
             lines.add(Component.literal("§c" + employee.unavailableReason()));
         }
         return lines;
+    }
+
+    private static String employeeStatusText(String status) {
+        return "CONTROLLED".equals(status) ? "被控制" : status;
     }
 
     private List<Component> buildAreaTooltip(FacilityLayoutTemplate.Area area) {

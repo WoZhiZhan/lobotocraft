@@ -56,10 +56,11 @@ public class BlueStarCurio extends BaseEgoCurio {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
+        tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
         tooltip.add(Component.literal("  • 精神值 +15").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal("  • 移动速度 +10").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("套装效果（武器 + 护甲 + 饰品）：").withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("套装效果（装备+武器+饰品）：").withStyle(ChatFormatting.AQUA));
         tooltip.add(Component.literal("  • 使用新星之声造成伤害时，使目标减少30%移动速度，持续10秒，不可叠加，每次造成伤害刷新")
                 .withStyle(ChatFormatting.LIGHT_PURPLE));
         tooltip.add(Component.literal("  • 玩家精神值为满时，新星之声光束的伤害提高25%")

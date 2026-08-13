@@ -54,4 +54,8 @@ public class ModMobEffects {
     public static final RegistryObject<MobEffect> BUTTERFLY_FLIES = EFFECTS.register("butterfly_flies", ButterflyFliesEffect::new);
     public static final RegistryObject<MobEffect> REDEMPTION = EFFECTS.register("redemption", RedemptionEffect::new);
     public static final RegistryObject<MobEffect> CORRUPTION = EFFECTS.register("corruption", CorruptionEffect::new);
+    public static final RegistryObject<MobEffect> MUST_OPEN_PATH_BOUNDARY =
+            EFFECTS.register("must_open_path_boundary", MustOpenPathBoundaryEffect::new);
+    public static final RegistryObject<MobEffect> MUST_OPEN_PATH_ANCHORED =
+            EFFECTS.register("must_open_path_anchored", MustOpenPathAnchoredEffect::new);
 }

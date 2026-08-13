@@ -25,4 +25,16 @@ class OrdealDataConcurrencyTest {
         assertFalse(data.hasActiveMidday());
         assertFalse(data.hasActiveOrdeal());
     }
+
+    @Test
+    void exhibitionAbortClearsEveryTier() {
+        OrdealData data = new OrdealData();
+        data.startAmberDawn(2);
+        data.startVioletMidday(3);
+        data.startLateOrdeal(1, 2, java.util.List.of());
+
+        assertTrue(data.hasActiveOrdeal());
+        data.abortAllActiveOrdeals();
+        assertFalse(data.hasActiveOrdeal());
+    }
 }

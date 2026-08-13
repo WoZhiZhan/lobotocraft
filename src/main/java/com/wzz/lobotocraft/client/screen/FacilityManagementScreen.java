@@ -78,6 +78,7 @@ public final class FacilityManagementScreen extends Screen {
     private enum AgentState {
         DEAD("已死亡", LobotomyUiTheme.ALERT_RED, 0.30F, true),
         PANIC("精神崩溃", STATE_PANIC, 0.24F, true),
+        CONTROLLED("被控制", STATE_UNCONTROLLABLE, 0.24F, true),
         UNCONTROLLABLE("失控", STATE_UNCONTROLLABLE, 0.24F, true),
         WORKING("工作中", LobotomyUiTheme.GOLD, 0.16F, false),
         SUPPRESSING("镇压中", LobotomyUiTheme.ALERT_RED, 0.16F, false),
@@ -514,12 +515,14 @@ public final class FacilityManagementScreen extends Screen {
     private static AgentState agentState(CompoundTag entry, boolean ai) {
         if (!ai) {
             if (entry.getFloat("Health") <= 0.0F) return AgentState.DEAD;
+            if ("CONTROLLED".equals(entry.getString("Status"))) return AgentState.CONTROLLED;
             if (entry.getBoolean("Panicking")) return AgentState.PANIC;
             return AgentState.ONLINE;
         }
         if (!entry.getBoolean("Deployed")) return AgentState.OFFLINE;
         if (entry.getFloat("Health") <= 0.0F) return AgentState.DEAD;
         String status = entry.getString("Status");
+        if ("CONTROLLED".equals(status)) return AgentState.CONTROLLED;
         if (entry.getBoolean("Panicking")) {
             return "SEARCH_AND_SUPPRESS".equals(status)
                     ? AgentState.UNCONTROLLABLE : AgentState.PANIC;
@@ -629,8 +632,11 @@ public final class FacilityManagementScreen extends Screen {
             boolean restricted = selectedAiEmployee != null && !meetsRequirements;
             CompoundTag selectedEmployee = selectedEmployeeEntry();
             boolean panicking = selectedEmployee != null && selectedEmployee.getBoolean("Panicking");
+            boolean controlled = selectedEmployee != null
+                    && "CONTROLLED".equals(selectedEmployee.getString("Status"));
             boolean enabled = snapshot.getBoolean("CanManageAi") && selectedAiEmployee != null
-                    && !panicking && meetsRequirements && (entry.getInt("Available") > 0 || assigned);
+                    && !panicking && !controlled && meetsRequirements
+                    && (entry.getInt("Available") > 0 || assigned);
             boolean hovered = enabled && inside(mouseX, mouseY, bx, y + 11, 54, 24);
             LobotomyUiRenderer.drawButton(graphics, font, bx, y + 11, 54, 24,
                     Component.literal(assigned ? "已装备" : "分配"),
@@ -749,7 +755,17 @@ public final class FacilityManagementScreen extends Screen {
         if (employee == null) return false;
         for (String key : new String[]{"FortitudeLevel", "PrudenceLevel", "TemperanceLevel",
                 "JusticeLevel", "EmployeeLevel"}) {
-            if (employee.getInt(key) < ego.getInt("Required" + key)) return false;
+            int required = ego.getInt("Required" + key);
+            int actual = employee.getInt(key);
+            if (!"EmployeeLevel".equals(key) && key.endsWith("Level")) {
+                String rawKey = key.substring(0, key.length() - "Level".length());
+                if (employee.contains(rawKey)) {
+                    actual = com.wzz.lobotocraft.capability.EmployeeLevelCalculator
+                            .levelForEquipmentRequirement(
+                                    employee.getInt(rawKey), actual, required);
+                }
+            }
+            if (actual < required) return false;
         }
         return true;
     }
@@ -772,13 +788,7 @@ public final class FacilityManagementScreen extends Screen {
     }
 
     private static String roman(int level) {
-        return switch (level) {
-            case 2 -> "II";
-            case 3 -> "III";
-            case 4 -> "IV";
-            case 5 -> "V";
-            default -> "I";
-        };
+        return com.wzz.lobotocraft.capability.EmployeeLevelCalculator.levelGrade(level);
     }
 
     private void restoreEmployeeSelection() {
@@ -963,7 +973,8 @@ public final class FacilityManagementScreen extends Screen {
         }
         if (activeTab == 2 && snapshot.getBoolean("CanManageAi") && selectedAiEmployee != null) {
             CompoundTag selectedEmployee = selectedEmployeeEntry();
-            if (selectedEmployee == null || selectedEmployee.getBoolean("Panicking")) return true;
+            if (selectedEmployee == null || selectedEmployee.getBoolean("Panicking")
+                    || "CONTROLLED".equals(selectedEmployee.getString("Status"))) return true;
             int top = panelY + HEADER_HEIGHT + 48;
             int row = Mth.floor((mouseY - top + scroll) / EGO_ROW_HEIGHT);
             ListTag entries = snapshot.getList("AiEgo", Tag.TAG_COMPOUND);

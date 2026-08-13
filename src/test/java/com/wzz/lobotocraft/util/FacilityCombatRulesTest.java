@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FacilityCombatRulesTest {
     @Test
-    void blocksDamageOnlyWhenBothEmployeesAreClearHeaded() {
+    void blocksDamageOnlyWhenAttackerIsFriendlyAndVictimIsClearHeaded() {
         assertTrue(FacilityCombatRules.blocksEmployeeFriendlyFire(false, false));
         assertFalse(FacilityCombatRules.blocksEmployeeFriendlyFire(true, false));
         assertFalse(FacilityCombatRules.blocksEmployeeFriendlyFire(false, true));
@@ -25,7 +25,7 @@ class FacilityCombatRulesTest {
     }
 
     @Test
-    void eitherPanickingParticipantAllowsEveryHumanAndAiPlayerPair() {
+    void eitherHostileAttackerOrPanickingVictimAllowsEveryHumanAndAiPlayerPair() {
         for (FacilityCombatRules.CombatActor victim : playerActors()) {
             for (FacilityCombatRules.CombatActor attacker : playerActors()) {
                 assertFalse(FacilityCombatRules.blocksEmployeeFriendlyFire(
@@ -36,6 +36,14 @@ class FacilityCombatRulesTest {
                         victim, attacker, false, true, true));
             }
         }
+    }
+
+    @Test
+    void redShoesControlledEmployeeUsesHostileAttackerPolicy() {
+        // The entity-facing rule maps Red Shoes control to attackerHostile=true.
+        assertFalse(FacilityCombatRules.blocksEmployeeFriendlyFire(
+                FacilityCombatRules.CombatActor.HUMAN_PLAYER,
+                FacilityCombatRules.CombatActor.AI_EMPLOYEE, false, true, false));
     }
 
     @Test

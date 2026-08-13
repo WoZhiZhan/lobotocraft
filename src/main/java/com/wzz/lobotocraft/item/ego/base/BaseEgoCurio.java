@@ -53,6 +53,11 @@ public abstract class BaseEgoCurio extends Item implements ICurioItem, GeoItem, 
 
     public abstract boolean hasAnimatable();
 
+    /** Optional Curios slot used when this item is projected onto an AI employee. */
+    public String projectionSlot() {
+        return null;
+    }
+
     public boolean rendersOnWearer() {
         return true;
     }

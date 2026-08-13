@@ -1614,5 +1614,36 @@
         "stream": false
       }
     ]
+  },
+  "must_open_path_throw": {"sounds": [{"name": "lobotocraft:must_open_path_throw", "stream": false}]},
+  "must_open_path_hit": {"sounds": [{"name": "lobotocraft:must_open_path_hit", "stream": false}]},
+  "must_open_path_return": {"sounds": [{"name": "lobotocraft:must_open_path_return", "stream": false}]},
+  "must_open_path_attack_0": {"sounds": [{"name": "lobotocraft:must_open_path_attack_0", "stream": false}]},
+  "must_open_path_attack_1": {"sounds": [{"name": "lobotocraft:must_open_path_attack_1", "stream": false}]},
+  "must_open_path_attack_2": {"sounds": [{"name": "lobotocraft:must_open_path_attack_2", "stream": false}]},
+  "must_open_path_attack_3": {"sounds": [{"name": "lobotocraft:must_open_path_attack_3", "stream": false}]},
+  "must_open_path_kill": {"sounds": [{"name": "lobotocraft:must_open_path_kill", "stream": false}]},
+  "must_open_path_death": {"sounds": [{"name": "lobotocraft:must_open_path_death", "stream": false}]}
+  ,
+  "lumberjack_escape": {
+    "sounds": [{"name": "lobotocraft:lumberjack_escape", "stream": false}]
+  },
+  "lumberjack_ambient": {
+    "sounds": [{"name": "lobotocraft:lumberjack_ambient", "stream": false}]
+  },
+  "lumberjack_attack": {
+    "sounds": [{"name": "lobotocraft:lumberjack_attack", "stream": false}]
+  },
+  "lumberjack_special_attack": {
+    "sounds": [{"name": "lobotocraft:lumberjack_special_attack", "stream": false}]
+  },
+  "lumberjack_special": {
+    "sounds": [{"name": "lobotocraft:lumberjack_special", "stream": false}]
+  },
+  "lumberjack_death_1": {
+    "sounds": [{"name": "lobotocraft:lumberjack_death_1", "stream": false}]
+  },
+  "lumberjack_death_2": {
+    "sounds": [{"name": "lobotocraft:lumberjack_death_2", "stream": false}]
   }
 }

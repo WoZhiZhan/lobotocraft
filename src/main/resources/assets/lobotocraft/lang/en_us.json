@@ -339,4 +339,7 @@
   "message.lobotocraft.navigation_cache.loading": "Parsing the facility navigation snapshot; AI employees will temporarily use local pathfinding.",
   "message.lobotocraft.navigation_cache.ready": "The facility navigation snapshot is ready; full-facility AI pathfinding is available.",
   "message.lobotocraft.navigation_cache.failed": "The facility navigation snapshot failed to load; AI employees will continue using local pathfinding."
+  ,
+  "entity.lobotocraft.lumberjack": "Warm-Hearted Woodsman",
+  "item.lobotocraft.lumberjack_spawn_egg": "Warm-Hearted Woodsman Spawn Egg"
 }

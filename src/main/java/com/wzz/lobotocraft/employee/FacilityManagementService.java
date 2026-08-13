@@ -7,6 +7,8 @@ import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
 import com.wzz.lobotocraft.compat.ysm.YsmEmployeeCompat;
 import com.wzz.lobotocraft.ego.AiEgoRepositoryData;
 import com.wzz.lobotocraft.ego.EgoLoadoutService;
+import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
+import com.wzz.lobotocraft.entity.abnormality.EntitySnowQueen;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.EgoWeaponDisplayCatalog;
@@ -118,7 +120,7 @@ public final class FacilityManagementService {
             });
             player.getCapability(PlayerAbnormalityDataProvider.PLAYER_ABNORMALITY_DATA).ifPresent(data ->
                     putPersonalEgoNames(entry, data, abnormalities));
-            entry.putString("Status", "在线");
+            entry.putString("Status", isControlled(player) ? "CONTROLLED" : "在线");
             employees.add(entry);
         }
         for (EmployeeRecord record : FacilityPersonnelData.get(viewer.server).employees()) {
@@ -166,7 +168,8 @@ public final class FacilityManagementService {
                 putDerivedStats(entry, runtime, record.temperance(), record.justice());
                 putPreviewEquipment(entry, runtime);
             }
-            entry.putString("Status", record.taskType().name());
+            entry.putString("Status", runtime != null && isControlled(runtime)
+                    ? "CONTROLLED" : record.taskType().name());
             entry.putString("Task", EmployeeRuntimeManager.visibleTaskSummary(record));
             entry.putString("NavigationPurpose", EmployeeRuntimeManager.navigationPurpose(record.id()));
             String weaponCode = repository.assignedCode(record.id(), "weapon");
@@ -494,6 +497,10 @@ public final class FacilityManagementService {
 
     private static void putPreviewSlot(CompoundTag equipment, String key, ItemStack stack) {
         if (!stack.isEmpty()) equipment.put(key, stack.save(new CompoundTag()));
+    }
+
+    private static boolean isControlled(ServerPlayer player) {
+        return EntitySnowQueen.isFrozen(player) || EntityRedShoes.isRedShoesControlled(player);
     }
 
     private static int countPeBoxes(ServerPlayer player) {

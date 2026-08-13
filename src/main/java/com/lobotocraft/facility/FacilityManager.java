@@ -39,6 +39,7 @@ import com.wzz.lobotocraft.event.listener.VioletDawnEvent;
 import com.wzz.lobotocraft.event.listener.VioletNoonEvent;
 import com.wzz.lobotocraft.employee.DepartmentProgressService;
 import com.wzz.lobotocraft.employee.EmployeeRuntimeManager;
+import com.wzz.lobotocraft.exhibition.ExhibitionSafetyService;
 import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.work.WorkManager;
 import com.wzz.lobotocraft.world.data.OrdealData;
@@ -87,14 +88,33 @@ public final class FacilityManager {
         if (!(event.getPlayer().level() instanceof ServerLevel level)) return;
         if (MELTDOWN_WORKS.contains(event.getSession())) return;
 
-        float step = switch (abnormality.getRiskLevel()) {
-            case WAW -> 0.06F;
-            case ALEPH -> 0.12F;
-            default -> 0.0F;
-        };
-        if (step <= 0.0F) return;
-        int count = FacilityDayData.get(level).getConsecutiveWorks(entity.getUUID());
-        event.setSuccessRate(event.getSuccessRate() - count * step);
+        event.setSuccessRate(event.getSuccessRate()
+                - repeatedWorkPenalty(level, entity));
+    }
+
+    /** Original Lobotomy Corporation repeated-work penalty for one containment unit. */
+    public static float repeatedWorkPenalty(ServerLevel level, AbstractAbnormality abnormality) {
+        if (level == null || abnormality == null || level.dimension() != ModDimensions.LOBOTO_KEY
+                || isMeltdownTarget(level, abnormality)) return 0.0F;
+        RiskLevel risk = abnormality.getRiskLevel();
+        int stepPercent;
+        int maximum;
+        switch (risk) {
+            case WAW -> { stepPercent = 4; maximum = 8; }
+            case ALEPH -> { stepPercent = 6; maximum = 5; }
+            default -> { return 0.0F; }
+        }
+        int count = Math.min(FacilityDayData.get(level)
+                .getConsecutiveWorks(abnormality.getUUID()), maximum);
+        return count * stepPercent / 100.0F;
+    }
+
+    public static int repeatedWorkPenaltyPercent(ServerLevel level, AbstractAbnormality abnormality) {
+        return Math.round(repeatedWorkPenalty(level, abnormality) * 100.0F);
+    }
+
+    private static boolean isMeltdownTarget(ServerLevel level, AbstractAbnormality abnormality) {
+        return FacilityDayData.get(level).getActiveMeltdowns().containsKey(abnormality.getUUID());
     }
 
     public static void onWorkCompleted(WorkCompleteEvent event) {
@@ -119,7 +139,8 @@ public final class FacilityManager {
                 && event.getAbnormality() instanceof AbstractAbnormality entity) {
             RiskLevel risk = event.getAbnormality().getRiskLevel();
             if (risk == RiskLevel.WAW || risk == RiskLevel.ALEPH) {
-                data.incrementConsecutiveWorks(entity.getUUID());
+                int maximum = risk == RiskLevel.WAW ? 8 : 5;
+                data.incrementConsecutiveWorks(entity.getUUID(), maximum);
             }
         }
         syncAll(level.getServer(), data);
@@ -373,15 +394,17 @@ public final class FacilityManager {
         OrdealTier scheduledTier = data.getNextOrdeal();
         boolean ordealScheduled = scheduledTier != OrdealTier.NONE;
         boolean unfinishedOrdeal = OrdealContentPolicy.isUnfinished(scheduledTier);
-        boolean ordealTriggered = ordealScheduled && triggerOrdeal(level, data);
+        boolean exhibitionMode = ExhibitionSafetyService.isEnabled(level.getServer());
+        boolean ordealTriggered = ordealScheduled && !exhibitionMode && triggerOrdeal(level, data);
         boolean suppressionActive = CoreSuppressionManager.isSuppressionActive(level);
-        boolean canActivateMeltdown = MeltdownPolicy.canActivate(suppressionActive, ordealTriggered);
+        boolean canActivateMeltdown = !exhibitionMode
+                && MeltdownPolicy.canActivate(suppressionActive, ordealTriggered);
         boolean meltdownsActivated = false;
         if (canActivateMeltdown) {
             meltdownsActivated = activateMeltdowns(level, data, levelNumber);
         }
 
-        if (!unfinishedOrdeal) {
+        if (!unfinishedOrdeal && !exhibitionMode) {
             data.notifyState(MeltdownPolicy.stageNotificationType(suppressionActive, ordealTriggered));
         }
         if (meltdownsActivated) {
@@ -389,6 +412,7 @@ public final class FacilityManager {
                 "第 " + roman(levelNumber) + " 级熔毁",
                 "请在六十秒内完成受影响收容单元的工作。", 0xD84A4A);
         }
+        CoreSuppressionManager.onQliphothMeltdown(level);
         data.finishMeltdownStage();
         prepareAndSelectNextOrdeal(data, level.getSeed());
     }
@@ -427,6 +451,7 @@ public final class FacilityManager {
     /** Direct Apocalypse Bird egg overloads do not advance the facility gauge. */
     public static int activateEndBirdMeltdowns(ServerLevel level, int maximumTargets) {
         if (level == null || maximumTargets <= 0 || level.dimension() != ModDimensions.LOBOTO_KEY) return 0;
+        if (ExhibitionSafetyService.isEnabled(level.getServer())) return 0;
         FacilityDayData data = FacilityDayData.get(level);
         List<AbstractAbnormality> candidates = new ArrayList<>();
         for (Entity entity : level.getAllEntities()) {

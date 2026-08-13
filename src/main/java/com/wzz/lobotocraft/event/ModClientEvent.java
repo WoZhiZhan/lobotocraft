@@ -86,6 +86,7 @@ public class ModClientEvent {
         event.registerEntityRenderer(ModEntities.skadi_corrupted.get(), (r) -> new AbnormalityRenderer<>(r, 1.0f, 1.0f));
         event.registerEntityRenderer(ModEntities.isharmla.get(), (r) -> new AbnormalityRenderer<>(r, 1.0f, 1.0f));
         event.registerEntityRenderer(ModEntities.isharmla_tear.get(), (r) -> new GeoEntityRenderer<>(r, 0.8f, 0.6f));
+        event.registerEntityRenderer(ModEntities.must_open_path_anchor.get(), MustOpenPathAnchorRenderer::new);
         event.registerEntityRenderer(ModEntities.shell_sea_runner.get(), (r) -> new GeoEntityRenderer<>(r, 0.7f, 0.7f));
         event.registerEntityRenderer(ModEntities.deepsea_slider.get(), (r) -> new GeoEntityRenderer<>(r, 0.7f, 0.6f));
         event.registerEntityRenderer(ModEntities.ridgesea_spitter.get(), (r) -> new GeoEntityRenderer<>(r, 0.7f, 0.8f));
@@ -117,6 +118,7 @@ public class ModClientEvent {
         event.registerEntityRenderer(ModEntities.bigbadwolf.get(), (r) -> new com.wzz.lobotocraft.client.renderer.entity.abnormality.EntityBigBadWolfRenderer(r, 1.0f, 1.0f));
         event.registerEntityRenderer(ModEntities.redhat_mercenary.get(), (r) -> new AbnormalityRenderer<>(r, "redhat", "redhat", 0.72f, 0.72f));
         event.registerEntityRenderer(ModEntities.iron_maiden.get(), (r) -> new AbnormalityRenderer<>(r, 1.5f, 1.5f));
+        event.registerEntityRenderer(ModEntities.lumberjack.get(), (r) -> new AbnormalityRenderer<>(r, 1.2f, 1.2f));
         event.registerEntityRenderer(ModEntities.meat_idol.get(), (r) -> new AbnormalityRenderer<>(r, 1.2f, 1.0f));
         event.registerEntityRenderer(ModEntities.abandoned_murderer.get(), (r) -> new AbnormalityRenderer<>(r, 0.8f, 0.8f));
         event.registerBlockEntityRenderer(ModBlockEntities.REGENERATION_REACTOR.get(), context -> new BaseGeoBlockRenderer(

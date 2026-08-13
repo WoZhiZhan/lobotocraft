@@ -266,10 +266,7 @@ public class BlueStarWeapon extends BaseEgoWeapon implements AiRangedEgoWeapon, 
 
         if (target != null) {
             EntityUtil.clearHurtTime(target);
-            target.hurt(DamageHelper.getDamage(player, "white"), damage);
-            if (target instanceof ServerPlayer sp) {
-                MentalValueUtil.reduceMentalValue(sp, damage);
-            }
+            applyBeamHit(player, target, damage);
             if (isBlueStarSet(player)) {
                 target.getPersistentData().putLong("blue_star_slow_until",
                         level.getGameTime() + 200);
@@ -290,14 +287,22 @@ public class BlueStarWeapon extends BaseEgoWeapon implements AiRangedEgoWeapon, 
 
         drawBeamParticles(level, origin, targetPoint);
         EntityUtil.clearHurtTime(target);
-        target.hurt(DamageHelper.getDamage(player, "white"), damage);
-        if (target instanceof ServerPlayer sp) {
-            MentalValueUtil.reduceMentalValue(sp, damage);
-        }
+        applyBeamHit(player, target, damage);
         if (isBlueStarSet(player)) {
             target.getPersistentData().putLong("blue_star_slow_until",
                     level.getGameTime() + 200);
         }
+    }
+
+    private static void applyBeamHit(ServerPlayer attacker, LivingEntity target, float damage) {
+        // ServerPlayer rejects player-attributed damage before Forge events when PVP is disabled.
+        // A Blue Star beam is explicitly allowed to restore a panicking employee, so apply the
+        // same raw white-damage recovery without depending on the vanilla PVP gate.
+        if (target instanceof ServerPlayer targetPlayer && MentalValueUtil.isPanic(targetPlayer)) {
+            MentalValueUtil.addMentalValue(targetPlayer, damage);
+            return;
+        }
+        target.hurt(DamageHelper.getDamage(attacker, "white"), damage);
     }
 
     private static boolean canBeamTarget(ServerPlayer attacker, LivingEntity target) {

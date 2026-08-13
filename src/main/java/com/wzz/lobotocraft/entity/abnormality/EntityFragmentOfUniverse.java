@@ -144,6 +144,15 @@ public class EntityFragmentOfUniverse extends AbstractAbnormality {
     }
 
     @Override
+    public void onWorkInterrupted(ServerPlayer player, WorkType workType, String reason) {
+        // WorkManager cancels a session as soon as the worker enters panic, so
+        // the completion callback cannot observe this original management rule.
+        if (MentalValueUtil.isPanic(player)) {
+            decreaseQliphothCounter(1);
+        }
+    }
+
+    @Override
     public void stopEscape() {
         boolean wasEscaped = hasEscape();
         super.stopEscape();

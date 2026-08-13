@@ -37,6 +37,7 @@ public class EndBirdEggTracker extends SavedData {
     private UUID encounterUUID;
     private UUID endBirdUUID;
     private UUID completionKillerUUID;
+    private String completionEggType;
     private boolean completionPending;
 
     public enum EggDestructionResult {
@@ -71,6 +72,7 @@ public class EndBirdEggTracker extends SavedData {
         encounterUUID = UUID.randomUUID();
         endBirdUUID = endBird;
         completionKillerUUID = null;
+        completionEggType = null;
         completionPending = false;
         eggTypes.clear();
         destroyedEggs.clear();
@@ -124,7 +126,10 @@ public class EndBirdEggTracker extends SavedData {
         String registeredType = eggTypes.get(eggUUID.toString());
         if (!registeredType.equals(expectedType)) return EggDestructionResult.WRONG_TYPE;
         if (!destroyedEggs.add(eggUUID.toString())) return EggDestructionResult.DUPLICATE;
-        if (areAllEggsDestroyed()) completionPending = true;
+        if (areAllEggsDestroyed()) {
+            completionPending = true;
+            completionEggType = registeredType;
+        }
         setDirty();
         return completionPending ? EggDestructionResult.COMPLETE : EggDestructionResult.ACCEPTED;
     }
@@ -166,6 +171,10 @@ public class EndBirdEggTracker extends SavedData {
 
     public UUID getCompletionKillerUUID() {
         return completionKillerUUID;
+    }
+
+    public String getCompletionEggType() {
+        return completionEggType;
     }
 
     public UUID getEndBirdUUID() {
@@ -238,6 +247,7 @@ public class EndBirdEggTracker extends SavedData {
         encounterUUID = null;
         endBirdUUID = null;
         completionKillerUUID = null;
+        completionEggType = null;
         completionPending = false;
         setDirty();
     }
@@ -275,6 +285,7 @@ public class EndBirdEggTracker extends SavedData {
             destroyedEggs.addAll(legacy.destroyedEggs);
             completionPending = legacy.completionPending || areAllEggsDestroyed();
             completionKillerUUID = legacy.completionKillerUUID;
+            completionEggType = legacy.completionEggType;
             changed = true;
         } else if (sameEncounter(legacy)) {
             changed |= destroyedEggs.addAll(legacy.destroyedEggs);
@@ -283,6 +294,10 @@ public class EndBirdEggTracker extends SavedData {
             completionPending = mergedCompletion;
             if (completionKillerUUID == null && legacy.completionKillerUUID != null) {
                 completionKillerUUID = legacy.completionKillerUUID;
+                changed = true;
+            }
+            if (completionEggType == null && legacy.completionEggType != null) {
+                completionEggType = legacy.completionEggType;
                 changed = true;
             }
         } else if (legacy.hasActiveEncounter()) {
@@ -313,6 +328,7 @@ public class EndBirdEggTracker extends SavedData {
         if (encounterUUID != null) tag.putUUID("EncounterUUID", encounterUUID);
         if (endBirdUUID != null) tag.putUUID("EndBirdUUID", endBirdUUID);
         if (completionKillerUUID != null) tag.putUUID("CompletionKillerUUID", completionKillerUUID);
+        if (completionEggType != null) tag.putString("CompletionEggType", completionEggType);
         tag.putBoolean("CompletionPending", completionPending);
 
         ListTag eggList = new ListTag();
@@ -335,6 +351,10 @@ public class EndBirdEggTracker extends SavedData {
         if (tag.hasUUID("EndBirdUUID")) tracker.endBirdUUID = tag.getUUID("EndBirdUUID");
         if (tag.hasUUID("CompletionKillerUUID")) {
             tracker.completionKillerUUID = tag.getUUID("CompletionKillerUUID");
+        }
+        String completionEggType = tag.getString("CompletionEggType");
+        if (REQUIRED_TYPES.contains(completionEggType)) {
+            tracker.completionEggType = completionEggType;
         }
 
         ListTag eggList = tag.getList("EggTypes", Tag.TAG_COMPOUND);
@@ -362,6 +382,7 @@ public class EndBirdEggTracker extends SavedData {
             tracker.destroyedEggs.clear();
             tracker.endBirdUUID = null;
             tracker.completionKillerUUID = null;
+            tracker.completionEggType = null;
             tracker.completionPending = false;
         }
         return tracker;

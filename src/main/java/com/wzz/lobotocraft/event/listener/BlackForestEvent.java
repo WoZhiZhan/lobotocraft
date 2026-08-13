@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.event.listener;
 
 import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
+import com.wzz.lobotocraft.block.entity.RoomMarkerBlockEntity;
 import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.entity.abnormality.EntityBlackForestDoor;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
@@ -31,6 +32,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
@@ -302,6 +304,12 @@ public class BlackForestEvent {
         CompoundTag record = new CompoundTag();
         record.putString("Code", code);
         record.putString("Dimension", bird.level().dimension().location().toString());
+        if (bird.getHomeRoomDimension() != null) {
+            record.putString("HomeRoomDimension", bird.getHomeRoomDimension().toString());
+        }
+        if (bird.getHomeRoomMarker() != null) {
+            record.putLong("HomeRoomMarker", bird.getHomeRoomMarker().asLong());
+        }
         BlockPos target = returnPos == null ? bird.blockPosition() : returnPos;
         record.putInt("X", target.getX());
         record.putInt("Y", target.getY());
@@ -369,23 +377,35 @@ public class BlackForestEvent {
     }
 
     public static boolean tryRestoreCapturedBird(ServerLevel fallbackLevel, CompoundTag record) {
-        ResourceLocation dimensionId = ResourceLocation.tryParse(record.getString("Dimension"));
+        CompoundTag storedEntity = record.contains("Entity", net.minecraft.nbt.Tag.TAG_COMPOUND)
+                ? record.getCompound("Entity") : null;
+        String homeDimension = record.getString("HomeRoomDimension");
+        if (homeDimension.isBlank() && storedEntity != null) {
+            homeDimension = storedEntity.getString("HomeRoomDimension");
+        }
+        ResourceLocation dimensionId = ResourceLocation.tryParse(homeDimension);
+        if (dimensionId == null) dimensionId = ResourceLocation.tryParse(record.getString("Dimension"));
         ServerLevel level = dimensionId == null ? fallbackLevel : fallbackLevel.getServer().getLevel(
                 ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, dimensionId));
         if (level == null || !record.contains("X")) return false;
 
         BlockPos returnPos = new BlockPos(record.getInt("X"), record.getInt("Y"), record.getInt("Z"));
-        if (!level.hasChunkAt(returnPos)) level.getChunkAt(returnPos);
+        BlockPos homeMarker = record.contains("HomeRoomMarker")
+                ? BlockPos.of(record.getLong("HomeRoomMarker"))
+                : storedEntity != null && storedEntity.contains("HomeRoomMarker")
+                ? BlockPos.of(storedEntity.getLong("HomeRoomMarker")) : null;
+        BlockPos chunkAnchor = homeMarker == null ? returnPos : homeMarker;
+        if (!level.hasChunkAt(chunkAnchor)) level.getChunkAt(chunkAnchor);
         AbstractAbnormality bird = createBirdByCode(record.getString("Code"), level);
         if (bird == null) return false;
         CompoundTag sanitizedSnapshot = null;
-        if (record.contains("Entity", net.minecraft.nbt.Tag.TAG_COMPOUND)) {
-            sanitizedSnapshot = record.getCompound("Entity").copy();
+        if (storedEntity != null) {
+            sanitizedSnapshot = storedEntity.copy();
             sanitizeCapturedBirdSnapshot(sanitizedSnapshot, record.getString("Code"));
             bird.load(sanitizedSnapshot);
         }
 
-        BlockPos safeReturn = EntityUtil.findSafeEntityPositionInCompany(level, bird, returnPos, 24, 8);
+        BlockPos safeReturn = findCapturedBirdReturnPosition(level, bird, homeMarker, returnPos);
         if (safeReturn == null || !FacilityAccessService.isPositionOpen(level.getServer(),
                 level.dimension().location(), safeReturn)) return false;
         boolean alreadyPresent = false;
@@ -403,6 +423,37 @@ public class BlackForestEvent {
         bird.setPersistenceRequired();
         if (!alreadyPresent && !level.addFreshEntity(bird)) return false;
         return true;
+    }
+
+    private static BlockPos findCapturedBirdReturnPosition(ServerLevel level, AbstractAbnormality bird,
+                                                            BlockPos homeMarker, BlockPos legacyReturn) {
+        if (homeMarker != null && level.getBlockEntity(homeMarker) instanceof RoomMarkerBlockEntity marker) {
+            AABB roomBounds = marker.getScanBox();
+            BlockPos preferred = roomBounds.contains(Vec3.atCenterOf(legacyReturn)) ? legacyReturn : homeMarker;
+            int horizontal = Math.min(32, Math.max(0, marker.getRadiusXZ()));
+            for (int radius = 0; radius <= horizontal; radius++) {
+                for (int dy = -2; dy <= 3; dy++) {
+                    for (int dx = -radius; dx <= radius; dx++) {
+                        for (int dz = -radius; dz <= radius; dz++) {
+                            if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
+                            BlockPos candidate = preferred.offset(dx, dy, dz);
+                            if (!level.hasChunkAt(candidate)
+                                    || !roomBounds.contains(Vec3.atCenterOf(candidate))) continue;
+                            if (!level.getBlockState(candidate.below()).isFaceSturdy(
+                                    level, candidate.below(), net.minecraft.core.Direction.UP)) continue;
+                            AABB box = bird.getDimensions(bird.getPose()).makeBoundingBox(
+                                    candidate.getX() + 0.5D, candidate.getY(), candidate.getZ() + 0.5D);
+                            if (!level.noCollision(bird, box)) continue;
+                            if (!level.getEntities(bird, box,
+                                    entity -> entity.isAlive() && !entity.isRemoved()).isEmpty()) continue;
+                            return candidate;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+        return EntityUtil.findSafeEntityPositionInCompany(level, bird, legacyReturn, 24, 8);
     }
 
     /**

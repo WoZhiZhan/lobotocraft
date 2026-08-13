@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.item.ego.base;
 
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
+import com.wzz.lobotocraft.capability.EmployeeLevelCalculator;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 
@@ -45,13 +46,28 @@ public interface IEgoLevelItem {
                     case "EmployeeLevel" -> stats.getEmployeeLevel();
                     default -> 0;
                 };
+                int rawValue = switch (key) {
+                    case "FortitudeLevel" -> stats.getFortitude();
+                    case "PrudenceLevel" -> stats.getPrudence();
+                    case "TemperanceLevel" -> stats.getTemperance();
+                    case "JusticeLevel" -> stats.getJustice();
+                    default -> 0;
+                };
+                if (rawValue > 0) {
+                    value = EmployeeLevelCalculator.levelForEquipmentRequirement(
+                            rawValue, value, required);
+                }
                 if (value < required) {
                     String chineseName = ATTRIBUTE_NAMES.getOrDefault(key, key);
-                    missing.add(chineseName + " " + value + "/" + required);
+                    missing.add(chineseName + " " + formatLevel(value) + "/" + formatLevel(required));
                 }
             });
         });
         return missing;
+    }
+
+    private static String formatLevel(int level) {
+        return EmployeeLevelCalculator.levelGrade(level);
     }
 
     /**

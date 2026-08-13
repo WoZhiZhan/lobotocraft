@@ -39,6 +39,8 @@ class BlackForestSavedDataTest {
         record.putInt("X", 10);
         record.putInt("Y", 64);
         record.putInt("Z", -4);
+        record.putString("HomeRoomDimension", "lobotocraft:loboto");
+        record.putLong("HomeRoomMarker", net.minecraft.core.BlockPos.asLong(12, 63, -4));
         BlackForestEvent.BlackForestSavedData data = new BlackForestEvent.BlackForestSavedData();
         data.queueCapturedBird(record);
 
@@ -49,6 +51,10 @@ class BlackForestSavedDataTest {
         assertEquals(1, savedAgain.getList("PendingCapturedBirds", Tag.TAG_COMPOUND).size());
         assertEquals("large_bird", savedAgain.getList(
                 "PendingCapturedBirds", Tag.TAG_COMPOUND).getCompound(0).getString("Code"));
+        assertEquals("lobotocraft:loboto", savedAgain.getList(
+                "PendingCapturedBirds", Tag.TAG_COMPOUND).getCompound(0).getString("HomeRoomDimension"));
+        assertTrue(savedAgain.getList("PendingCapturedBirds", Tag.TAG_COMPOUND)
+                .getCompound(0).contains("HomeRoomMarker"));
     }
 
     @Test

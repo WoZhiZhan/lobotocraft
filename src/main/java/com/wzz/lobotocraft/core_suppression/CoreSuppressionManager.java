@@ -380,6 +380,17 @@ public final class CoreSuppressionManager {
         return isActive(level, CoreSuppressionType.NETZACH);
     }
 
+    /** Restores employee vitals on every Qliphoth meltdown during Netzach suppression. */
+    public static void onQliphothMeltdown(ServerLevel level) {
+        if (!isActive(level, CoreSuppressionType.NETZACH)) return;
+        forEachEmployee(level.getServer(), player -> {
+            if (!player.isAlive()) return;
+            player.setHealth(player.getMaxHealth());
+            MentalValueUtil.setMentalValue(player, MentalValueUtil.getEffectiveMaxMentalValue(player));
+            player.playNotifySound(ModSounds.NETZACH_CORE_HEAL.get(), SoundSource.PLAYERS, 1.0F, 1.0F);
+        });
+    }
+
     public static boolean hasNetzachReward(Player player) {
         return hasReward(player, CoreSuppressionType.NETZACH);
     }
@@ -626,14 +637,7 @@ public final class CoreSuppressionManager {
 
     private static void handleOrdealTrigger(MinecraftServer server, CoreSuppressionData state,
                                             CoreSuppressionType type, boolean midday, boolean firstOfTier) {
-        if (type == CoreSuppressionType.NETZACH) {
-            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-                if (!player.isAlive()) continue;
-                player.setHealth(player.getMaxHealth());
-                MentalValueUtil.setMentalValue(player, MentalValueUtil.getEffectiveMaxMentalValue(player));
-                player.playNotifySound(ModSounds.NETZACH_CORE_HEAL.get(), SoundSource.PLAYERS, 1.0F, 1.0F);
-            }
-        } else if (type == CoreSuppressionType.YESOD && firstOfTier) {
+        if (type == CoreSuppressionType.YESOD && firstOfTier) {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 player.playNotifySound(ModSounds.YESOD_CORE_STAGE.get(), SoundSource.PLAYERS,
                         1.0F, midday ? 0.8F : 1.0F);

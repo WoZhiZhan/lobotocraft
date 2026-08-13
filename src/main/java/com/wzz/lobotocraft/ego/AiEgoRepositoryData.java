@@ -47,6 +47,12 @@ public final class AiEgoRepositoryData extends SavedData {
                 EgoItemSpec.fromStacks(rewards), maximum);
     }
 
+    /** Adds the one global AI copy awarded by a suppression-only E.G.O. */
+    public boolean grantUniqueSuppressionReward(String abnormalityCode, String equipmentType,
+                                                List<ItemStack> rewards) {
+        return researchToMaximum(abnormalityCode, equipmentType, rewards, 1) > 0;
+    }
+
     int researchSpecsToMaximum(String abnormalityCode, String equipmentType,
                                List<EgoItemSpec> itemSpecs, int maximum) {
         if (itemSpecs.isEmpty()) return 0;

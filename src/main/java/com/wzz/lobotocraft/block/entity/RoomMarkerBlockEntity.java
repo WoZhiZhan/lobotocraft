@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.block.entity;
 
 import com.lobotocraft.facility.data.FacilityDayData;
+import com.lobotocraft.facility.FacilityManager;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
@@ -214,6 +215,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
                             - level.getServer().overworld().getGameTime()));
             entry.meltdownActive = suppressionActive && facilityMeltdown != null;
             entry.meltdownRemainingTicks = entry.meltdownActive ? facilityRemaining : 0;
+            entry.repeatedWorkPenaltyPercent = FacilityManager.repeatedWorkPenaltyPercent(level, target);
 
         } else if (!boundCode.isEmpty()) {
             missingScans++;
@@ -227,6 +229,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
                 entry.qliphoth = -1;
                 entry.maxQliphoth = -1;
                 entry.escapeDistance = 0;
+                entry.repeatedWorkPenaltyPercent = 0;
                 clearMeltdown(entry);
             } else {
                 entry.abnormalityCode = boundCode;
@@ -235,6 +238,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
                 entry.riskColor = boundRiskColor;
                 entry.status = RoomMonitorStatusPolicy.missingBoundStatus();
                 entry.escapeDistance = 0;
+                entry.repeatedWorkPenaltyPercent = 0;
                 clearMeltdown(entry);
             }
         } else {
@@ -245,6 +249,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
             entry.qliphoth = -1;
             entry.maxQliphoth = -1;
             entry.escapeDistance = 0;
+            entry.repeatedWorkPenaltyPercent = 0;
             clearMeltdown(entry);
         }
 
@@ -265,6 +270,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
         entry.healthPercent = 1.0F;
         entry.playersInside = 0;
         entry.escapeDistance = 0;
+        entry.repeatedWorkPenaltyPercent = 0;
         clearMeltdown(entry);
         entry.lastUpdate = level.getGameTime();
         data.putRoom(entry);

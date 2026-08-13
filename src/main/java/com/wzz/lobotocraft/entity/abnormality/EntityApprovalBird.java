@@ -209,8 +209,6 @@ public class EntityApprovalBird extends AbstractAbnormality {
 
     @Override
     public boolean hurt(DamageSource damageSource, float f) {
-        if (damageSource.getEntity() instanceof AbstractAbnormality)
-            return false;
         if (!level.isClientSide) {
             BlackForestEvent.BlackForestSavedData data =
                     BlackForestEvent.BlackForestSavedData.get((ServerLevel) level());

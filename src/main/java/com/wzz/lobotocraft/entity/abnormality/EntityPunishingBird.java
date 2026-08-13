@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
+import com.wzz.lobotocraft.block.entity.RoomMarkerBlockEntity;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.entity.EntityLightFollower;
 import com.wzz.lobotocraft.entity.ai.goal.MoveToBlackForestDoorGoal;
@@ -451,6 +452,7 @@ public class EntityPunishingBird extends AbstractAbnormality {
         setTarget(null);
         resetReturnProgress();
         resetMaxHealth();
+        refreshNestPositionFromContainment();
     }
 
     private boolean doorGoalAdded = false;
@@ -630,13 +632,43 @@ public class EntityPunishingBird extends AbstractAbnormality {
     }
 
     private void finishReturningToNest() {
-        BlockPos returnTarget = getReturnTarget();
-        if (returnTarget != null) this.escapePosition = returnTarget;
+        // escapePosition is the pre-escape containment feet position. The nest is
+        // only a navigation target and must never replace that return transaction.
         stopEscape();
     }
 
     private BlockPos getReturnTarget() {
+        if (!isValidNestPosition(nestPosition)) refreshNestPositionFromContainment();
         return PunishingBirdReturnPosition.aboveNest(nestPosition);
+    }
+
+    private boolean isValidNestPosition(@Nullable BlockPos position) {
+        return position != null && level().hasChunkAt(position)
+                && level().getBlockState(position).is(ModBlocks.PUNISHING_BIRD.get());
+    }
+
+    private void refreshNestPositionFromContainment() {
+        if (isValidNestPosition(nestPosition) || !(level() instanceof ServerLevel serverLevel)) return;
+        BlockPos markerPos = getHomeRoomMarker();
+        if (markerPos == null || !serverLevel.hasChunkAt(markerPos)
+                || !(serverLevel.getBlockEntity(markerPos) instanceof RoomMarkerBlockEntity marker)) {
+            nestPosition = null;
+            return;
+        }
+
+        BlockPos nearest = null;
+        double nearestDistance = Double.MAX_VALUE;
+        for (BlockPos candidate : BlockPos.betweenClosed(
+                markerPos.offset(-marker.getRadiusXZ(), -5, -marker.getRadiusXZ()),
+                markerPos.offset(marker.getRadiusXZ(), 5, marker.getRadiusXZ()))) {
+            if (!serverLevel.getBlockState(candidate).is(ModBlocks.PUNISHING_BIRD.get())) continue;
+            double distance = candidate.distSqr(blockPosition());
+            if (distance < nearestDistance) {
+                nearest = candidate.immutable();
+                nearestDistance = distance;
+            }
+        }
+        nestPosition = nearest;
     }
 
     private void resetReturnProgress() {

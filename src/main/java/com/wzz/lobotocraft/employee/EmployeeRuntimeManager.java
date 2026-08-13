@@ -414,6 +414,41 @@ public final class EmployeeRuntimeManager {
         return ACTIVE.values().stream().map(runtime -> runtime.player).toList();
     }
 
+    /** Clears stuck runtime state so every deployed AI employee can plan a fresh route. */
+    public static int resetAllForExhibition(MinecraftServer server, String reason) {
+        int reset = 0;
+        for (RuntimeEmployee runtime : new ArrayList<>(ACTIVE.values())) {
+            EmployeeServerPlayer player = runtime.player;
+            if (player.server != server || player.isRemoved() || !player.isAlive()) continue;
+
+            if (WorkManager.isPlayerWorking(player)) {
+                WorkManager.cancelWork(player, reason);
+            }
+            if (runtime.order != null && runtime.order.type == EmployeeTaskType.TOOL_USE
+                    && runtime.order.started) {
+                Entity target = findEntity(player.server, runtime.order.targetEntity);
+                if (target instanceof com.wzz.lobotocraft.entity.base.IAbnormality tool) {
+                    tool.stopUsing(player);
+                }
+            }
+
+            runtime.navigator.stop();
+            runtime.order = null;
+            runtime.idleMoving = false;
+            runtime.panicking = false;
+            clearPanicCombat(runtime);
+            clearAutonomousCombat(runtime);
+            player.setShiftKeyDown(false);
+            player.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+            player.employeeRecord().setTask(EmployeeTaskType.IDLE,
+                    reason == null ? "" : reason);
+            scheduleNextIdleMove(runtime, player.serverLevel().getGameTime());
+            reset++;
+        }
+        if (reset > 0) FacilityPersonnelData.get(server).changed();
+        return reset;
+    }
+
     public static boolean hasLockedMalkuthWorkOrder(UUID employeeId) {
         RuntimeEmployee runtime = ACTIVE.get(employeeId);
         return runtime != null && runtime.order != null
@@ -1092,6 +1127,8 @@ public final class EmployeeRuntimeManager {
 
     private static boolean isThreatFor(EmployeeServerPlayer observer, LivingEntity entity) {
         if (!entity.isAlive() || entity.isRemoved() || entity instanceof EntityPunishingBird) return false;
+        if (entity instanceof EmployeeServerPlayer
+                && EntityRedShoes.isRedShoesControlled(entity)) return true;
         if (entity instanceof EmployeeServerPlayer employee && MentalValueUtil.isPanic(employee)) {
             PanicType panicType = employee.getCapability(MentalValueProvider.MENTAL_VALUE)
                     .map(mental -> mental.getPanicType()).orElse(PanicType.NONE);

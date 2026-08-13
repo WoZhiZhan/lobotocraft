@@ -23,6 +23,7 @@ public class ModTabs {
 						tabData.accept(ModItems.NETZACH_SPAWN_EGG.get());
 						tabData.accept(ModItems.HAPPY_TEDDY_SPAWN_EGG.get());
 						tabData.accept(ModItems.IRON_MAIDEN_SPAWN_EGG.get());
+						tabData.accept(ModItems.LUMBERJACK_SPAWN_EGG.get());
 						tabData.accept(ModItems.MEAT_IDOL_SPAWN_EGG.get());
 						tabData.accept(ModItems.ABANDONED_MURDERER_SPAWN_EGG.get());
 						tabData.accept(ModItems.LARGE_BIRD_SPAWN_EGG.get());
@@ -222,6 +223,11 @@ public class ModTabs {
 						tabData.accept(ModItems.NOTHING_THERE_BOOTS.get());
 						tabData.accept(ModItems.NOTHING_THERE_WEAPON.get());
 						tabData.accept(ModItems.NOTHING_THERE_CURIO.get());
+						tabData.accept(ModItems.MUST_OPEN_PATH_CHESTPLATE.get());
+						tabData.accept(ModItems.MUST_OPEN_PATH_LEGGINGS.get());
+						tabData.accept(ModItems.MUST_OPEN_PATH_BOOTS.get());
+						tabData.accept(ModItems.MUST_OPEN_PATH_WEAPON.get());
+						tabData.accept(ModItems.MUST_OPEN_PATH_CURIO.get());
 					})
 					.build());
 

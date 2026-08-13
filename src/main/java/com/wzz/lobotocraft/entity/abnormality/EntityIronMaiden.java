@@ -63,6 +63,8 @@ public class EntityIronMaiden extends AbstractAbnormality {
 
     // 正在使用的员工UUID
     private UUID usingPlayerUUID = null;
+    // A respawned player keeps the UUID but receives a new runtime entity identity.
+    private int usingPlayerEntityId = -1;
 
     // 被使用的牺牲目标UUID（村民或文职）
     private UUID targetVillagerUUID = null;
@@ -338,6 +340,7 @@ public class EntityIronMaiden extends AbstractAbnormality {
         LivingEntity sacrifice = findAndLockSacrifice();
 
         this.usingPlayerUUID = player.getUUID();
+        this.usingPlayerEntityId = player.getId();
         this.usageTimer = 0;
         this.energyTimer = 0;
         this.generationPulseCount = 0;
@@ -433,8 +436,7 @@ public class EntityIronMaiden extends AbstractAbnormality {
         }
 
         if (usingPlayerUUID != null && !this.level().isClientSide) {
-            ServerPlayer player = ((ServerLevel)this.level()).getServer()
-                    .getPlayerList().getPlayer(usingPlayerUUID);
+            ServerPlayer player = resolveUsingPlayer();
 
             if (player == null || !player.isAlive()) {
                 // 员工离线或死亡，触发结束动画
@@ -511,6 +513,7 @@ public class EntityIronMaiden extends AbstractAbnormality {
         if (!this.level().isClientSide) {
             releaseSacrifice();
             usingPlayerUUID = null;
+            usingPlayerEntityId = -1;
         }
         super.remove(reason);
     }
@@ -545,8 +548,7 @@ public class EntityIronMaiden extends AbstractAbnormality {
 
         // 清理使用中的玩家引用
         if (usingPlayerUUID != null) {
-            ServerPlayer player = ((ServerLevel)this.level()).getServer()
-                    .getPlayerList().getPlayer(usingPlayerUUID);
+            ServerPlayer player = resolveUsingPlayer();
             if (player != null) {
                 player.sendSystemMessage(Component.literal(
                         String.format("§a机器运转结束，共向当日能源池提供 %.2f 点能源",
@@ -554,6 +556,7 @@ public class EntityIronMaiden extends AbstractAbnormality {
                 ));
             }
             usingPlayerUUID = null;
+            usingPlayerEntityId = -1;
         }
     }
 
@@ -606,7 +609,18 @@ public class EntityIronMaiden extends AbstractAbnormality {
 
     @Override
     public boolean isUsing(ServerPlayer player) {
-        return player != null && player.getUUID().equals(usingPlayerUUID);
+        return player != null && player.getUUID().equals(usingPlayerUUID)
+                && player.getId() == usingPlayerEntityId;
+    }
+
+    @Nullable
+    private ServerPlayer resolveUsingPlayer() {
+        if (!(this.level() instanceof ServerLevel serverLevel) || usingPlayerEntityId < 0) {
+            return null;
+        }
+        Entity entity = serverLevel.getEntity(usingPlayerEntityId);
+        if (!(entity instanceof ServerPlayer player)) return null;
+        return player.getUUID().equals(usingPlayerUUID) ? player : null;
     }
 
     @Override
@@ -627,6 +641,7 @@ public class EntityIronMaiden extends AbstractAbnormality {
     private void resetUsage() {
         releaseSacrifice();
         usingPlayerUUID = null;
+        usingPlayerEntityId = -1;
         targetVillagerUUID = null;
         usageTimer = 0;
         energyTimer = 0;

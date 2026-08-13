@@ -517,6 +517,17 @@ public class MentalValueEventHandler {
         removeMentalBreakdown(player, true);
     }
 
+    public static void forceRecover(ServerPlayer player) {
+        if (player == null) return;
+        removeMentalBreakdown(player, true);
+        player.getPersistentData().remove("isharmla_panic");
+        player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
+            mental.setPanicType(PanicType.NONE);
+            mental.setMentalValue(mental.getEffectiveMaxMentalValue(), MentalValueEvent.ChangeType.SET);
+        });
+        syncMentalValue(player, MentalValueEvent.ChangeType.SET);
+    }
+
     private static void removeMentalBreakdown(Player player, boolean clearPanicType) {
         if (clearPanicType) {
             player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental ->

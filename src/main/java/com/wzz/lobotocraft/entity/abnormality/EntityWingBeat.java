@@ -446,7 +446,7 @@ public class EntityWingBeat extends AbstractAbnormality {
                 }
                 return;
             }
-            if (this.player.level() != this.level || this.player.distanceToSqr(this) > 64 * 64) {
+            if (this.player.level() != this.level) {
                 if (!this.isSmall()) {
                     finishSession(true);
                 } else {

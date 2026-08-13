@@ -6,13 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class RedShoesDamagePolicyTest {
     @Test
-    void damageBonusUsesJusticeLevelDirectly() {
-        assertEquals(1.0F, RedShoesDamagePolicy.justiceDamageBonus(1));
-        assertEquals(5.0F, RedShoesDamagePolicy.justiceDamageBonus(5));
+    void damageBonusUsesTemperanceLevelDirectly() {
+        assertEquals(1.0F, RedShoesDamagePolicy.temperanceDamageBonus(1));
+        assertEquals(5.0F, RedShoesDamagePolicy.temperanceDamageBonus(5));
     }
 
     @Test
     void negativeLevelsCannotReduceBaseDamage() {
-        assertEquals(0.0F, RedShoesDamagePolicy.justiceDamageBonus(-1));
+        assertEquals(0.0F, RedShoesDamagePolicy.temperanceDamageBonus(-1));
     }
 }

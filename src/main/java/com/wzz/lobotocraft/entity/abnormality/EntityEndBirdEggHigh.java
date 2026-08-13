@@ -127,10 +127,10 @@ public class EntityEndBirdEggHigh extends AbstractAbnormality {
     @Override
     public void die(DamageSource damageSource) {
         setAnimation("death");
-        boolean eventEgg = EntityEndBird.endBirdEggDie(level, getUUID(),
+        boolean showEggCg = EntityEndBird.endBirdEggDie(level, getUUID(),
                 com.wzz.lobotocraft.world.data.EndBirdEggTracker.EGG_HIGH,
                 damageSource.getEntity() instanceof ServerPlayer player ? player : null);
-        if (eventEgg) for (ServerPlayer player : EntityUtil.findAllPlayer(this)) {
+        if (showEggCg) for (ServerPlayer player : EntityUtil.findAllPlayer(this)) {
             FullScreenRenderMessage msg = FullScreenRenderMessage.builder()
                     .showDuration(4000)
                     .fade(500, 1000)

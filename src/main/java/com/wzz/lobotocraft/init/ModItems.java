@@ -26,6 +26,7 @@ import com.wzz.lobotocraft.item.ego.helper.*;
 import com.wzz.lobotocraft.item.ego.largebird.*;
 import com.wzz.lobotocraft.item.ego.leticia.*;
 import com.wzz.lobotocraft.item.ego.nothing_there.*;
+import com.wzz.lobotocraft.item.ego.must_open_path.*;
 import com.wzz.lobotocraft.item.ego.ppodae.*;
 import com.wzz.lobotocraft.item.ego.punishing_bird.*;
 import com.wzz.lobotocraft.item.ego.queen_bee.*;
@@ -75,6 +76,10 @@ public class ModItems {
     public static final RegistryObject<Item> IRON_MAIDEN_SPAWN_EGG = REGISTRY.register("iron_maiden_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.iron_maiden, ExtendedColor.SILVER.getRGB(), ExtendedColor.DARK_RED.getRGB(), new Item.Properties(),
                     "§c现在，一切都会好起来哒！"));
+
+    public static final RegistryObject<Item> LUMBERJACK_SPAWN_EGG = REGISTRY.register("lumberjack_spawn_egg",
+            () -> new TextSpawnEggItem(ModEntities.lumberjack, 0x466331, 0x8A1720, new Item.Properties(),
+                    "§c在这片满是心脏的森林中，树木和曾经一样郁郁葱葱。"));
 
     public static final RegistryObject<Item> MEAT_IDOL_SPAWN_EGG = REGISTRY.register("meat_idol_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.meat_idol, 0x8B0000, 0x1a1a1a, new Item.Properties(),
@@ -380,6 +385,16 @@ public class ModItems {
     public static final RegistryObject<Item> NOTHING_THERE_BOOTS = REGISTRY.register("nothing_there_boots", NothingThereBoots::new);
     public static final RegistryObject<Item> NOTHING_THERE_WEAPON = REGISTRY.register("nothing_there_weapon", NothingThereWeapon::new);
     public static final RegistryObject<Item> NOTHING_THERE_CURIO = REGISTRY.register("nothing_there_curio", NothingThereCurio::new);
+    public static final RegistryObject<Item> MUST_OPEN_PATH_CHESTPLATE = REGISTRY.register("must_open_path_chestplate",
+            () -> new MustOpenPathArmor(net.minecraft.world.item.ArmorItem.Type.CHESTPLATE));
+    public static final RegistryObject<Item> MUST_OPEN_PATH_LEGGINGS = REGISTRY.register("must_open_path_leggings",
+            () -> new MustOpenPathArmor(net.minecraft.world.item.ArmorItem.Type.LEGGINGS));
+    public static final RegistryObject<Item> MUST_OPEN_PATH_BOOTS = REGISTRY.register("must_open_path_boots",
+            () -> new MustOpenPathArmor(net.minecraft.world.item.ArmorItem.Type.BOOTS));
+    public static final RegistryObject<Item> MUST_OPEN_PATH_WEAPON = REGISTRY.register("must_open_path_weapon",
+            MustOpenPathWeapon::new);
+    public static final RegistryObject<Item> MUST_OPEN_PATH_CURIO = REGISTRY.register("must_open_path_curio",
+            MustOpenPathCurio::new);
     public static final RegistryObject<Item> ROOM_MARKER = REGISTRY.register("room_marker", () -> new BlockItem(ModBlocks.ROOM_MARKER.get(), new Item.Properties()));
     public static final RegistryObject<Item> FLOOR_MARKER = REGISTRY.register("floor_marker",
             () -> new BlockItem(ModBlocks.FLOOR_MARKER.get(), new Item.Properties()));

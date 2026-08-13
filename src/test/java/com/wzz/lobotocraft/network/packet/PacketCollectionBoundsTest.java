@@ -101,6 +101,7 @@ final class PacketCollectionBoundsTest {
             assertEquals(3, buffer.readInt());
             assertEquals(4, buffer.readInt());
             for (int i = 0; i < 4; i++) buffer.readBoolean();
+            assertEquals(0, buffer.readVarInt());
             assertEquals(0, buffer.readableBytes());
         } finally {
             buffer.release();

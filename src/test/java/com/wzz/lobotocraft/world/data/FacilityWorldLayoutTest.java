@@ -103,10 +103,32 @@ class FacilityWorldLayoutTest {
                         "central/upper", "central/lower", "disciplinary", "extraction",
                         "record", "architecture"),
                 slotsByDepartment.keySet());
-        slotsByDepartment.forEach((department, slots) -> assertEquals(
+                slotsByDepartment.forEach((department, slots) -> assertEquals(
                 "architecture".equals(department)
                         ? Set.of(0, 1, 2, 3, 4, 5, 6, 7)
                         : Set.of(0, 1, 2, 3), slots, department));
+    }
+
+    @Test
+    void everyFixedContainmentHasAnAuthoritativeEscapeBlock() {
+        List<FacilityWorldLayout.ContainmentBinding> bindings =
+                FacilityWorldLayout.containmentBindings(COMPANY);
+        Set<BlockPos> escapeBlocks = bindings.stream()
+                .map(FacilityWorldLayout.ContainmentBinding::escapePos)
+                .collect(Collectors.toSet());
+
+        assertEquals(40, escapeBlocks.size(), "the measured facility contains 40 physical exits");
+        bindings.forEach(binding -> {
+            BlockPos marker = binding.markerPos();
+            BlockPos escape = binding.escapePos();
+            assertNotNull(escape, () -> "missing fixed exit for " + marker);
+            assertTrue(Math.abs(escape.getX() - marker.getX()) <= 32
+                            && Math.abs(escape.getY() - marker.getY()) <= 12
+                            && Math.abs(escape.getZ() - marker.getZ()) <= 32,
+                    () -> "fixed exit is outside the bounded containment search: " + binding);
+            assertTrue(!new ChunkPos(marker).equals(new ChunkPos(escape)),
+                    () -> "fixture no longer covers the cross-chunk exit case: " + binding);
+        });
     }
 
     @Test

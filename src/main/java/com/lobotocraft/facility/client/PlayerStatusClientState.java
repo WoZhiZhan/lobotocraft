@@ -31,6 +31,7 @@ public final class PlayerStatusClientState {
     private static final Style STYLE_IDLE = themed(LobotomyUiTheme.TEXT_MUTED);
     /** 恐慌紫，与设施管理界面员工行的 PANIC 状态色保持一致。 */
     private static final Style STYLE_PANIC = themed(0xFFB05CD6);
+    private static final Style STYLE_CONTROLLED = themed(0xFFE05A2B);
     private static final Style STYLE_HP_LABEL = themed(LobotomyUiTheme.ALERT_RED_DIM);
     private static final Style STYLE_HP_VALUE = themed(LobotomyUiTheme.BAR_HP);
     private static final Style STYLE_SP_LABEL = themed(LobotomyUiTheme.TEXT_MUTED);
@@ -58,7 +59,9 @@ public final class PlayerStatusClientState {
 
     private static Component build(PlayerStatusPacket.Entry entry) {
         MutableComponent result = Component.literal("  ");
-        if (entry.state() == PlayerStatusEvents.PANIC) {
+        if (entry.state() == PlayerStatusEvents.CONTROLLED) {
+            result.append(Component.literal("被控制").withStyle(STYLE_CONTROLLED));
+        } else if (entry.state() == PlayerStatusEvents.PANIC) {
             result.append(Component.literal("精神崩溃").withStyle(STYLE_PANIC));
         } else if (entry.state() == PlayerStatusEvents.WORKING) {
             result.append(Component.literal("工作中").withStyle(STYLE_WORKING));

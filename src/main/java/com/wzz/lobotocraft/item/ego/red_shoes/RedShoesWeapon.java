@@ -76,7 +76,7 @@ public class RedShoesWeapon extends BaseEgoWeapon {
             AtomicReference<Float> damage = new AtomicReference<>((float) 6);
             if (EgoArmorHelper.isFullEGO(player, "red_shoes")) {
                 serverPlayer.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(stats -> {
-                    float ex = RedShoesDamagePolicy.justiceDamageBonus(stats.getJusticeLevel());
+                    float ex = RedShoesDamagePolicy.damageBonus(stats);
                     damage.updateAndGet(v -> v + ex);
                 });
             }

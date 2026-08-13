@@ -40,7 +40,7 @@ public class ApprovalBirdCurio extends BaseEgoCurio {
         tooltip.add(Component.literal("  • 攻击速度 + 6").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal("  • 压迫工作的成功率提高6%").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("套装效果（装备锁定 + 装备 + 饰品）：").withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("套装效果（装备锁定+装备+饰品）：").withStyle(ChatFormatting.AQUA));
         tooltip.add(Component.literal("  • 玩家使用正义裁决者武器攻击，获得10%攻速和移速加成，持续10秒，不可叠加，每次攻击重置持续时间").withStyle(ChatFormatting.LIGHT_PURPLE));
         tooltip.add(Component.literal("  • 玩家进行压迫工作失误时，将不会受到伤害惩罚").withStyle(ChatFormatting.LIGHT_PURPLE));
         super.appendHoverText(stack, level, tooltip, flag);

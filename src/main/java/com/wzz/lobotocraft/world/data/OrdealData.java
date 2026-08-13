@@ -267,6 +267,30 @@ public class OrdealData extends SavedData {
         return bloodDawnActive || greenDawnActive || violetDawnActive || amberDawnActive;
     }
 
+    public void abortAllActiveOrdeals() {
+        bloodDawnActive = false;
+        bloodDawnRemaining = 0;
+        greenDawnActive = false;
+        greenDawnRemaining = 0;
+        violetDawnActive = false;
+        violetDawnRemaining = 0;
+        amberDawnActive = false;
+        amberDawnRemaining = 0;
+        trackedAmberDawns.clear();
+        blueMiddayActive = false;
+        blueMiddayRemaining = 0;
+        violetMiddayActive = false;
+        violetMiddayRemaining = 0;
+        greenMiddayActive = false;
+        greenMiddayRemaining = 0;
+        crimsonMiddayActive = false;
+        crimsonMiddayRemaining = 0;
+        lateOrdealTier = 0;
+        lateOrdealColor = 0;
+        trackedLateOrdeals.clear();
+        setDirty();
+    }
+
     public boolean isAmberDawnActive() {
         return amberDawnActive;
     }

@@ -494,6 +494,42 @@ public class ForgeModEvent {
 		}
 	}
 
+	/**
+	 * Nothing There must intercept a fatal hit before vanilla applies damage.
+	 * LivingDamageEvent is too late: the health reduction and possible death have
+	 * already been processed by that point.
+	 */
+	@SubscribeEvent(priority = EventPriority.LOWEST)
+	public static void onNothingThereRevive(LivingHurtEvent event) {
+		if (event.isCanceled() || !(event.getEntity() instanceof ServerPlayer player)) {
+			return;
+		}
+		if (!EgoArmorHelper.isWearingFullSet(player, "nothing_there")
+				|| !NothingThereRevivePolicy.isLethal(event.getAmount(), player.getHealth())) {
+			return;
+		}
+
+		CompoundTag persistentData = player.getPersistentData();
+		long currentTime = System.currentTimeMillis();
+		long cooldownEnd = persistentData.getLong("nothing_there_cooldown");
+		if (NothingThereRevivePolicy.isCooldownActive(currentTime, cooldownEnd)) {
+			return;
+		}
+
+		event.setAmount(0.0F);
+		event.setCanceled(true);
+		player.setHealth(NothingThereRevivePolicy.restoredHealth(player.getMaxHealth()));
+		EntityUtil.clearHurtTime(player);
+		player.invulnerableTime = 20;
+		player.playSound(SoundEvents.TOTEM_USE);
+		ParticleUtil.spawnParticlesAroundEntity(player, ParticleTypes.HEART, 30, 0.01f);
+		MentalValueUtil.addMentalValue(player,
+				MentalValueUtil.getEffectiveMaxMentalValue(player) * 0.25f);
+		EntityLargeBird.clearLargeBirdCharm(player);
+		persistentData.putLong("nothing_there_cooldown",
+				currentTime + NothingThereRevivePolicy.COOLDOWN_MILLIS);
+	}
+
 	@SubscribeEvent
 	public static void onBlackForestDoorJoin(EntityJoinLevelEvent event) {
 		if (!(event.getEntity() instanceof EntityBlackForestDoor door)) return;
@@ -888,7 +924,9 @@ public class ForgeModEvent {
 
 	@SubscribeEvent
 	public static void onPlayerRightBlock(PlayerInteractEvent.RightClickBlock event) {
-		if (event.getEntity().getMainHandItem().getItem() instanceof BaseEgoWeapon) {
+		if (event.getEntity().getMainHandItem().getItem() instanceof BaseEgoWeapon
+				&& !(event.getEntity().getMainHandItem().getItem()
+				instanceof com.wzz.lobotocraft.item.ego.must_open_path.MustOpenPathWeapon)) {
 			event.setCanceled(true);
 		}
 		Player player = event.getEntity();
@@ -977,24 +1015,6 @@ public class ForgeModEvent {
 					player.removeEffect(ModMobEffects.LETICIA_GIFT.get());
 				}
 			}
-			if (EgoArmorHelper.isWearingFullSet(player, "nothing_there")
-					&& event.getAmount() >= player.getHealth()) {
-				CompoundTag persistentData = player.getPersistentData();
-				String cooldownKey = "nothing_there_cooldown";
-				long currentTime = System.currentTimeMillis();
-				long cooldownEnd = persistentData.getLong(cooldownKey);
-				if (cooldownEnd > currentTime) {
-					return;
-				}
-				event.setAmount(0f);
-				event.setCanceled(true);
-				player.playSound(SoundEvents.TOTEM_USE);
-				ParticleUtil.spawnParticlesAroundEntity(player, ParticleTypes.HEART, 30, 0.01f);
-				player.heal(player.getMaxHealth() * 0.25f);
-				MentalValueUtil.addMentalValue(player, MentalValueUtil.getEffectiveMaxMentalValue(player) * 0.25f);
-				EntityLargeBird.clearLargeBirdCharm(player);
-				persistentData.putLong(cooldownKey, currentTime + 90000L);
-			}
 		}
 	}
 
@@ -1081,6 +1101,14 @@ public class ForgeModEvent {
 			player.getPersistentData().remove("isSnowQueenDuel");
 			player.setTicksFrozen(0);
 			BuffUtil.removeKiss(player);
+		}
+		if (player instanceof ServerPlayer serverPlayer) {
+			CompoundTag root = player.getPersistentData();
+			CompoundTag persisted = root.getCompound(Player.PERSISTED_NBT_TAG);
+			boolean noticeSeen = persisted.getBoolean(AcknowledgeWelcomeNoticePacket.SEEN_TAG);
+			if (!noticeSeen) {
+				MessageLoader.getLoader().sendToPlayer(serverPlayer, new OpenWelcomeNoticePacket());
+			}
 		}
 	}
 

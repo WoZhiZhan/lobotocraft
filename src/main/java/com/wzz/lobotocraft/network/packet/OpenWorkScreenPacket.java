@@ -19,15 +19,24 @@ public class OpenWorkScreenPacket implements IMessage {
     private int observationLevel;
     private int employeeLevel;
     private boolean[] workPrefsUnlocked;
+    private int repeatedWorkPenaltyPercent;
 
     public OpenWorkScreenPacket(int abnormalityId, float[][] fullWorkPreferences, RiskLevel riskLevel,
                                 int observationLevel, int employeeLevel, boolean[] workPrefsUnlocked) {
+        this(abnormalityId, fullWorkPreferences, riskLevel, observationLevel, employeeLevel,
+                workPrefsUnlocked, 0);
+    }
+
+    public OpenWorkScreenPacket(int abnormalityId, float[][] fullWorkPreferences, RiskLevel riskLevel,
+                                int observationLevel, int employeeLevel, boolean[] workPrefsUnlocked,
+                                int repeatedWorkPenaltyPercent) {
         this.abnormalityId = abnormalityId;
         this.fullWorkPreferences = fullWorkPreferences;
         this.riskLevel = riskLevel;
         this.observationLevel = observationLevel;
         this.employeeLevel = employeeLevel;
         this.workPrefsUnlocked = workPrefsUnlocked;
+        this.repeatedWorkPenaltyPercent = Math.max(0, repeatedWorkPenaltyPercent);
     }
 
     @Override
@@ -53,6 +62,7 @@ public class OpenWorkScreenPacket implements IMessage {
         for (int i = 0; i < unlockedCount; i++) {
             this.workPrefsUnlocked[i] = buf.readBoolean();
         }
+        this.repeatedWorkPenaltyPercent = Math.max(0, buf.readVarInt());
     }
 
     @Override
@@ -78,13 +88,15 @@ public class OpenWorkScreenPacket implements IMessage {
             buf.writeBoolean(workPrefsUnlocked != null
                     && i < workPrefsUnlocked.length && workPrefsUnlocked[i]);
         }
+        buf.writeVarInt(Math.max(0, repeatedWorkPenaltyPercent));
     }
 
     @OnlyIn(Dist.CLIENT)
     @Override
     public void runClient(NetworkEvent.Context ctx) {
         Minecraft.getInstance().setScreen(new AbnormalityWorkScreen(
-                abnormalityId, fullWorkPreferences, riskLevel, observationLevel, employeeLevel, workPrefsUnlocked
+                abnormalityId, fullWorkPreferences, riskLevel, observationLevel, employeeLevel,
+                workPrefsUnlocked, repeatedWorkPenaltyPercent
         ));
     }
 

@@ -13,6 +13,7 @@ import com.wzz.lobotocraft.entity.ordeal.EntityLateOrdeal;
 import com.wzz.lobotocraft.entity.ordeal.LateOrdealVariant;
 import com.wzz.lobotocraft.entity.ordeal.EntityVioletDawn;
 import com.wzz.lobotocraft.entity.ordeal.EntityVioletNoon;
+import com.wzz.lobotocraft.entity.projectile.MustOpenPathAnchorProjectile;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.registries.DeferredRegister;
@@ -330,6 +331,14 @@ public class ModEntities {
                             .updateInterval(20)
                             .build("iron_maiden"));
 
+    public static final RegistryObject<EntityType<EntityLumberjack>> lumberjack =
+            ENTITIES.register("lumberjack",
+                    () -> EntityType.Builder.of(EntityLumberjack::new, MobCategory.CREATURE)
+                            .sized(1.5F, 3.0F)
+                            .clientTrackingRange(10)
+                            .updateInterval(3)
+                            .build("lumberjack"));
+
     public static final RegistryObject<EntityType<EntityMeatIdol>> meat_idol =
             ENTITIES.register("meat_idol", () -> EntityType.Builder
                     .of(EntityMeatIdol::new, MobCategory.CREATURE)
@@ -558,4 +567,14 @@ public class ModEntities {
                             .clientTrackingRange(64)
                             .updateInterval(1)
                             .build("text"));
+
+    public static final RegistryObject<EntityType<MustOpenPathAnchorProjectile>> must_open_path_anchor =
+            ENTITIES.register("must_open_path_anchor",
+                    () -> EntityType.Builder.<MustOpenPathAnchorProjectile>of(
+                                    MustOpenPathAnchorProjectile::new, MobCategory.MISC)
+                            .sized(0.8F, 0.8F)
+                            .clientTrackingRange(64)
+                            .updateInterval(1)
+                            .noSummon()
+                            .build("must_open_path_anchor"));
 }

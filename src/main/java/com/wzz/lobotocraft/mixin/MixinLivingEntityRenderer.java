@@ -1,7 +1,9 @@
 package com.wzz.lobotocraft.mixin;
 
+import com.wzz.lobotocraft.init.ModMobEffects;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -27,9 +29,9 @@ public abstract class MixinLivingEntityRenderer<T extends LivingEntity, M extend
             float limbSwing, float limbSwingAmount, float ageInTicks,
             float netHeadYaw, float headPitch) {
 
-        if (e instanceof LivingEntity le
-                && le.getPersistentData().getBoolean("isFreezeKiss")) {
-            return;
+        if (e instanceof LivingEntity le) {
+            MobEffectInstance kiss = le.getEffect(ModMobEffects.KISS.get());
+            if (kiss != null && kiss.getAmplifier() >= 2) return;
         }
         instance.setupAnim(e, limbSwing, limbSwingAmount, ageInTicks, netHeadYaw, headPitch);
     }

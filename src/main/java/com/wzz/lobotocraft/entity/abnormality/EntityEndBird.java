@@ -7,6 +7,7 @@ import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.employee.FacilityAccessService;
+import com.wzz.lobotocraft.employee.EmployeeRuntimeManager;
 import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
 import com.wzz.lobotocraft.ego.SpecialEgoCatalog;
 import com.wzz.lobotocraft.ego.SpecialEgoService;
@@ -693,26 +694,18 @@ public class EntityEndBird extends AbstractAbnormality {
             if (!level().isClientSide && level() instanceof ServerLevel serverLevel) {
                 // 清理追踪器
                 EndBirdEggTracker tracker = EndBirdEggTracker.get(serverLevel);
+                String completionEggType = tracker.getCompletionEggType();
 
                 // 解除所有魅惑
                 queueAndDispelAllCharms(serverLevel, tracker);
+                restoreThreeBirds(serverLevel);
                 tracker.clearIfEndBird(getUUID());
 
-                for (ServerPlayer player : EntityUtil.findAllPlayer(this)) {
-                    FullScreenRenderMessage msg = FullScreenRenderMessage.builder()
-                            .showDuration(4000)
-                            .fade(500, 1000)
-                            .texture(ResourceUtil.createInstance("textures/gui/end_bird_cg/cg8.png"))
-                            .build();
-                    MessageLoader.getLoader().sendToPlayer(player, msg);
-                    ItemUtil.addItem(player, new ItemStack(ModItems.END_BIRD_CURIO.get()));
-                }
+                grantVictoryCuriosAndShowCg(serverLevel, completionEggType);
                 ServerPlayer rewardPlayer = resolveThinDuskRewardPlayer(serverLevel);
                 if (rewardPlayer != null) {
                     grantThinDuskEquipment(rewardPlayer);
                 }
-
-                restoreThreeBirds(serverLevel);
 
                 // hurt() 被全部拦截导致原版 die() 永远不触发，必须手动 discard
                 TimerEntry dieTimer = new TimerEntry() {
@@ -728,6 +721,20 @@ public class EntityEndBird extends AbstractAbnormality {
             }
         }
         super.setHealth(f);
+    }
+
+    @Override
+    public void die(DamageSource source) {
+        if (isAlive()) {
+            setHealth(0.0F);
+            if (getHealth() > 0.0F) return;
+        }
+        super.die(source);
+    }
+
+    @Override
+    protected boolean usesContainmentReturnOnDeath() {
+        return false;
     }
 
     @Override
@@ -802,6 +809,36 @@ public class EntityEndBird extends AbstractAbnormality {
             }
         }
         charmedPlayers.clear();
+    }
+
+    private void grantVictoryCuriosAndShowCg(ServerLevel serverLevel, String completionEggType) {
+        Set<UUID> rewarded = new HashSet<>();
+        for (ServerPlayer player : EntityUtil.findAllPlayer(this)) {
+            grantVictoryCurio(player, rewarded, !(player instanceof EmployeeServerPlayer),
+                    completionEggType);
+        }
+        for (EmployeeServerPlayer employee : EmployeeRuntimeManager.activePlayers()) {
+            if (employee.server != serverLevel.getServer()
+                    || employee.isRemoved() || !employee.isAlive()) continue;
+            grantVictoryCurio(employee, rewarded, false, completionEggType);
+        }
+    }
+
+    private void grantVictoryCurio(ServerPlayer player, Set<UUID> rewarded, boolean showCg,
+                                   String completionEggType) {
+        if (!rewarded.add(player.getUUID())) return;
+        if (showCg) {
+            FullScreenRenderMessage msg = FullScreenRenderMessage.builder()
+                    .showDuration(4000)
+                    .fade(500, 1000)
+                    .textures(EndBirdVictoryPresentation.textures(completionEggType), 4000)
+                    .build();
+            MessageLoader.getLoader().sendToPlayer(player, msg);
+        }
+        ItemUtil.addItem(player, new ItemStack(ModItems.END_BIRD_CURIO.get()));
+        if (player instanceof EmployeeServerPlayer) {
+            EmployeeRuntimeManager.persistNow(player.getUUID());
+        }
     }
 
     @Nullable
@@ -1102,7 +1139,9 @@ public class EntityEndBird extends AbstractAbnormality {
                         endBird.setHealth(Math.max(1.0F, endBird.getHealth() - 110000.0F));
                     }
                 }
-                return true;
+                // Completion sends one atomic "final egg -> cg8" presentation from the
+                // End Bird transaction. The egg entity must not send a competing packet.
+                return result == EndBirdEggTracker.EggDestructionResult.ACCEPTED;
             }
         }
         return false;

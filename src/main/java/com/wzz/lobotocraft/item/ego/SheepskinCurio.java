@@ -44,8 +44,6 @@ public class SheepskinCurio extends BaseEgoCurio {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("§7...这就是为什么我能在那匹狼饿着肚子的情况下安全回到这里！"));
-        tooltip.add(Component.literal(""));
         tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
         tooltip.add(Component.literal("  • 最大生命值 + 9").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal("  • 最大精神值 + 5").withStyle(ChatFormatting.GREEN));
@@ -56,6 +54,9 @@ public class SheepskinCurio extends BaseEgoCurio {
         tooltip.add(Component.literal("  • 当玩家穿戴“郁蓝创痕”时，潜狼效果将受到强化“累计损失10%生命值后，进入潜狼模式6秒，6秒内玩家将无法受到伤害，且玩家造成的红色伤害+6点”。").withStyle(ChatFormatting.LIGHT_PURPLE));
         tooltip.add(Component.literal("  • 当玩家穿戴“猩红创痕”时，玩家进入暴怒状态（血量低于50%）后，攻速提高25%，副手火铳的cd将降低至1.5s。玩家对“猎物”造成的伤害额外+3点。玩家击杀“猎物”后，回复5%的精神值和生命值。").withStyle(ChatFormatting.LIGHT_PURPLE));
         tooltip.add(Component.literal("  • 玩家穿戴“猩红创痕”或者“郁蓝创痕”时，装备效力等同于ALEPH级。").withStyle(ChatFormatting.LIGHT_PURPLE));
+        tooltip.add(Component.literal(""));
+        tooltip.add(Component.literal("...这就是为什么我能在那匹狼饿着肚子的情况下安全回到这里！")
+                .withStyle(ChatFormatting.GRAY));
         super.appendHoverText(stack, level, tooltip, flag);
     }
 

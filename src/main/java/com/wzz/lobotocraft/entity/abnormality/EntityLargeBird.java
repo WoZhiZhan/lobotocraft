@@ -254,6 +254,9 @@ public class EntityLargeBird extends AbstractAbnormality {
     @Override
     public void triggerEscape() {
         super.triggerEscape();
+        if (hasEscape()) {
+            setNoAi(false);
+        }
         EntityLightFollower lightFollowerEntity = new EntityLightFollower(ModEntities.light_follower.get(), level);
         lightFollowerEntity.setLightLevel(4);
         lightFollowerEntity.setOwnerUUID(getUUID());
@@ -276,6 +279,9 @@ public class EntityLargeBird extends AbstractAbnormality {
         attackPending = false;
         attackCooldown = 0;
         attackSoundTimer = 0;
+        getNavigation().stop();
+        setDeltaMovement(0.0D, 0.0D, 0.0D);
+        setNoAi(true);
         setAnimation("model.5");
         if (!this.level().isClientSide) {
             clearCharmedPlayersForThisBird();
@@ -776,10 +782,10 @@ public class EntityLargeBird extends AbstractAbnormality {
     }
 
     private PlayState movementPredicate(AnimationState<EntityLargeBird> event) {
-        if (event.isMoving() && !isAttackPending()) {
+        if (hasEscape() && event.isMoving() && !isAttackPending()) {
             return event.setAndContinue(RawAnimation.begin().thenLoop("animation.model.2"));
         }
-        return PlayState.CONTINUE;
+        return PlayState.STOP;
     }
 
     private PlayState actionPredicate(AnimationState<EntityLargeBird> event) {

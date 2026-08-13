@@ -41,10 +41,11 @@ public class RepentanceCurio extends BaseEgoCurio {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
+        tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
         tooltip.add(Component.literal("  • 最大精神值 +2").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal("  • 对一罪与百善工作成功率 +10%").withStyle(ChatFormatting.GREEN));
         tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("当“白夜”出逃时效果：").withStyle(ChatFormatting.YELLOW));
+        tooltip.add(Component.literal("特殊效果（“白夜”出逃时）：").withStyle(ChatFormatting.AQUA));
         tooltip.add(Component.literal("  • 免疫白夜和使徒的伤害").withStyle(ChatFormatting.LIGHT_PURPLE));
         tooltip.add(Component.literal("  • 无法对白夜和使徒造成伤害").withStyle(ChatFormatting.RED));
         tooltip.add(Component.literal("  • 无法进行工作").withStyle(ChatFormatting.RED));

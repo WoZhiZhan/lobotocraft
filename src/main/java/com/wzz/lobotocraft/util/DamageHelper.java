@@ -302,9 +302,14 @@ public final class DamageHelper {
 
     @SuppressWarnings("all")
     public static DamageSource getDamage(Entity attacker, String msg) {
+        return getDamage(attacker, attacker, msg);
+    }
+
+    @SuppressWarnings("all")
+    public static DamageSource getDamage(Entity directAttacker, Entity causingEntity, String msg) {
         if (msg.equals("pale")) msg = "blue";
-        MinecraftServer server = attacker.getServer();
-        if (server == null) return attacker.level.damageSources.generic();
+        MinecraftServer server = directAttacker.getServer();
+        if (server == null) return directAttacker.level.damageSources.generic();
         msg = StringUtil.normalizeTypeName(msg);
         Registry<DamageType> damageTypeRegistry =
                 server.registryAccess().registryOrThrow(Registries.DAMAGE_TYPE);
@@ -312,7 +317,7 @@ public final class DamageHelper {
                 ResourceKey.create(Registries.DAMAGE_TYPE, ResourceUtil.createInstanceWithColon(msg));
         Holder<DamageType> damageTypeHolder =
                 damageTypeRegistry.getHolderOrThrow(damageTypeKey);
-        AttackDamage attackDamage = new AttackDamage(damageTypeHolder, attacker);
+        AttackDamage attackDamage = new AttackDamage(damageTypeHolder, directAttacker, causingEntity);
         if (attackDamage instanceof IDamageSource iDamageSource) {
             iDamageSource.setDamageType(StringUtil.extractTypeName(msg));
         }

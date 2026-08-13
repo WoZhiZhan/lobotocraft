@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.work;
 
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
+import com.lobotocraft.facility.FacilityManager;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.capability.PanicType;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityData;
@@ -133,7 +134,10 @@ public class AbnormalityWorkHandler {
 															abnormality.getRiskLevel(),
 															obsLevel,
 															employeeStats.getEmployeeLevel(),
-															workPrefsUnlocked
+															workPrefsUnlocked,
+                                                            abnormality instanceof AbstractAbnormality concrete
+                                                                    ? FacilityManager.repeatedWorkPenaltyPercent(
+                                                                    serverPlayer.serverLevel(), concrete) : 0
 													)
 											);
 										});

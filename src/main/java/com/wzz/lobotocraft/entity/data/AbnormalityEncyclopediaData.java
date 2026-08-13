@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.entity.data;
 import com.mojang.logging.LogUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.slf4j.Logger;
 
@@ -12,7 +13,9 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 异想体图鉴数据注册表 - 支持可变数量的管理须知
@@ -20,18 +23,15 @@ import java.util.Map;
 public class AbnormalityEncyclopediaData {
 
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final String BUNDLED_STORY_ROOT = "/assets/lobotocraft/stories/cn/";
-    private static final String[] BUNDLED_STORY_FILES = {
-            "Nullthing_cn.xml", "Onebadmanygood_cn.xml", "Happyteddy_cn.xml",
-            "IronMaiden_cn.xml", "MeatIdol_cn.xml", "StraitJacket_cn.xml",
-            "Bigbird_cn.xml", "SmallBird_cn.xml", "LongBird_cn.xml",
-            "Matchgirl_cn.xml", "Fairy_cn.xml", "QueenBee_cn.xml",
-            "RedShoes_cn.xml", "SnowQueen_cn.xml", "Ppodae_cn.xml",
-            "GalaxyBoy_cn.xml", "LittleWitch_cn.xml", "BlueStar_cn.xml",
-            "Porccu_cn.xml", "BossBird_cn.xml", "Helper_cn.xml",
-            "Cosmos_cn.xml", "BigBadWolf_cn.xml", "Butterfly_cn.xml",
-            "RedHood_cn.xml", "PinkCorps_cn.xml", "ArmorCreature_cn.xml",
-            "OldLady_cn.xml", "DangoCreature_cn.xml"
+    private static final String BUNDLED_STORY_ROOT = "/assets/lobotocraft/stories/";
+    private static final String[] BUNDLED_STORY_BASE_NAMES = {
+            "Nullthing", "Onebadmanygood", "Happyteddy", "IronMaiden",
+            "MeatIdol", "StraitJacket", "Bigbird", "SmallBird", "LongBird",
+            "Matchgirl", "Fairy", "QueenBee", "RedShoes", "SnowQueen",
+            "Ppodae", "GalaxyBoy", "LittleWitch", "BlueStar", "Porccu",
+            "BossBird", "Helper", "Cosmos", "BigBadWolf", "Butterfly",
+            "RedHood", "PinkCorps", "ArmorCreature", "OldLady",
+            "DangoCreature", "Lumberjack"
     };
 
     public record StoryEntry(int openLevel, String text) {
@@ -64,8 +64,8 @@ public class AbnormalityEncyclopediaData {
     }
 
     private static final Map<String, EntryData> ENCYCLOPEDIA_DATA = new HashMap<>();
-    private static final Map<String, StoryEntry[]> ORIGINAL_STORY_CACHE = new HashMap<>();
-    private static boolean originalStoriesLoaded;
+    private static final Map<String, Map<String, StoryEntry[]>> ORIGINAL_STORY_CACHE = new HashMap<>();
+    private static final Set<String> LOADED_STORY_LANGUAGES = new HashSet<>();
 
     static {
         //一无所有 - O-06-20
@@ -109,6 +109,15 @@ public class AbnormalityEncyclopediaData {
                         "这个异想体不会受到逆卡巴拉能量熔毁的影响。"
                 },
                 "计数器极限：无 | 不会突破收容 | 员工恐慌时将被立即击杀"
+        ));
+
+        ENCYCLOPEDIA_DATA.put("F-05-32", new EntryData(
+                new String[]{
+                        "当工作结果为差时，“热心的樵夫”的逆卡巴拉计数器会立刻减少。",
+                        "自律等级高于2级的员工完成了对“热心的樵夫”的工作后，“热心的樵夫”的逆卡巴拉计数器会立刻减少。",
+                        "当“热心的樵夫”的逆卡巴拉计数器归零时，下一名开始工作的AI员工会立刻死亡。随后“热心的樵夫”将突破收容。"
+                },
+                "计数器极限：1 | 会突破收容 | 红色(1.5 抗性较低) 白色(0.8 抗性较高) 黑色(0.8 抗性较高) 蓝色(2.0 抗性较低)"
         ));
 
         // 血肉偶像 (T-09-79) - 5个管理须知
@@ -412,36 +421,62 @@ public class AbnormalityEncyclopediaData {
     }
 
     public static StoryEntry[] getStories(String abnormalityCode) {
+        return getStories(abnormalityCode, "zh_cn");
+    }
+
+    public static StoryEntry[] getStories(String abnormalityCode, String languageCode) {
+        String storyLanguage = storyLanguage(languageCode);
         if ("S-03-07".equals(abnormalityCode)) {
             return new StoryEntry[]{new StoryEntry(0,
-                    "该异想体并非脑叶公司原版异想体，暂无原版故事档案。")};
+                    "cn".equals(storyLanguage)
+                            ? "该异想体并非脑叶公司原版异想体，暂无原版故事档案。"
+                            : "This Abnormality is not from the original Lobotomy Corporation and has no original story archive.")};
         }
         if ("S-03-07-1".equals(abnormalityCode)) {
             return new StoryEntry[]{new StoryEntry(0,
-                    "该实体并非脑叶公司原版异想体，暂无原版故事档案。")};
+                    "cn".equals(storyLanguage)
+                            ? "该实体并非脑叶公司原版异想体，暂无原版故事档案。"
+                            : "This entity is not from the original Lobotomy Corporation and has no original story archive.")};
         }
-        ensureOriginalStoriesLoaded();
+        ensureOriginalStoriesLoaded(storyLanguage);
         String normalized = "0-02-62".equals(abnormalityCode) ? "O-02-62" : abnormalityCode;
-        StoryEntry[] stories = ORIGINAL_STORY_CACHE.get(normalized);
+        StoryEntry[] stories = ORIGINAL_STORY_CACHE.get(storyLanguage).get(normalized);
+        if ((stories == null || stories.length == 0) && !"en".equals(storyLanguage)) {
+            ensureOriginalStoriesLoaded("en");
+            stories = ORIGINAL_STORY_CACHE.get("en").get(normalized);
+        }
         if (stories == null || stories.length == 0) {
-            return new StoryEntry[]{new StoryEntry(0, "暂无原版故事档案。")};
+            return new StoryEntry[]{new StoryEntry(0,
+                    "cn".equals(storyLanguage) ? "暂无原版故事档案。" : "No original story archive is available.")};
         }
         return stories.clone();
     }
 
-    private static synchronized void ensureOriginalStoriesLoaded() {
-        if (originalStoriesLoaded) return;
-        originalStoriesLoaded = true;
+    static Set<String> getRegisteredCodes() {
+        return Set.copyOf(ENCYCLOPEDIA_DATA.keySet());
+    }
 
-        for (String fileName : BUNDLED_STORY_FILES) {
-            String resourcePath = BUNDLED_STORY_ROOT + fileName;
+    private static String storyLanguage(String languageCode) {
+        if (languageCode == null) return "en";
+        String normalized = languageCode.trim().toLowerCase(java.util.Locale.ROOT);
+        return normalized.equals("cn") || normalized.startsWith("zh_") ? "cn" : "en";
+    }
+
+    private static synchronized void ensureOriginalStoriesLoaded(String storyLanguage) {
+        if (!LOADED_STORY_LANGUAGES.add(storyLanguage)) return;
+        Map<String, StoryEntry[]> storyCache = new HashMap<>();
+        ORIGINAL_STORY_CACHE.put(storyLanguage, storyCache);
+
+        for (String baseName : BUNDLED_STORY_BASE_NAMES) {
+            String fileName = baseName + "_" + storyLanguage + ".xml";
+            String resourcePath = BUNDLED_STORY_ROOT + storyLanguage + "/" + fileName;
             try (InputStream stream = AbnormalityEncyclopediaData.class
                     .getResourceAsStream(resourcePath)) {
                 if (stream == null) {
                     LOGGER.warn("Missing bundled abnormality story resource {}", resourcePath);
                     continue;
                 }
-                loadOriginalStoryStream(stream, resourcePath);
+                loadOriginalStoryStream(stream, resourcePath, storyCache);
             } catch (Exception exception) {
                 LOGGER.warn("Unable to load bundled abnormality story resource {}",
                         resourcePath, exception);
@@ -449,32 +484,42 @@ public class AbnormalityEncyclopediaData {
         }
 
         // An explicit development path may override bundled translations.
-        for (Path directory : originalCreatureStoryDirectories()) {
+        for (Path directory : originalCreatureStoryDirectories(storyLanguage)) {
             if (directory == null) continue;
             if (!Files.isDirectory(directory)) continue;
             try (java.util.stream.Stream<Path> stream = Files.list(directory)) {
-                stream.filter(path -> path.getFileName().toString().endsWith("_cn.xml"))
-                        .forEach(AbnormalityEncyclopediaData::loadOriginalStoryFile);
+                stream.filter(path -> path.getFileName().toString()
+                                .endsWith("_" + storyLanguage + ".xml"))
+                        .forEach(path -> loadOriginalStoryFile(path, storyCache));
             } catch (Exception ignored) {
             }
         }
     }
 
-    private static Path[] originalCreatureStoryDirectories() {
-        String override = System.getProperty("lobotocraft.lobotomycorp.creatures");
-        return new Path[]{override == null || override.isBlank() ? null : Path.of(override)};
+    private static Path[] originalCreatureStoryDirectories(String storyLanguage) {
+        String languageOverride = System.getProperty(
+                "lobotocraft.lobotomycorp.creatures." + storyLanguage);
+        String legacyOverride = "cn".equals(storyLanguage)
+                ? System.getProperty("lobotocraft.lobotomycorp.creatures") : null;
+        return new Path[]{
+                languageOverride == null || languageOverride.isBlank()
+                        ? null : Path.of(languageOverride),
+                legacyOverride == null || legacyOverride.isBlank()
+                        ? null : Path.of(legacyOverride)
+        };
     }
 
-    private static void loadOriginalStoryFile(Path path) {
+    private static void loadOriginalStoryFile(Path path, Map<String, StoryEntry[]> storyCache) {
         if (path == null) return;
         try (InputStream stream = Files.newInputStream(path)) {
-            loadOriginalStoryStream(stream, path.toString());
+            loadOriginalStoryStream(stream, path.toString(), storyCache);
         } catch (Exception exception) {
             LOGGER.debug("Unable to load external abnormality story resource {}", path, exception);
         }
     }
 
-    private static void loadOriginalStoryStream(InputStream stream, String sourceName) {
+    private static void loadOriginalStoryStream(InputStream stream, String sourceName,
+                                                Map<String, StoryEntry[]> storyCache) {
         if (stream == null) return;
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -490,10 +535,13 @@ public class AbnormalityEncyclopediaData {
             if (codeNodes.getLength() == 0) return;
             String code = codeNodes.item(0).getTextContent().trim();
             if (code.isEmpty()) return;
-            NodeList descNodes = document.getElementsByTagName("desc");
-            java.util.List<StoryEntry> stories = new java.util.ArrayList<>(descNodes.getLength());
-            for (int index = 0; index < descNodes.getLength(); index++) {
-                if (!(descNodes.item(index) instanceof Element desc)) continue;
+            NodeList observeNodes = document.getElementsByTagName("observe");
+            if (observeNodes.getLength() == 0 || !(observeNodes.item(0) instanceof Element observe)) return;
+            NodeList observeChildren = observe.getChildNodes();
+            java.util.List<StoryEntry> stories = new java.util.ArrayList<>();
+            for (int index = 0; index < observeChildren.getLength(); index++) {
+                Node child = observeChildren.item(index);
+                if (!(child instanceof Element desc) || !"desc".equals(desc.getTagName())) continue;
                 String text = cleanOriginalStoryText(desc.getTextContent());
                 if (!text.isBlank()) {
                     int openLevel = 0;
@@ -504,7 +552,7 @@ public class AbnormalityEncyclopediaData {
                     stories.add(new StoryEntry(Math.max(0, openLevel), text));
                 }
             }
-            if (!stories.isEmpty()) ORIGINAL_STORY_CACHE.put(code, stories.toArray(StoryEntry[]::new));
+            if (!stories.isEmpty()) storyCache.put(code, stories.toArray(StoryEntry[]::new));
         } catch (Exception exception) {
             LOGGER.warn("Unable to parse abnormality story resource {}", sourceName, exception);
         }

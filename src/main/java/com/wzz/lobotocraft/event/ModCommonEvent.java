@@ -64,6 +64,7 @@ public class ModCommonEvent {
 		event.put(ModEntities.helper.get(), EntityHelper.createAttributes().build());
 		event.put(ModEntities.redhat_mercenary.get(), EntityRedHoodMercenary.createAttributes().build());
 		event.put(ModEntities.iron_maiden.get(), EntityIronMaiden.createAttributes().build());
+		event.put(ModEntities.lumberjack.get(), EntityLumberjack.createAttributes().build());
 		event.put(ModEntities.meat_idol.get(), EntityMeatIdol.createAttributes().build());
 		event.put(ModEntities.abandoned_murderer.get(), EntityAbandonedMurderer.createAttributes().build());
 		event.put(ModEntities.large_bird.get(), EntityLargeBird.createAttributes().build());

@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.wzz.lobotocraft.network.packet.AssignAiEgoPacket;
+import com.wzz.lobotocraft.network.packet.AcknowledgeWelcomeNoticePacket;
 import com.wzz.lobotocraft.network.packet.AssignEmployeeDepartmentPacket;
 import com.wzz.lobotocraft.network.packet.AssignEmployeesMoveAreaPacket;
 import com.wzz.lobotocraft.network.packet.AssignRoomEmployeeWorkPacket;
@@ -49,6 +50,7 @@ import com.wzz.lobotocraft.network.packet.OpenPlayerProfilePacket;
 import com.wzz.lobotocraft.network.packet.OpenRoomAbnormalityInfoPacket;
 import com.wzz.lobotocraft.network.packet.OpenRoomMapPacket;
 import com.wzz.lobotocraft.network.packet.OpenToolUseScreenPacket;
+import com.wzz.lobotocraft.network.packet.OpenWelcomeNoticePacket;
 import com.wzz.lobotocraft.network.packet.OpenWorkProgressPacket;
 import com.wzz.lobotocraft.network.packet.OpenWorkScreenPacket;
 import com.wzz.lobotocraft.network.packet.OrdealTitlePacket;
@@ -91,6 +93,7 @@ import com.wzz.lobotocraft.network.packet.UpdateLlmConfigPacket;
 import com.wzz.lobotocraft.network.packet.WorkCompletePacket;
 import com.wzz.lobotocraft.network.packet.WorkExtractionPacket;
 import com.wzz.lobotocraft.network.packet.PlayerDepartmentSyncPacket;
+import com.wzz.lobotocraft.network.packet.MustOpenPathMeterSyncPacket;
 
 /**
  * 网络包白名单注册表。
@@ -199,7 +202,10 @@ public final class PacketRegistry {
             SetPlayerDepartmentPacket.class,
             SetSpecialEgoPacket.class,
             PlayerDepartmentSyncPacket.class,
-            SetEmployeeAppearancePacket.class);
+            SetEmployeeAppearancePacket.class,
+            OpenWelcomeNoticePacket.class,
+            AcknowledgeWelcomeNoticePacket.class,
+            MustOpenPathMeterSyncPacket.class);
 
     /** Class -> id 的缓存，用 IdentityHashMap（Class 用引用相等即可，避免 equals/hashCode 开销）。 */
     private static final Map<Class<?>, Integer> ID_BY_CLASS = new IdentityHashMap<>();

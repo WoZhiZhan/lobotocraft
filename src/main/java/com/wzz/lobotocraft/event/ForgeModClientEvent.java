@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.client.ScreenDistortionEffect;
 import com.wzz.lobotocraft.client.ScreenDistortionState;
+import com.wzz.lobotocraft.client.WelcomeNoticeClientState;
 import com.wzz.lobotocraft.client.audio.GuiMusicManager;
 import com.wzz.lobotocraft.client.audio.NormalWorkMusicManager;
 import com.wzz.lobotocraft.client.alert.EscapeAlertManager;
@@ -25,6 +26,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -63,6 +65,7 @@ public class ForgeModClientEvent {
             ++ModShaders.renderTime;
             ScreenDistortionState.tick();
             CoreSuppressionClientState.tick();
+            WelcomeNoticeClientState.tick();
         }
     }
 
@@ -120,6 +123,7 @@ public class ForgeModClientEvent {
     public static void onScreenOpening(ScreenEvent.Opening event) {
         if (event.getScreen() instanceof TitleScreen) {
             TimerEntry.shutdownAll();
+            WelcomeNoticeClientState.clear();
         }
     }
 
@@ -155,6 +159,19 @@ public class ForgeModClientEvent {
         } finally {
             ClientPerformanceMonitor.endSection("overlay_effects_render", sectionStarted);
         }
+    }
+
+    @SubscribeEvent
+    public static void onComputeFov(ViewportEvent.ComputeFov event) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null || !player.hasEffect(
+                com.wzz.lobotocraft.init.ModMobEffects.MUST_OPEN_PATH_ANCHORED.get())) return;
+        double walkingSpeed = player.getAbilities().getWalkingSpeed();
+        double currentSpeed = player.getAttributeValue(Attributes.MOVEMENT_SPEED);
+        if (walkingSpeed <= 0.0D || currentSpeed <= 0.0D) return;
+        double actual = (currentSpeed / walkingSpeed + 1.0D) * 0.5D;
+        double withoutAnchor = (currentSpeed / 0.20D / walkingSpeed + 1.0D) * 0.5D;
+        if (actual > 0.0D) event.setFOV(event.getFOV() * withoutAnchor / actual);
     }
 
     private static void renderOverlayEffects(RenderGuiOverlayEvent.Post event) {

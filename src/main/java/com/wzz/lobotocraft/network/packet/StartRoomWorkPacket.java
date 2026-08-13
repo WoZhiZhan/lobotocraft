@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.network.packet;
 
 import com.wzz.lobotocraft.block.entity.RoomMarkerBlockEntity;
+import com.lobotocraft.facility.FacilityManager;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.capability.PanicType;
@@ -161,8 +162,10 @@ public class StartRoomWorkPacket implements IMessage {
                                     abnormality.getFullWorkPreferences(),
                                     abnormality.getRiskLevel(),
                                     obsLevel,
-                                    stats.getEmployeeLevel(),
-                                    workPrefsUnlocked
+                                     stats.getEmployeeLevel(),
+                                    workPrefsUnlocked,
+                                    FacilityManager.repeatedWorkPenaltyPercent(
+                                            player.serverLevel(), abnormality)
                             ));
                 }));
     }

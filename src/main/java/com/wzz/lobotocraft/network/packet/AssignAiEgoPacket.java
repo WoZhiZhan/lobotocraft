@@ -5,6 +5,8 @@ import com.wzz.lobotocraft.ego.EgoLoadoutService;
 import com.wzz.lobotocraft.employee.EmployeeRuntimeManager;
 import com.wzz.lobotocraft.employee.FacilityManagementService;
 import com.wzz.lobotocraft.employee.FacilityPersonnelData;
+import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
+import com.wzz.lobotocraft.entity.abnormality.EntitySnowQueen;
 import com.wzz.lobotocraft.network.IMessage;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import net.minecraft.network.FriendlyByteBuf;
@@ -73,6 +75,10 @@ public final class AssignAiEgoPacket implements IMessage {
             sender.sendSystemMessage(Component.literal("§c恐慌员工无法更改 E.G.O。"));
             return;
         }
+        if (isControlled(employee)) {
+            sender.sendSystemMessage(Component.literal("§c被控制的员工无法更改 E.G.O。"));
+            return;
+        }
         AiEgoRepositoryData repository = AiEgoRepositoryData.get(sender.server);
         if (abnormalityCode.isBlank()) {
             EgoLoadoutService.releaseAi(employee, repository, equipmentType);
@@ -103,6 +109,10 @@ public final class AssignAiEgoPacket implements IMessage {
                 sender.sendSystemMessage(Component.literal("§c恐慌员工无法卸下或转移 E.G.O。"));
                 return;
             }
+            if (sourceOwner != null && isControlled(sourceOwner)) {
+                sender.sendSystemMessage(Component.literal("§c被控制的员工无法卸下或转移 E.G.O。"));
+                return;
+            }
             repository.release(sourceOwnerId, equipmentType);
         }
 
@@ -125,5 +135,9 @@ public final class AssignAiEgoPacket implements IMessage {
         if (sourceOwner != null) EgoLoadoutService.clearAiProjection(sourceOwner, equipmentType);
         sender.sendSystemMessage(Component.literal("§a已为AI员工分配E.G.O。"));
         FacilityManagementService.openEgoAssignment(sender);
+    }
+
+    private static boolean isControlled(ServerPlayer player) {
+        return EntitySnowQueen.isFrozen(player) || EntityRedShoes.isRedShoesControlled(player);
     }
 }

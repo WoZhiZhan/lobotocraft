@@ -241,7 +241,15 @@ public final class FacilityDayData extends SavedData {
     public boolean advanceGauge() {
         if (meltdownGauge < Integer.MAX_VALUE) meltdownGauge++;
         setDirty();
-        return meltdownGauge >= getMeltdownThreshold();
+        boolean stageChanged = meltdownGauge >= getMeltdownThreshold();
+        if (stageChanged) {
+            // The original game resets every containment unit's repeated-work
+            // counter when the Qliphoth overload level changes, even if this
+            // mod's ordinary day does not spawn a visible meltdown.
+            consecutiveWorks.clear();
+            setDirty();
+        }
+        return stageChanged;
     }
 
     /** Server-authoritative debug setter; intentionally not used by normal gameplay. */
@@ -353,6 +361,15 @@ public final class FacilityDayData extends SavedData {
         return removed;
     }
 
+    public int clearActiveMeltdowns() {
+        int count = activeMeltdowns.size();
+        if (count > 0) {
+            activeMeltdowns.clear();
+            setDirty();
+        }
+        return count;
+    }
+
     public int getConsecutiveWorks(UUID target) {
         return consecutiveWorks.getOrDefault(target, 0);
     }
@@ -361,6 +378,13 @@ public final class FacilityDayData extends SavedData {
         consecutiveWorks.compute(target, (ignored, count) ->
                 count == null || count < Integer.MAX_VALUE ? (count == null ? 1 : count + 1)
                         : Integer.MAX_VALUE);
+        setDirty();
+    }
+
+    public void incrementConsecutiveWorks(UUID target, int maximum) {
+        int cap = Math.max(0, maximum);
+        consecutiveWorks.compute(target, (ignored, count) ->
+                Math.min(cap, count == null ? 1 : count + 1));
         setDirty();
     }
 

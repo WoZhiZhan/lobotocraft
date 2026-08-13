@@ -65,6 +65,8 @@ public class RoomEntry {
     public boolean meltdownActive = false;
     /** Remaining server ticks; clients render this as a rounded-up second count. */
     public int meltdownRemainingTicks = 0;
+    /** Repeated-work penalty for this containment unit, in percentage points. */
+    public int repeatedWorkPenaltyPercent = 0;
 
     /** 最后一次扫描时的 level.getGameTime() */
     public long lastUpdate = 0L;
@@ -118,6 +120,7 @@ public class RoomEntry {
         tag.putInt("EscapeDist", escapeDistance);
         tag.putBoolean("MeltdownActive", meltdownActive);
         tag.putInt("MeltdownRemainingTicks", meltdownRemainingTicks);
+        tag.putInt("RepeatedWorkPenalty", repeatedWorkPenaltyPercent);
         tag.putLong("LastUpdate", lastUpdate);
         return tag;
     }
@@ -140,6 +143,7 @@ public class RoomEntry {
         entry.escapeDistance = tag.getInt("EscapeDist");
         entry.meltdownActive = tag.getBoolean("MeltdownActive");
         entry.meltdownRemainingTicks = Math.max(0, tag.getInt("MeltdownRemainingTicks"));
+        entry.repeatedWorkPenaltyPercent = Math.max(0, tag.getInt("RepeatedWorkPenalty"));
         entry.lastUpdate = tag.getLong("LastUpdate");
         return entry;
     }
@@ -163,6 +167,7 @@ public class RoomEntry {
         buf.writeVarInt(escapeDistance);
         buf.writeBoolean(meltdownActive);
         buf.writeVarInt(Math.max(0, meltdownRemainingTicks));
+        buf.writeVarInt(Math.max(0, repeatedWorkPenaltyPercent));
         buf.writeLong(lastUpdate);
         buf.writeVarInt(floorIndex + 1);
         buf.writeUtf(floorName, 48);
@@ -187,6 +192,7 @@ public class RoomEntry {
         entry.escapeDistance = buf.readVarInt();
         entry.meltdownActive = buf.readBoolean();
         entry.meltdownRemainingTicks = Math.max(0, buf.readVarInt());
+        entry.repeatedWorkPenaltyPercent = Math.max(0, buf.readVarInt());
         entry.lastUpdate = buf.readLong();
         entry.floorIndex = buf.readVarInt() - 1;
         entry.floorName = buf.readUtf(48);

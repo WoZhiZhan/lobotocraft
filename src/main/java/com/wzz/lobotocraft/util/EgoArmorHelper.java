@@ -35,7 +35,7 @@ public class EgoArmorHelper {
      */
     public static String getFullSetId(Player player, boolean lock) {
         // 检查装备是否锁定
-        if (!ArmorEffectChecker.isArmorLocked(player)) {
+        if (lock && !ArmorEffectChecker.isArmorLocked(player)) {
             return null;  // 装备未锁定，套装不生效
         }
 
@@ -114,6 +114,29 @@ public class EgoArmorHelper {
             return false;
         for (ItemStack stack : player.inventory.items) {
             if (stack.getItem() instanceof BaseEgoWeapon baseEgoWeapon && baseEgoWeapon.weaponName().equals(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Complete E.G.O check whose weapon may be in the main inventory or offhand. */
+    public static boolean isFullEGOWithWeaponAnywhere(Player player, String name) {
+        return isFullEGOWithWeaponAnywhere(player, name, true);
+    }
+
+    public static boolean isFullEGOWithWeaponAnywhere(Player player, String name, boolean lock) {
+        if (player == null || !isWearingFullSet(player, name, lock)) return false;
+        boolean hasCurio = CuriosUtil.getCuriosItems(player).stream().anyMatch(stack ->
+                stack.getItem() instanceof BaseEgoCurio curio && curio.curioName().equals(name));
+        if (!hasCurio) return false;
+        for (ItemStack stack : player.getInventory().items) {
+            if (stack.getItem() instanceof BaseEgoWeapon weapon && weapon.weaponName().equals(name)) {
+                return true;
+            }
+        }
+        for (ItemStack stack : player.getInventory().offhand) {
+            if (stack.getItem() instanceof BaseEgoWeapon weapon && weapon.weaponName().equals(name)) {
                 return true;
             }
         }

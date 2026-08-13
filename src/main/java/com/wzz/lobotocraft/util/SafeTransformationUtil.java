@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.util;
 
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.world.data.CompanyRoomData;
 import com.wzz.lobotocraft.world.data.FacilityAreaEntry;
 import com.wzz.lobotocraft.world.data.FacilityAreaSelection;
@@ -63,6 +64,41 @@ public final class SafeTransformationUtil {
                             if (!contains(areaBounds, targetBox)) continue;
                             if (!level.getBlockState(candidate.below()).isFaceSturdy(
                                     level, candidate.below(), Direction.UP)) continue;
+                            if (!isValid(level, entity, targetBox, true)) continue;
+                            return new Vec3(x, y, z);
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Finds an open facility position near a supplied anchor that fits the target dimensions. */
+    @Nullable
+    public static Vec3 findPositionForDimensionsNear(ServerLevel level, LivingEntity entity,
+                                                      EntityDimensions targetDimensions, BlockPos anchor,
+                                                      int horizontalRange, int verticalRange) {
+        if (level == null || entity == null || targetDimensions == null || anchor == null) return null;
+        int maxHorizontal = Math.max(0, horizontalRange);
+        int maxVertical = Math.max(0, verticalRange);
+        for (int radius = 0; radius <= maxHorizontal; radius++) {
+            for (int verticalStep = 0; verticalStep <= maxVertical; verticalStep++) {
+                int firstDy = verticalStep == 0 ? 0 : -verticalStep;
+                int lastDy = verticalStep == 0 ? 0 : verticalStep;
+                for (int dy = firstDy; dy <= lastDy; dy += Math.max(1, verticalStep * 2)) {
+                    for (int dx = -radius; dx <= radius; dx++) {
+                        for (int dz = -radius; dz <= radius; dz++) {
+                            if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
+                            BlockPos candidate = anchor.offset(dx, dy, dz);
+                            if (!FacilityAccessService.isPositionOpen(level.getServer(),
+                                    level.dimension().location(), candidate)) continue;
+                            if (!level.getBlockState(candidate.below()).isFaceSturdy(
+                                    level, candidate.below(), Direction.UP)) continue;
+                            double x = candidate.getX() + 0.5D;
+                            double y = candidate.getY();
+                            double z = candidate.getZ() + 0.5D;
+                            AABB targetBox = targetDimensions.makeBoundingBox(x, y, z);
                             if (!isValid(level, entity, targetBox, true)) continue;
                             return new Vec3(x, y, z);
                         }

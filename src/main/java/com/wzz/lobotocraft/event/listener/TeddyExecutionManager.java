@@ -54,6 +54,7 @@ public final class TeddyExecutionManager {
         data.putDouble(ANCHOR_Y, anchor.y);
         data.putDouble(ANCHOR_Z, anchor.z);
         enforce(player);
+        faceSource(teddy, player);
         return true;
     }
 
@@ -65,6 +66,7 @@ public final class TeddyExecutionManager {
             return false;
         }
         enforce(player);
+        faceSource(teddy, player);
         return true;
     }
 
@@ -119,27 +121,37 @@ public final class TeddyExecutionManager {
     }
 
     private static Vec3 findSafeAnchor(ServerLevel level, EntityHappyTeddy teddy, ServerPlayer player) {
-        BlockPos center = teddy.blockPosition();
-        int[][] offsets = {
-                {1, 0}, {-1, 0}, {0, 1}, {0, -1},
-                {1, 1}, {-1, 1}, {1, -1}, {-1, -1},
-                {2, 0}, {-2, 0}, {0, 2}, {0, -2}
+        double[][] offsets = {
+                {1.05D, 0.0D},
+                {1.10D, 0.35D}, {1.10D, -0.35D},
+                {1.35D, 0.0D},
+                {0.0D, 1.05D}, {0.0D, -1.05D},
+                {-1.05D, 0.0D}
         };
-        Vec3 nearest = null;
-        double nearestDistance = Double.POSITIVE_INFINITY;
         for (int dy : new int[]{0, 1, -1}) {
-            for (int[] offset : offsets) {
+            for (double[] offset : offsets) {
                 Vec3 result = validateAnchor(level, teddy, player,
-                        new Vec3(center.getX() + offset[0] + 0.5D, center.getY() + dy, center.getZ() + offset[1] + 0.5D));
-                if (result == null) continue;
-                double distance = result.distanceToSqr(player.position());
-                if (distance < nearestDistance) {
-                    nearest = result;
-                    nearestDistance = distance;
-                }
+                        relativeAnchor(teddy.position(), teddy.getYRot(), offset[0], offset[1]).add(0.0D, dy, 0.0D));
+                if (result != null) return result;
             }
         }
-        return nearest != null ? nearest : validateAnchor(level, teddy, player, player.position());
+        return null;
+    }
+
+    static Vec3 relativeAnchor(Vec3 origin, float yawDegrees, double forwardDistance, double sideDistance) {
+        double radians = Math.toRadians(yawDegrees);
+        double forwardX = -Math.sin(radians);
+        double forwardZ = Math.cos(radians);
+        double sideX = forwardZ;
+        double sideZ = -forwardX;
+        return origin.add(
+                forwardX * forwardDistance + sideX * sideDistance,
+                0.0D,
+                forwardZ * forwardDistance + sideZ * sideDistance);
+    }
+
+    private static void faceSource(EntityHappyTeddy teddy, ServerPlayer player) {
+        player.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, teddy.getEyePosition());
     }
 
     private static Vec3 validateAnchor(ServerLevel level, EntityHappyTeddy teddy,

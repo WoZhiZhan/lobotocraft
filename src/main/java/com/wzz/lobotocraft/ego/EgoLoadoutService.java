@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
 import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
 import com.wzz.lobotocraft.item.ego.base.IEgoLevelItem;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
 import com.wzz.lobotocraft.item.ego.butterfly_funeral.ButterflyFuneralWeapon;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.nbt.CompoundTag;
@@ -18,6 +19,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.registries.ForgeRegistries;
 import com.wzz.lobotocraft.util.EgoArmorHelper;
+import top.theillusivec4.curios.api.CuriosApi;
+import top.theillusivec4.curios.api.type.inventory.ICurioStacksHandler;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -275,6 +278,9 @@ public final class EgoLoadoutService {
         for (ItemStack stack : player.getInventory().offhand) {
             if (isProjectionType(stack, equipmentType)) return true;
         }
+        for (ItemStack stack : com.wzz.lobotocraft.util.CuriosUtil.getCuriosItems(player)) {
+            if (isProjectionType(stack, equipmentType)) return true;
+        }
         return false;
     }
 
@@ -341,12 +347,21 @@ public final class EgoLoadoutService {
         if ("armor".equals(equipmentType)) {
             for (EgoItemSpec itemSpec : expected) {
                 ItemStack stack = itemSpec.createStack();
-                if (stack.isEmpty() || !(stack.getItem() instanceof ArmorItem)) continue;
-                EquipmentSlot slot = LivingEntity.getEquipmentSlotForItem(stack);
-                ItemStack equipped = player.getItemBySlot(slot);
-                if (!matches(equipped, player.getUUID(), code, equipmentType, itemSpec, expected)) {
-                    stashNonProjection(player, equipped);
-                    player.setItemSlot(slot, projection(stack, player.getUUID(), code, equipmentType));
+                if (stack.isEmpty()) continue;
+                if (stack.getItem() instanceof ArmorItem) {
+                    EquipmentSlot slot = LivingEntity.getEquipmentSlotForItem(stack);
+                    ItemStack equipped = player.getItemBySlot(slot);
+                    if (!matches(equipped, player.getUUID(), code, equipmentType, itemSpec, expected)) {
+                        stashNonProjection(player, equipped);
+                        player.setItemSlot(slot, projection(stack, player.getUUID(), code, equipmentType));
+                    }
+                } else if (stack.getItem() instanceof BaseEgoCurio curio
+                        && curio.projectionSlot() != null) {
+                    ItemStack equipped = curioStack(player, curio.projectionSlot());
+                    if (!matches(equipped, player.getUUID(), code, equipmentType, itemSpec, expected)) {
+                        projectCurio(player, curio.projectionSlot(),
+                                projection(stack, player.getUUID(), code, equipmentType));
+                    }
                 }
             }
         } else {
@@ -362,12 +377,36 @@ public final class EgoLoadoutService {
                                      String specialId) {
         for (EgoItemSpec itemSpec : itemSpecs) {
             ItemStack stack = itemSpec.createStack();
-            if (stack.isEmpty() || !(stack.getItem() instanceof ArmorItem)) continue;
-            EquipmentSlot slot = LivingEntity.getEquipmentSlotForItem(stack);
-            stashNonProjection(player, player.getItemBySlot(slot));
-            player.setItemSlot(slot,
-                    projection(stack, player.getUUID(), code, "armor", specialId));
+            if (stack.isEmpty()) continue;
+            if (stack.getItem() instanceof ArmorItem) {
+                EquipmentSlot slot = LivingEntity.getEquipmentSlotForItem(stack);
+                stashNonProjection(player, player.getItemBySlot(slot));
+                player.setItemSlot(slot,
+                        projection(stack, player.getUUID(), code, "armor", specialId));
+            } else if (stack.getItem() instanceof BaseEgoCurio curio
+                    && curio.projectionSlot() != null) {
+                projectCurio(player, curio.projectionSlot(),
+                        projection(stack, player.getUUID(), code, "armor", specialId));
+            }
         }
+    }
+
+    private static ItemStack curioStack(ServerPlayer player, String slotId) {
+        return CuriosApi.getCuriosInventory(player).resolve().map(handler -> {
+            ICurioStacksHandler group = handler.getCurios().get(slotId);
+            return group == null || group.getSlots() <= 0
+                    ? ItemStack.EMPTY : group.getStacks().getStackInSlot(0);
+        }).orElse(ItemStack.EMPTY);
+    }
+
+    private static void projectCurio(ServerPlayer player, String slotId, ItemStack projected) {
+        CuriosApi.getCuriosInventory(player).resolve().ifPresent(handler -> {
+            ICurioStacksHandler group = handler.getCurios().get(slotId);
+            if (group == null || group.getSlots() <= 0) return;
+            ItemStack existing = group.getStacks().getStackInSlot(0);
+            stashNonProjection(player, existing);
+            group.getStacks().setStackInSlot(0, projected);
+        });
     }
 
     private static void projectWeapons(ServerPlayer player, String code, List<EgoItemSpec> itemSpecs) {
@@ -424,6 +463,7 @@ public final class EgoLoadoutService {
         removeFromList(inventory.items, equipmentType);
         removeFromList(inventory.armor, equipmentType);
         removeFromList(inventory.offhand, equipmentType);
+        removeCurioProjections(player, stack -> isProjectionType(stack, equipmentType));
         if (isProjectionType(player.containerMenu.getCarried(), equipmentType)) {
             player.containerMenu.setCarried(ItemStack.EMPTY);
         }
@@ -434,6 +474,7 @@ public final class EgoLoadoutService {
         removeSpecialFromList(inventory.items);
         removeSpecialFromList(inventory.armor);
         removeSpecialFromList(inventory.offhand);
+        removeCurioProjections(player, EgoLoadoutService::isSpecialProjection);
         if (isSpecialProjection(player.containerMenu.getCarried())) {
             player.containerMenu.setCarried(ItemStack.EMPTY);
         }
@@ -444,6 +485,8 @@ public final class EgoLoadoutService {
         removeSpecialFromList(inventory.items, equipmentType);
         removeSpecialFromList(inventory.armor, equipmentType);
         removeSpecialFromList(inventory.offhand, equipmentType);
+        removeCurioProjections(player, stack -> isSpecialProjection(stack)
+                && equipmentType.equals(projectionType(stack)));
         if (isSpecialProjection(player.containerMenu.getCarried())
                 && equipmentType.equals(projectionType(player.containerMenu.getCarried()))) {
             player.containerMenu.setCarried(ItemStack.EMPTY);
@@ -472,6 +515,17 @@ public final class EgoLoadoutService {
                 stacks.set(i, ItemStack.EMPTY);
             }
         }
+    }
+
+    private static void removeCurioProjections(ServerPlayer player, Predicate<ItemStack> predicate) {
+        CuriosApi.getCuriosInventory(player).resolve().ifPresent(handler ->
+                handler.getCurios().values().forEach(group -> {
+                    for (int slot = 0; slot < group.getSlots(); slot++) {
+                        if (predicate.test(group.getStacks().getStackInSlot(slot))) {
+                            group.getStacks().setStackInSlot(slot, ItemStack.EMPTY);
+                        }
+                    }
+                }));
     }
 
     public static boolean isProjection(ItemStack stack) {
@@ -586,6 +640,7 @@ public final class EgoLoadoutService {
         all.addAll(player.getInventory().items);
         all.addAll(player.getInventory().armor);
         all.addAll(player.getInventory().offhand);
+        all.addAll(com.wzz.lobotocraft.util.CuriosUtil.getCuriosItems(player));
         return all;
     }
 

@@ -1096,7 +1096,16 @@ public final class EgoAssignmentScreen extends Screen {
         if (employee == null) return false;
         for (String key : new String[]{"FortitudeLevel", "PrudenceLevel", "TemperanceLevel",
                 "JusticeLevel", "EmployeeLevel"}) {
-            if (employee.getInt(key) < stock.getInt("Required" + key)) return false;
+            int required = stock.getInt("Required" + key);
+            int actual = employee.getInt(key);
+            if (!"EmployeeLevel".equals(key) && key.endsWith("Level")) {
+                String rawKey = key.substring(0, key.length() - "Level".length());
+                if (employee.contains(rawKey)) {
+                    actual = EmployeeLevelCalculator.levelForEquipmentRequirement(
+                            employee.getInt(rawKey), actual, required);
+                }
+            }
+            if (actual < required) return false;
         }
         return true;
     }
@@ -1377,13 +1386,7 @@ public final class EgoAssignmentScreen extends Screen {
     }
 
     private static String roman(int value) {
-        return switch (value) {
-            case 2 -> "II";
-            case 3 -> "III";
-            case 4 -> "IV";
-            case 5 -> "V";
-            default -> "I";
-        };
+        return EmployeeLevelCalculator.levelGrade(value);
     }
 
     private static String statGrade(CompoundTag employee, String levelKey) {

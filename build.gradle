@@ -76,7 +76,8 @@ minecraft {
         gameTestServer {
             workingDirectory project.file(System.getenv('LOBOTOCRAFT_GAMETEST_DIR') ?: 'run')
             property 'forge.enabledGameTestNamespaces',
-                    System.getenv('LOBOTOCRAFT_GAMETEST_NAMESPACES') ?: "${mod_id},${mod_id}_navigation"
+                    System.getenv('LOBOTOCRAFT_GAMETEST_NAMESPACES')
+                            ?: "${mod_id},${mod_id}_navigation,${mod_id}_recent_fixes"
         }
 
         data {

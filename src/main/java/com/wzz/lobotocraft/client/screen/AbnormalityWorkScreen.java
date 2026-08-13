@@ -37,10 +37,18 @@ public class AbnormalityWorkScreen extends Screen {
     private final int observationLevel; // 观察等级
     private final int employeeLevel;
     private final boolean[] workPrefsUnlocked;
+    private final int repeatedWorkPenaltyPercent;
 
     private int selectedWork = 0; // 0=本能, 1=洞察, 2=沟通, 3=压迫
 
     public AbnormalityWorkScreen(int abnormalityId, float[][] fullWorkPreferences, RiskLevel riskLevel, int observationLevel, int employeeLevel, boolean[] workPrefsUnlocked) {
+        this(abnormalityId, fullWorkPreferences, riskLevel, observationLevel, employeeLevel,
+                workPrefsUnlocked, 0);
+    }
+
+    public AbnormalityWorkScreen(int abnormalityId, float[][] fullWorkPreferences, RiskLevel riskLevel,
+                                 int observationLevel, int employeeLevel, boolean[] workPrefsUnlocked,
+                                 int repeatedWorkPenaltyPercent) {
         super(Component.literal("选择工作类型"));
         this.minecraft = Minecraft.getInstance();
         this.abnormalityId = abnormalityId;
@@ -49,6 +57,7 @@ public class AbnormalityWorkScreen extends Screen {
         this.observationLevel = observationLevel;
         this.employeeLevel = employeeLevel;
         this.workPrefsUnlocked = workPrefsUnlocked;
+        this.repeatedWorkPenaltyPercent = Math.max(0, repeatedWorkPenaltyPercent);
     }
 
     // ==================== 界面自适应缩放(只缩不放,不改变正常分辨率下的显示样式) ====================
@@ -179,8 +188,20 @@ public class AbnormalityWorkScreen extends Screen {
             rateColor = 0x888888;
         }
 
-        int rateX = x + 20 - this.font.width(rateText) / 2;
+        boolean penaltyVisible = !malkuthScramble
+                && workPrefsUnlocked != null
+                && workIndex < workPrefsUnlocked.length
+                && workPrefsUnlocked[workIndex];
+        String penaltyText = penaltyVisible && repeatedWorkPenaltyPercent > 0
+                ? "(-" + repeatedWorkPenaltyPercent + "%)" : "";
+        int totalWidth = this.font.width(rateText)
+                + (penaltyText.isEmpty() ? 0 : 3 + this.font.width(penaltyText));
+        int rateX = x + 20 - totalWidth / 2;
         graphics.drawString(this.font, rateText, rateX, y + 57, rateColor);
+        if (!penaltyText.isEmpty()) {
+            graphics.drawString(this.font, penaltyText,
+                    rateX + this.font.width(rateText) + 3, y + 57, 0xFFFF5555);
+        }
     }
 
     @Override
