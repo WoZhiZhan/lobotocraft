@@ -79,13 +79,15 @@ public class DevelopEquipmentPacket implements IMessage {
             Entity entity = player.level.getEntity(entityId);
 
             if (!(entity instanceof IAbnormality abnormality)) {
-                player.sendSystemMessage(Component.literal("§c找不到对应的异想体！"));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.ego_development.abnormality_missing"));
                 return;
             }
 
             // 距离校验：防止客户端伪造 entityId 远程研发。与 WorkManager 交互距离一致（100.0 = 10 格）。
             if (player.distanceToSqr(entity) > 100.0) {
-                player.sendSystemMessage(Component.literal("§c距离该异想体太远！"));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.ego_development.too_far"));
                 return;
             }
 
@@ -99,7 +101,8 @@ public class DevelopEquipmentPacket implements IMessage {
                 EgoResearchScope scope = EgoResearchScope.byId(researchScope);
 
                 if (rewards.isEmpty()) {
-                    player.sendSystemMessage(Component.literal("§c该异想体没有可研发的" + typeName() + "！"));
+                    player.sendSystemMessage(Component.translatable(
+                            "message.lobotocraft.ego_development.unavailable", typeName()));
                     return;
                 }
 
@@ -108,7 +111,8 @@ public class DevelopEquipmentPacket implements IMessage {
                 if (scope == EgoResearchScope.PERSONAL
                         && data.getEquipmentDevelopmentCount(abnormalityCode, equipmentType) >= 1
                         && !data.getPersonalEgoItems(abnormalityCode, equipmentType).isEmpty()) {
-                    player.sendSystemMessage(Component.literal("§c个人授权中已研发该E.G.O，每种只能拥有一件。"));
+                    player.sendSystemMessage(Component.translatable(
+                            "message.lobotocraft.ego_development.personal_limit"));
                     return;
                 }
 
@@ -118,12 +122,14 @@ public class DevelopEquipmentPacket implements IMessage {
                         : abnormality.getArmorDevelopmentMaxCount();
                 if (scope == EgoResearchScope.AI_GLOBAL
                         && repository.total(abnormalityCode, equipmentType) >= Math.max(1, maximum)) {
-                    player.sendSystemMessage(Component.literal("§cAI全局库存已达到该E.G.O的研发上限。"));
+                    player.sendSystemMessage(Component.translatable(
+                            "message.lobotocraft.ego_development.ai_limit"));
                     return;
                 }
 
                 if (!PEBoxItem.consumePEBoxes(player.getInventory(), abnormalityCode, cost)) {
-                    player.sendSystemMessage(Component.literal("§cPE-BOX不足！需要 " + cost + " 个"));
+                    player.sendSystemMessage(Component.translatable(
+                            "message.lobotocraft.ego_development.insufficient_pe", cost));
                     return;
                 }
 
@@ -133,11 +139,11 @@ public class DevelopEquipmentPacket implements IMessage {
                         : repository.research(abnormalityCode, equipmentType, rewards, maximum);
                 if (!researched) return;
 
-                player.sendSystemMessage(Component.literal(
-                        "§a成功研发" + typeName() + "至"
-                                + (scope == EgoResearchScope.PERSONAL ? "个人授权" : "AI全局库存")
-                                + "！消耗了 " + cost + " 个PE-BOX"
-                ));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.ego_development.success",
+                        typeName(), Component.translatable(scope == EgoResearchScope.PERSONAL
+                                ? "screen.lobotocraft.ego_research.personal"
+                                : "screen.lobotocraft.ego_research.ai_global"), cost));
 
                 AbnormalityWorkHandler.openAbnormalityEncyclopediaScreen(
                         player, abnormality, data, abnormalityCode, scrollOffset);
@@ -164,12 +170,12 @@ public class DevelopEquipmentPacket implements IMessage {
                 : abnormality.getArmorDevelopmentCost();
     }
 
-    private String typeName() {
-        return switch (equipmentType) {
-            case "weapon" -> "武器";
-            case "armor" -> "护甲";
-            default -> "装备";
-        };
+    private Component typeName() {
+        return Component.translatable(switch (equipmentType) {
+            case "weapon" -> "equipment.lobotocraft.weapon";
+            case "armor" -> "equipment.lobotocraft.armor";
+            default -> "screen.lobotocraft.ego_assignment.equipment_info";
+        });
     }
 
 }

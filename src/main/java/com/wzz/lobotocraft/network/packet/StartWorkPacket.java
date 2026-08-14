@@ -54,29 +54,29 @@ public class StartWorkPacket implements IMessage {
             // 获取异想体实体
             Entity entity = player.level().getEntity(abnormalityId);
             if (!(entity instanceof AbstractAbnormality abnormality)) {
-                player.sendSystemMessage(Component.literal("§c异想体不存在或已消失"));
+                player.sendSystemMessage(Component.translatable("message.lobotocraft.work.abnormality_missing"));
                 return;
             }
 
             if (abnormality.isToolType()) {
-                player.sendSystemMessage(Component.literal("§c工具型异想体不能进入普通工作流程"));
+                player.sendSystemMessage(Component.translatable("message.lobotocraft.work.tool_normal_forbidden"));
                 return;
             }
 
             if (!WorkStartAuthorizations.consume(player, abnormality.getUUID())) {
-                player.sendSystemMessage(Component.literal("§c工作授权已失效，请重新与收容单元交互"));
+                player.sendSystemMessage(Component.translatable("message.lobotocraft.work.authorization_expired"));
                 return;
             }
 
             // 检查距离
             if (player.distanceToSqr(entity) > 100.0) {
-                player.sendSystemMessage(Component.literal("§c距离异想体太远了"));
+                player.sendSystemMessage(Component.translatable("message.lobotocraft.work.too_far"));
                 return;
             }
 
             // 检查玩家是否已经在工作中
             if (WorkManager.isPlayerWorking(player)) {
-                player.sendSystemMessage(Component.literal("§c你已经在进行工作了"));
+                player.sendSystemMessage(Component.translatable("message.lobotocraft.work.already_working"));
                 return;
             }
             WorkManager.startWork(player, abnormality, workType);

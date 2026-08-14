@@ -63,14 +63,15 @@ public class AbnormalityWorkHandler {
                         && (!(abnormality instanceof AbstractAbnormality concrete)
                         || !AbnormalityWorkRules.isRegistered(concrete))) {
                     serverPlayer.displayClientMessage(
-                            Component.literal("§c该异想体尚未登记，无法进行工作。"), false);
+                            Component.translatable("message.lobotocraft.work.not_registered"), false);
                     event.setCancellationResult(InteractionResult.FAIL);
                     event.setCanceled(true);
                     return;
                 }
                 // 检查玩家是否正在工作
 				if (WorkManager.isPlayerWorking(serverPlayer)) {
-					serverPlayer.displayClientMessage(Component.literal("§c你正在进行工作，无法开始新的工作！"), false);
+					serverPlayer.displayClientMessage(Component.translatable(
+							"message.lobotocraft.work.already_working"), false);
 					event.setCancellationResult(InteractionResult.FAIL);
 					event.setCanceled(true);
 					return;
@@ -90,9 +91,11 @@ public class AbnormalityWorkHandler {
 				// 恐慌或疯狂状态下无法打开工作面板
 				if (isMentalBroken[0]) {
 					if (isBerserk[0]) {
-						serverPlayer.displayClientMessage(Component.literal("§c你陷入了疯狂状态，无法进行工作！"), false);
+						serverPlayer.displayClientMessage(Component.translatable(
+								"message.lobotocraft.work.berserk"), false);
 					} else {
-						serverPlayer.displayClientMessage(Component.literal("§c你陷入了恐慌状态，无法进行工作！"), false);
+						serverPlayer.displayClientMessage(Component.translatable(
+								"message.lobotocraft.work.panic"), false);
 					}
 					event.setCancellationResult(InteractionResult.FAIL);
 					event.setCanceled(true);

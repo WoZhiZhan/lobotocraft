@@ -178,7 +178,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                                          boolean[] manualsUnlocked,
                                          int basicInfoCost, int workPreferencesCost,
                                          int sensitiveInfoCost, int manualCost, int developmentWeaponCount, int developmentArmorCount, double scrollOffset, boolean isToolType) {
-        super(Component.literal("异想体图鉴"), abnormalityId);
+        super(Component.translatable("screen.lobotocraft.encyclopedia.title"), abnormalityId);
         this.minecraft = Minecraft.getInstance();
         this.abnormalityId = abnormalityId;
         this.abnormalityCode = code;
@@ -307,10 +307,13 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
             int right = 620 + row * 2;
             graphics.fill(620, 8 + row, right, 9 + row, 0xEFFF363D);
         }
-        drawScaledText(graphics, "异想体的图鉴", 32, 23, 5.0F, 0xFF080A08, 540);
-        renderHeaderArchiveTab(graphics, HEADER_INFO_TAB_X, "异想体图鉴",
+        drawScaledText(graphics, tr("screen.lobotocraft.encyclopedia.heading"),
+                32, 23, 5.0F, 0xFF080A08, 540);
+        renderHeaderArchiveTab(graphics, HEADER_INFO_TAB_X,
+                tr("screen.lobotocraft.encyclopedia.tab.information"),
                 !showingStories, mouseX, mouseY);
-        renderHeaderArchiveTab(graphics, HEADER_STORY_TAB_X, "异想体故事",
+        renderHeaderArchiveTab(graphics, HEADER_STORY_TAB_X,
+                tr("screen.lobotocraft.encyclopedia.tab.story"),
                 showingStories, mouseX, mouseY);
         drawRightAlignedScaledText(graphics,
                 abnormalityCode,
@@ -338,7 +341,8 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         int portraitW = 438;
         int portraitH = 758;
         drawArchivePanel(graphics, portraitX, portraitY, portraitW, portraitH, ARCHIVE_PALE);
-        drawPanelTitle(graphics, "异想体档案", portraitX, portraitY, portraitW);
+        drawPanelTitle(graphics, tr("screen.lobotocraft.encyclopedia.archive"),
+                portraitX, portraitY, portraitW);
         int imageX = portraitX + 28;
         int imageY = portraitY + 76;
         int imageSize = portraitW - 56;
@@ -351,7 +355,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         } else {
             graphics.fill(imageX, imageY, imageX + imageSize, imageY + imageSize,
                     0xEC050706);
-            drawCenteredScaledText(graphics, "基础信息尚未解锁",
+            drawCenteredScaledText(graphics, tr("screen.lobotocraft.encyclopedia.basic_locked"),
                     portraitX + portraitW / 2, imageY + imageSize / 2 - 12,
                     2.0F, ARCHIVE_DIM, imageSize - 40);
         }
@@ -361,7 +365,8 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         drawCenteredScaledText(graphics, abnormalityCode + " / " + riskLevel.name(),
                 portraitX + portraitW / 2, nameY + 50, 2.0F,
                 riskLevel.getColor(), portraitW - 50);
-        drawCenteredScaledText(graphics, "观察等级 " + observationLevel,
+        drawCenteredScaledText(graphics, tr("screen.lobotocraft.encyclopedia.observation_level_value",
+                        observationLevel),
                 portraitX + portraitW / 2, nameY + 102, 2.5F,
                 ARCHIVE_GOLD, portraitW - 50);
 
@@ -370,14 +375,14 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         int panelW = 1378;
         int panelH = 758;
         drawArchivePanel(graphics, panelX, panelY, panelW, panelH, ARCHIVE_GOLD);
-        drawPanelTitle(graphics, "异想体的故事", panelX, panelY, panelW);
+        drawPanelTitle(graphics, tr("screen.lobotocraft.encyclopedia.story"), panelX, panelY, panelW);
         graphics.fill(STORY_VIEW_X, STORY_VIEW_Y,
                 STORY_VIEW_X + STORY_VIEW_W, STORY_VIEW_Y + STORY_VIEW_H, 0xC9050705);
         enableLogicalScissor(graphics, STORY_VIEW_X, STORY_VIEW_Y,
                 STORY_VIEW_W, STORY_VIEW_H);
         int y = STORY_VIEW_Y + 14 - Mth.floor(scrollOffset);
         if (storyEntries.length == 0) {
-            drawCenteredScaledText(graphics, "暂无故事档案",
+            drawCenteredScaledText(graphics, tr("screen.lobotocraft.encyclopedia.story.empty"),
                     STORY_VIEW_X + STORY_VIEW_W / 2, STORY_VIEW_Y + STORY_VIEW_H / 2,
                     2.5F, ARCHIVE_DIM, STORY_VIEW_W - 80);
         }
@@ -399,9 +404,11 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         boolean unlocked = entry.isUnlockedAt(observationLevel);
         drawArchivePanel(graphics, x, y, width, height,
                 unlocked ? ARCHIVE_GOLD_DIM : 0xFF3D3E35);
-        drawScaledText(graphics, "档案 " + toRoman(index + 1), x + 20, y + 14,
+        drawScaledText(graphics, tr("screen.lobotocraft.encyclopedia.archive_entry",
+                        toRoman(index + 1)), x + 20, y + 14,
                 2.0F, unlocked ? ARCHIVE_GOLD : ARCHIVE_DIM, 180);
-        drawRightAlignedScaledText(graphics, "观察等级 " + entry.openLevel(),
+        drawRightAlignedScaledText(graphics, tr("screen.lobotocraft.encyclopedia.observation_level_value",
+                        entry.openLevel()),
                 x + width - 20, y + 14, 2.0F,
                 unlocked ? ARCHIVE_DIM : ARCHIVE_RED, 260);
         graphics.fill(x + 18, y + 43, x + width - 18, y + 44,
@@ -411,7 +418,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                     2.0F, ARCHIVE_PALE, width - 44, Integer.MAX_VALUE);
         } else {
             drawCenteredScaledText(graphics,
-                    "提高观察等级后可阅览该档案",
+                    tr("screen.lobotocraft.encyclopedia.archive_locked"),
                     x + width / 2, y + 71, 2.0F, ARCHIVE_DIM, width - 80);
         }
     }
@@ -436,12 +443,12 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         int w = 374;
         int h = 776;
         drawArchivePanel(graphics, x, y, w, h, ARCHIVE_PALE);
-        drawPanelTitle(graphics, "观察等级加成", x, y, w);
+        drawPanelTitle(graphics, tr("screen.lobotocraft.encyclopedia.observation_bonuses"), x, y, w);
 
         IAbnormality current = abnormality;
         String[] bonuses = current == null ? new String[0] : current.getObservationBonusTexts();
         if (isToolType) {
-            drawWrappedScaledText(graphics, "工具型异想体不提供常规工作偏好与观察加成。",
+            drawWrappedScaledText(graphics, tr("screen.lobotocraft.encyclopedia.tool_no_observation"),
                     x + 24, y + 78, 2.0F, ARCHIVE_DIM, w - 48, 5);
         } else {
             for (int level = 0; level < 4; level++) {
@@ -450,7 +457,8 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                 drawScaledText(graphics, toRoman(level + 1), x + 24, lineY,
                         3.0F, color, 46);
                 String bonus = level < bonuses.length
-                        ? cleanObservationBonus(bonuses[level]) : "未配置观察加成";
+                        ? cleanObservationBonus(bonuses[level])
+                        : tr("screen.lobotocraft.encyclopedia.observation_unconfigured");
                 drawWrappedScaledText(graphics, bonus, x + 82, lineY + 4,
                         2.0F, color, w - 108, 3);
                 graphics.fill(x + 22, lineY + 84, x + w - 22, lineY + 85,
@@ -458,7 +466,8 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
             }
         }
 
-        drawCenteredScaledText(graphics, "观察等级", x + w / 2, y + h - 176,
+        drawCenteredScaledText(graphics, tr("screen.lobotocraft.encyclopedia.observation_level"),
+                x + w / 2, y + h - 176,
                 3.0F, ARCHIVE_GOLD, w - 40);
         drawCenteredScaledText(graphics, String.valueOf(observationLevel),
                 x + w / 2, y + h - 110, 6.0F, ARCHIVE_PALE, 160);
@@ -467,7 +476,8 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
     private void renderBasicPanel(GuiGraphics graphics, double mouseX, double mouseY) {
         drawArchivePanel(graphics, BASIC_X, BASIC_Y, BASIC_W, BASIC_H,
                 basicInfoUnlocked ? ARCHIVE_PALE : ARCHIVE_GOLD_DIM);
-        drawPanelTitle(graphics, "异想体的基础信息", BASIC_X, BASIC_Y, BASIC_W);
+        drawPanelTitle(graphics, tr("screen.lobotocraft.encyclopedia.basic_info"),
+                BASIC_X, BASIC_Y, BASIC_W);
 
         int imageX = BASIC_X + 25;
         int imageY = BASIC_Y + 60;
@@ -502,7 +512,8 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         }
 
         drawArchivePanel(graphics, imageX, infoY, 160, 120, ARCHIVE_GOLD_DIM);
-        drawCenteredScaledText(graphics, "伤害类型", imageX + 80, infoY + 9,
+        drawCenteredScaledText(graphics, tr("screen.lobotocraft.encyclopedia.damage_type"),
+                imageX + 80, infoY + 9,
                 2.0F, ARCHIVE_PALE, 145);
         ResourceLocation damageIcon = getDamageTypeIcon();
         graphics.blit(damageIcon, imageX + 18, infoY + 43, 0, 0, 42, 42, 42, 42);
@@ -510,42 +521,45 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                 3.0F, EncyclopediaGUIConfig.Colors.getDamageTypeColor(damageType), 78);
 
         drawArchivePanel(graphics, imageX + 180, infoY, 160, 120, ARCHIVE_GOLD_DIM);
-        drawCenteredScaledText(graphics, "最大产量", imageX + 260, infoY + 9,
+        drawCenteredScaledText(graphics, tr("screen.lobotocraft.encyclopedia.max_output"),
+                imageX + 260, infoY + 9,
                 2.0F, ARCHIVE_PALE, 145);
         drawCenteredScaledText(graphics, maxPEOutput < 0 ? "/" : String.valueOf(maxPEOutput),
                 imageX + 260, infoY + 45, 5.0F, ARCHIVE_PALE, 120);
 
         int rangeY = infoY + 138;
         drawArchivePanel(graphics, imageX, rangeY, imageSize, 122, ARCHIVE_GOLD_DIM);
-        drawCenteredScaledText(graphics, "工作结果对应 PE-BOX 产量", BASIC_X + BASIC_W / 2,
+        drawCenteredScaledText(graphics, tr("screen.lobotocraft.encyclopedia.work_result_output"),
+                BASIC_X + BASIC_W / 2,
                 rangeY + 8, 2.0F, ARCHIVE_PALE, imageSize - 20);
         if (!isToolType && maxPEOutput >= 0) {
             int goodMin = getDisplayedGoodWorkResultMin();
             int normalMin = getDisplayedNormalWorkResultMin();
-            drawScaledText(graphics, "优", imageX + 18, rangeY + 43,
+            drawScaledText(graphics, tr("work_result.lobotocraft.good"), imageX + 18, rangeY + 43,
                     3.0F, EncyclopediaGUIConfig.Colors.STATUS_GREEN, 40);
             drawRightAlignedScaledText(graphics, goodMin + " - " + maxPEOutput,
                     imageX + imageSize - 16, rangeY + 46, 2.0F,
                     EncyclopediaGUIConfig.Colors.STATUS_GREEN, 160);
-            drawScaledText(graphics, "良", imageX + 18, rangeY + 70,
+            drawScaledText(graphics, tr("work_result.lobotocraft.normal"), imageX + 18, rangeY + 70,
                     3.0F, EncyclopediaGUIConfig.Colors.STATUS_YELLOW, 40);
             drawRightAlignedScaledText(graphics, normalMin + " - " + (goodMin - 1),
                     imageX + imageSize - 16, rangeY + 73, 2.0F,
                     EncyclopediaGUIConfig.Colors.STATUS_YELLOW, 160);
-            drawScaledText(graphics, "差", imageX + 18, rangeY + 97,
+            drawScaledText(graphics, tr("work_result.lobotocraft.bad"), imageX + 18, rangeY + 97,
                     3.0F, EncyclopediaGUIConfig.Colors.STATUS_RED, 40);
             drawRightAlignedScaledText(graphics, "0 - " + (normalMin - 1),
                     imageX + imageSize - 16, rangeY + 100, 2.0F,
                     EncyclopediaGUIConfig.Colors.STATUS_RED, 160);
         } else {
-            drawCenteredScaledText(graphics, "工具型异想体无常规产量区间",
+            drawCenteredScaledText(graphics, tr("screen.lobotocraft.encyclopedia.tool_no_output"),
                     BASIC_X + BASIC_W / 2, rangeY + 62, 2.0F, ARCHIVE_DIM, imageSize - 30);
         }
     }
 
     private void renderManualPanel(GuiGraphics graphics, double mouseX, double mouseY) {
         drawArchivePanel(graphics, MANUAL_X, MANUAL_Y, MANUAL_W, MANUAL_H, ARCHIVE_GOLD);
-        drawPanelTitle(graphics, "异想体的管理须知", MANUAL_X, MANUAL_Y, MANUAL_W);
+        drawPanelTitle(graphics, tr("screen.lobotocraft.encyclopedia.management_guidelines"),
+                MANUAL_X, MANUAL_Y, MANUAL_W);
         graphics.fill(MANUAL_VIEW_X, MANUAL_VIEW_Y,
                 MANUAL_VIEW_X + MANUAL_VIEW_W, MANUAL_VIEW_Y + MANUAL_VIEW_H, 0xC9050705);
 
@@ -572,12 +586,14 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                 Math.min(height, MANUAL_VIEW_Y + MANUAL_VIEW_H - Math.max(y, MANUAL_VIEW_Y)));
         int border = hovered ? ARCHIVE_PALE : ARCHIVE_GOLD_DIM;
         drawArchivePanel(graphics, x, y, width, height, border);
-        drawCenteredScaledText(graphics, "管理须知 " + toRoman(index + 1),
+        drawCenteredScaledText(graphics, tr("screen.lobotocraft.encyclopedia.management_entry",
+                        toRoman(index + 1)),
                 x + width / 2, y + 10, 2.5F, ARCHIVE_GOLD, width - 24);
         graphics.fill(x + 16, y + 38, x + width - 16, y + 39, ARCHIVE_GOLD_DIM);
 
         if (manualsUnlocked[index]) {
-            String content = index < manualTexts.length ? manualTexts[index] : "未知";
+            String content = index < manualTexts.length ? manualTexts[index]
+                    : tr("screen.lobotocraft.common.unknown");
             drawWrappedScaledText(graphics, content, x + 16, y + 52,
                     2.0F, ARCHIVE_PALE, width - 32, Integer.MAX_VALUE);
         } else {
@@ -603,15 +619,18 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
     private void renderWorkPreferencePanel(GuiGraphics graphics, double mouseX, double mouseY) {
         drawArchivePanel(graphics, WORK_X, WORK_Y, WORK_W, WORK_H, ARCHIVE_PALE);
-        drawPanelTitle(graphics, "异想体的工作偏好", WORK_X, WORK_Y, WORK_W);
+        drawPanelTitle(graphics, tr("screen.lobotocraft.encyclopedia.work_preferences"),
+                WORK_X, WORK_Y, WORK_W);
         if (isToolType) {
-            drawCenteredScaledText(graphics, "工具型异想体无常规工作偏好",
+            drawCenteredScaledText(graphics, tr("screen.lobotocraft.encyclopedia.tool_no_work_preferences"),
                     WORK_X + WORK_W / 2, WORK_Y + 205, 3.0F, ARCHIVE_DIM, WORK_W - 50);
             return;
         }
 
         ResourceLocation[] icons = {INSTINCT_ICON, INSIGHT_ICON, ATTACHMENT_ICON, REPRESSION_ICON};
-        String[] names = {"本能", "洞察", "沟通", "压迫"};
+        String[] names = {
+                tr("work.lobotocraft.instinct"), tr("work.lobotocraft.insight"),
+                tr("work.lobotocraft.attachment"), tr("work.lobotocraft.repression")};
         for (int work = 0; work < 4; work++) {
             int col = work % 2;
             int row = work / 2;
@@ -624,7 +643,8 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                     ? (hovered ? ARCHIVE_PALE : ARCHIVE_GOLD_DIM) : 0xFF47473C;
             drawArchivePanel(graphics, x, y, w, h, border);
             graphics.blit(icons[work], x + 10, y + 46, 0, 0, 62, 62, 62, 62);
-            drawScaledText(graphics, names[work] + " 偏好", x + 12, y + 11,
+            drawScaledText(graphics, tr("screen.lobotocraft.encyclopedia.preference", names[work]),
+                    x + 12, y + 11,
                     2.5F, workPreferencesUnlocked[work] ? ARCHIVE_PALE : ARCHIVE_DIM, w - 24);
             if (!workPreferencesUnlocked[work]) {
                 graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0xA9000000);
@@ -658,16 +678,18 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
     private void renderSensitivePanel(GuiGraphics graphics, double mouseX, double mouseY) {
         drawArchivePanel(graphics, SENSITIVE_X, SENSITIVE_Y, SENSITIVE_W, SENSITIVE_H,
                 isToolType ? ARCHIVE_GOLD_DIM : ARCHIVE_GOLD);
-        drawPanelTitle(graphics, "异想体的敏感信息", SENSITIVE_X, SENSITIVE_Y, SENSITIVE_W);
+        drawPanelTitle(graphics, tr("screen.lobotocraft.encyclopedia.sensitive_information"),
+                SENSITIVE_X, SENSITIVE_Y, SENSITIVE_W);
         if (isToolType) {
-            drawCenteredScaledText(graphics, "工具型异想体无敏感信息",
+            drawCenteredScaledText(graphics, tr("screen.lobotocraft.encyclopedia.tool_no_sensitive_info"),
                     SENSITIVE_X + SENSITIVE_W / 2, SENSITIVE_Y + 105,
                     3.0F, ARCHIVE_DIM, SENSITIVE_W - 40);
             return;
         }
         boolean hovered = inside(mouseX, mouseY, SENSITIVE_X + 18, SENSITIVE_Y + 66,
                 SENSITIVE_W - 36, SENSITIVE_H - 82);
-        drawScaledText(graphics, "逆卡巴拉计数极值", SENSITIVE_X + 26,
+        drawScaledText(graphics, tr("screen.lobotocraft.encyclopedia.qliphoth_counter_limit"),
+                SENSITIVE_X + 26,
                 SENSITIVE_Y + 82, 2.0F, ARCHIVE_GOLD, 230);
         if (sensitiveInfoUnlocked) {
             drawWrappedScaledText(graphics, compactSensitiveBehavior(), SENSITIVE_X + 26,
@@ -684,20 +706,24 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         drawArchivePanel(graphics, GIFT_X, GIFT_Y, GIFT_W, GIFT_H, ARCHIVE_PALE);
         IAbnormality current = abnormality;
         if (isToolType || current == null || current.getEGOGiftData() == null) {
-            drawPanelTitle(graphics, "E.G.O 饰品", GIFT_X, GIFT_Y, GIFT_W);
-            drawCenteredScaledText(graphics, "无可用饰品资料", GIFT_X + GIFT_W / 2,
+            drawPanelTitle(graphics, tr("equipment.lobotocraft.ego_gift"), GIFT_X, GIFT_Y, GIFT_W);
+            drawCenteredScaledText(graphics, tr("screen.lobotocraft.encyclopedia.gift_no_data"),
+                    GIFT_X + GIFT_W / 2,
                     GIFT_Y + 84, 2.0F, ARCHIVE_DIM, GIFT_W - 40);
             return;
         }
         float probability = current.getGiftProbability() * 100.0F;
-        String suffix = probability < 0.0F ? "获得率未知"
-                : String.format("获得率 %.1f%%", probability);
-        drawPanelTitle(graphics, "E.G.O 饰品 / " + suffix, GIFT_X, GIFT_Y, GIFT_W);
+        String suffix = probability < 0.0F
+                ? tr("screen.lobotocraft.encyclopedia.gift_rate_unknown")
+                : tr("screen.lobotocraft.encyclopedia.gift_rate", String.format("%.1f", probability));
+        drawPanelTitle(graphics, tr("screen.lobotocraft.encyclopedia.gift_title", suffix),
+                GIFT_X, GIFT_Y, GIFT_W);
         if (canUnlockGift(current, observationLevel)) {
             renderArchiveGift(graphics, current);
         } else {
             drawCenteredScaledText(graphics,
-                    "观察等级 " + getRequiredLevelForGift(current) + " 解锁",
+                    tr("screen.lobotocraft.encyclopedia.unlock_at_observation",
+                            getRequiredLevelForGift(current)),
                     GIFT_X + GIFT_W / 2, GIFT_Y + 86, 2.5F, ARCHIVE_DIM, GIFT_W - 40);
         }
     }
@@ -709,12 +735,14 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
     private void renderEgoPanel(GuiGraphics graphics, int x, boolean weapon) {
         drawArchivePanel(graphics, x, EGO_Y, EGO_W, EGO_H, ARCHIVE_PALE);
-        drawPanelTitle(graphics, weapon ? "E.G.O 武器" : "E.G.O 护甲", x, EGO_Y, EGO_W);
+        drawPanelTitle(graphics, tr(weapon ? "equipment.lobotocraft.ego_weapon"
+                : "equipment.lobotocraft.ego_armor"), x, EGO_Y, EGO_W);
         IAbnormality current = abnormality;
         boolean available = !isToolType && current != null
                 && (weapon ? current.getEGOWeaponData() != null : current.getEGOArmorData() != null);
         if (!available) {
-            drawCenteredScaledText(graphics, "无资料", x + EGO_W / 2,
+            drawCenteredScaledText(graphics, tr("screen.lobotocraft.encyclopedia.no_data"),
+                    x + EGO_W / 2,
                     EGO_Y + 220, 3.0F, ARCHIVE_DIM, EGO_W - 30);
             return;
         }
@@ -723,7 +751,8 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         if (!unlocked) {
             int required = weapon ? getRequiredLevelForWeapon(current)
                     : getRequiredLevelForArmor(current);
-            drawCenteredScaledText(graphics, "观察等级 " + required + " 解锁",
+            drawCenteredScaledText(graphics, tr("screen.lobotocraft.encyclopedia.unlock_at_observation",
+                            required),
                     x + EGO_W / 2, EGO_Y + 220, 2.5F, ARCHIVE_DIM, EGO_W - 30);
             return;
         }
@@ -770,12 +799,16 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                 EGO_Y + 236, 2.0F, weapon.riskLevel().getColor(), EGO_W - 28);
         drawCenteredScaledText(graphics, weapon.name(), x + EGO_W / 2,
                 EGO_Y + 263, 2.0F, ARCHIVE_PALE, EGO_W - 28);
-        renderEgoMetric(graphics, x, EGO_Y + 302, "属性", weapon.damageType(),
+        renderEgoMetric(graphics, x, EGO_Y + 302,
+                tr("screen.lobotocraft.encyclopedia.attribute"), weapon.damageType(),
                 EncyclopediaGUIConfig.Colors.getDamageTypeColor(
                         "ALL".equals(weapon.damageType()) ? "WHITE" : weapon.damageType()));
-        renderEgoMetric(graphics, x, EGO_Y + 334, "攻击力", weapon.attackPower(), ARCHIVE_PALE);
-        renderEgoMetric(graphics, x, EGO_Y + 366, "攻击速度", weapon.attackSpeed(), ARCHIVE_PALE);
-        renderEgoMetric(graphics, x, EGO_Y + 398, "攻击距离", weapon.attackRange(), ARCHIVE_PALE);
+        renderEgoMetric(graphics, x, EGO_Y + 334,
+                tr("screen.lobotocraft.encyclopedia.attack_power"), weapon.attackPower(), ARCHIVE_PALE);
+        renderEgoMetric(graphics, x, EGO_Y + 366,
+                tr("screen.lobotocraft.encyclopedia.attack_speed"), weapon.attackSpeed(), ARCHIVE_PALE);
+        renderEgoMetric(graphics, x, EGO_Y + 398,
+                tr("screen.lobotocraft.encyclopedia.attack_range"), weapon.attackRange(), ARCHIVE_PALE);
         renderDevelopmentBar(graphics, x, developmentWeaponCount,
                 weapon.developmentMaxCount());
     }
@@ -833,17 +866,22 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                 complete ? 0xB53C5224 : 0xB5293A1B);
         drawScaledText(graphics, developed + "/" + maximum, x + 22, barY + 8,
                 2.0F, complete ? ARCHIVE_GOLD : ARCHIVE_PALE, 100);
-        drawRightAlignedScaledText(graphics, "研发", x + EGO_W - 22, barY + 8,
+        drawRightAlignedScaledText(graphics, tr("screen.lobotocraft.encyclopedia.development"),
+                x + EGO_W - 22, barY + 8,
                 2.0F, ARCHIVE_GOLD, 82);
     }
 
     private String cleanObservationBonus(String text) {
-        if (text == null || text.isBlank()) return "未配置观察加成";
+        if (text == null || text.isBlank()) {
+            return tr("screen.lobotocraft.encyclopedia.observation_unconfigured");
+        }
         return text.replaceFirst("^\\s*(?:VIII|VII|VI|IV|V|III|II|I)\\s*[.、:-]?\\s*", "");
     }
 
     private String compactSensitiveInfo() {
-        if (sensitiveInfoText == null || sensitiveInfoText.isBlank()) return "未知";
+        if (sensitiveInfoText == null || sensitiveInfoText.isBlank()) {
+            return tr("screen.lobotocraft.common.unknown");
+        }
         return sensitiveInfoText
                 .replaceFirst("^\\s*计数器极限\\s*[：:]?\\s*", "")
                 .replace(" | ", "\n")
@@ -852,7 +890,9 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
     }
 
     private String compactSensitiveBehavior() {
-        if (sensitiveInfoText == null || sensitiveInfoText.isBlank()) return "未知";
+        if (sensitiveInfoText == null || sensitiveInfoText.isBlank()) {
+            return tr("screen.lobotocraft.common.unknown");
+        }
         String text = SENSITIVE_RESISTANCE_CLAUSE_PATTERN.matcher(sensitiveInfoText)
                 .replaceAll("");
         text = text.replaceAll("\\([^)]*抗性[^)]*\\)", "")
@@ -861,7 +901,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                 .replace(" | ", "\n")
                 .replace("|", "\n")
                 .trim();
-        return text.isBlank() ? "未知" : text;
+        return text.isBlank() ? tr("screen.lobotocraft.common.unknown") : text;
     }
 
     private List<SensitiveResistance> sensitiveResistances() {
@@ -915,7 +955,8 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         int w = 340;
         int h = 126;
         drawArchivePanel(graphics, x, y, w, h, ARCHIVE_GOLD);
-        drawCenteredScaledText(graphics, "独立 PE-BOX 储量", x + w / 2, y + 12,
+        drawCenteredScaledText(graphics, tr("screen.lobotocraft.encyclopedia.pe_storage"),
+                x + w / 2, y + 12,
                 3.0F, ARCHIVE_PALE, w - 28);
         drawCenteredScaledText(graphics, String.valueOf(playerEnergy), x + w / 2,
                 y + 55, 5.0F, playerEnergy > 0 ? ARCHIVE_PALE : ARCHIVE_DIM, w - 50);
@@ -925,7 +966,8 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         boolean hovered = inside(mouseX, mouseY, EXIT_X, EXIT_Y, EXIT_W, EXIT_H);
         graphics.fill(EXIT_X, EXIT_Y, EXIT_X + EXIT_W, EXIT_Y + EXIT_H,
                 hovered ? 0xFFFF4B50 : ARCHIVE_RED);
-        drawCenteredScaledText(graphics, "退出", EXIT_X + EXIT_W / 2, EXIT_Y + 15,
+        drawCenteredScaledText(graphics, tr("screen.lobotocraft.common.exit"),
+                EXIT_X + EXIT_W / 2, EXIT_Y + 15,
                 5.0F, 0xFF090A08, EXIT_W - 24);
     }
 
@@ -941,15 +983,17 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
     private void renderUnlockPrompt(GuiGraphics graphics, int x, int y, int width,
                                     int requiredLevel, int cost, boolean hovered) {
         if (requiredLevel > 0 && observationLevel < requiredLevel) {
-            drawCenteredScaledText(graphics, "需要观察等级 " + requiredLevel,
+            drawCenteredScaledText(graphics, tr("screen.lobotocraft.encyclopedia.requires_observation",
+                            requiredLevel),
                     x + width / 2, y, 2.0F, ARCHIVE_RED, width);
             return;
         }
         int color = playerEnergy >= cost ? ARCHIVE_PALE : ARCHIVE_RED;
-        drawCenteredScaledText(graphics, "消耗 " + cost + " PE-BOX 解锁",
+        drawCenteredScaledText(graphics, tr("screen.lobotocraft.encyclopedia.unlock_cost", cost),
                 x + width / 2, y, 2.0F, color, width);
         if (hovered && playerEnergy >= cost) {
-            drawCenteredScaledText(graphics, "点击解锁", x + width / 2,
+            drawCenteredScaledText(graphics, tr("screen.lobotocraft.encyclopedia.click_to_unlock"),
+                    x + width / 2,
                     y + 28, 2.0F, ARCHIVE_GOLD, width);
         }
     }
@@ -967,7 +1011,8 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
     private int manualEntryHeight(int index) {
         if (index < 0 || index >= manualsUnlocked.length || !manualsUnlocked[index]) return 96;
-        String content = index < manualTexts.length ? manualTexts[index] : "未知";
+        String content = index < manualTexts.length ? manualTexts[index]
+                : tr("screen.lobotocraft.common.unknown");
         int lines = Math.max(1, wrapScaledText(content, 2.0F, MANUAL_VIEW_W - 60).size());
         return Math.max(96, 66 + lines * scaledLineAdvance(2.0F));
     }
@@ -2645,6 +2690,10 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
     public Screen getReturnScreen() {
         return returnScreen;
+    }
+
+    private static String tr(String key, Object... arguments) {
+        return Component.translatable(key, arguments).getString();
     }
 
     @Override

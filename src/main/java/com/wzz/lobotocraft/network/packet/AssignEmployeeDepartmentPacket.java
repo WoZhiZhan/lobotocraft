@@ -69,14 +69,16 @@ public final class AssignEmployeeDepartmentPacket implements IMessage {
         EmployeeRecord record = FacilityPersonnelData.get(sender.server).get(employeeId);
         EmployeeDepartment department = validDepartment(departmentId);
         if (record == null || department == null) {
-            sender.sendSystemMessage(Component.literal("§c员工或部门数据无效。"));
+            sender.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.employee_department.invalid"));
             return;
         }
         FacilityPersonnelData personnel = FacilityPersonnelData.get(sender.server);
         int targetSection = department == EmployeeDepartment.CENTRAL
                 ? Math.max(0, Math.min(1, centralSection)) : 0;
         if (!DepartmentProgressService.isSectionOpen(sender.server, department, targetSection)) {
-            sender.sendSystemMessage(Component.literal("该部门尚未开放，无法部署员工。"));
+            sender.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.employee_department.not_open"));
             if (reopenDeployment) FacilityManagementService.openDepartmentAssignment(sender, employeeId);
             return;
         }
@@ -91,10 +93,12 @@ public final class AssignEmployeeDepartmentPacket implements IMessage {
         int capacity = DepartmentProgressService.employeeCapacity(
                 sender.server, department, targetSection);
         if (moving && assigned >= capacity) {
-            sender.sendSystemMessage(Component.literal("§c" + department.displayName()
-                    + (department == EmployeeDepartment.CENTRAL
-                    ? targetSection == 0 ? "上部" : "下部" : "")
-                    + "人数已满（" + capacity + "人）。"));
+            Component departmentName = Component.translatable(department == EmployeeDepartment.CENTRAL
+                    ? targetSection == 0 ? "department.lobotocraft.central.upper"
+                    : "department.lobotocraft.central.lower"
+                    : "department.lobotocraft." + department.id());
+            sender.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.employee_department.full", departmentName, capacity));
             if (reopenDeployment) {
                 FacilityManagementService.openDepartmentAssignment(sender, employeeId);
             }
@@ -107,8 +111,9 @@ public final class AssignEmployeeDepartmentPacket implements IMessage {
         if (reopenDeployment) {
             FacilityManagementService.openDepartmentAssignment(sender, employeeId);
         } else {
-            sender.sendSystemMessage(Component.literal("§a已将 " + record.name() + " 分配至"
-                    + department.displayName() + "。"));
+            sender.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.employee_department.assigned", record.name(),
+                    Component.translatable("department.lobotocraft." + department.id())));
             FacilityManagementService.open(sender);
         }
     }

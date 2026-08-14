@@ -51,7 +51,7 @@ public class StartUsingToolResultPacket implements IMessage {
         if (!success) {
             if (Minecraft.getInstance().player != null && !message.isEmpty()) {
                 Minecraft.getInstance().player
-                        .sendSystemMessage(Component.literal(message));
+                        .sendSystemMessage(Component.translatable(message));
             }
             Minecraft.getInstance().setScreen(null);
         } else {

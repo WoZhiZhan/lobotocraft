@@ -40,7 +40,7 @@ public final class PlayerDepartmentScreen extends Screen {
     private LobotomyButton confirmButton;
 
     public PlayerDepartmentScreen(CompoundTag snapshot, Screen parent) {
-        super(Component.literal("玩家部门"));
+        super(Component.translatable("screen.lobotocraft.player_department.title"));
         this.snapshot = snapshot.copy();
         this.parent = parent;
         this.selectedId = snapshot.getString("CurrentDepartment");
@@ -60,12 +60,15 @@ public final class PlayerDepartmentScreen extends Screen {
         int right = panelX + panelW - 16;
         LobotomyButton close = LobotomyButton.create(Component.literal("X"), button -> onClose())
                 .bounds(right - 20, panelY + 12, 20, 20).build();
-        close.setTooltip(Tooltip.create(Component.literal("返回设施管理")));
+        close.setTooltip(Tooltip.create(Component.translatable(
+                "screen.lobotocraft.player_department.back")));
         addRenderableWidget(close);
 
-        confirmButton = LobotomyButton.create(Component.literal("确认归属"), button -> confirm())
+        confirmButton = LobotomyButton.create(Component.translatable(
+                "screen.lobotocraft.player_department.confirm"), button -> confirm())
                 .bounds(right - 92, panelY + panelH - 32, 92, 20).build();
-        confirmButton.setTooltip(Tooltip.create(Component.literal("应用所选玩家部门")));
+        confirmButton.setTooltip(Tooltip.create(Component.translatable(
+                "screen.lobotocraft.player_department.confirm.tooltip")));
         addRenderableWidget(confirmButton);
         rebuildCards();
         updateButtonState();
@@ -104,12 +107,13 @@ public final class PlayerDepartmentScreen extends Screen {
         graphics.fill(0, 0, width, height, LobotomyUiTheme.BG_SCRIM);
         LobotomyUiRenderer.drawPanel(graphics, panelX, panelY, panelW, panelH);
         LobotomyUiRenderer.drawPanelHeader(graphics, font, panelX, panelY, panelW,
-                "PERSONNEL IDENTITY", "玩家部门归属");
+                "PERSONNEL IDENTITY", tr("screen.lobotocraft.player_department.subtitle"));
 
         EmployeeDepartment current = EmployeeDepartment.byId(
                 snapshot.getString("CurrentDepartment"));
         String currentText = current == EmployeeDepartment.UNASSIGNED
-                ? "当前：未加入部门" : "当前：" + current.displayName();
+                ? tr("screen.lobotocraft.player_department.current_none")
+                : tr("screen.lobotocraft.player_department.current", departmentName(current));
         int currentColor = current == EmployeeDepartment.UNASSIGNED
                 ? LobotomyUiTheme.TEXT_MUTED : 0xFF000000 | current.textColorRgb();
         LobotomyUiRenderer.drawTag(graphics, font, panelX + 16, panelY + 46,
@@ -117,12 +121,14 @@ public final class PlayerDepartmentScreen extends Screen {
 
         for (Card card : cards) renderCard(graphics, card, mouseX, mouseY);
         if (waiting) {
-            graphics.drawString(font, "正在确认...", panelX + 16, panelY + panelH - 27,
+            graphics.drawString(font, tr("screen.lobotocraft.player_department.confirming"),
+                    panelX + 16, panelY + panelH - 27,
                     LobotomyUiTheme.TEXT_MUTED, false);
         } else {
             EmployeeDepartment selected = EmployeeDepartment.byId(selectedId);
             String selectedText = selected == EmployeeDepartment.UNASSIGNED
-                    ? "未选择" : "待确认：" + selected.displayName();
+                    ? tr("screen.lobotocraft.player_department.not_selected")
+                    : tr("screen.lobotocraft.player_department.pending", departmentName(selected));
             graphics.drawString(font, selectedText, panelX + 16, panelY + panelH - 27,
                     selected == EmployeeDepartment.UNASSIGNED
                             ? LobotomyUiTheme.TEXT_MUTED
@@ -164,7 +170,8 @@ public final class PlayerDepartmentScreen extends Screen {
         if (!open) graphics.fill(iconX, iconY, iconX + iconSize,
                 iconY + iconSize, 0xAA08080C);
 
-        String name = LobotomyUiRenderer.fitText(font, data.getString("Name"), card.w - 10);
+        String name = LobotomyUiRenderer.fitText(font,
+                tr("department.lobotocraft." + id), card.w - 10);
         graphics.drawCenteredString(font, name, card.x + card.w / 2,
                 card.y + (compact ? 27 : 56),
                 open ? color : LobotomyUiTheme.TEXT_DISABLED);
@@ -245,6 +252,14 @@ public final class PlayerDepartmentScreen extends Screen {
             case "central", "welfare", "disciplinary" -> "BRIAH";
             default -> "ATZILUTH";
         };
+    }
+
+    private static String departmentName(EmployeeDepartment department) {
+        return tr("department.lobotocraft." + department.id());
+    }
+
+    private static String tr(String key, Object... arguments) {
+        return Component.translatable(key, arguments).getString();
     }
 
     private static String roman(int value) {

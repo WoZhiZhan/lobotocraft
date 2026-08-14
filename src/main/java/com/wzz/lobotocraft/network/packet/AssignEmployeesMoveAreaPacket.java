@@ -64,8 +64,11 @@ public final class AssignEmployeesMoveAreaPacket implements IMessage {
         if (!RequestThrottle.allow(sender, "monitor_area_move", 350L)) return;
         FacilityAreaMoveService.Result result =
                 FacilityAreaMoveService.dispatch(sender, groupId, employeeIds);
-        String color = result.successful() ? "§b" : "§c";
-        sender.displayClientMessage(Component.literal(color + "[对讲机] §f" + result.message()), true);
+        sender.displayClientMessage(Component.translatable(
+                result.successful()
+                        ? "message.lobotocraft.area_move.radio_success"
+                        : "message.lobotocraft.area_move.radio_failure",
+                result.message()), true);
     }
 
     @Override

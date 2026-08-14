@@ -80,7 +80,7 @@ public class WorkManager {
         public final int observationLevel;  // 观察等级
         public final int itemSpeedBonus;           // 饰品速度加成（tick减少）
         public final float itemSuccessBonus;       // 饰品成功率加成（百分比）
-        public final String itemBonusMessage;      // 饰品加成显示信息
+        public final Component itemBonusMessage;   // 饰品加成显示信息
         public final boolean continuousMode;
         /** Snapshot used by the original LC attribute-growth formula. */
         public final float startingHealth;
@@ -178,14 +178,20 @@ public class WorkManager {
             this.itemSuccessBonus = calculateItemSuccessBonus(player, workType, abnormality);
 
             // 显示饰品加成信息（在构造函数中准备，外部调用时显示）
-            StringBuilder itemBonusInfo = new StringBuilder();
-            if (itemSpeedBonus > 0) {
-                itemBonusInfo.append("§b饰品速度: -").append(itemSpeedBonus).append("tick ");
+            if (itemSpeedBonus > 0 && itemSuccessBonus > 0) {
+                this.itemBonusMessage = Component.translatable(
+                        "message.lobotocraft.work.item_bonus.both", itemSpeedBonus,
+                        formatOneDecimal(itemSuccessBonus * 100));
+            } else if (itemSpeedBonus > 0) {
+                this.itemBonusMessage = Component.translatable(
+                        "message.lobotocraft.work.item_bonus.speed", itemSpeedBonus);
+            } else if (itemSuccessBonus > 0) {
+                this.itemBonusMessage = Component.translatable(
+                        "message.lobotocraft.work.item_bonus.success",
+                        formatOneDecimal(itemSuccessBonus * 100));
+            } else {
+                this.itemBonusMessage = Component.empty();
             }
-            if (itemSuccessBonus > 0) {
-                itemBonusInfo.append(String.format("§b饰品成功率: +%.1f%%", itemSuccessBonus * 100));
-            }
-            this.itemBonusMessage = itemBonusInfo.toString();
 
             // 应用所有加成的计算
             float rateWithBonuses = Math.min(0.95f,
@@ -233,14 +239,15 @@ public class WorkManager {
             return (float) extractionCount / abnormality.getMaxPEOutput();
         }
 
-        public String getFormattedDuration() {
+        public Component getFormattedDuration() {
             long seconds = workDuration / 20;
             long minutes = seconds / 60;
             seconds = seconds % 60;
             if (minutes > 0) {
-                return String.format("%d分%d秒", minutes, seconds);
+                return Component.translatable("message.lobotocraft.work.duration.minutes",
+                        minutes, seconds);
             }
-            return String.format("%d秒", seconds);
+            return Component.translatable("message.lobotocraft.work.duration.seconds", seconds);
         }
     }
 
@@ -267,11 +274,11 @@ public class WorkManager {
                         && session.abnormality.getUUID().equals(abnormalityUuid));
     }
 
-    private static String getSuppressionWorkDenial(ServerPlayer player, AbstractAbnormality abnormality) {
+    private static Component getSuppressionWorkDenial(ServerPlayer player, AbstractAbnormality abnormality) {
         if (!CoreSuppressionManager.isSuppressionActive(player.level())) return null;
         if (AbnormalityWorkRules.hasAiReservationConflict(
                 AbnormalityWorkRules.isAiEmployee(player), isAiEmployeeWorking(abnormality))) {
-            return "核心抑制期间，同一异想体不能由多人同时工作。";
+            return Component.translatable("message.lobotocraft.work.suppression_multi_denied");
         }
         long gameTime = player.serverLevel().getGameTime();
         long cooldownEnd = suppressionWorkCooldowns.getOrDefault(abnormality.getUUID(), 0L);
@@ -280,7 +287,8 @@ public class WorkManager {
             return null;
         }
         long remainingSeconds = (cooldownEnd - gameTime + 19L) / 20L;
-        return "该异想体仍在工作冷却中，请等待 " + remainingSeconds + " 秒。";
+        return Component.translatable("message.lobotocraft.work.suppression_cooldown",
+                remainingSeconds);
     }
 
     private static void beginSuppressionWorkCooldown(AbstractAbnormality abnormality) {
@@ -312,30 +320,34 @@ public class WorkManager {
                                      WorkType requestedWorkType, WorkType resolvedWorkType,
                                      boolean continuousMode, boolean openClientScreen) {
         if (!entity.isAlive() || entity.isRemoved()) {
-            player.sendSystemMessage(Component.literal("§c异想体不存在或已消失"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.work.abnormality_missing"));
             return false;
         }
         String registrationDenial = AbnormalityWorkRules.registrationDenial(entity);
         if (registrationDenial != null) {
-            player.sendSystemMessage(Component.literal("§c" + registrationDenial));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.work.registration_denied"));
             return false;
         }
         if (isPlayerWorking(player)) {
-            player.sendSystemMessage(Component.literal("§c你正在进行其他工作"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.work.already_working"));
             return false;
         }
         if (AbnormalityWorkRules.hasAiReservationConflict(
                 AbnormalityWorkRules.isAiEmployee(player), isAiEmployeeWorking(entity))) {
-            player.sendSystemMessage(Component.literal("§c该异想体已有 AI 员工正在工作"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.work.ai_reserved"));
             return false;
         }
         if (player.distanceToSqr(entity) > 100.0) {
-            player.sendSystemMessage(Component.literal("§c距离异想体太远了"));
+            player.sendSystemMessage(Component.translatable("message.lobotocraft.work.too_far"));
             return false;
         }
-        String suppressionDenial = getSuppressionWorkDenial(player, entity);
+        Component suppressionDenial = getSuppressionWorkDenial(player, entity);
         if (suppressionDenial != null) {
-            player.sendSystemMessage(Component.literal("§c" + suppressionDenial));
+            player.sendSystemMessage(suppressionDenial.copy().withStyle(ChatFormatting.RED));
             return false;
         }
 
@@ -344,8 +356,9 @@ public class WorkManager {
                 : resolvedWorkType;
 
         if (MentalValueUtil.isPanic(player)) {
-            player.sendSystemMessage(Component.literal("§c你仍处于恐慌状态，无法进行工作！"));
-            player.sendSystemMessage(Component.literal("§e精神值恢复至上限的一半以上后才能恢复正常。"));
+            player.sendSystemMessage(Component.translatable("message.lobotocraft.work.panic"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.work.panic_recovery"));
             return false;
         }
 
@@ -358,9 +371,8 @@ public class WorkManager {
         });
 
         if (playerLevel[0] < requiredLevel) {
-            player.sendSystemMessage(Component.literal(
-                    String.format("§c你的员工等级不足！需要等级 %d，当前等级 %d", requiredLevel, playerLevel[0])
-            ));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.work.level_insufficient", requiredLevel, playerLevel[0]));
             return false;
         }
         WorkStartEvent startEvent = new WorkStartEvent(player, entity, workType);
@@ -375,7 +387,8 @@ public class WorkManager {
         // 调用异想体的工作开始回调
         if (!entity.onWorkStart(player, workType)) {
             // 异想体阻止了工作开始
-            player.sendSystemMessage(Component.literal("§c无法开始工作！"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.work.cannot_start"));
             return false;
         }
         if (isPlayerWorking(player) || !isStartContextValid(player, entity)) {
@@ -392,9 +405,9 @@ public class WorkManager {
         // 显示自律加成信息
         if (session.temperance > 20) {
             float bonus = (session.temperance - 20) / 10.0f;
-            player.sendSystemMessage(Component.literal(
-                    String.format("§a自律加成: 成功率+%.1f%% 速度+%.1f%%", bonus, bonus)
-            ));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.work.temperance_bonus",
+                    formatOneDecimal(bonus), formatOneDecimal(bonus)));
         }
 
         // 显示观察等级加成信息
@@ -408,39 +421,45 @@ public class WorkManager {
                 totalSpeedBonus += bonus.getSpeedBonus();
             }
 
-            StringBuilder bonusMsg = new StringBuilder("§e观察等级" + session.observationLevel + " 加成: ");
-            if (totalSuccessBonus > 0) {
-                bonusMsg.append(String.format("成功率+%.0f%% ", totalSuccessBonus * 100));
+            String key = totalSuccessBonus > 0 && totalSpeedBonus > 0
+                    ? "message.lobotocraft.work.observation_bonus.both"
+                    : totalSuccessBonus > 0
+                    ? "message.lobotocraft.work.observation_bonus.success"
+                    : "message.lobotocraft.work.observation_bonus.speed";
+            if (totalSuccessBonus > 0 && totalSpeedBonus > 0) {
+                player.sendSystemMessage(Component.translatable(key, session.observationLevel,
+                        Math.round(totalSuccessBonus * 100), totalSpeedBonus));
+            } else if (totalSuccessBonus > 0) {
+                player.sendSystemMessage(Component.translatable(key, session.observationLevel,
+                        Math.round(totalSuccessBonus * 100)));
+            } else if (totalSpeedBonus > 0) {
+                player.sendSystemMessage(Component.translatable(key, session.observationLevel,
+                        totalSpeedBonus));
             }
-            if (totalSpeedBonus > 0) {
-                bonusMsg.append("速度+").append(totalSpeedBonus).append("tick");
-            }
-            player.sendSystemMessage(Component.literal(bonusMsg.toString()));
         }
 
         boolean malkuthScramble = CoreSuppressionManager.isMalkuthWorkScrambled(player.level());
-        if (!malkuthScramble && !session.itemBonusMessage.isEmpty()) {
-            player.sendSystemMessage(Component.literal(session.itemBonusMessage));
+        if (!malkuthScramble && !session.itemBonusMessage.getString().isEmpty()) {
+            player.sendSystemMessage(session.itemBonusMessage);
         }
 
         if (!malkuthScramble) {
-            player.sendSystemMessage(Component.literal(
-                    String.format("§7工作间隔: %dtick (基础: %dtick)",
-                            session.extractionInterval, BASE_EXTRACTION_INTERVAL)
-            ));
-            player.sendSystemMessage(Component.literal(
-                    String.format("§7成功率: %.1f%% (基础: %.1f%%)",
-                            session.actualSuccessRate * 100,
-                            session.baseSuccessRate * 100)
-            ));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.work.interval", session.extractionInterval,
+                    BASE_EXTRACTION_INTERVAL));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.work.success_rate",
+                    formatOneDecimal(session.actualSuccessRate * 100),
+                    formatOneDecimal(session.baseSuccessRate * 100)));
         }
 
-        player.sendSystemMessage(Component.literal(
-                "§a开始进行" + (malkuthScramble ? "???" : workType.getDisplayName()) + "工作..."
-        ));
+        player.sendSystemMessage(Component.translatable("message.lobotocraft.work.started",
+                malkuthScramble ? Component.literal("???")
+                        : Component.translatable("work_type.lobotocraft." + workType.getName())));
 
         if (continuousMode) {
-            player.sendSystemMessage(Component.literal("§b工作装置：连续工作模式已启用。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.work.continuous_enabled"));
         }
 
         if (openClientScreen) {
@@ -480,7 +499,8 @@ public class WorkManager {
             ModLogger.getLogger().error("Work interruption callback failed", exception);
         }
         if (notifyPlayer) {
-            player.sendSystemMessage(Component.literal("§c工作中断：" + reason));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.work.interrupted", displayReason(reason)));
             player.closeContainer();
         }
     }
@@ -535,7 +555,7 @@ public class WorkManager {
                 continue;
             }
             if (session.continuousMode && !session.stopContinuousAfterCurrent) {
-                String stopReason = getContinuousStopReason(session);
+                Component stopReason = getContinuousStopReason(session);
                 if (stopReason != null) {
                     markContinuousStop(session, stopReason);
                 }
@@ -586,21 +606,30 @@ public class WorkManager {
     }
 
     public static void requestStopContinuousWork(ServerPlayer player, String reason) {
+        requestStopContinuousWork(player, Component.literal(reason));
+    }
+
+    public static void requestStopContinuousWork(ServerPlayer player, Component reason) {
         WorkDeviceItem.disableAll(player);
         WorkSession session = activeWorks.get(player.getUUID());
         if (session != null && session.continuousMode) {
             markContinuousStop(session, reason);
         } else {
-            player.sendSystemMessage(Component.literal("§7连续工作已停止。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.work.continuous_stopped"));
         }
     }
 
     private static void markContinuousStop(WorkSession session, String reason) {
+        markContinuousStop(session, Component.literal(reason));
+    }
+
+    private static void markContinuousStop(WorkSession session, Component reason) {
         if (session.stopContinuousAfterCurrent) return;
         session.stopContinuousAfterCurrent = true;
         WorkDeviceItem.disableAll(session.player);
-        session.player.sendSystemMessage(Component.literal(
-                "§e工作装置将在本次工作结束后停止连续工作：" + reason));
+        session.player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.work.continuous_stopping_reason", reason));
     }
 
     private static boolean shouldRestartContinuous(WorkSession session) {
@@ -610,7 +639,7 @@ public class WorkManager {
         if (!WorkDeviceItem.hasEnabledDevice(session.player)) {
             return false;
         }
-        String stopReason = getContinuousStopReason(session);
+        Component stopReason = getContinuousStopReason(session);
         if (stopReason != null) {
             markContinuousStop(session, stopReason);
             return false;
@@ -618,20 +647,20 @@ public class WorkManager {
         return true;
     }
 
-    private static String getContinuousStopReason(WorkSession session) {
+    private static Component getContinuousStopReason(WorkSession session) {
         ServerPlayer player = session.player;
         if (isOrdealActive(player)) {
-            return "触发考验";
+            return Component.translatable("message.lobotocraft.work.stop_reason.ordeal");
         }
         if (isInventoryFull(player)) {
-            return "背包已满";
+            return Component.translatable("message.lobotocraft.work.stop_reason.inventory_full");
         }
         if (player.getHealth() <= player.getMaxHealth() * 0.2f) {
-            return "生命值不足20%";
+            return Component.translatable("message.lobotocraft.work.stop_reason.low_health");
         }
         float maxMental = MentalValueUtil.getEffectiveMaxMentalValue(player);
         if (maxMental > 0 && MentalValueUtil.getMentalValue(player) <= maxMental * 0.2f) {
-            return "精神值不足20%";
+            return Component.translatable("message.lobotocraft.work.stop_reason.low_mental");
         }
         return null;
     }
@@ -756,14 +785,14 @@ public class WorkManager {
             int independentBonus = CoreSuppressionManager.getIndependentPeBoxBonus(player, peOutput);
             if (independentBonus > 0) {
                 givePEBox(player, abnormality, workType, result, independentBonus);
-                player.sendSystemMessage(Component.literal(
-                        "§dYesod核心抑制奖励：额外获得 " + independentBonus + " 个独立PE-BOX。"));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.work.yesod_bonus", independentBonus));
             }
         }
         if (!isCompletionValid(session)) return finishCompletion(session, false);
         giveGift(player, abnormality);
         if (session.continuousMode && !session.stopContinuousAfterCurrent) {
-            String stopReason = getContinuousStopReason(session);
+            Component stopReason = getContinuousStopReason(session);
             if (stopReason != null) {
                 markContinuousStop(session, stopReason);
             }
@@ -774,7 +803,7 @@ public class WorkManager {
         abnormality.onWorkComplete(player, workType, result);
         if (!isCompletionValid(session)) return finishCompletion(session, false);
         if (session.continuousMode && !session.stopContinuousAfterCurrent) {
-            String stopReason = getContinuousStopReason(session);
+            Component stopReason = getContinuousStopReason(session);
             if (stopReason != null) {
                 markContinuousStop(session, stopReason);
             }
@@ -787,14 +816,13 @@ public class WorkManager {
                 data.setHasSleep(false);
                 int current = data.getTodayWorkCount();
                 int required = data.getRequiredWorkCount();
-                player.sendSystemMessage(Component.literal(
-                        String.format("§a工作次数 +%d §7(%d/%d)", doubled ? 2 : 1, current, required)
-                ).withStyle(ChatFormatting.GREEN));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.work.daily_progress",
+                        doubled ? 2 : 1, current, required));
 
                 if (data.hasCompletedTodayWork()) {
-                    player.sendSystemMessage(Component.literal(
-                            "§6今日工作已完成！长按“结束当天”按键（默认 N）即可进入下一天。"
-                    ).withStyle(ChatFormatting.GOLD));
+                    player.sendSystemMessage(Component.translatable(
+                            "message.lobotocraft.work.daily_complete"));
                 }
                 MessageLoader.getLoader().sendToPlayer(player,
                         new com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket(
@@ -816,19 +844,23 @@ public class WorkManager {
                         session.failureCount
                 )
         );
-        String resultText = switch (result) {
-            case GOOD -> "§a优秀";
-            case NORMAL -> "§e良好";
-            case BAD -> "§c不佳";
+        Component resultText = switch (result) {
+            case GOOD -> Component.translatable("work_result.lobotocraft.good")
+                    .withStyle(ChatFormatting.GREEN);
+            case NORMAL -> Component.translatable("work_result.lobotocraft.normal")
+                    .withStyle(ChatFormatting.YELLOW);
+            case BAD -> Component.translatable("work_result.lobotocraft.bad")
+                    .withStyle(ChatFormatting.RED);
         };
         if (session.forcedEnd) {
-            player.sendSystemMessage(Component.literal(
-                    String.format("§c工作因%s中断！时长：%s，结果：%s，获得 %d PE-BOX", session.forcedEndReason, session.getFormattedDuration(), resultText, peOutput)
-            ));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.work.completed_interrupted",
+                    displayReason(session.forcedEndReason), session.getFormattedDuration(),
+                    resultText, peOutput));
         } else {
-            player.sendSystemMessage(Component.literal(
-                    String.format("工作完成！时长：%s，结果：%s，获得 %d PE-BOX", session.getFormattedDuration(), resultText, peOutput)
-            ));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.work.completed", session.getFormattedDuration(),
+                    resultText, peOutput));
         }
         return finishCompletion(session, shouldRestartContinuous(session));
     }
@@ -847,6 +879,32 @@ public class WorkManager {
         return restart;
     }
 
+    private static Component displayReason(String reason) {
+        if (reason == null || reason.isBlank()) return Component.empty();
+        String key = switch (reason) {
+            case "死亡中断对异想体的工作！" -> "message.lobotocraft.work.reason.death";
+            case "Invalid work target" -> "message.lobotocraft.work.reason.invalid_target";
+            case "你离异想体太远了" -> "message.lobotocraft.work.reason.too_far";
+            case "Work interrupted by panic", "恐慌" -> "message.lobotocraft.work.reason.panic";
+            case "Work context changed during callback" ->
+                    "message.lobotocraft.work.reason.context_changed";
+            case "Player disconnected" -> "message.lobotocraft.work.reason.disconnected";
+            case "调试命令取消工作" -> "message.lobotocraft.work.reason.debug_cancel";
+            case "被冰雪女皇冰封，工作中断" -> "message.lobotocraft.work.reason.frozen";
+            case "被红舞鞋控制，工作中断" -> "message.lobotocraft.work.reason.red_shoes";
+            case "展会停止工作" -> "message.lobotocraft.work.reason.exhibition_stop";
+            default -> null;
+        };
+        return key == null ? Component.literal(reason) : Component.translatable(key);
+    }
+
+    private static void sendAttributeGain(ServerPlayer player, String attribute, int added,
+                                          String level, int current) {
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.work.attribute_gain." + attribute,
+                added, level, current, EmployeeStats.MAX_STAT));
+    }
+
     /**
      * 提升员工属性
      */
@@ -860,44 +918,36 @@ public class WorkManager {
                     case INSTINCT -> {
                         int added = stats.addFortitude(increase);
                         if (added > 0) {
-                            player.sendSystemMessage(Component.literal(
-                                    "§c▲ 勇气 +" + added + " §7(Lv."
-                                            + EmployeeLevelCalculator.statGrade(stats.getFortitude())
-                                            + " " + stats.getFortitude() + "/" + EmployeeStats.MAX_STAT + ")"
-                            ));
+                            sendAttributeGain(player, "fortitude", added,
+                                    EmployeeLevelCalculator.statGrade(stats.getFortitude()),
+                                    stats.getFortitude());
                             EmployeeStatsApplier.applyAllAttributes(player);
                         }
                     }
                     case INSIGHT -> {
                         int added = stats.addPrudence(increase);
                         if (added > 0) {
-                            player.sendSystemMessage(Component.literal(
-                                    "§b▲ 谨慎 +" + added + " §7(Lv."
-                                            + EmployeeLevelCalculator.statGrade(stats.getPrudence())
-                                            + " " + stats.getPrudence() + "/" + EmployeeStats.MAX_STAT + ")"
-                            ));
+                            sendAttributeGain(player, "prudence", added,
+                                    EmployeeLevelCalculator.statGrade(stats.getPrudence()),
+                                    stats.getPrudence());
                             EmployeeStatsApplier.applyAllAttributes(player);
                         }
                     }
                     case ATTACHMENT -> {
                         int added = stats.addTemperance(increase);
                         if (added > 0) {
-                            player.sendSystemMessage(Component.literal(
-                                    "§a▲ 自律 +" + added + " §7(Lv."
-                                            + EmployeeLevelCalculator.statGrade(stats.getTemperance())
-                                            + " " + stats.getTemperance() + "/" + EmployeeStats.MAX_STAT + ")"
-                            ));
+                            sendAttributeGain(player, "temperance", added,
+                                    EmployeeLevelCalculator.statGrade(stats.getTemperance()),
+                                    stats.getTemperance());
                             EmployeeStatsApplier.applyAllAttributes(player);
                         }
                     }
                     case REPRESSION -> {
                         int added = stats.addJustice(increase);
                         if (added > 0) {
-                            player.sendSystemMessage(Component.literal(
-                                    "§6▲ 正义 +" + added + " §7(Lv."
-                                            + EmployeeLevelCalculator.statGrade(stats.getJustice())
-                                            + " " + stats.getJustice() + "/" + EmployeeStats.MAX_STAT + ")"
-                            ));
+                            sendAttributeGain(player, "justice", added,
+                                    EmployeeLevelCalculator.statGrade(stats.getJustice()),
+                                    stats.getJustice());
                             EmployeeStatsApplier.applyAllAttributes(player);
                         }
                     }
@@ -959,7 +1009,12 @@ public class WorkManager {
         ItemStack giftStack = com.wzz.lobotocraft.entity.data.EGOEquipmentData.stack(gift.itemId());
         if (giftStack.isEmpty()) return;
         if (!player.addItem(giftStack)) player.drop(giftStack, false);
-        player.sendSystemMessage(Component.literal("§a获得 E.G.O 饰品：§6" + gift.name()));
+        player.sendSystemMessage(Component.translatable("message.lobotocraft.work.gift_obtained",
+                giftStack.getHoverName()));
+    }
+
+    private static String formatOneDecimal(float value) {
+        return String.format(java.util.Locale.ROOT, "%.1f", value);
     }
 
     private static void handleWorkResult(ServerPlayer player, IAbnormality abnormality,
@@ -969,9 +1024,8 @@ public class WorkManager {
             case NORMAL -> abnormality.onNormalWork(player);
             case BAD -> {
                 abnormality.onBadWork(player);
-                player.sendSystemMessage(Component.literal(
-                        "§c工作结果不佳，异想体变得不稳定了..."
-                ));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.work.bad_result"));
             }
         }
     }

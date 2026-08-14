@@ -43,7 +43,7 @@ public class ToolUsageProgressScreen extends Screen {
     private boolean cancellationSent;
 
     public ToolUsageProgressScreen(int abnormalityId, String abnormalityName) {
-        super(Component.literal("工具使用中"));
+        super(Component.translatable("screen.lobotocraft.tool_progress.title"));
         this.abnormalityId = abnormalityId;
         this.abnormalityName = abnormalityName;
     }
@@ -75,7 +75,7 @@ public class ToolUsageProgressScreen extends Screen {
         int buttonY = this.height - 40;
 
         cancelButton = Button.builder(
-                Component.literal("§c取消使用"),
+                Component.translatable("screen.lobotocraft.tool_progress.cancel"),
                 button -> onCancelButtonPressed()
         ).bounds(buttonX, buttonY, buttonWidth, buttonHeight).build();
 
@@ -165,7 +165,7 @@ public class ToolUsageProgressScreen extends Screen {
         // 使用时间
         int contentY = panelY + 45;
         graphics.drawCenteredString(this.font,
-                String.format("§e使用时间：%d秒", usageTimeSeconds),
+                tr("screen.lobotocraft.tool_progress.usage_time", usageTimeSeconds),
                 centerX, contentY, 0xFFFF00);
 
         // 分隔线
@@ -174,15 +174,16 @@ public class ToolUsageProgressScreen extends Screen {
 
         // 伤害信息
         contentY += 20;
-        graphics.drawString(this.font, "§c当前伤害：",
+        graphics.drawString(this.font, tr("screen.lobotocraft.tool_progress.current_damage"),
                 panelX + 40, contentY, 0xFF0000);
         graphics.drawString(this.font, String.format("§f%.1f", currentDamage),
                 panelX + 180, contentY, 0xFFFFFF);
 
         contentY += 20;
-        graphics.drawString(this.font, "§c伤害间隔：",
+        graphics.drawString(this.font, tr("screen.lobotocraft.tool_progress.damage_interval"),
                 panelX + 40, contentY, 0xFF0000);
-        graphics.drawString(this.font, String.format("§f%.1f秒", damageInterval),
+        graphics.drawString(this.font,
+                tr("screen.lobotocraft.tool_progress.seconds", format1(damageInterval)),
                 panelX + 180, contentY, 0xFFFFFF);
 
         // 伤害图标
@@ -197,21 +198,23 @@ public class ToolUsageProgressScreen extends Screen {
 
         // 能源信息
         contentY += 20;
-        graphics.drawString(this.font, "§6总能源产出：",
+        graphics.drawString(this.font, tr("screen.lobotocraft.tool_progress.total_energy"),
                 panelX + 40, contentY, 0xFFAA00);
         graphics.drawString(this.font, String.format("§f%.2f", totalEnergyProduced),
                 panelX + 180, contentY, 0xFFFFFF);
 
         contentY += 20;
-        graphics.drawString(this.font, "§6当前产能：",
+        graphics.drawString(this.font, tr("screen.lobotocraft.tool_progress.current_output"),
                 panelX + 40, contentY, 0xFFAA00);
-        graphics.drawString(this.font, String.format("§f%.2f/次", currentEnergyOutput),
+        graphics.drawString(this.font,
+                tr("screen.lobotocraft.tool_progress.per_pulse", format2(currentEnergyOutput)),
                 panelX + 180, contentY, 0xFFFFFF);
 
         contentY += 20;
-        graphics.drawString(this.font, "§6产能间隔：",
+        graphics.drawString(this.font, tr("screen.lobotocraft.tool_progress.energy_interval"),
                 panelX + 40, contentY, 0xFFAA00);
-        graphics.drawString(this.font, String.format("§f%.1f秒", energyInterval),
+        graphics.drawString(this.font,
+                tr("screen.lobotocraft.tool_progress.seconds", format1(energyInterval)),
                 panelX + 180, contentY, 0xFFFFFF);
 
         // 能源图标
@@ -250,13 +253,14 @@ public class ToolUsageProgressScreen extends Screen {
         graphics.fill(x + 2, y + 2, x + fillWidth - 2, y + 28, fillColor);
 
         // 文字
-        String healthText = String.format("§f生命值: %.1f / %.1f", playerHealth, playerMaxHealth);
+        String healthText = tr("screen.lobotocraft.tool_progress.health",
+                format1(playerHealth), format1(playerMaxHealth));
         graphics.drawCenteredString(this.font, healthText,
                 x + width / 2, y + 10, 0xFFFFFF);
     }
 
     private void renderStatusBar(GuiGraphics graphics, int centerX, int y) {
-        String status = "§c§l使用中";
+        String status = tr("screen.lobotocraft.tool_progress.active");
         graphics.drawCenteredString(this.font, status, centerX, y, 0xFF0000);
     }
 
@@ -264,12 +268,12 @@ public class ToolUsageProgressScreen extends Screen {
         // 闪烁警告
         if ((animationTimer / 15) % 2 == 0) {
             graphics.drawCenteredString(this.font,
-                    "§4§l警告：员工将持续受到伤害直到死亡！",
+                    tr("screen.lobotocraft.tool_progress.warning"),
                     centerX, y, 0xFF0000);
         }
 
         graphics.drawCenteredString(this.font,
-                "§7点击下方按钮可尝试取消使用",
+                tr("screen.lobotocraft.tool_progress.cancel_hint"),
                 centerX, y + 15, 0xAAAAAA);
     }
 
@@ -295,6 +299,18 @@ public class ToolUsageProgressScreen extends Screen {
         if (cancellationSent || this.minecraft == null || this.minecraft.player == null) return;
         cancellationSent = true;
         MessageLoader.getLoader().sendToServer(new StopUsingToolPacket(abnormalityId));
+    }
+
+    private static String format1(float value) {
+        return String.format(java.util.Locale.ROOT, "%.1f", value);
+    }
+
+    private static String format2(float value) {
+        return String.format(java.util.Locale.ROOT, "%.2f", value);
+    }
+
+    private static String tr(String key, Object... arguments) {
+        return Component.translatable(key, arguments).getString();
     }
 
     // ==================== 自适应缩放:鼠标坐标逆变换(与渲染变换保持一致,避免点击错位) ====================

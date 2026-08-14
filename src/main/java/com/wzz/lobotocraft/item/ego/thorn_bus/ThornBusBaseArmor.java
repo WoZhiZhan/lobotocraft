@@ -3,6 +3,8 @@ package com.wzz.lobotocraft.item.ego.thorn_bus;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModArmorMaterial;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoArmor;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -65,11 +67,17 @@ public abstract class ThornBusBaseArmor extends BaseEgoArmor {
     @Override
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
-        p_41423_.add(Component.literal("§7寻求常人无法承受的快感通常会使人丧失自我。"));
-        p_41423_.add(Component.literal("§7如果那些荆棘上落下的粉末散播到了尘世，那么人们恐怕此生都将像陷入泥沼一般难以求生。"));
-        p_41423_.add(Component.literal("§c红色伤害：1.2"));
-        p_41423_.add(Component.literal("§f白色伤害：0.8"));
-        p_41423_.add(Component.literal("§5黑色伤害：0.8"));
-        p_41423_.add(Component.literal("§b蓝色伤害：1.5"));
+        for (int index = 1; index <= 2; index++) {
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.pleasure_armor.story." + index,
+                    ChatFormatting.GRAY);
+        }
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.pleasure_armor.resistance.red",
+                ChatFormatting.RED);
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.pleasure_armor.resistance.white",
+                ChatFormatting.WHITE);
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.pleasure_armor.resistance.black",
+                ChatFormatting.DARK_PURPLE);
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.pleasure_armor.resistance.pale",
+                ChatFormatting.AQUA);
     }
 }

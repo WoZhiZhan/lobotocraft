@@ -120,6 +120,21 @@ class AbnormalityEncyclopediaDataTest {
     }
 
     @Test
+    void everyOriginalAbnormalityHasMatchingEnglishManagementGuidelines() {
+        for (String code : AbnormalityEncyclopediaData.getRegisteredCodes()) {
+            if (code.startsWith("S-")) continue;
+            int count = AbnormalityEncyclopediaData.getData(code).getManualCount();
+            for (int index = 0; index < count; index++) {
+                String guideline = AbnormalityEncyclopediaData.getManual(code, index, "en_us");
+                assertAll(code + " guideline " + index,
+                        () -> assertFalse(guideline.isBlank()),
+                        () -> assertFalse(guideline.contains("No English management guideline")),
+                        () -> assertFalse(guideline.matches(".*[\\p{IsHan}].*")));
+            }
+        }
+    }
+
+    @Test
     void storyVisibilityFollowsOriginalOpenLevel() {
         AbnormalityEncyclopediaData.StoryEntry[] stories =
                 AbnormalityEncyclopediaData.getStories("O-03-03", "zh_cn");

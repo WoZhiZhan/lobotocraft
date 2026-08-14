@@ -3,6 +3,8 @@ package com.wzz.lobotocraft.item.ego.butterfly_funeral;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModArmorMaterial;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoArmor;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -74,13 +76,19 @@ public abstract class ButterflyFuneralBaseArmor extends BaseEgoArmor {
     @Override
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
-        p_41423_.add(Component.literal("§6※玩家正义等级越高受到的伤害越低。"));
-        p_41423_.add(Component.literal("§7黑色的丧服是为哀悼死者的人准备的。"));
-        p_41423_.add(Component.literal("§7葬礼上需要的是严肃，不需要那些色彩斑斓的配饰。"));
-        p_41423_.add(Component.literal("§7用蝴蝶为那些长眠于不毛之地的人们献上哀悼吧。"));
-        p_41423_.add(Component.literal("§c红色伤害：1.2"));
-        p_41423_.add(Component.literal("§f白色伤害：0.8"));
-        p_41423_.add(Component.literal("§5黑色伤害：0.5"));
-        p_41423_.add(Component.literal("§b蓝色伤害：1.5"));
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.butterfly_funeral_armor.effect",
+                ChatFormatting.GOLD);
+        for (int index = 1; index <= 3; index++) {
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.butterfly_funeral_armor.story." + index,
+                    ChatFormatting.GRAY);
+        }
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.butterfly_funeral_armor.resistance.red",
+                ChatFormatting.RED);
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.butterfly_funeral_armor.resistance.white",
+                ChatFormatting.WHITE);
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.butterfly_funeral_armor.resistance.black",
+                ChatFormatting.DARK_PURPLE);
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.butterfly_funeral_armor.resistance.pale",
+                ChatFormatting.AQUA);
     }
 }

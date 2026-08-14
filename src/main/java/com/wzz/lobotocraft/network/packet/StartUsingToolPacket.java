@@ -49,34 +49,40 @@ public class StartUsingToolPacket implements IMessage {
             // 获取工具异想体实体
             Entity entity = player.level().getEntity(abnormalityId);
             if (!(entity instanceof IAbnormality abnormality)) {
-                player.sendSystemMessage(Component.literal("§c工具异想体不存在或已消失"));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.tool.missing"));
                 return;
             }
 
             if (!abnormality.isToolType()) {
-                player.sendSystemMessage(Component.literal("§c目标不是工具型异想体"));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.tool.not_tool"));
                 return;
             }
 
             if (!WorkStartAuthorizations.consumeToolUse(player, entity.getUUID())) {
-                player.sendSystemMessage(Component.literal("§c工具授权已失效，请重新与收容单元交互"));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.tool.authorization_expired"));
                 return;
             }
 
             if (WorkManager.isPlayerWorking(player)) {
-                player.sendSystemMessage(Component.literal("§c你正在进行工作，无法使用工具"));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.tool.already_working"));
                 return;
             }
 
             // 检查是否为持续使用型工具
             if (!abnormality.isContinuousUseTool()) {
-                player.sendSystemMessage(Component.literal("§c此异想体不是持续使用型工具"));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.tool.not_continuous"));
                 return;
             }
 
             // 检查距离
             if (player.distanceToSqr(entity) > 100.0) {
-                player.sendSystemMessage(Component.literal("§c距离工具太远了"));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.tool.too_far"));
                 return;
             }
 
@@ -85,7 +91,7 @@ public class StartUsingToolPacket implements IMessage {
             MessageLoader.getLoader().sendToPlayer(player,
                     new StartUsingToolResultPacket(
                             success,
-                            success ? "" : "§c无法使用此工具",
+                            success ? "" : "message.lobotocraft.tool.cannot_use",
                             abnormalityId,
                             abnormalityName
                     )

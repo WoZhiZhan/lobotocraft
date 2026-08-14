@@ -62,14 +62,15 @@ public final class SetEmployeeAppearancePacket implements IMessage {
 
         EmployeeRecord record = FacilityPersonnelData.get(sender.server).get(employeeId);
         if (record == null || record.retired()) {
-            sender.sendSystemMessage(Component.literal("§c该员工不存在或已经退休。"));
+            sender.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.employee_appearance.missing"));
             FacilityManagementService.open(sender);
             return;
         }
         var validated = YsmEmployeeCompat.validateRequested(appearance);
         if (validated.isEmpty()) {
-            sender.sendSystemMessage(Component.literal(
-                    "§c所选YSM模型在服务端不可用，请刷新模型目录后重试。"));
+            sender.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.employee_appearance.ysm_unavailable"));
             FacilityManagementService.open(sender);
             return;
         }
@@ -77,11 +78,14 @@ public final class SetEmployeeAppearancePacket implements IMessage {
         EmployeeRuntimeManager.AppearanceChangeResult result =
                 EmployeeRuntimeManager.changeAppearance(sender.server, record, validated.get());
         if (result == EmployeeRuntimeManager.AppearanceChangeResult.BUSY) {
-            sender.sendSystemMessage(Component.literal("§c员工正在工作或处于恐慌状态，暂时无法更换外观。"));
+            sender.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.employee_appearance.busy"));
         } else if (result == EmployeeRuntimeManager.AppearanceChangeResult.FAILED) {
-            sender.sendSystemMessage(Component.literal("§c员工外观更新失败，原外观已保留。"));
+            sender.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.employee_appearance.failed"));
         } else {
-            sender.sendSystemMessage(Component.literal("§a已更新员工 " + record.name() + " 的外观。"));
+            sender.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.employee_appearance.updated", record.name()));
         }
         FacilityManagementService.open(sender);
     }

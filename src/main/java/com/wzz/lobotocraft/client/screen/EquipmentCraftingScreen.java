@@ -72,7 +72,7 @@ public class EquipmentCraftingScreen extends Screen {
                                    IAbnormality abnormality, int cost,
                                    EgoResearchScope researchScope,
                                    Screen returnScreen) {
-        super(Component.literal("装备制造中..."));
+        super(Component.translatable("screen.lobotocraft.equipment_crafting.title"));
         this.craftingType = craftingType;
         this.abnormalityCode = abnormalityCode;
         this.abnormalityId = abnormalityId;
@@ -164,7 +164,9 @@ public class EquipmentCraftingScreen extends Screen {
         // 绘制状态文本
         renderStatusText(graphics, panelX, panelY);
 
-        String scopeText = researchScope == EgoResearchScope.PERSONAL ? "个人授权" : "AI 全局库存";
+        String scopeText = tr(researchScope == EgoResearchScope.PERSONAL
+                ? "screen.lobotocraft.ego_research.personal"
+                : "screen.lobotocraft.ego_research.ai_global");
         LobotomyUiRenderer.drawTag(graphics, this.font,
                 panelX + (PANEL_WIDTH - this.font.width(scopeText) - 8) / 2, panelY + 8,
                 scopeText,
@@ -246,7 +248,8 @@ public class EquipmentCraftingScreen extends Screen {
         int infoY = y + 110;
         
         // 装备类型
-        String typeText = "weapon".equals(craftingType) ? "E.G.O 武器" : "E.G.O 护甲";
+        String typeText = tr("weapon".equals(craftingType)
+                ? "equipment.lobotocraft.ego_weapon" : "equipment.lobotocraft.ego_armor");
         graphics.drawCenteredString(this.font, typeText,
                 x + PANEL_WIDTH / 2, infoY, LobotomyUiTheme.TEXT_MUTED);
 
@@ -298,11 +301,13 @@ public class EquipmentCraftingScreen extends Screen {
         int textY = y + 180;
         
         if (isCompleted) {
-            graphics.drawCenteredString(this.font, "制造完成！",
+            graphics.drawCenteredString(this.font,
+                    tr("screen.lobotocraft.equipment_crafting.completed"),
                     x + PANEL_WIDTH / 2, textY, LobotomyUiTheme.ENERGY_GREEN);
         } else {
             int remainingSeconds = (CRAFTING_DURATION - craftingTicks) / 20 + 1;
-            String statusText = String.format("制造中... %d秒", remainingSeconds);
+            String statusText = tr("screen.lobotocraft.equipment_crafting.progress",
+                    remainingSeconds);
 
             // 呼吸闪烁效果
             float alpha = Mth.sin(glowAnimation * 2) * 0.3f + 0.7f;
@@ -351,6 +356,10 @@ public class EquipmentCraftingScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    private static String tr(String key, Object... arguments) {
+        return Component.translatable(key, arguments).getString();
     }
 
     public Screen getReturnScreen() {

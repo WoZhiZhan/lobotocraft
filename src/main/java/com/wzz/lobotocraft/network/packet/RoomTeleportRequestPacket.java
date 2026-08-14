@@ -66,7 +66,8 @@ public class RoomTeleportRequestPacket implements IMessage {
 
         // 1. 必须真的带着终端
         if (!hasTerminal(player)) {
-            player.displayClientMessage(Component.literal("§c你身上没有收容间监控终端。"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.room.no_terminal"), true);
             return;
         }
         if (player.getCooldowns().isOnCooldown(ModItems.ROOM_TERMINAL.get())) {
@@ -77,23 +78,26 @@ public class RoomTeleportRequestPacket implements IMessage {
         ServerLevel current = player.serverLevel();
         RoomEntry entry = CompanyRoomData.get(current).findRoom(dimension, pos);
         if (entry == null) {
-            player.displayClientMessage(Component.literal("§c该收容间信标已失效。"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.room.marker_invalid"), true);
             return;
         }
 
         FacilityAccessService.ContainmentAccess access = FacilityAccessService.containmentAccess(
                 player.server, dimension, pos);
         if (access != FacilityAccessService.ContainmentAccess.OPEN) {
-            player.displayClientMessage(Component.literal(access
+            player.displayClientMessage(Component.translatable(access
                     == FacilityAccessService.ContainmentAccess.UNEXPANDED
-                    ? "§c该收容单元尚未扩建。" : "§c该收容单元所属部门尚未开放。"), true);
+                    ? "message.lobotocraft.room.unexpanded_error"
+                    : "message.lobotocraft.room.department_not_open"), true);
             return;
         }
 
         MinecraftServer server = player.server;
         ServerLevel target = server.getLevel(ResourceKey.create(Registries.DIMENSION, dimension));
         if (target == null) {
-            player.displayClientMessage(Component.literal("§c目标维度未加载。"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.room.dimension_unloaded"), true);
             return;
         }
 
@@ -115,7 +119,8 @@ public class RoomTeleportRequestPacket implements IMessage {
         if (TELEPORT_SOUND != null) {
             target.playSound(null, landing, TELEPORT_SOUND, SoundSource.PLAYERS, 1.0F, 1.0F);
         }
-        player.displayClientMessage(Component.literal("§b[监控终端] §7已抵达：§f" + entry.resolveTitle()), true);
+        player.displayClientMessage(Component.translatable(
+                "message.lobotocraft.room.arrived", entry.resolveTitle()), true);
     }
 
     private static boolean hasTerminal(ServerPlayer player) {

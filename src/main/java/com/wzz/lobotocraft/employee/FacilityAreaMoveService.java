@@ -12,6 +12,7 @@ import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.work.WorkManager;
 import com.wzz.lobotocraft.world.data.FacilityWorldLayout;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
@@ -38,22 +39,26 @@ public final class FacilityAreaMoveService {
 
     public static Result dispatch(ServerPlayer issuer, String groupId, Collection<UUID> requestedIds) {
         if (issuer.serverLevel().dimension() != ModDimensions.LOBOTO_KEY) {
-            return Result.failure("请回到公司后再调度员工");
+            return Result.failure("message.lobotocraft.area_move.failure.company_only");
         }
         if (groupId == null || groupId.isBlank() || requestedIds == null || requestedIds.isEmpty()) {
-            return Result.failure("没有有效的移动目标或员工");
+            return Result.failure("message.lobotocraft.area_move.failure.invalid_target");
         }
 
         ServerLevel level = issuer.serverLevel();
         if (!FacilityAccessService.isGroupOpen(
                 issuer.server, level.dimension().location(), groupId)) {
-            return Result.failure("\u8be5\u533a\u57df\u5c1a\u672a\u5f00\u653e");
+            return Result.failure("message.lobotocraft.area_move.failure.area_closed");
         }
         List<FacilityWorldLayout.AreaDefinition> targetAreas =
                 FacilityWorldLayout.targetAreas(level, groupId);
-        if (targetAreas.isEmpty()) return Result.failure("该监控区域尚未绑定现实房间");
+        if (targetAreas.isEmpty()) {
+            return Result.failure("message.lobotocraft.area_move.failure.unbound");
+        }
         LinkedHashSet<UUID> uniqueIds = new LinkedHashSet<>(requestedIds);
-        if (uniqueIds.size() > MAX_EMPLOYEES) return Result.failure("一次最多调度 64 名员工");
+        if (uniqueIds.size() > MAX_EMPLOYEES) {
+            return Result.failure("message.lobotocraft.area_move.failure.too_many", MAX_EMPLOYEES);
+        }
 
         FacilityPersonnelData personnel = FacilityPersonnelData.get(issuer.server);
         LlmDepartmentAccessData access = LlmDepartmentAccessData.get(issuer.server);
@@ -61,14 +66,14 @@ public final class FacilityAreaMoveService {
         Set<BlockPos> occupiedTargets = new HashSet<>();
         int assigned = 0;
         int rejected = 0;
-        String firstFailure = "";
+        Component firstFailure = null;
 
         for (UUID employeeId : uniqueIds) {
             EmployeeRecord record = personnel.get(employeeId);
-            String invalid = validateEmployee(issuer, record, access);
+            Component invalid = validateEmployee(issuer, record, access);
             if (invalid != null) {
                 rejected++;
-                if (firstFailure.isEmpty()) firstFailure = invalid;
+                if (firstFailure == null) firstFailure = invalid;
                 continue;
             }
             EmployeeServerPlayer employee = EmployeeRuntimeManager.activePlayer(employeeId);
@@ -83,36 +88,53 @@ public final class FacilityAreaMoveService {
             }
             if (targets.isEmpty() || !EmployeeRuntimeManager.assignManualMove(record, targets)) {
                 rejected++;
-                if (firstFailure.isEmpty()) firstFailure = "区域内没有可到达的落脚点";
+                if (firstFailure == null) {
+                    firstFailure = Component.translatable(
+                            "message.lobotocraft.area_move.failure.no_reachable_target");
+                }
                 continue;
             }
             occupiedTargets.add(targets.get(0));
             assigned++;
         }
 
-        if (assigned == 0) return Result.failure(firstFailure.isEmpty() ? "没有员工接受命令" : firstFailure);
-        String message = rejected == 0
-                ? "已向 " + assigned + " 名员工下达移动命令"
-                : "已调度 " + assigned + " 名员工，" + rejected + " 名未接受";
+        if (assigned == 0) {
+            return Result.failure(firstFailure == null
+                    ? Component.translatable("message.lobotocraft.area_move.failure.none_accepted")
+                    : firstFailure);
+        }
+        Component message = rejected == 0
+                ? Component.translatable("message.lobotocraft.area_move.success", assigned)
+                : Component.translatable("message.lobotocraft.area_move.partial", assigned, rejected);
         return new Result(assigned, rejected, message);
     }
 
-    private static String validateEmployee(ServerPlayer issuer, EmployeeRecord record,
-                                           LlmDepartmentAccessData access) {
-        if (record == null || record.retired()) return "员工不存在";
+    private static Component validateEmployee(ServerPlayer issuer, EmployeeRecord record,
+                                              LlmDepartmentAccessData access) {
+        if (record == null || record.retired()) {
+            return Component.translatable("message.lobotocraft.area_move.failure.employee_missing");
+        }
         if (!DepartmentProgressService.isSectionOpen(
                 issuer.server, record.department(), record.centralSection())) {
-            return "员工所属区域尚未开放";
+            return Component.translatable("message.lobotocraft.area_move.failure.employee_area_closed");
         }
-        if (!access.canManage(issuer, record.department())) return "你无权调度该部门";
+        if (!access.canManage(issuer, record.department())) {
+            return Component.translatable("message.lobotocraft.area_move.failure.department_permission");
+        }
         EmployeeServerPlayer employee = EmployeeRuntimeManager.activePlayer(record.id());
-        if (employee == null || !employee.isAlive() || employee.isRemoved()) return "员工未部署";
-        if (employee.serverLevel() != issuer.serverLevel()) return "员工不在公司内";
+        if (employee == null || !employee.isAlive() || employee.isRemoved()) {
+            return Component.translatable("message.lobotocraft.area_move.failure.employee_undeployed");
+        }
+        if (employee.serverLevel() != issuer.serverLevel()) {
+            return Component.translatable("message.lobotocraft.area_move.failure.employee_outside");
+        }
         if (WorkManager.isPlayerWorking(employee)) {
-            return "工作中的员工不能接受移动命令";
+            return Component.translatable("message.lobotocraft.area_move.failure.employee_working");
         }
         boolean panicking = MentalValueUtil.isPanic(employee);
-        return panicking ? "精神崩溃的员工无法接受命令" : null;
+        return panicking
+                ? Component.translatable("message.lobotocraft.area_move.failure.employee_panicking")
+                : null;
     }
 
     static boolean isStandable(ServerLevel level, EmployeeServerPlayer employee, BlockPos candidate) {
@@ -164,8 +186,12 @@ public final class FacilityAreaMoveService {
                 ? standingY : null;
     }
 
-    public record Result(int assigned, int rejected, String message) {
-        public static Result failure(String message) {
+    public record Result(int assigned, int rejected, Component message) {
+        public static Result failure(String key, Object... arguments) {
+            return failure(Component.translatable(key, arguments));
+        }
+
+        public static Result failure(Component message) {
             return new Result(0, 0, message);
         }
 

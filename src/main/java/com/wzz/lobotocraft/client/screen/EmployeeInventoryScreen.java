@@ -65,13 +65,14 @@ public final class EmployeeInventoryScreen extends AbstractContainerScreen<Emplo
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
         graphics.drawString(font, menu.employeeName(), titleLabelX, titleLabelY, TEXT, false);
-        graphics.drawString(font, Component.literal("饰品槽"), 8,
+        graphics.drawString(font, Component.translatable("screen.lobotocraft.inventory.gift_slots"), 8,
                 EmployeeInventoryMenu.CURIO_LABEL_Y, ACCENT, false);
         if (menu.curioSlotCount() == 0) {
-            graphics.drawString(font, Component.literal("无可用饰品槽"), 8,
+            graphics.drawString(font, Component.translatable(
+                            "screen.lobotocraft.inventory.no_gift_slots"), 8,
                     EmployeeInventoryMenu.CURIO_START_Y, MUTED, false);
         }
-        graphics.drawString(font, Component.literal("你的物品栏"), 8,
+        graphics.drawString(font, Component.translatable("screen.lobotocraft.inventory.yours"), 8,
                 menu.playerLabelY(), MUTED, false);
     }
 

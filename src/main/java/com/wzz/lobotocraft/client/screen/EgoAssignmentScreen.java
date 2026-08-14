@@ -121,7 +121,7 @@ public final class EgoAssignmentScreen extends Screen {
     }
 
     public EgoAssignmentScreen(CompoundTag snapshot, Screen returnScreen) {
-        super(Component.literal("E.G.O 分配"));
+        super(Component.translatable("screen.lobotocraft.ego_assignment.title"));
         this.snapshot = snapshot.copy();
         this.returnScreen = returnScreen;
         readSnapshot();
@@ -147,12 +147,14 @@ public final class EgoAssignmentScreen extends Screen {
     @Override
     public void init() {
         updateLayout();
-        LobotomyButton refresh = LobotomyButton.create(Component.literal("刷新"), button -> {
+        LobotomyButton refresh = LobotomyButton.create(Component.translatable(
+                "screen.lobotocraft.common.refresh"), button -> {
                     waitingForServer = true;
                     MessageLoader.getLoader().sendToServer(new RequestFacilityManagementPacket(true));
                 }).bounds(width - 104, height - 25, 44, 18).build();
         addRenderableWidget(refresh);
-        LobotomyButton back = LobotomyButton.create(Component.literal("返回"), button ->
+        LobotomyButton back = LobotomyButton.create(Component.translatable(
+                "screen.lobotocraft.common.back"), button ->
                         returnToPreviousScreen())
                 .bounds(width - 54, height - 25, 44, 18).build();
         addRenderableWidget(back);
@@ -238,22 +240,26 @@ public final class EgoAssignmentScreen extends Screen {
         graphics.fill(0, 0, Math.min(220, inventoryX + 90), 3, WEAPON_RED);
         tint(graphics, WEAPON_RED, 1.0F,
                 () -> LobotomyUiRenderer.blitScaled(graphics, INVENTORY_ICON, 13, 7, 37, 42, 95, 107));
-        graphics.drawString(font, "E.G.O 分配", 57, 16, WEAPON_RED, false);
+        graphics.drawString(font, tr("screen.lobotocraft.ego_assignment.title"), 57, 16, WEAPON_RED, false);
         graphics.drawString(font, "E.G.O INVENTORY", 57, 32, 0xFFB92E2E, false);
 
         CompoundTag selected = employee(selectedEmployee);
-        String selection = selected == null ? "未选择员工" : selected.getString("Name")
-                + "  ·  " + selected.getString("Department") + "  ·  等级 "
-                + roman(selected.getInt("EmployeeLevel"));
+        String selection = selected == null
+                ? tr("screen.lobotocraft.ego_assignment.no_employee")
+                : tr("screen.lobotocraft.ego_assignment.selection", selected.getString("Name"),
+                departmentName(selected.getString("DepartmentId")),
+                roman(selected.getInt("EmployeeLevel")));
         graphics.drawString(font, fit(selection, Math.max(0, employeeX - 244)), 232, 23,
                 selected == null ? TEXT_DIM : SELECTED, false);
         if (waitingForServer) {
-            graphics.drawString(font, "同步中", Math.max(232, employeeX - 43), 23, TEXT_DIM, false);
+            graphics.drawString(font, tr("screen.lobotocraft.common.syncing"),
+                    Math.max(232, employeeX - 43), 23, TEXT_DIM, false);
         }
     }
 
     private void renderRiskFilters(GuiGraphics graphics, int mouseX, int mouseY) {
-        graphics.drawString(font, "风险等级", riskX + 2, riskY - 17, TEXT_DIM, false);
+        graphics.drawString(font, tr("screen.lobotocraft.ego_assignment.risk_level"),
+                riskX + 2, riskY - 17, TEXT_DIM, false);
         RiskLevel[] levels = RiskLevel.values();
         for (int i = 0; i < levels.length; i++) {
             RiskLevel level = levels[i];
@@ -281,7 +287,7 @@ public final class EgoAssignmentScreen extends Screen {
             drawOutline(graphics, riskX + 2, allY + 2, riskWidth - 4,
                     Math.max(1, riskSlotHeight - 4), 0xFFFFFFFF);
         }
-        graphics.drawCenteredString(font, "全部", riskX + riskWidth / 2,
+        graphics.drawCenteredString(font, tr("screen.lobotocraft.common.all"), riskX + riskWidth / 2,
                 allY + Math.max(2, (riskSlotHeight - 8) / 2),
                 all ? SELECTED : TEXT_DIM);
     }
@@ -294,19 +300,23 @@ public final class EgoAssignmentScreen extends Screen {
         int headerY = inventoryTop + TAB_H;
         graphics.fill(inventoryX + 1, headerY, inventoryX + inventoryWidth - 1,
                 headerY + ITEM_HEADER_H, 0xE00A0B09);
-        graphics.drawString(font, "外观", inventoryX + 7, headerY + 7, TEXT_DIM, false);
-        graphics.drawString(font, "等级和名称", inventoryX + 38, headerY + 7, TEXT_DIM, false);
+        graphics.drawString(font, tr("screen.lobotocraft.common.appearance"),
+                inventoryX + 7, headerY + 7, TEXT_DIM, false);
+        graphics.drawString(font, tr("screen.lobotocraft.ego_assignment.level_and_name"),
+                inventoryX + 38, headerY + 7, TEXT_DIM, false);
         if (inventoryWidth >= 340) {
-            graphics.drawString(font, "装备属性", inventoryX + Math.min(160, inventoryWidth / 3),
+            graphics.drawString(font, tr("screen.lobotocraft.ego_assignment.equipment_stats"),
+                    inventoryX + Math.min(160, inventoryWidth / 3),
                     headerY + 7, TEXT_DIM, false);
         }
-        graphics.drawString(font, "分配槽", inventoryX + inventoryWidth - 52,
+        graphics.drawString(font, tr("screen.lobotocraft.ego_assignment.assignment_slots"),
+                inventoryX + inventoryWidth - 52,
                 headerY + 7, TEXT_DIM, false);
 
         graphics.enableScissor(inventoryX + 1, itemListTop,
                 inventoryX + inventoryWidth - 1, contentBottom - 1);
         if (visibleStocks.isEmpty()) {
-            graphics.drawCenteredString(font, "暂无已研发的 E.G.O",
+            graphics.drawCenteredString(font, tr("screen.lobotocraft.ego_assignment.no_researched_ego"),
                     inventoryX + inventoryWidth / 2, itemListTop + 35, TEXT_DIM);
         }
         int y = itemListTop - itemScroll;
@@ -342,9 +352,9 @@ public final class EgoAssignmentScreen extends Screen {
         drawEquipmentTab(graphics, inventoryX + half + gap, inventoryTop,
                 inventoryWidth - half - gap, TAB_H, armorColor,
                 "armor".equals(equipmentType), armorHover, isPressed("tab:armor"));
-        graphics.drawCenteredString(font, "E.G.O 武器", inventoryX + half / 2,
+        graphics.drawCenteredString(font, tr("equipment.lobotocraft.ego_weapon"), inventoryX + half / 2,
                 inventoryTop + 12, weaponColor);
-        graphics.drawCenteredString(font, "E.G.O 护甲",
+        graphics.drawCenteredString(font, tr("equipment.lobotocraft.ego_armor"),
                 inventoryX + half + gap + (inventoryWidth - half - gap) / 2,
                 inventoryTop + 12, armorColor);
     }
@@ -407,7 +417,8 @@ public final class EgoAssignmentScreen extends Screen {
         if (detailsWidth > 0) {
             int detailColor = isExpanded(stock) || hoveredControl.equals("detail:" + stockKey(stock))
                     ? SELECTED : TEXT;
-            graphics.drawCenteredString(font, "装备资料", infoEnd + 2 + detailsWidth / 2,
+            graphics.drawCenteredString(font, tr("screen.lobotocraft.ego_assignment.equipment_info"),
+                    infoEnd + 2 + detailsWidth / 2,
                     y + 20, detailColor);
             graphics.fill(infoEnd + 5, y + 32, infoEnd + detailsWidth - 3, y + 33, LINE_DIM);
         }
@@ -490,7 +501,8 @@ public final class EgoAssignmentScreen extends Screen {
                 int color = selected == null ? LINE_DIM : eligible ? LINE : CANNOT;
                 tint(graphics, color, 0.95F, () -> LobotomyUiRenderer.blitScaled(graphics,
                         AGENT_SLOT, sx, y, sw, 41, 78, 111));
-                graphics.drawCenteredString(font, "要求", sx + sw / 2, y + 7, color);
+                graphics.drawCenteredString(font, tr("screen.lobotocraft.ego_assignment.requirement"),
+                        sx + sw / 2, y + 7, color);
                 graphics.drawCenteredString(font, requirementBadge(stock), sx + sw / 2,
                         y + 25, eligible || selected == null ? TEXT_DIM : CANNOT);
             }
@@ -589,7 +601,7 @@ public final class EgoAssignmentScreen extends Screen {
                 detailBottom - employeeTop, LINE_DIM);
         CompoundTag employee = employee(selectedEmployee);
         if (employee == null) {
-            graphics.drawCenteredString(font, "未选择员工",
+            graphics.drawCenteredString(font, tr("screen.lobotocraft.ego_assignment.no_employee"),
                     detailX + detailWidth / 2, employeeTop + 30, TEXT_DIM);
             return;
         }
@@ -601,8 +613,9 @@ public final class EgoAssignmentScreen extends Screen {
         graphics.drawCenteredString(font, fit(employee.getString("Name"), detailWidth - 12),
                 centerX, employeeTop + 10, TEXT);
         graphics.drawCenteredString(font,
-                fit(employee.getString("Department") + " · 等级 "
-                        + roman(employee.getInt("EmployeeLevel")), detailWidth - 12),
+                fit(tr("screen.lobotocraft.ego_assignment.department_level",
+                        departmentName(employee.getString("DepartmentId")),
+                        roman(employee.getInt("EmployeeLevel"))), detailWidth - 12),
                 centerX, employeeTop + 23, departmentColor);
 
         int dollBottom = employeeTop + 129;
@@ -621,19 +634,25 @@ public final class EgoAssignmentScreen extends Screen {
         int statsY = employeeInventoryButtonY() + 36;
         int statWidth = detailWidth - 12;
         renderVitalDetailStat(graphics, employee, detailX + 6, statsY, statWidth,
-                "勇气", "FortitudeLevel", "Fortitude", "最大生命",
+                tr("stat.lobotocraft.fortitude"), "FortitudeLevel", "Fortitude",
+                tr("screen.lobotocraft.ego_assignment.max_hp"),
                 "BaseMaxHealth", "HealthBonus", "Health", "MaxHealth", 0xFFE05A5A);
         renderVitalDetailStat(graphics, employee, detailX + 6, statsY + 32, statWidth,
-                "谨慎", "PrudenceLevel", "Prudence", "最大精神",
+                tr("stat.lobotocraft.prudence"), "PrudenceLevel", "Prudence",
+                tr("screen.lobotocraft.ego_assignment.max_sp"),
                 "BaseMaxMental", "MentalBonus", "Mental", "MaxMental", 0xFFF2F0D0);
         renderDerivedDetailStat(graphics, employee, detailX + 6, statsY + 64, statWidth,
-                "自律", "TemperanceLevel", "Temperance",
-                "成功率", "WorkSuccessBase", "WorkSuccessBonus",
-                "工作速度", "WorkSpeedBase", "WorkSpeedBonus", 0xFFC363D8);
+                tr("stat.lobotocraft.temperance"), "TemperanceLevel", "Temperance",
+                tr("screen.lobotocraft.ego_assignment.success_rate"),
+                "WorkSuccessBase", "WorkSuccessBonus",
+                tr("screen.lobotocraft.ego_assignment.work_speed"),
+                "WorkSpeedBase", "WorkSpeedBonus", 0xFFC363D8);
         renderDerivedDetailStat(graphics, employee, detailX + 6, statsY + 96, statWidth,
-                "正义", "JusticeLevel", "Justice",
-                "攻击速度", "AttackSpeedBase", "AttackSpeedBonus",
-                "移动速度", "MovementSpeedBase", "MovementSpeedBonus", 0xFF55BFFF);
+                tr("stat.lobotocraft.justice"), "JusticeLevel", "Justice",
+                tr("screen.lobotocraft.ego_assignment.attack_speed"),
+                "AttackSpeedBase", "AttackSpeedBonus",
+                tr("screen.lobotocraft.ego_assignment.movement_speed"),
+                "MovementSpeedBase", "MovementSpeedBonus", 0xFF55BFFF);
 
         int buttonY = employeeInventoryButtonY();
         boolean enabled = employee.getBoolean("Deployed") && snapshot.getBoolean("CanManageAi");
@@ -643,9 +662,12 @@ public final class EgoAssignmentScreen extends Screen {
         graphics.fill(detailX + 6, buttonY, detailX + detailWidth - 6,
                 buttonY + 30, hovered ? 0x402CCFC3 : 0xE0080A08);
         drawOutline(graphics, detailX + 6, buttonY, detailWidth - 12, 30, buttonColor);
-        graphics.drawCenteredString(font, enabled ? "点击此处打开假人物品栏" : "员工未部署",
+        graphics.drawCenteredString(font, enabled
+                        ? tr("screen.lobotocraft.ego_assignment.open_inventory")
+                        : tr("status.lobotocraft.offline"),
                 centerX, buttonY + 6, buttonColor);
-        graphics.drawCenteredString(font, "管理背包与饰品", centerX, buttonY + 18, TEXT_DIM);
+        graphics.drawCenteredString(font, tr("screen.lobotocraft.ego_assignment.manage_inventory"),
+                centerX, buttonY + 18, TEXT_DIM);
     }
 
     private void renderAssignedEgoCard(GuiGraphics graphics, CompoundTag employee,
@@ -661,7 +683,9 @@ public final class EgoAssignmentScreen extends Screen {
             if (!icon.isEmpty()) graphics.renderItem(icon, x + 5, y + 11);
         }
         String nameKey = "weapon".equals(type) ? "WeaponEgoName" : "ArmorEgoName";
-        graphics.drawString(font, "weapon".equals(type) ? "E.G.O 武器" : "E.G.O 防具",
+        graphics.drawString(font, tr("weapon".equals(type)
+                        ? "equipment.lobotocraft.ego_weapon"
+                        : "equipment.lobotocraft.ego_armor"),
                 x + 27, y + 5, accent, false);
         String riskName = stock == null ? "" : risk(stock).name();
         int nameX = x + 27;
@@ -673,7 +697,8 @@ public final class EgoAssignmentScreen extends Screen {
                 Math.max(1, x + width - 5 - nameX), TEXT);
 
         if (stock == null) {
-            graphics.drawString(font, "无装备数据", x + 5, y + 33, TEXT_DIM, false);
+            graphics.drawString(font, tr("screen.lobotocraft.ego_assignment.no_equipment_data"),
+                    x + 5, y + 33, TEXT_DIM, false);
         } else if ("weapon".equals(type)) {
             String damageType = blankAsUnknown(stock.getString("DamageType"));
             String power = blankAsUnknown(stock.getString("AttackPower"));
@@ -688,7 +713,8 @@ public final class EgoAssignmentScreen extends Screen {
             renderResistancePair(graphics, stock, x + 5, y + 45, width - 10,
                     "BLACK", "BlackResistance", "PALE", "PaleResistance");
         } else {
-            graphics.drawString(font, "悬停查看装备介绍", x + 5, y + 38, TEXT_DIM, false);
+            graphics.drawString(font, tr("screen.lobotocraft.ego_assignment.hover_for_details"),
+                    x + 5, y + 38, TEXT_DIM, false);
         }
     }
 
@@ -712,8 +738,9 @@ public final class EgoAssignmentScreen extends Screen {
                 + "  " + employee.getInt(valueKey), x + 5, y + 3, color, false);
         renderDetailMetric(graphics, employee, x, y + 13, width,
                 metricLabel, baseKey, bonusKey);
-        String current = "当前 " + compactNumber(employee.getFloat(currentKey)) + "/"
-                + compactNumber(employee.getFloat(maximumKey));
+        String current = tr("screen.lobotocraft.ego_assignment.current_value",
+                compactNumber(employee.getFloat(currentKey)),
+                compactNumber(employee.getFloat(maximumKey)));
         graphics.drawString(font, current, x + 5, y + 22,
                 employee.getBoolean("Deployed") ? TEXT_DIM : LINE_DIM, false);
     }
@@ -780,7 +807,8 @@ public final class EgoAssignmentScreen extends Screen {
         int color = enabled ? hovered ? SELECTED : LINE : LINE_DIM;
         graphics.fill(x, y, x + width, y + 18, hovered ? 0x402CCFC3 : 0xE0080A08);
         drawOutline(graphics, x, y, width, 18, color);
-        graphics.drawCenteredString(font, "员工物品栏", x + width / 2, y + 5, color);
+        graphics.drawCenteredString(font, tr("screen.lobotocraft.ego_assignment.employee_inventory"),
+                x + width / 2, y + 5, color);
     }
 
     private boolean insideEmployeeInventoryButton(double mouseX, double mouseY) {
@@ -798,9 +826,10 @@ public final class EgoAssignmentScreen extends Screen {
     private void renderHoverTooltip(GuiGraphics graphics, int mouseX, int mouseY) {
         CompoundTag selected = employee(selectedEmployee);
         if (selected != null && insideEmployeeInventoryButton(mouseX, mouseY)) {
-            graphics.renderTooltip(font, Component.literal(selected.getBoolean("Deployed")
-                    ? "打开 " + selected.getString("Name") + " 的背包与饰品槽"
-                    : "员工未部署，无法打开物品栏"), mouseX, mouseY);
+            graphics.renderTooltip(font, Component.translatable(selected.getBoolean("Deployed")
+                            ? "screen.lobotocraft.ego_assignment.inventory.tooltip"
+                            : "screen.lobotocraft.ego_assignment.inventory.offline",
+                    selected.getString("Name")), mouseX, mouseY);
             return;
         }
         CompoundTag assigned = assignedEgoAt(mouseX, mouseY);
@@ -812,10 +841,11 @@ public final class EgoAssignmentScreen extends Screen {
             }
             if (lines.isEmpty()) lines.add(Component.literal(displayName(assigned)));
             if ("weapon".equals(assigned.getString("Type"))) {
-                lines.add(Component.literal(blankAsUnknown(assigned.getString("DamageType")) + "  "
-                        + blankAsUnknown(assigned.getString("AttackPower")) + "  ·  攻速 "
-                        + blankAsUnknown(assigned.getString("AttackSpeed")) + "  ·  距离 "
-                        + blankAsUnknown(assigned.getString("AttackRange"))));
+                lines.add(Component.translatable("screen.lobotocraft.ego_assignment.weapon_stats",
+                        blankAsUnknown(assigned.getString("DamageType")),
+                        blankAsUnknown(assigned.getString("AttackPower")),
+                        blankAsUnknown(assigned.getString("AttackSpeed")),
+                        blankAsUnknown(assigned.getString("AttackRange"))));
             } else if (assigned.contains("RedResistance")) {
                 lines.add(Component.literal("RED " + compactNumber(assigned.getFloat("RedResistance"))
                         + "  ·  WHITE " + compactNumber(assigned.getFloat("WhiteResistance"))));
@@ -830,21 +860,23 @@ public final class EgoAssignmentScreen extends Screen {
             List<Component> lines = new ArrayList<>();
             lines.add(Component.literal(displayName(stock) + " · " + risk(stock).name()));
             lines.add(Component.literal(requirementText(stock)));
-            lines.add(Component.literal("库存 " + stock.getInt("Total") + "/" + stock.getInt("Maximum")
-                    + " · 已分配 " + stock.getInt("Assigned")));
+            lines.add(Component.translatable("screen.lobotocraft.ego_assignment.stock",
+                    stock.getInt("Total"), stock.getInt("Maximum"), stock.getInt("Assigned")));
             graphics.renderComponentTooltip(font, lines, mouseX, mouseY);
             return;
         }
         CompoundTag employee = employeeAt(mouseX, mouseY);
         if (employee != null) {
             List<Component> lines = List.of(
-                    Component.literal(employee.getString("Name") + " · " + employee.getString("Department")),
-                    Component.literal("勇气 " + statGrade(employee, "FortitudeLevel")
-                            + " · 谨慎 " + statGrade(employee, "PrudenceLevel")),
-                    Component.literal("自律 " + statGrade(employee, "TemperanceLevel")
-                            + " · 正义 " + statGrade(employee, "JusticeLevel")),
-                    Component.literal("武器 " + blankAsNone(employee.getString("WeaponEgoName"))
-                            + " · 防具 " + blankAsNone(employee.getString("ArmorEgoName")))
+                    Component.translatable("screen.lobotocraft.ego_assignment.employee_title",
+                            employee.getString("Name"), departmentName(employee.getString("DepartmentId"))),
+                    Component.translatable("screen.lobotocraft.ego_assignment.employee_stats_fp",
+                            statGrade(employee, "FortitudeLevel"), statGrade(employee, "PrudenceLevel")),
+                    Component.translatable("screen.lobotocraft.ego_assignment.employee_stats_tj",
+                            statGrade(employee, "TemperanceLevel"), statGrade(employee, "JusticeLevel")),
+                    Component.translatable("screen.lobotocraft.ego_assignment.employee_equipment",
+                            blankAsNone(employee.getString("WeaponEgoName")),
+                            blankAsNone(employee.getString("ArmorEgoName")))
             );
             graphics.renderComponentTooltip(font, lines, mouseX, mouseY);
         }
@@ -1112,17 +1144,20 @@ public final class EgoAssignmentScreen extends Screen {
 
     private String requirementText(CompoundTag stock) {
         List<String> requirements = new ArrayList<>();
-        addRequirement(requirements, stock, "FortitudeLevel", "勇气");
-        addRequirement(requirements, stock, "PrudenceLevel", "谨慎");
-        addRequirement(requirements, stock, "TemperanceLevel", "自律");
-        addRequirement(requirements, stock, "JusticeLevel", "正义");
-        addRequirement(requirements, stock, "EmployeeLevel", "员工");
-        return requirements.isEmpty() ? "无等级限制" : "要求 " + String.join(" · ", requirements);
+        addRequirement(requirements, stock, "FortitudeLevel", "stat.lobotocraft.fortitude");
+        addRequirement(requirements, stock, "PrudenceLevel", "stat.lobotocraft.prudence");
+        addRequirement(requirements, stock, "TemperanceLevel", "stat.lobotocraft.temperance");
+        addRequirement(requirements, stock, "JusticeLevel", "stat.lobotocraft.justice");
+        addRequirement(requirements, stock, "EmployeeLevel", "stat.lobotocraft.employee_level");
+        return requirements.isEmpty()
+                ? tr("screen.lobotocraft.ego.no_level_requirement")
+                : tr("screen.lobotocraft.ego.requirements", String.join(" · ", requirements));
     }
 
-    private void addRequirement(List<String> result, CompoundTag stock, String key, String name) {
+    private void addRequirement(List<String> result, CompoundTag stock, String key, String nameKey) {
         int value = stock.getInt("Required" + key);
-        if (value > 0) result.add(name + " " + roman(value));
+        if (value > 0) result.add(tr("screen.lobotocraft.ego.requirement_entry",
+                tr(nameKey), roman(value)));
     }
 
     private String requirementBadge(CompoundTag stock) {
@@ -1131,7 +1166,7 @@ public final class EgoAssignmentScreen extends Screen {
                 "JusticeLevel", "EmployeeLevel"}) {
             required = Math.max(required, stock.getInt("Required" + key));
         }
-        return required <= 0 ? "无" : roman(required);
+        return required <= 0 ? tr("screen.lobotocraft.common.none") : roman(required);
     }
 
     private int maxItemScroll() {
@@ -1242,7 +1277,7 @@ public final class EgoAssignmentScreen extends Screen {
 
     private String displayName(CompoundTag stock) {
         String value = stock.getString("DisplayName");
-        return value.isBlank() ? "无" : value;
+        return value.isBlank() ? tr("screen.lobotocraft.common.none") : value;
     }
 
     private void renderEmployeeFace(GuiGraphics graphics, CompoundTag employee,
@@ -1334,10 +1369,8 @@ public final class EgoAssignmentScreen extends Screen {
     }
 
     private static String departmentName(String id) {
-        for (EmployeeDepartment department : EmployeeDepartment.values()) {
-            if (department.id().equals(id)) return department.displayName();
-        }
-        return EmployeeDepartment.UNASSIGNED.displayName();
+        EmployeeDepartment department = EmployeeDepartment.byId(id);
+        return tr("department.lobotocraft." + department.id());
     }
 
     private static int damageColor(String type) {
@@ -1377,12 +1410,12 @@ public final class EgoAssignmentScreen extends Screen {
     }
 
     private static String resistanceLabel(float value) {
-        if (value <= 0.0F) return "免疫";
-        if (value <= 0.4F) return "抗性极高";
-        if (value <= 0.7F) return "抗性较高";
-        if (value <= 1.0F) return "抗性一般";
-        if (value <= 1.5F) return "抗性较低";
-        return "抗性极低";
+        if (value <= 0.0F) return tr("resistance.lobotocraft.immune");
+        if (value <= 0.4F) return tr("resistance.lobotocraft.endured");
+        if (value <= 0.7F) return tr("resistance.lobotocraft.resistant");
+        if (value <= 1.0F) return tr("resistance.lobotocraft.normal");
+        if (value <= 1.5F) return tr("resistance.lobotocraft.weak");
+        return tr("resistance.lobotocraft.fatal");
     }
 
     private static String roman(int value) {
@@ -1414,7 +1447,11 @@ public final class EgoAssignmentScreen extends Screen {
     }
 
     private static String blankAsNone(String value) {
-        return value == null || value.isBlank() ? "无" : value;
+        return value == null || value.isBlank() ? tr("screen.lobotocraft.common.none") : value;
+    }
+
+    private static String tr(String key, Object... arguments) {
+        return Component.translatable(key, arguments).getString();
     }
 
     private String fit(String value, int maxWidth) {

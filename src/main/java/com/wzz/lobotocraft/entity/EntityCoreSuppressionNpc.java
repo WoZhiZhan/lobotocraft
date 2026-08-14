@@ -45,9 +45,10 @@ public class EntityCoreSuppressionNpc extends PathfinderMob {
 
         CoreSuppressionType type = getCoreSuppressionType();
         if (type == null) return InteractionResult.FAIL;
-        String denial = CoreSuppressionManager.getStartDenialReason(serverPlayer, type);
+        Component denial = CoreSuppressionManager.getStartDenialReason(serverPlayer, type);
         if (denial != null) {
-            serverPlayer.sendSystemMessage(Component.literal("§c" + denial));
+            serverPlayer.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.core_suppression.denied", denial));
             return InteractionResult.CONSUME;
         }
 

@@ -6,6 +6,7 @@ import com.wzz.lobotocraft.employee.RecruitmentService;
 import com.wzz.lobotocraft.network.IMessage;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
 
@@ -85,12 +86,13 @@ public final class RecruitEmployeePacket implements IMessage {
         RecruitmentService.Result result = RecruitmentService.recruit(sender, name,
                 fortitude, prudence, temperance, justice, persona, appearance);
         if (!result.success()) {
-            sender.sendSystemMessage(Component.literal("§c" + result.message()));
+            sender.sendSystemMessage(result.message().copy().withStyle(ChatFormatting.RED));
             FacilityManagementService.open(sender);
             return;
         }
-        sender.sendSystemMessage(Component.literal("§a已招募员工 " + result.employee().name()
-                + "，当前部门：未分配。"));
+        sender.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.recruitment.success", result.employee().name(),
+                Component.translatable("department.lobotocraft.unassigned")));
         FacilityManagementService.open(sender);
     }
 }

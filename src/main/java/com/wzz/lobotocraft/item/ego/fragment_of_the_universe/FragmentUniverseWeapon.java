@@ -5,7 +5,9 @@ import com.google.common.collect.Multimap;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.*;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -122,21 +124,20 @@ public class FragmentUniverseWeapon extends BaseEgoWeapon {
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         if (!ClientInputUtil.isShiftPressed()) {
-            p_41423_.add(Component.literal("§6※持有者造成伤害时有概率回复精神值。能更快的使陷入疯狂的玩家恢复正常。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7不要想着去理解它，只是这样握着它就可以了。 这支长矛经常试图引导握着它的人进入无尽的精神位面，"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7因此持有者必须小心，绝不能被其迷惑。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7该异想体的核心形式在每次提取过程中都发生了变化，"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7经过无数次尝试，才稳定成现在的模样。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7有传言说，当这支长矛聆听到异界的回响时，它会发出皎洁的光芒。"));
-            p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.fragments_somewhere_weapon.summary",
+                    ChatFormatting.GOLD);
+            for (int index = 1; index <= 5; index++) {
+                EgoTooltipUtil.blank(p_41423_);
+                EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.fragments_somewhere_weapon.story." + index,
+                        ChatFormatting.GRAY);
+            }
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.common.shift_details",
+                    ChatFormatting.GRAY);
         } else {
-            p_41423_.add(Component.literal("§6※玩家每次攻击15%概率为自己回复5点精神值，对陷入恐慌的玩家造成伤害时，额外回复恐慌玩家3点精神。"));
-            p_41423_.add(Component.literal("§6※玩家手持武器shift右键时，可以播放宇宙碎片的特殊攻击音频，能够吸引一些对声音敏感的怪物。使用后对声音敏感的怪物将在10秒内对玩家无仇恨，并且会吸引它们来这个位置。"));
+            for (int index = 1; index <= 2; index++) {
+                EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.fragments_somewhere_weapon.detail." + index,
+                        ChatFormatting.GOLD);
+            }
         }
     }
 }

@@ -43,7 +43,7 @@ public final class YsmEmployeeModelScreen extends Screen {
     public YsmEmployeeModelScreen(Screen parent, String provider,
                                   YsmModelCatalog serverCatalog, EmployeeAppearance current,
                                   Consumer<EmployeeAppearance> selectionHandler) {
-        super(Component.literal("YSM员工外观"));
+        super(Component.translatable("screen.lobotocraft.ysm_model.title"));
         this.parent = parent;
         this.provider = provider;
         this.serverCatalog = serverCatalog == null ? YsmModelCatalog.unknown() : serverCatalog;
@@ -73,14 +73,15 @@ public final class YsmEmployeeModelScreen extends Screen {
         rowsPerPage = Math.max(3, (panelHeight - 162) / 24);
 
         searchBox = addRenderableWidget(new EditBox(font, panelX + 25, panelY + 53,
-                panelWidth - 50, 18, Component.literal("搜索YSM模型")));
+                panelWidth - 50, 18, Component.translatable("screen.lobotocraft.ysm_model.search")));
         searchBox.setMaxLength(128);
         searchBox.setValue(searchDraft);
-        searchBox.setHint(Component.literal("搜索模型"));
+        searchBox.setHint(Component.translatable("screen.lobotocraft.ysm_model.search_hint"));
         searchBox.setFocused(searchFocused);
         if (searchFocused) setFocused(searchBox);
 
-        LobotomyButton defaultButton = LobotomyButton.create(Component.literal("原版员工外观"), button -> {
+        LobotomyButton defaultButton = LobotomyButton.create(Component.translatable(
+                "screen.lobotocraft.ysm_model.default_appearance"), button -> {
             selectedModel = null;
             selectedTexture = 0;
             init();
@@ -123,18 +124,22 @@ public final class YsmEmployeeModelScreen extends Screen {
             page = Math.max(0, page - 1);
             init();
         }).bounds(panelX + 24, panelY + panelHeight - 29, 24, 20)
-                .tooltip(Tooltip.create(Component.literal("上一页"))).build());
+                .tooltip(Tooltip.create(Component.translatable(
+                        "screen.lobotocraft.common.previous_page"))).build());
         nextPage = addRenderableWidget(LobotomyButton.create(Component.literal(">"), ignored -> {
             page = Math.min(maxPage, page + 1);
             init();
         }).bounds(panelX + 52, panelY + panelHeight - 29, 24, 20)
-                .tooltip(Tooltip.create(Component.literal("下一页"))).build());
+                .tooltip(Tooltip.create(Component.translatable(
+                        "screen.lobotocraft.common.next_page"))).build());
         previousPage.active = page > 0;
         nextPage.active = page < maxPage;
 
-        addRenderableWidget(LobotomyButton.create(Component.literal("确定"), ignored -> confirm())
+        addRenderableWidget(LobotomyButton.create(Component.translatable(
+                        "screen.lobotocraft.common.confirm"), ignored -> confirm())
                 .bounds(panelX + panelWidth - 152, panelY + panelHeight - 29, 64, 20).build());
-        addRenderableWidget(LobotomyButton.create(Component.literal("取消"), ignored -> onClose())
+        addRenderableWidget(LobotomyButton.create(Component.translatable(
+                        "screen.lobotocraft.common.cancel"), ignored -> onClose())
                 .bounds(panelX + panelWidth - 84, panelY + panelHeight - 29, 60, 20).build());
     }
 
@@ -156,12 +161,12 @@ public final class YsmEmployeeModelScreen extends Screen {
         renderBackground(graphics);
         LobotomyUiRenderer.drawPanel(graphics, panelX, panelY, panelWidth, panelHeight);
         LobotomyUiRenderer.drawPanelHeader(graphics, font, panelX, panelY, panelWidth,
-                "EMPLOYEE APPEARANCE", "YSM 模型选择");
+                "EMPLOYEE APPEARANCE", tr("screen.lobotocraft.ysm_model.heading"));
 
         int textureY = panelY + panelHeight - 55;
         LobotomyUiRenderer.drawInsetBox(graphics, panelX + 52, textureY,
                 panelWidth - 104, 20);
-        String texture = selectedModel == null ? "原版皮肤"
+        String texture = selectedModel == null ? tr("screen.lobotocraft.ysm_model.default_skin")
                 : selectedModel.textures().get(selectedTexture);
         graphics.drawCenteredString(font, ellipsize(texture, panelWidth - 118),
                 panelX + panelWidth / 2, textureY + 6, LobotomyUiTheme.TEXT_BODY);
@@ -169,7 +174,7 @@ public final class YsmEmployeeModelScreen extends Screen {
         graphics.drawString(font, pageText, panelX + 82, panelY + panelHeight - 23,
                 LobotomyUiTheme.TEXT_MUTED, false);
         if (allModels.isEmpty()) {
-            graphics.drawCenteredString(font, "YSM 模型目录尚未就绪",
+            graphics.drawCenteredString(font, tr("screen.lobotocraft.ysm_model.catalog_unavailable"),
                     panelX + panelWidth / 2, panelY + 116, LobotomyUiTheme.TEXT_MUTED);
         }
         super.render(graphics, mouseX, mouseY, partialTick);
@@ -195,6 +200,10 @@ public final class YsmEmployeeModelScreen extends Screen {
                         model.modelId(), model.path(), model.textures())))
                 .filter(model -> !model.textures().isEmpty())
                 .toList();
+    }
+
+    private static String tr(String key, Object... arguments) {
+        return Component.translatable(key, arguments).getString();
     }
 
     @Override

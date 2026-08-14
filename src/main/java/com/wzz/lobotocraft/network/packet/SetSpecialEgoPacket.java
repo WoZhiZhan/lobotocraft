@@ -50,18 +50,20 @@ public final class SetSpecialEgoPacket implements IMessage {
                 || !com.wzz.lobotocraft.util.AbnormalitySpawnHelper.isCompany(player.level())) return;
         SpecialEgoService.EquipResult result = SpecialEgoService.setEquipped(
                 player, specialEgoId, equipmentType, equipped);
-        String typeName = "weapon".equals(equipmentType) ? "武器" : "护甲";
+        Component typeName = Component.translatable("weapon".equals(equipmentType)
+                ? "equipment.lobotocraft.weapon" : "equipment.lobotocraft.armor");
         Component message = switch (result) {
-            case SUCCESS -> Component.literal(equipped
-                    ? "§d已取得特殊 E.G.O " + typeName + "席位。"
-                    : "§a已释放特殊 E.G.O " + typeName + "席位，并恢复同类个人 E.G.O。" );
-            case IN_USE_BY_OTHER -> Component.literal("§c该特殊 E.G.O 的" + typeName
-                    + "正由其他玩家使用。" );
-            case NOT_ASSIGNED -> Component.literal("§7你没有占用该特殊 E.G.O 的" + typeName + "席位。" );
-            case LOCKED -> Component.literal("§c该特殊 E.G.O 尚未解锁。" );
-            case REQUIREMENTS_NOT_MET -> Component.literal("§c属性等级不足，无法使用该特殊 E.G.O "
-                    + typeName + "。" );
-            default -> Component.literal("§c特殊 E.G.O 状态无效。" );
+            case SUCCESS -> Component.translatable(equipped
+                    ? "message.lobotocraft.special_ego.claimed"
+                    : "message.lobotocraft.special_ego.released", typeName);
+            case IN_USE_BY_OTHER -> Component.translatable(
+                    "message.lobotocraft.special_ego.in_use", typeName);
+            case NOT_ASSIGNED -> Component.translatable(
+                    "message.lobotocraft.special_ego.not_assigned", typeName);
+            case LOCKED -> Component.translatable("message.lobotocraft.special_ego.locked");
+            case REQUIREMENTS_NOT_MET -> Component.translatable(
+                    "message.lobotocraft.special_ego.requirements", typeName);
+            default -> Component.translatable("message.lobotocraft.special_ego.invalid");
         };
         player.sendSystemMessage(message);
         PlayerProfileService.open(player, PlayerProfileService.View.SPECIAL_EGO);

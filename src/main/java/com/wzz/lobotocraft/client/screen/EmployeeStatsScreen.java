@@ -73,7 +73,7 @@ public class EmployeeStatsScreen extends Screen {
     private float maxMental = 20;
 
     public EmployeeStatsScreen(Screen previousScreen) {
-        super(Component.literal("员工属性"));
+        super(Component.translatable("screen.lobotocraft.employee_stats.title"));
         this.previousScreen = previousScreen;
         this.minecraft = net.minecraft.client.Minecraft.getInstance();
 
@@ -203,12 +203,12 @@ public class EmployeeStatsScreen extends Screen {
         // 面板背景（脑叶主题：深底 + 描边 + 角括号 + 头部）
         LobotomyUiRenderer.drawPanel(graphics, panelX, panelY, panelWidth, panelHeight);
         LobotomyUiRenderer.drawPanelHeader(graphics, this.font, panelX, panelY, panelWidth,
-                "AGENT STATUS", "员工属性");
+                "AGENT STATUS", tr("screen.lobotocraft.employee_stats.title"));
 
         // 员工等级
         int employeeLevel = EmployeeLevelCalculator.fromStatValues(
                 fortitude, prudence, temperance, justice);
-        String levelLabel = "员工等级: ";
+        String levelLabel = tr("screen.lobotocraft.employee_stats.employee_level");
         String levelValue = Integer.toString(employeeLevel);
         int levelX = centerX - (this.font.width(levelLabel) + this.font.width(levelValue)) / 2;
         graphics.drawString(this.font, levelLabel, levelX, panelY + 50,
@@ -225,26 +225,34 @@ public class EmployeeStatsScreen extends Screen {
 
         // 勇气（显示生命值、护甲加成）
         renderAttribute(graphics, panelX + 30, attrY,
-                "勇气 (Fortitude)", ICON_FORTITUDE, fortitude,
-                LobotomyUiTheme.STAT_FORTITUDE, "影响最大生命值", buildFortitudeBonusText());
+                tr("screen.lobotocraft.employee_stats.fortitude"), ICON_FORTITUDE, fortitude,
+                LobotomyUiTheme.STAT_FORTITUDE,
+                tr("screen.lobotocraft.employee_stats.fortitude.description"),
+                buildFortitudeBonusText());
 
         // 谨慎（显示精神值加成）
         renderAttribute(graphics, panelX + 30, attrY + attrSpacing,
-                "谨慎 (Prudence)", ICON_PRUDENCE, prudence,
-                LobotomyUiTheme.STAT_PRUDENCE, "影响最大精神值", buildPrudenceBonusText());
+                tr("screen.lobotocraft.employee_stats.prudence"), ICON_PRUDENCE, prudence,
+                LobotomyUiTheme.STAT_PRUDENCE,
+                tr("screen.lobotocraft.employee_stats.prudence.description"),
+                buildPrudenceBonusText());
 
         // 自律（显示工作加成）
         renderAttribute(graphics, panelX + 30, attrY + attrSpacing * 2,
-                "自律 (Temperance)", ICON_TEMPERANCE, temperance,
-                LobotomyUiTheme.STAT_TEMPERANCE, "影响工作成功率和工作速度", buildTemperanceBonusText());
+                tr("screen.lobotocraft.employee_stats.temperance"), ICON_TEMPERANCE, temperance,
+                LobotomyUiTheme.STAT_TEMPERANCE,
+                tr("screen.lobotocraft.employee_stats.temperance.description"),
+                buildTemperanceBonusText());
 
         // 正义（显示速度加成）
         renderAttribute(graphics, panelX + 30, attrY + attrSpacing * 3,
-                "正义 (Justice)", ICON_JUSTICE, justice,
-                LobotomyUiTheme.STAT_JUSTICE, "影响攻击速度和移动速度", buildJusticeBonusText());
+                tr("screen.lobotocraft.employee_stats.justice"), ICON_JUSTICE, justice,
+                LobotomyUiTheme.STAT_JUSTICE,
+                tr("screen.lobotocraft.employee_stats.justice.description"),
+                buildJusticeBonusText());
 
         // 返回提示
-        String backHint = "按 ESC 或 E 返回";
+        String backHint = tr("screen.lobotocraft.employee_stats.back_hint");
         graphics.drawString(this.font, backHint, centerX - this.font.width(backHint) / 2,
                 panelY + panelHeight - 20, LobotomyUiTheme.TEXT_MUTED, false);
 
@@ -256,7 +264,8 @@ public class EmployeeStatsScreen extends Screen {
      */
     private void renderMentalValue(GuiGraphics graphics, int x, int y) {
         // 标题
-        graphics.drawString(this.font, "精神值 (Mental)", x, y, LobotomyUiTheme.BAR_SP, false);
+        graphics.drawString(this.font, tr("screen.lobotocraft.employee_stats.mental"),
+                x, y, LobotomyUiTheme.BAR_SP, false);
 
         // 获取实际的最大精神值（包括加成）
         float actualMaxMental = maxMental + maxMentalBonus;
@@ -293,10 +302,11 @@ public class EmployeeStatsScreen extends Screen {
 
         // 添加精神值恢复速度显示
         if (mentalRegenPerSecond > 0) {
-            String regenLabel = "恢复速度: ";
+            String regenLabel = tr("screen.lobotocraft.employee_stats.regeneration");
             graphics.drawString(this.font, regenLabel, x + 200, y + 30,
                     LobotomyUiTheme.TEXT_MUTED, false);
-            graphics.drawString(this.font, String.format("%.1f", mentalRegenPerSecond) + "/秒",
+            graphics.drawString(this.font, tr("screen.lobotocraft.employee_stats.per_second",
+                            String.format(java.util.Locale.ROOT, "%.1f", mentalRegenPerSecond)),
                     x + 200 + this.font.width(regenLabel), y + 30,
                     LobotomyUiTheme.ENERGY_GREEN, false);
         }
@@ -365,22 +375,26 @@ public class EmployeeStatsScreen extends Screen {
     private String buildFortitudeBonusText() {
         StringBuilder builder = new StringBuilder();
         if (fortitudeHealthBonus > 0) {
-            builder.append("(+").append(String.format("%.0f", fortitudeHealthBonus)).append("生命值)");
+            builder.append(tr("screen.lobotocraft.employee_stats.bonus.health",
+                    String.format(java.util.Locale.ROOT, "%.0f", fortitudeHealthBonus)));
         }
         if (fortitudeArmorBonus > 0) {
             if (builder.length() > 0) builder.append(" ");
-            builder.append("(+").append(String.format("%.0f", fortitudeArmorBonus)).append("护甲)");
+            builder.append(tr("screen.lobotocraft.employee_stats.bonus.armor",
+                    String.format(java.util.Locale.ROOT, "%.0f", fortitudeArmorBonus)));
         }
         if (fortitudeToughnessBonus > 0) {
             if (builder.length() > 0) builder.append(" ");
-            builder.append("(+").append(String.format("%.0f", fortitudeToughnessBonus)).append("韧性)");
+            builder.append(tr("screen.lobotocraft.employee_stats.bonus.toughness",
+                    String.format(java.util.Locale.ROOT, "%.0f", fortitudeToughnessBonus)));
         }
         return builder.toString();
     }
 
     private String buildPrudenceBonusText() {
         if (prudenceMentalBonus > 0) {
-            return "(+" + String.format("%.0f", prudenceMentalBonus) + "精神值)";
+            return tr("screen.lobotocraft.employee_stats.bonus.mental",
+                    String.format(java.util.Locale.ROOT, "%.0f", prudenceMentalBonus));
         }
         return "";
     }
@@ -388,11 +402,13 @@ public class EmployeeStatsScreen extends Screen {
     private String buildTemperanceBonusText() {
         StringBuilder builder = new StringBuilder();
         if (temperanceSuccessBonus > 0) {
-            builder.append("(+").append(String.format("%.0f", temperanceSuccessBonus * 100)).append("%成功率)");
+            builder.append(tr("screen.lobotocraft.employee_stats.bonus.success_rate",
+                    String.format(java.util.Locale.ROOT, "%.0f", temperanceSuccessBonus * 100)));
         }
         if (temperanceWorkSpeedBonus > 0) {
             if (builder.length() > 0) builder.append(" ");
-            builder.append("(+").append((int) temperanceWorkSpeedBonus).append("tick速度)");
+            builder.append(tr("screen.lobotocraft.employee_stats.bonus.work_speed",
+                    (int) temperanceWorkSpeedBonus));
         }
         return builder.toString();
     }
@@ -400,11 +416,13 @@ public class EmployeeStatsScreen extends Screen {
     private String buildJusticeBonusText() {
         StringBuilder builder = new StringBuilder();
         if (justiceAttackSpeedBonus > 0) {
-            builder.append("(+").append(String.format("%.0f", justiceAttackSpeedBonus * 100)).append("%攻击速度)");
+            builder.append(tr("screen.lobotocraft.employee_stats.bonus.attack_speed",
+                    String.format(java.util.Locale.ROOT, "%.0f", justiceAttackSpeedBonus * 100)));
         }
         if (justiceMoveSpeedBonus > 0) {
             if (builder.length() > 0) builder.append(" ");
-            builder.append("(+").append(String.format("%.0f", justiceMoveSpeedBonus * 100)).append("%移动速度)");
+            builder.append(tr("screen.lobotocraft.employee_stats.bonus.movement_speed",
+                    String.format(java.util.Locale.ROOT, "%.0f", justiceMoveSpeedBonus * 100)));
         }
         return builder.toString();
     }
@@ -430,6 +448,10 @@ public class EmployeeStatsScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    private static String tr(String key, Object... arguments) {
+        return Component.translatable(key, arguments).getString();
     }
 
     // ==================== 自适应缩放:鼠标坐标逆变换(与渲染变换保持一致,避免点击错位) ====================

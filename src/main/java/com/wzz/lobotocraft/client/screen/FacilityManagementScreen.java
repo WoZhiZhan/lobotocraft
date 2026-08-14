@@ -43,10 +43,17 @@ public final class FacilityManagementScreen extends Screen {
     private static final int HEADER_HEIGHT = 66;
     private static final int EGO_ROW_HEIGHT = LobotomyUiTheme.ROW_EGO;
     private static final int EMPLOYEE_ROW_HEIGHT = LobotomyUiTheme.ROW_EMPLOYEE;
-    private static final String[] TABS = {"员工", "个人 E.G.O", "AI E.G.O 分配"};
+    private static final String[] TAB_KEYS = {
+            "screen.lobotocraft.facility.tab.employees",
+            "screen.lobotocraft.facility.tab.personal_ego",
+            "screen.lobotocraft.facility.tab.ai_ego"};
 
     // 四维属性展示（theme/stat_*.png 存在时画 8×8 图标，否则单字 + STAT_* 着色）
-    private static final String[] STAT_LABELS = {"勇", "谨", "律", "正"};
+    private static final String[] STAT_LABEL_KEYS = {
+            "stat.lobotocraft.fortitude.short",
+            "stat.lobotocraft.prudence.short",
+            "stat.lobotocraft.temperance.short",
+            "stat.lobotocraft.justice.short"};
     private static final String[] STAT_KEYS = {"Fortitude", "Prudence", "Temperance", "Justice"};
     private static final int[] STAT_COLORS = {LobotomyUiTheme.STAT_FORTITUDE, LobotomyUiTheme.STAT_PRUDENCE,
             LobotomyUiTheme.STAT_TEMPERANCE, LobotomyUiTheme.STAT_JUSTICE};
@@ -76,24 +83,24 @@ public final class FacilityManagementScreen extends Screen {
      * 三种异常态把整行元素一起染成状态色。
      */
     private enum AgentState {
-        DEAD("已死亡", LobotomyUiTheme.ALERT_RED, 0.30F, true),
-        PANIC("精神崩溃", STATE_PANIC, 0.24F, true),
-        CONTROLLED("被控制", STATE_UNCONTROLLABLE, 0.24F, true),
-        UNCONTROLLABLE("失控", STATE_UNCONTROLLABLE, 0.24F, true),
-        WORKING("工作中", LobotomyUiTheme.GOLD, 0.16F, false),
-        SUPPRESSING("镇压中", LobotomyUiTheme.ALERT_RED, 0.16F, false),
-        MOVING("移动中", LobotomyUiTheme.WARN_YELLOW, 0.16F, false),
-        IDLE("空闲", LobotomyUiTheme.TEXT_MUTED, 0.0F, false),
-        OFFLINE("未部署", LobotomyUiTheme.TEXT_MUTED, 0.0F, false),
-        ONLINE("在线", LobotomyUiTheme.TEXT_MUTED, 0.0F, false);
+        DEAD("status.lobotocraft.dead", LobotomyUiTheme.ALERT_RED, 0.30F, true),
+        PANIC("status.lobotocraft.panic", STATE_PANIC, 0.24F, true),
+        CONTROLLED("status.lobotocraft.controlled", STATE_UNCONTROLLABLE, 0.24F, true),
+        UNCONTROLLABLE("status.lobotocraft.uncontrollable", STATE_UNCONTROLLABLE, 0.24F, true),
+        WORKING("status.lobotocraft.working", LobotomyUiTheme.GOLD, 0.16F, false),
+        SUPPRESSING("status.lobotocraft.suppressing", LobotomyUiTheme.ALERT_RED, 0.16F, false),
+        MOVING("status.lobotocraft.moving", LobotomyUiTheme.WARN_YELLOW, 0.16F, false),
+        IDLE("status.lobotocraft.idle", LobotomyUiTheme.TEXT_MUTED, 0.0F, false),
+        OFFLINE("status.lobotocraft.offline", LobotomyUiTheme.TEXT_MUTED, 0.0F, false),
+        ONLINE("status.lobotocraft.online", LobotomyUiTheme.TEXT_MUTED, 0.0F, false);
 
-        final String label;
+        final String translationKey;
         final int color;
         final float filterAlpha;
         final boolean tintRow;
 
-        AgentState(String label, int color, float filterAlpha, boolean tintRow) {
-            this.label = label;
+        AgentState(String translationKey, int color, float filterAlpha, boolean tintRow) {
+            this.translationKey = translationKey;
             this.color = color;
             this.filterAlpha = filterAlpha;
             this.tintRow = tintRow;
@@ -172,7 +179,7 @@ public final class FacilityManagementScreen extends Screen {
     private static UUID rememberedAiEmployee;
 
     public FacilityManagementScreen(CompoundTag snapshot) {
-        super(Component.literal("设施管理"));
+        super(Component.translatable("screen.lobotocraft.facility.title"));
         this.snapshot = snapshot.copy();
         restoreEmployeeSelection();
     }
@@ -197,47 +204,57 @@ public final class FacilityManagementScreen extends Screen {
         int specialWidth = panelWidth >= 520 ? 86 : 72;
         int identityWidth = panelWidth >= 520 ? 76 : 54;
         LobotomyButton specialEgo = LobotomyButton.create(
-                        Component.literal(panelWidth >= 520 ? "特殊 E.G.O" : "特殊EGO"), button ->
+                        Component.translatable("screen.lobotocraft.facility.special_ego"), button ->
                                 MessageLoader.getLoader().sendToServer(new RequestPlayerProfilePacket(
                                         PlayerProfileService.View.SPECIAL_EGO)))
                 .bounds(profileRight - specialWidth, panelY + 43, specialWidth, 18).build();
-        specialEgo.setTooltip(Tooltip.create(Component.literal("打开玩家特殊 E.G.O 档案")));
+        specialEgo.setTooltip(Tooltip.create(Component.translatable(
+                "screen.lobotocraft.facility.special_ego.tooltip")));
         addRenderableWidget(specialEgo);
         LobotomyButton identity = LobotomyButton.create(
-                        Component.literal(panelWidth >= 520 ? "我的部门" : "部门"), button ->
+                        Component.translatable(panelWidth >= 520
+                                ? "screen.lobotocraft.facility.my_department"
+                                : "screen.lobotocraft.facility.department"), button ->
                                 MessageLoader.getLoader().sendToServer(new RequestPlayerProfilePacket(
                                         PlayerProfileService.View.DEPARTMENT)))
                 .bounds(profileRight - specialWidth - identityWidth - 6,
                         panelY + 43, identityWidth, 18).build();
-        identity.setTooltip(Tooltip.create(Component.literal("选择玩家部门归属")));
+        identity.setTooltip(Tooltip.create(Component.translatable(
+                "screen.lobotocraft.facility.my_department.tooltip")));
         addRenderableWidget(identity);
         if (snapshot.getBoolean("CanManageAi")) {
             int appearanceWidth = panelWidth >= 520 ? 58 : 48;
             appearanceButton = LobotomyButton.create(
-                            Component.literal("外观"), button -> openAppearanceScreen())
+                            Component.translatable("screen.lobotocraft.common.appearance"), button -> openAppearanceScreen())
                     .bounds(profileRight - specialWidth - identityWidth - appearanceWidth - 18,
                             panelY + 43, appearanceWidth, 18).build();
             appearanceButton.setTooltip(Tooltip.create(
-                    Component.literal("更换所选AI员工的YSM外观")));
+                    Component.translatable("screen.lobotocraft.facility.appearance.tooltip")));
             appearanceButton.active = canEditSelectedAppearance();
             addRenderableWidget(appearanceButton);
         }
         if (snapshot.getBoolean("CanRecruit")) {
-            LobotomyButton warehouse = LobotomyButton.create(Component.literal("仓库"), button ->
+            LobotomyButton warehouse = LobotomyButton.create(Component.translatable(
+                    "screen.lobotocraft.facility.warehouse"), button ->
                             MessageLoader.getLoader().sendToServer(new OpenEmployeeWarehousePacket()))
                     .bounds(panelX + panelWidth - 278, panelY + 14, 52, 20).build();
-            warehouse.setTooltip(Tooltip.create(Component.literal("打开员工物品总仓")));
+            warehouse.setTooltip(Tooltip.create(Component.translatable(
+                    "screen.lobotocraft.facility.warehouse.tooltip")));
             addRenderableWidget(warehouse);
-            LobotomyButton recruit = LobotomyButton.create(Component.literal("招募"), button ->
+            LobotomyButton recruit = LobotomyButton.create(Component.translatable(
+                    "screen.lobotocraft.facility.recruit"), button ->
                             minecraft.setScreen(new RecruitmentScreen(this, snapshot)))
                     .bounds(panelX + panelWidth - 218, panelY + 14, 48, 20).build();
-            recruit.setTooltip(Tooltip.create(Component.literal("招募AI员工")));
+            recruit.setTooltip(Tooltip.create(Component.translatable(
+                    "screen.lobotocraft.facility.recruit.tooltip")));
             addRenderableWidget(recruit);
         }
         if (snapshot.getBoolean("CanManageAi")) {
-            departmentButton = LobotomyButton.create(Component.literal("部门"), button -> openDepartmentScreen())
+            departmentButton = LobotomyButton.create(Component.translatable(
+                    "screen.lobotocraft.facility.department"), button -> openDepartmentScreen())
                     .bounds(panelX + panelWidth - 162, panelY + 14, 48, 20).build();
-            departmentButton.setTooltip(Tooltip.create(Component.literal("打开设施员工部署")));
+            departmentButton.setTooltip(Tooltip.create(Component.translatable(
+                    "screen.lobotocraft.facility.department.tooltip")));
             departmentButton.active = hasAiEmployees();
             addRenderableWidget(departmentButton);
         }
@@ -245,17 +262,18 @@ public final class FacilityManagementScreen extends Screen {
             LobotomyButton llm = LobotomyButton.create(Component.literal("LLM"), button ->
                             MessageLoader.getLoader().sendToServer(new RequestLlmConfigPacket()))
                     .bounds(panelX + panelWidth - 106, panelY + 14, 40, 20).build();
-            llm.setTooltip(Tooltip.create(Component.literal("LLM 热配置")));
+            llm.setTooltip(Tooltip.create(Component.translatable(
+                    "screen.lobotocraft.facility.llm.tooltip")));
             addRenderableWidget(llm);
         }
         LobotomyButton refresh = LobotomyButton.create(Component.literal("R"), button ->
                         MessageLoader.getLoader().sendToServer(new RequestFacilityManagementPacket()))
                 .bounds(panelX + panelWidth - 58, panelY + 14, 20, 20).build();
-        refresh.setTooltip(Tooltip.create(Component.literal("刷新设施数据")));
+        refresh.setTooltip(Tooltip.create(Component.translatable("screen.lobotocraft.common.refresh")));
         addRenderableWidget(refresh);
         LobotomyButton close = LobotomyButton.create(Component.literal("X"), button -> onClose())
                 .bounds(panelX + panelWidth - 30, panelY + 14, 20, 20).build();
-        close.setTooltip(Tooltip.create(Component.literal("关闭")));
+        close.setTooltip(Tooltip.create(Component.translatable("screen.lobotocraft.common.close")));
         addRenderableWidget(close);
     }
 
@@ -272,7 +290,7 @@ public final class FacilityManagementScreen extends Screen {
         updateLayout();
         LobotomyUiRenderer.drawPanel(graphics, panelX, panelY, panelWidth, panelHeight);
         LobotomyUiRenderer.drawPanelHeader(graphics, font, panelX, panelY, panelWidth,
-                "FACILITY CONTROL", "设施人员与 E.G.O 调度终端");
+                "FACILITY CONTROL", tr("screen.lobotocraft.facility.subtitle"));
         boolean llmEnabled = snapshot.getBoolean("LlmEnabled");
         LobotomyUiRenderer.drawTag(graphics, font, panelX + LobotomyUiTheme.PAD, panelY + 44,
                 llmEnabled ? "LLM READY" : "LLM OFFLINE",
@@ -304,12 +322,12 @@ public final class FacilityManagementScreen extends Screen {
 
     private void renderTabs(GuiGraphics graphics, int mouseX, int mouseY) {
         int y = panelY + HEADER_HEIGHT;
-        int tabWidth = (panelWidth - 32) / TABS.length;
+        int tabWidth = (panelWidth - 32) / TAB_KEYS.length;
         int hoveredIndex = tabIndexAt(mouseX, mouseY);
-        for (int i = 0; i < TABS.length; i++) {
+        for (int i = 0; i < TAB_KEYS.length; i++) {
             int x = panelX + 16 + i * tabWidth;
             LobotomyUiRenderer.drawTab(graphics, font, x, y, tabWidth - 2, 24,
-                    TABS[i], i == activeTab, i == hoveredIndex);
+                    tr(TAB_KEYS[i]), i == activeTab, i == hoveredIndex);
         }
     }
 
@@ -317,8 +335,8 @@ public final class FacilityManagementScreen extends Screen {
     private int tabIndexAt(double mouseX, double mouseY) {
         int tabY = panelY + HEADER_HEIGHT;
         if (mouseY < tabY || mouseY >= tabY + 24) return -1;
-        int tabWidth = (panelWidth - 32) / TABS.length;
-        for (int i = 0; i < TABS.length; i++) {
+        int tabWidth = (panelWidth - 32) / TAB_KEYS.length;
+        for (int i = 0; i < TAB_KEYS.length; i++) {
             int x = panelX + 16 + i * tabWidth;
             if (mouseX >= x && mouseX < x + tabWidth - 2) return i;
         }
@@ -328,7 +346,7 @@ public final class FacilityManagementScreen extends Screen {
     private void renderEmployees(GuiGraphics graphics, int top, int mouseX, int mouseY) {
         EmployeeRowView[] rows = employeeRows();
         if (rows.length == 0) {
-            drawEmpty(graphics, top, "当前没有员工记录");
+            drawEmpty(graphics, top, tr("screen.lobotocraft.facility.employees.empty"));
             return;
         }
         boolean wide = panelWidth >= 560;
@@ -487,18 +505,21 @@ public final class FacilityManagementScreen extends Screen {
         for (int s = 0; s < STAT_KEYS.length; s++) {
             statValues[s] = String.valueOf(entry.getInt(STAT_KEYS[s]));
         }
-        String stateText = state == AgentState.IDLE ? "" : state.label;
+        String stateText = state == AgentState.IDLE ? "" : tr(state.translationKey);
         if (state == AgentState.MOVING) {
             String purpose = entry.getString("NavigationPurpose");
-            if (!purpose.isBlank()) stateText = "移动中 · " + purpose;
+            if (!purpose.isBlank()) stateText = tr("status.lobotocraft.moving_detail", purpose);
         }
+        String department = departmentName(entry);
         return new EmployeeRowView(
                 entry.hasUUID("Id") ? entry.getUUID("Id") : null, ai,
                 !ai || entry.getBoolean("Deployed"),
                 entry.getString("Name"),
-                (ai ? "AI · " : "真人 · ") + entry.getString("Department"),
-                "W " + emptyAsNone(entry.getString("WeaponEgoName"))
-                        + "  A " + emptyAsNone(entry.getString("ArmorEgoName")),
+                tr(ai ? "screen.lobotocraft.facility.employee.ai"
+                        : "screen.lobotocraft.facility.employee.player", department),
+                tr("screen.lobotocraft.facility.employee.ego",
+                        emptyAsNone(entry.getString("WeaponEgoName")),
+                        emptyAsNone(entry.getString("ArmorEgoName"))),
                 roman(Math.max(1, entry.getInt("EmployeeLevel"))),
                 stateText, statValues,
                 entry.getFloat("Health"), entry.getFloat("MaxHealth"),
@@ -548,13 +569,14 @@ public final class FacilityManagementScreen extends Screen {
         for (int s = 0; s < STAT_KEYS.length; s++) {
             String value = row.statValues[s];
             boolean icon = tintColor == 0 && LobotomyUiRenderer.textureExists(STAT_ICONS[s]);
-            int labelWidth = icon ? 8 : font.width(STAT_LABELS[s]);
+            String statLabel = tr(STAT_LABEL_KEYS[s]);
+            int labelWidth = icon ? 8 : font.width(statLabel);
             if (cursor + labelWidth + 2 + font.width(value) > limit) break;
             if (icon) {
                 // 素材约定 16×16（见 DESIGN_PLAN 1.8 节），缩放到 8×8 绘制
                 LobotomyUiRenderer.blitScaled(graphics, STAT_ICONS[s], cursor, y, 8, 8, 16, 16);
             } else {
-                graphics.drawString(font, STAT_LABELS[s], cursor, y,
+                graphics.drawString(font, statLabel, cursor, y,
                         tintColor != 0 ? tintColor : STAT_COLORS[s], false);
             }
             cursor += labelWidth + 2;
@@ -566,7 +588,7 @@ public final class FacilityManagementScreen extends Screen {
     private void renderPersonalEgo(GuiGraphics graphics, int top, int mouseX, int mouseY) {
         ListTag entries = snapshot.getList("PersonalEgo", Tag.TAG_COMPOUND);
         if (entries.isEmpty()) {
-            drawEmpty(graphics, top, "尚未研发个人 E.G.O 授权");
+            drawEmpty(graphics, top, tr("screen.lobotocraft.facility.personal_ego.empty"));
             return;
         }
         for (int i = 0; i < entries.size(); i++) {
@@ -581,12 +603,16 @@ public final class FacilityManagementScreen extends Screen {
             int nameWidth = Math.max(40, panelWidth - 54 - 110);
             drawMarqueeText(graphics, emptyAsNone(entry.getString("DisplayName")),
                     panelX + 54, y + 9, nameWidth, LobotomyUiTheme.TEXT_TITLE);
-            graphics.drawString(font, "weapon".equals(type) ? "E.G.O 武器授权" : "E.G.O 护甲授权",
+            graphics.drawString(font, tr("weapon".equals(type)
+                            ? "screen.lobotocraft.facility.personal_ego.weapon"
+                            : "screen.lobotocraft.facility.personal_ego.armor"),
                     panelX + 54, y + 25, LobotomyUiTheme.TEXT_MUTED, false);
             int bx = panelX + panelWidth - 94;
             boolean hovered = inside(mouseX, mouseY, bx, y + 11, 66, 24);
             LobotomyUiRenderer.drawButton(graphics, font, bx, y + 11, 66, 24,
-                    Component.literal(equipped ? "卸下" : "装备"),
+                    Component.translatable(equipped
+                            ? "screen.lobotocraft.common.unequip"
+                            : "screen.lobotocraft.common.equip"),
                     equipped && hovered ? LobotomyUiRenderer.ButtonState.DANGER
                             : equipped ? LobotomyUiRenderer.ButtonState.SELECTED
                             : hovered ? LobotomyUiRenderer.ButtonState.HOVER
@@ -596,12 +622,13 @@ public final class FacilityManagementScreen extends Screen {
 
     private void renderAiEgo(GuiGraphics graphics, int top, int mouseX, int mouseY) {
         ListTag entries = snapshot.getList("AiEgo", Tag.TAG_COMPOUND);
-        graphics.drawString(font, selectedAiEmployee == null ? "先在员工页选择一名AI员工"
-                        : "分配对象：" + fit(selectedAiName, 180),
+        graphics.drawString(font, selectedAiEmployee == null
+                        ? tr("screen.lobotocraft.facility.ai_ego.select_employee")
+                        : tr("screen.lobotocraft.facility.ai_ego.target", fit(selectedAiName, 180)),
                 panelX + 18, top + 2,
                 selectedAiEmployee == null ? LobotomyUiTheme.ALERT_RED : LobotomyUiTheme.ACCENT, false);
         if (entries.isEmpty()) {
-            drawEmpty(graphics, top + 18, "AI 全局仓库尚无 E.G.O 库存");
+            drawEmpty(graphics, top + 18, tr("screen.lobotocraft.facility.ai_ego.empty"));
             return;
         }
         for (int i = 0; i < entries.size(); i++) {
@@ -615,7 +642,9 @@ public final class FacilityManagementScreen extends Screen {
             int nameWidth = compact ? Math.max(40, panelWidth - 54 - 98) : 145;
             drawMarqueeText(graphics, emptyAsNone(entry.getString("DisplayName")),
                     panelX + 54, y + 9, nameWidth, LobotomyUiTheme.TEXT_TITLE);
-            graphics.drawString(font, "weapon".equals(entry.getString("Type")) ? "武器" : "护甲",
+            graphics.drawString(font, tr("weapon".equals(entry.getString("Type"))
+                            ? "equipment.lobotocraft.weapon"
+                            : "equipment.lobotocraft.armor"),
                     panelX + 54, y + 25, LobotomyUiTheme.TEXT_MUTED, false);
             boolean meetsRequirements = selectedMeetsRequirements(entry);
             String requirements = requirementText(entry);
@@ -639,15 +668,18 @@ public final class FacilityManagementScreen extends Screen {
                     && (entry.getInt("Available") > 0 || assigned);
             boolean hovered = enabled && inside(mouseX, mouseY, bx, y + 11, 54, 24);
             LobotomyUiRenderer.drawButton(graphics, font, bx, y + 11, 54, 24,
-                    Component.literal(assigned ? "已装备" : "分配"),
+                    Component.translatable(assigned
+                            ? "screen.lobotocraft.common.equipped"
+                            : "screen.lobotocraft.common.assign"),
                     assigned ? LobotomyUiRenderer.ButtonState.SELECTED
                             : !enabled ? LobotomyUiRenderer.ButtonState.DISABLED
                             : hovered ? LobotomyUiRenderer.ButtonState.HOVER
                             : LobotomyUiRenderer.ButtonState.NORMAL);
             if (restricted && !assigned) {
-                int tagWidth = font.width("受限") + 8;
+                String restrictedText = tr("screen.lobotocraft.facility.ai_ego.restricted");
+                int tagWidth = font.width(restrictedText) + 8;
                 LobotomyUiRenderer.drawTag(graphics, font, bx + (54 - tagWidth) / 2, y + 38,
-                        "受限", LobotomyUiTheme.ALERT_RED);
+                        restrictedText, LobotomyUiTheme.ALERT_RED);
             }
         }
     }
@@ -689,7 +721,7 @@ public final class FacilityManagementScreen extends Screen {
             cursor += font.width("×" + maximum) + 5;
         }
         // 槽位下方一行明细：已分配 / 可用（可用为 0 时标红，替代原来纯数字的三段式）
-        String detail = assigned + " 已分配 · " + available + " 可用";
+        String detail = tr("screen.lobotocraft.facility.ai_ego.stock", assigned, available);
         graphics.drawString(font, detail, x, y + OWNER_SLOT_H + 3,
                 available > 0 ? LobotomyUiTheme.TEXT_MUTED : LobotomyUiTheme.ALERT_RED, false);
     }
@@ -723,9 +755,9 @@ public final class FacilityManagementScreen extends Screen {
         AgentState state = agentState(entry, "AI_EMPLOYEE".equals(entry.getString("ActorType")));
         if (state == AgentState.MOVING) {
             String purpose = entry.getString("NavigationPurpose");
-            if (!purpose.isBlank()) return "移动中（" + purpose + "）";
+            if (!purpose.isBlank()) return tr("status.lobotocraft.moving_parenthetical", purpose);
         }
-        return state.label;
+        return tr(state.translationKey);
     }
 
     private String selectedAssignedCode(String equipmentType) {
@@ -772,19 +804,22 @@ public final class FacilityManagementScreen extends Screen {
 
     private String requirementText(CompoundTag ego) {
         java.util.List<String> requirements = new java.util.ArrayList<>();
-        addRequirement(requirements, ego, "FortitudeLevel", "勇气");
-        addRequirement(requirements, ego, "PrudenceLevel", "谨慎");
-        addRequirement(requirements, ego, "TemperanceLevel", "自律");
-        addRequirement(requirements, ego, "JusticeLevel", "正义");
-        addRequirement(requirements, ego, "EmployeeLevel", "员工");
-        return requirements.isEmpty() ? "无等级限制" : "要求 " + String.join(" · ", requirements);
+        addRequirement(requirements, ego, "FortitudeLevel", "stat.lobotocraft.fortitude");
+        addRequirement(requirements, ego, "PrudenceLevel", "stat.lobotocraft.prudence");
+        addRequirement(requirements, ego, "TemperanceLevel", "stat.lobotocraft.temperance");
+        addRequirement(requirements, ego, "JusticeLevel", "stat.lobotocraft.justice");
+        addRequirement(requirements, ego, "EmployeeLevel", "stat.lobotocraft.employee_level");
+        return requirements.isEmpty()
+                ? tr("screen.lobotocraft.ego.no_level_requirement")
+                : tr("screen.lobotocraft.ego.requirements", String.join(" · ", requirements));
     }
 
     private void addRequirement(java.util.List<String> target, CompoundTag ego,
-                                String key, String displayName) {
+                                String key, String displayNameKey) {
         int required = ego.getInt("Required" + key);
         if (required <= 0) return;
-        target.add(displayName + " " + roman(required));
+        target.add(tr("screen.lobotocraft.ego.requirement_entry",
+                tr(displayNameKey), roman(required)));
     }
 
     private static String roman(int level) {
@@ -870,23 +905,38 @@ public final class FacilityManagementScreen extends Screen {
         if (activeTab == 0 && inside(mouseX, mouseY, panelX + 14,
                 rowTop + row * rowHeight - scroll + 2, panelWidth - 28, rowHeight - 4)) {
             String detail = "AI_EMPLOYEE".equals(entry.getString("ActorType"))
-                    ? "AI员工 · " + entry.getString("Department") + " · " + statusText(entry)
-                    + " · HP " + Math.round(entry.getFloat("Health")) + "/" + Math.round(entry.getFloat("MaxHealth"))
-                    + " · SP " + Math.round(entry.getFloat("Mental")) + "/" + Math.round(entry.getFloat("MaxMental"))
-                    + " · 武器 " + emptyAsNone(entry.getString("WeaponEgoName"))
-                    + " · 防具 " + emptyAsNone(entry.getString("ArmorEgoName"))
-                    : "真人玩家（不可由调度系统下达命令）";
+                    ? tr("screen.lobotocraft.facility.employee.tooltip",
+                    departmentName(entry), statusText(entry),
+                    Math.round(entry.getFloat("Health")), Math.round(entry.getFloat("MaxHealth")),
+                    Math.round(entry.getFloat("Mental")), Math.round(entry.getFloat("MaxMental")),
+                    emptyAsNone(entry.getString("WeaponEgoName")),
+                    emptyAsNone(entry.getString("ArmorEgoName")))
+                    : tr("screen.lobotocraft.facility.employee.player_uncommandable");
             graphics.renderTooltip(font, Component.literal(detail), mouseX, mouseY);
         } else if (activeTab != 0 && mouseX >= panelX + 18 && mouseX < panelX + panelWidth - 14) {
-            String detail = emptyAsNone(entry.getString("DisplayName")) + " · "
-                    + ("weapon".equals(entry.getString("Type")) ? "E.G.O武器" : "E.G.O护甲");
-            if (activeTab == 2) detail += " · " + requirementText(entry);
+            String detail = tr("screen.lobotocraft.facility.ego.tooltip",
+                    emptyAsNone(entry.getString("DisplayName")),
+                    tr("weapon".equals(entry.getString("Type"))
+                            ? "equipment.lobotocraft.ego_weapon"
+                            : "equipment.lobotocraft.ego_armor"));
+            if (activeTab == 2) detail = tr("screen.lobotocraft.facility.ego.tooltip_requirements",
+                    detail, requirementText(entry));
             graphics.renderTooltip(font, Component.literal(detail), mouseX, mouseY);
         }
     }
 
     private String emptyAsNone(String value) {
-        return value == null || value.isBlank() ? "无" : value;
+        return value == null || value.isBlank() ? tr("screen.lobotocraft.common.none") : value;
+    }
+
+    private String departmentName(CompoundTag entry) {
+        String id = entry.getString("DepartmentId");
+        if (id.isBlank()) id = departmentId(entry.getString("Department"));
+        return tr("department.lobotocraft." + id);
+    }
+
+    private static String tr(String key, Object... arguments) {
+        return Component.translatable(key, arguments).getString();
     }
 
     private boolean inside(double mouseX, double mouseY, int x, int y, int width, int height) {

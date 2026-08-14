@@ -711,15 +711,15 @@ public class EntityIronMaiden extends AbstractAbnormality {
 
     @Override
     public String getToolWarningTitle() {
-        return "§4§l员工使用后可能会产生未知风险，请谨慎使用";
+        return "screen.lobotocraft.tool_use.warning.caution_title";
     }
 
     @Override
     public String[] getToolWarningMessages() {
         return new String[]{
-                "§c机器会对被关入的员工或文职造成按原版公式递增的红色伤害",
-                "§c伤害与能源脉冲会持续加速，最低间隔为0.1秒",
-                "§c创造模式和红色抗性≤0的玩家无法使用"
+                "screen.lobotocraft.tool_use.warning.iron_maiden.1",
+                "screen.lobotocraft.tool_use.warning.iron_maiden.2",
+                "screen.lobotocraft.tool_use.warning.iron_maiden.3"
         };
     }
 

@@ -4,6 +4,8 @@ import com.wzz.lobotocraft.capability.EmployeeStats;
 import com.wzz.lobotocraft.compat.ysm.YsmEmployeeCompat;
 import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.item.PEBoxItem;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
@@ -34,34 +36,39 @@ public final class RecruitmentService {
                                  int prudenceLevel, int temperanceLevel, int justiceLevel,
                                  String requestedPersona, EmployeeAppearance requestedAppearance) {
         if (!com.wzz.lobotocraft.util.AbnormalitySpawnHelper.isCompany(recruiter.level())) {
-            return Result.failure("请回到公司后再招募员工。");
+            return Result.failure("message.lobotocraft.recruitment.failure.company_only");
         }
-        if (!recruiter.hasPermissions(2)) return Result.failure("没有员工招募权限。");
+        if (!recruiter.hasPermissions(2)) {
+            return Result.failure("message.lobotocraft.recruitment.failure.permission");
+        }
         String name = requestedName == null ? "" : requestedName.strip();
-        if (!validName(name)) return Result.failure("员工名称必须为1-24个有效字符。");
+        if (!validName(name)) return Result.failure("message.lobotocraft.recruitment.failure.name");
         String rawPersona = requestedPersona == null ? "" : requestedPersona;
         if (!validPersona(rawPersona)) {
-            return Result.failure("员工人设最多256个字符，且不能包含控制字符或§。");
+            return Result.failure("message.lobotocraft.recruitment.failure.persona");
         }
         String persona = rawPersona.strip();
         if (!validLevel(fortitudeLevel) || !validLevel(prudenceLevel)
                 || !validLevel(temperanceLevel) || !validLevel(justiceLevel)) {
-            return Result.failure("四维等级必须在I-V之间。");
+            return Result.failure("message.lobotocraft.recruitment.failure.levels");
         }
         EmployeeAppearance appearance = requestedAppearance == null
                 ? EmployeeAppearance.DEFAULT : requestedAppearance.sanitized();
         var validatedAppearance = YsmEmployeeCompat.validateRequested(appearance);
         if (validatedAppearance.isEmpty()) {
-            return Result.failure("所选YSM模型在服务端不可用，请刷新模型目录后重试。");
+            return Result.failure("message.lobotocraft.recruitment.failure.ysm_unavailable");
         }
         appearance = validatedAppearance.get();
         if (FacilityPersonnelData.get(recruiter.server).findByName(name) != null) {
-            return Result.failure("已经存在同名员工。");
+            return Result.failure("message.lobotocraft.recruitment.failure.duplicate_name");
         }
 
         Cost cost = cost(fortitudeLevel, prudenceLevel, temperanceLevel, justiceLevel);
-        String missing = missingResources(recruiter, cost);
-        if (!missing.isEmpty()) return Result.failure("招募资源不足：" + missing);
+        Component missing = missingResources(recruiter, cost);
+        if (missing != null) {
+            return Result.failure(Component.translatable(
+                    "message.lobotocraft.recruitment.failure.resources", missing));
+        }
 
         // 原子扣费：预检已确认 5 项资源全部足够，且预检与扣除之间没有任何副作用，
         // 因此在创建员工之前一次性全额扣除，保证要么全扣要么（失败时）全退，玩家资源守恒。
@@ -89,7 +96,7 @@ public final class RecruitmentService {
             refundItem(recruiter, Items.GOLD_INGOT, cost.gold());
             refundItem(recruiter, Items.DIAMOND, cost.diamonds());
             inventory.setChanged();
-            return Result.failure("员工创建失败，已退还全部资源。");
+            return Result.failure("message.lobotocraft.recruitment.failure.creation_refunded");
         }
         record.setPersona(persona);
         FacilityPersonnelData.get(recruiter.server).changed();
@@ -120,19 +127,30 @@ public final class RecruitmentService {
         return count;
     }
 
-    private static String missingResources(ServerPlayer player, Cost cost) {
-        java.util.List<String> missing = new java.util.ArrayList<>();
+    private static Component missingResources(ServerPlayer player, Cost cost) {
+        java.util.List<Component> missing = new java.util.ArrayList<>();
         Inventory inventory = player.getInventory();
-        addMissing(missing, "绿宝石", inventory.countItem(Items.EMERALD), cost.emeralds());
-        addMissing(missing, "任意PE-BOX", countPeBoxes(inventory), cost.peBoxes());
-        addMissing(missing, "铁锭", inventory.countItem(Items.IRON_INGOT), cost.iron());
-        addMissing(missing, "金锭", inventory.countItem(Items.GOLD_INGOT), cost.gold());
-        addMissing(missing, "钻石", inventory.countItem(Items.DIAMOND), cost.diamonds());
-        return String.join("，", missing);
+        addMissing(missing, Items.EMERALD.getDescription(), inventory.countItem(Items.EMERALD), cost.emeralds());
+        addMissing(missing, Component.translatable("item.lobotocraft.pe_box.any"),
+                countPeBoxes(inventory), cost.peBoxes());
+        addMissing(missing, Items.IRON_INGOT.getDescription(), inventory.countItem(Items.IRON_INGOT), cost.iron());
+        addMissing(missing, Items.GOLD_INGOT.getDescription(), inventory.countItem(Items.GOLD_INGOT), cost.gold());
+        addMissing(missing, Items.DIAMOND.getDescription(), inventory.countItem(Items.DIAMOND), cost.diamonds());
+        if (missing.isEmpty()) return null;
+        MutableComponent result = Component.empty();
+        for (int index = 0; index < missing.size(); index++) {
+            if (index > 0) result.append(Component.translatable("text.lobotocraft.list_separator"));
+            result.append(missing.get(index));
+        }
+        return result;
     }
 
-    private static void addMissing(java.util.List<String> missing, String name, int held, int required) {
-        if (held < required) missing.add(name + " " + held + "/" + required);
+    private static void addMissing(java.util.List<Component> missing, Component name,
+                                   int held, int required) {
+        if (held < required) {
+            missing.add(Component.translatable("message.lobotocraft.recruitment.missing_item",
+                    name, held, required));
+        }
     }
 
     private static void refundItem(ServerPlayer player, Item item, int amount) {
@@ -202,12 +220,16 @@ public final class RecruitmentService {
     public record Cost(int emeralds, int peBoxes, int iron, int gold, int diamonds) {
     }
 
-    public record Result(boolean success, String message, EmployeeRecord employee) {
+    public record Result(boolean success, Component message, EmployeeRecord employee) {
         private static Result success(EmployeeRecord employee) {
-            return new Result(true, "", employee);
+            return new Result(true, Component.empty(), employee);
         }
 
-        private static Result failure(String message) {
+        private static Result failure(String key, Object... arguments) {
+            return failure(Component.translatable(key, arguments));
+        }
+
+        private static Result failure(Component message) {
             return new Result(false, message, null);
         }
     }

@@ -56,7 +56,8 @@ public class SetFloorNamePacket implements IMessage {
 
         boolean ok = CompanyRoomData.get(player.serverLevel()).renameFloor(dimension, floorPos, trimmed);
         if (!ok) {
-            player.displayClientMessage(Component.literal("§c该楼层标记已失效。"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.floor.marker_invalid"), true);
             return;
         }
         OpenRoomMapPacket.sendTo(player, true);

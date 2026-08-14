@@ -68,32 +68,33 @@ public final class AssignAiEgoPacket implements IMessage {
         if (FacilityPersonnelData.get(sender.server).get(employeeId) == null) return;
         var employee = EmployeeRuntimeManager.activePlayer(employeeId);
         if (employee == null) {
-            sender.sendSystemMessage(Component.literal("§c该AI员工当前未部署。"));
+            sender.sendSystemMessage(Component.translatable("message.lobotocraft.ai_ego.employee_offline"));
             return;
         }
         if (MentalValueUtil.isPanic(employee)) {
-            sender.sendSystemMessage(Component.literal("§c恐慌员工无法更改 E.G.O。"));
+            sender.sendSystemMessage(Component.translatable("message.lobotocraft.ai_ego.panic_change"));
             return;
         }
         if (isControlled(employee)) {
-            sender.sendSystemMessage(Component.literal("§c被控制的员工无法更改 E.G.O。"));
+            sender.sendSystemMessage(Component.translatable("message.lobotocraft.ai_ego.controlled_change"));
             return;
         }
         AiEgoRepositoryData repository = AiEgoRepositoryData.get(sender.server);
         if (abnormalityCode.isBlank()) {
             EgoLoadoutService.releaseAi(employee, repository, equipmentType);
-            sender.sendSystemMessage(Component.literal("§a已卸下AI员工的E.G.O。"));
+            sender.sendSystemMessage(Component.translatable("message.lobotocraft.ai_ego.unequipped"));
             FacilityManagementService.openEgoAssignment(sender);
             return;
         }
         AiEgoRepositoryData.Stock stock = repository.stock(abnormalityCode, equipmentType);
         if (stock == null) {
-            sender.sendSystemMessage(Component.literal("§cE.G.O装备数据无效。"));
+            sender.sendSystemMessage(Component.translatable("message.lobotocraft.ai_ego.invalid"));
             return;
         }
         var missing = EgoLoadoutService.missingRequirements(employee, stock.itemIds());
         if (!missing.isEmpty()) {
-            sender.sendSystemMessage(Component.literal("§c该员工等级不足：" + String.join("，", missing)));
+            sender.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.ai_ego.requirements_missing", String.join(", ", missing)));
             return;
         }
         String previousCode = repository.assignedCode(employeeId, equipmentType);
@@ -101,16 +102,16 @@ public final class AssignAiEgoPacket implements IMessage {
         if (sourceOwnerId != null && !sourceOwnerId.equals(employeeId)) {
             if (FacilityPersonnelData.get(sender.server).get(sourceOwnerId) == null
                     || !abnormalityCode.equals(repository.assignedCode(sourceOwnerId, equipmentType))) {
-                sender.sendSystemMessage(Component.literal("§cE.G.O占用关系已变化，请刷新后重试。"));
+                sender.sendSystemMessage(Component.translatable("message.lobotocraft.ai_ego.assignment_changed"));
                 return;
             }
             sourceOwner = EmployeeRuntimeManager.activePlayer(sourceOwnerId);
             if (sourceOwner != null && MentalValueUtil.isPanic(sourceOwner)) {
-                sender.sendSystemMessage(Component.literal("§c恐慌员工无法卸下或转移 E.G.O。"));
+                sender.sendSystemMessage(Component.translatable("message.lobotocraft.ai_ego.panic_transfer"));
                 return;
             }
             if (sourceOwner != null && isControlled(sourceOwner)) {
-                sender.sendSystemMessage(Component.literal("§c被控制的员工无法卸下或转移 E.G.O。"));
+                sender.sendSystemMessage(Component.translatable("message.lobotocraft.ai_ego.controlled_transfer"));
                 return;
             }
             repository.release(sourceOwnerId, equipmentType);
@@ -118,7 +119,7 @@ public final class AssignAiEgoPacket implements IMessage {
 
         if (!repository.assign(employeeId, abnormalityCode, equipmentType)) {
             if (sourceOwnerId != null) repository.assign(sourceOwnerId, abnormalityCode, equipmentType);
-            sender.sendSystemMessage(Component.literal("§cAI E.G.O库存不足或装备数据无效。"));
+            sender.sendSystemMessage(Component.translatable("message.lobotocraft.ai_ego.stock_invalid"));
             return;
         }
 
@@ -129,11 +130,11 @@ public final class AssignAiEgoPacket implements IMessage {
             if (!previousCode.isBlank()) {
                 EgoLoadoutService.equipAi(employee, repository, previousCode, equipmentType);
             }
-            sender.sendSystemMessage(Component.literal("§cAI E.G.O装备数据无效。"));
+            sender.sendSystemMessage(Component.translatable("message.lobotocraft.ai_ego.invalid"));
             return;
         }
         if (sourceOwner != null) EgoLoadoutService.clearAiProjection(sourceOwner, equipmentType);
-        sender.sendSystemMessage(Component.literal("§a已为AI员工分配E.G.O。"));
+        sender.sendSystemMessage(Component.translatable("message.lobotocraft.ai_ego.assigned"));
         FacilityManagementService.openEgoAssignment(sender);
     }
 

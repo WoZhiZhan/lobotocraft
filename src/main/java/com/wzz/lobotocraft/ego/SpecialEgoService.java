@@ -186,8 +186,9 @@ public final class SpecialEgoService {
                 if (!matchedAny) continue;
                 boolean newlyUnlocked = registry.unlock(definition.id());
                 if (newlyUnlocked) {
-                    player.sendSystemMessage(Component.literal("§d旧版实体装备已迁移：特殊 E.G.O「"
-                            + definition.displayName() + "」现已全服解锁。"));
+                    player.sendSystemMessage(Component.translatable(
+                            "message.lobotocraft.special_ego.legacy_unlocked",
+                            Component.translatable(definition.displayNameKey())));
                 }
                 for (String type : EQUIPMENT_TYPES) {
                     if (!physicalIds.containsAll(definition.itemIds(type))

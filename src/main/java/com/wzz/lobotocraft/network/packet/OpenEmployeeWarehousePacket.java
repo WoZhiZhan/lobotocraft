@@ -20,11 +20,12 @@ public final class OpenEmployeeWarehousePacket implements IMessage {
         ServerPlayer sender = context.getSender();
         if (sender == null || !sender.hasPermissions(2)) return;
         if (!AbnormalitySpawnHelper.isCompany(sender.level())) {
-            sender.sendSystemMessage(Component.literal("请回到公司后再管理员工物品。"));
+            sender.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.employee_warehouse.company_only"));
             return;
         }
         NetworkHooks.openScreen(sender, new SimpleMenuProvider(
                 (containerId, inventory, player) -> new EmployeeWarehouseMenu(containerId, inventory),
-                Component.literal("员工物品总仓")));
+                Component.translatable("screen.lobotocraft.employee_warehouse.title")));
     }
 }

@@ -34,7 +34,7 @@ public final class EgoResearchChoiceScreen extends Screen {
                                    int abnormalityId, double scrollOffset,
                                    IAbnormality abnormality, int cost,
                                    Screen returnScreen) {
-        super(Component.literal("选择E.G.O研发归属"));
+        super(Component.translatable("screen.lobotocraft.ego_research.title"));
         this.equipmentType = equipmentType;
         this.abnormalityCode = abnormalityCode;
         this.abnormalityId = abnormalityId;
@@ -48,7 +48,8 @@ public final class EgoResearchChoiceScreen extends Screen {
     public void init() {
         int x = (width - PANEL_WIDTH) / 2;
         int y = (height - PANEL_HEIGHT) / 2;
-        addRenderableWidget(LobotomyButton.create(Component.literal("取消"), button -> onClose())
+        addRenderableWidget(LobotomyButton.create(Component.translatable(
+                        "screen.lobotocraft.common.cancel"), button -> onClose())
                 .bounds(x + 120, y + 145, 120, 22).build());
     }
 
@@ -83,11 +84,16 @@ public final class EgoResearchChoiceScreen extends Screen {
         LobotomyUiRenderer.drawPanel(graphics, x, y, PANEL_WIDTH, PANEL_HEIGHT);
         LobotomyUiRenderer.drawPanelHeader(graphics, font, x, y, PANEL_WIDTH,
                 "E.G.O DEVELOPMENT", abnormalityCode + " / "
-                        + ("weapon".equals(equipmentType) ? "武器" : "护甲"));
+                        + tr("weapon".equals(equipmentType)
+                        ? "equipment.lobotocraft.weapon" : "equipment.lobotocraft.armor"));
 
-        renderScopeCard(graphics, x + 28, y + 56, "个人授权", "仅本人 · 限一件",
+        renderScopeCard(graphics, x + 28, y + 56,
+                tr("screen.lobotocraft.ego_research.personal"),
+                tr("screen.lobotocraft.ego_research.personal.subtitle"),
                 LobotomyUiTheme.GOLD, isMouseOverCard(mouseX, mouseY, x + 28, y + 56));
-        renderScopeCard(graphics, x + 190, y + 56, "AI 全局库存", "全服共享 · 可分配AI",
+        renderScopeCard(graphics, x + 190, y + 56,
+                tr("screen.lobotocraft.ego_research.ai_global"),
+                tr("screen.lobotocraft.ego_research.ai_global.subtitle"),
                 LobotomyUiTheme.ACCENT, isMouseOverCard(mouseX, mouseY, x + 190, y + 56));
 
         // 两卡之间的竖向分隔，强调这是两套彼此独立的额度而非同一池子的两种用法
@@ -95,11 +101,11 @@ public final class EgoResearchChoiceScreen extends Screen {
         graphics.fill(dividerX, y + 60, dividerX + 1, y + 56 + CARD_HEIGHT - 4,
                 LobotomyUiTheme.LINE_FAINT);
 
-        graphics.drawString(font, "个人授权：仅本人可装备，每种限一件。",
+        graphics.drawString(font, tr("screen.lobotocraft.ego_research.personal.description"),
                 x + 28, y + 112, LobotomyUiTheme.TEXT_MUTED, false);
-        graphics.drawString(font, "AI 库存：全服共享有限件数，可分配给AI员工。",
+        graphics.drawString(font, tr("screen.lobotocraft.ego_research.ai_global.description"),
                 x + 28, y + 124, LobotomyUiTheme.TEXT_MUTED, false);
-        graphics.drawString(font, "两者额度互相独立，个人研发不占用 AI 库存件数。",
+        graphics.drawString(font, tr("screen.lobotocraft.ego_research.independent"),
                 x + 28, y + 136, LobotomyUiTheme.ACCENT_DIM, false);
         super.render(graphics, mouseX, mouseY, partialTick);
     }
@@ -148,5 +154,9 @@ public final class EgoResearchChoiceScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    private static String tr(String key, Object... arguments) {
+        return Component.translatable(key, arguments).getString();
     }
 }

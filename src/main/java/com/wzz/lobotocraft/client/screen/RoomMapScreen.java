@@ -84,7 +84,9 @@ public class RoomMapScreen extends Screen {
     };
     private static final ResourceLocation MALKUTH_UNKNOWN_WORK =
             ResourceUtil.createInstance("textures/gui/core_suppression/malkuth_unknown_work.png");
-    private static final String[] WORK_NAMES = {"本能", "洞察", "沟通", "压迫"};
+    private static final String[] WORK_NAME_KEYS = {
+            "work.lobotocraft.instinct", "work.lobotocraft.insight",
+            "work.lobotocraft.attachment", "work.lobotocraft.repression"};
     private static final ResourceLocation[] STAT_ICONS = {
             ResourceUtil.createInstance("textures/gui/theme/stat_fortitude.png"),
             ResourceUtil.createInstance("textures/gui/theme/stat_prudence.png"),
@@ -97,9 +99,6 @@ public class RoomMapScreen extends Screen {
             ResourceUtil.createInstance("textures/gui/monitor/page_arrow_hover.png");
     private static final ResourceLocation DEPARTMENT_HEADER =
             ResourceUtil.createInstance("textures/gui/monitor/department_header.png");
-
-    /** 右上角显示的名字。按你的要求写死 */
-    private static final String FACILITY_NAME = "公司";
 
     private static final int HEADER_H = 32;
 
@@ -255,7 +254,7 @@ public class RoomMapScreen extends Screen {
                          List<FacilityAreaEntry> areas, List<RoomEmployeeSnapshot> employees,
                          Set<String> dangerousAreaIds, long serverGameTime,
                          boolean globalTt2Enabled, ResourceLocation dimension) {
-        super(Component.literal("设施监控"));
+        super(Component.translatable("screen.lobotocraft.monitor.title"));
         this.rooms = new ArrayList<>(rooms);
         this.floorEntries = new ArrayList<>(floorEntries);
         this.areas = new ArrayList<>(areas);
@@ -409,7 +408,7 @@ public class RoomMapScreen extends Screen {
                 }
             }
             if (!orphans.isEmpty()) {
-                Floor other = new Floor("未分层", null);
+                Floor other = new Floor(tr("screen.lobotocraft.monitor.floor.unassigned"), null);
                 other.rooms.addAll(orphans);
                 other.topY = Integer.MIN_VALUE + 1;
                 floors.add(other);
@@ -1178,8 +1177,8 @@ public class RoomMapScreen extends Screen {
             renderPicker(graphics, mouseX, mouseY, alpha);
         } else if (hoveredTt2Button) {
             graphics.renderComponentTooltip(this.font, List.of(
-                    Component.literal("§f全局 TT2 协议"),
-                    Component.literal("§7启用后，所有真人玩家与 AI 员工的工作速度变为 §f2 倍§7。")),
+                    Component.translatable("screen.lobotocraft.monitor.tt2.title"),
+                    Component.translatable("screen.lobotocraft.monitor.tt2.tooltip")),
                     mouseX, mouseY);
         } else if (hoveredCandidate != null) {
             graphics.renderComponentTooltip(this.font, buildEmployeeTooltip(hoveredCandidate), mouseX, mouseY);
@@ -1188,7 +1187,7 @@ public class RoomMapScreen extends Screen {
         } else if (hoveredWork >= 0) {
             graphics.renderTooltip(this.font, Component.literal(
                     CoreSuppressionClientState.isActive(CoreSuppressionType.MALKUTH)
-                            ? "???" : WORK_NAMES[hoveredWork]), mouseX, mouseY);
+                            ? "???" : tr(WORK_NAME_KEYS[hoveredWork])), mouseX, mouseY);
         } else if (hovered != null) {
             graphics.renderComponentTooltip(this.font, buildTooltip(hovered), mouseX, mouseY);
         } else if (hoveredFacilityArea != null) {
@@ -1420,24 +1419,28 @@ public class RoomMapScreen extends Screen {
         int dividerY = barTop + 20;
         graphics.fill(left + 8, dividerY, right - 8, dividerY + 1,
                 withAlpha(LobotomyUiTheme.LINE_FAINT, alpha));
-        graphics.drawString(this.font, isSuppressionSelection() ? "镇压派遣"
-                        : selectedRoom.toolType ? "工具派遣" : "工作类型", left + 8, dividerY + 8,
+        graphics.drawString(this.font, tr(isSuppressionSelection()
+                        ? "screen.lobotocraft.monitor.dispatch.suppression"
+                        : selectedRoom.toolType
+                        ? "screen.lobotocraft.monitor.dispatch.tool"
+                        : "screen.lobotocraft.monitor.dispatch.work_type"), left + 8, dividerY + 8,
                 withAlpha(COLOR_TEXT_DIM, alpha), false);
 
         if (selectedRoom.status == RoomEntry.STATUS_UNEXPANDED) {
-            drawCentered(graphics, "收容单元尚未扩建", left + panel.width() / 2,
+            drawCentered(graphics, tr("screen.lobotocraft.monitor.room.unexpanded"), left + panel.width() / 2,
                     dividerY + 34, withAlpha(STATUS_UNEXPANDED, alpha));
             return;
         }
 
         if (selectedRoom.toolType) {
-            drawCentered(graphics, "选择员工使用工具", left + panel.width() / 2,
+            drawCentered(graphics, tr("screen.lobotocraft.monitor.select_tool_employee"), left + panel.width() / 2,
                     dividerY + 35, withAlpha(LobotomyUiTheme.GOLD, alpha));
             return;
         }
 
         if (isSuppressionSelection()) {
-            drawCentered(graphics, "选择员工执行镇压任务", left + panel.width() / 2,
+            drawCentered(graphics, tr("screen.lobotocraft.monitor.select_suppression_employee"),
+                    left + panel.width() / 2,
                     dividerY + 35, withAlpha(LobotomyUiTheme.ALERT_RED, alpha));
             return;
         }
@@ -1500,7 +1503,7 @@ public class RoomMapScreen extends Screen {
                 panel.width() - 4, 23, 203, 38);
         graphics.setColor(1F, 1F, 1F, 1F);
 
-        String employeeState = "员工";
+        String employeeState = tr("screen.lobotocraft.monitor.employees");
         if (!candidatePages.isEmpty()) {
             CandidatePage page = candidatePages.get(Mth.clamp(candidatePage, 0, candidatePages.size() - 1));
             employeeState = departmentName(page.departmentId());
@@ -1582,7 +1585,7 @@ public class RoomMapScreen extends Screen {
                     hpY + 7, withAlpha(LobotomyUiTheme.BAR_SP, alpha));
 
             String preview = candidate.eligible()
-                    ? isSuppressionSelection() ? "可派遣"
+                    ? isSuppressionSelection() ? tr("screen.lobotocraft.monitor.dispatch.available")
                     : candidate.successRate() < 0.0F ? "???"
                     : Math.round(candidate.successRate() * 100.0F) + "%  " + candidate.estimatedSeconds() + "s"
                     : candidate.unavailableReason();
@@ -1785,13 +1788,14 @@ public class RoomMapScreen extends Screen {
 
         // 标题
         graphics.fill(left, top, left + PICKER_W, top + PICKER_HEADER_H, 0xFF16324A);
-        String title = "更改住户 · " + this.font.plainSubstrByWidth(pickerRoom.resolveTitle(), 180);
+        String title = tr("screen.lobotocraft.monitor.picker.title",
+                this.font.plainSubstrByWidth(pickerRoom.resolveTitle(), 180));
         graphics.drawString(this.font, title, left + 10, top + 9, COLOR_TEXT, false);
 
         int rowsTop = top + PICKER_HEADER_H;
 
         if (pickerRowCount() == 0) {
-            graphics.drawString(this.font, "附近 64 格内没有找到异想体",
+            graphics.drawString(this.font, tr("screen.lobotocraft.monitor.picker.empty"),
                     left + 10, rowsTop + 11, COLOR_TEXT_DIM, false);
         }
 
@@ -1831,12 +1835,14 @@ public class RoomMapScreen extends Screen {
                         candidate.riskColor, false);
                 subX += this.font.width(candidate.riskName) + 6;
             }
-            String where = candidate.inRoom ? "房间内" : (candidate.distance + " 格外");
+            String where = candidate.inRoom
+                    ? tr("screen.lobotocraft.monitor.picker.in_room")
+                    : tr("screen.lobotocraft.monitor.picker.distance", candidate.distance);
             graphics.drawString(this.font, where, subX, rowTop + 16,
                     candidate.inRoom ? STATUS_OCCUPIED : COLOR_TEXT_DIM, false);
 
             if (candidate.alreadyBound) {
-                String tag = "当前";
+                String tag = tr("screen.lobotocraft.monitor.picker.current");
                 graphics.drawString(this.font, tag,
                         left + PICKER_W - this.font.width(tag) - 8, rowTop + 10, STATUS_OCCUPIED, false);
             }
@@ -1853,8 +1859,10 @@ public class RoomMapScreen extends Screen {
         int footTop = rowsTop + visible * PICKER_ROW_H;
         graphics.fill(left, footTop, left + PICKER_W, footTop + PICKER_FOOTER_H, 0xFF0A1220);
 
-        drawPickerButton(graphics, left + 8, footTop + 4, 120, 20, "清空登记", mouseX, mouseY, 0xFFD9A036);
-        drawPickerButton(graphics, left + PICKER_W - 88, footTop + 4, 80, 20, "取消", mouseX, mouseY, COLOR_TEXT_DIM);
+        drawPickerButton(graphics, left + 8, footTop + 4, 120, 20,
+                tr("screen.lobotocraft.monitor.picker.clear"), mouseX, mouseY, 0xFFD9A036);
+        drawPickerButton(graphics, left + PICKER_W - 88, footTop + 4, 80, 20,
+                tr("screen.lobotocraft.common.cancel"), mouseX, mouseY, COLOR_TEXT_DIM);
     }
 
     private void drawPickerButton(GuiGraphics graphics, int x, int y, int w, int h,
@@ -2126,11 +2134,11 @@ public class RoomMapScreen extends Screen {
         }
 
         String statusText = switch (entry.status) {
-            case RoomEntry.STATUS_OCCUPIED -> "收容中";
-            case RoomEntry.STATUS_ESCAPED -> "出逃";
-            case RoomEntry.STATUS_LOST -> "失联";
-            case RoomEntry.STATUS_UNEXPANDED -> "未扩建";
-            default -> "空置";
+            case RoomEntry.STATUS_OCCUPIED -> tr("status.lobotocraft.contained");
+            case RoomEntry.STATUS_ESCAPED -> tr("status.lobotocraft.escaped_short");
+            case RoomEntry.STATUS_LOST -> tr("status.lobotocraft.lost");
+            case RoomEntry.STATUS_UNEXPANDED -> tr("status.lobotocraft.unexpanded");
+            default -> tr("status.lobotocraft.empty");
         };
         if (entry.playersInside > 0) statusText += "  x" + entry.playersInside;
         drawCentered(graphics, statusText, 0, top + 59, withAlpha(status, alpha));
@@ -2395,11 +2403,11 @@ public class RoomMapScreen extends Screen {
 
     private static String roomStatusText(RoomEntry entry) {
         String statusText = switch (entry.status) {
-            case RoomEntry.STATUS_OCCUPIED -> "收容中";
-            case RoomEntry.STATUS_ESCAPED -> "出逃";
-            case RoomEntry.STATUS_LOST -> "失联";
-            case RoomEntry.STATUS_UNEXPANDED -> "未扩建";
-            default -> "空置";
+            case RoomEntry.STATUS_OCCUPIED -> tr("status.lobotocraft.contained");
+            case RoomEntry.STATUS_ESCAPED -> tr("status.lobotocraft.escaped_short");
+            case RoomEntry.STATUS_LOST -> tr("status.lobotocraft.lost");
+            case RoomEntry.STATUS_UNEXPANDED -> tr("status.lobotocraft.unexpanded");
+            default -> tr("status.lobotocraft.empty");
         };
         return entry.playersInside > 0 ? statusText + "  x" + entry.playersInside : statusText;
     }
@@ -2448,7 +2456,8 @@ public class RoomMapScreen extends Screen {
                     PORTRAIT, PORTRAIT, PORTRAIT, PORTRAIT);
             graphics.setColor(1F, 1F, 1F, 1F);
         } else {
-            drawCentered(graphics, "空", cx, py + PORTRAIT / 2 - 4, withAlpha(COLOR_TEXT_DIM, alpha));
+            drawCentered(graphics, tr("status.lobotocraft.empty_short"), cx,
+                    py + PORTRAIT / 2 - 4, withAlpha(COLOR_TEXT_DIM, alpha));
         }
 
         // 房间名
@@ -2499,21 +2508,23 @@ public class RoomMapScreen extends Screen {
 
         // 状态
         String statusText = switch (entry.status) {
-            case RoomEntry.STATUS_OCCUPIED -> "收容中";
+            case RoomEntry.STATUS_OCCUPIED -> tr("status.lobotocraft.contained");
             case RoomEntry.STATUS_ESCAPED -> entry.escapeDistance > 0
-                    ? "出逃中 " + entry.escapeDistance + "格" : "出逃中";
-            case RoomEntry.STATUS_LOST -> "失联";
-            case RoomEntry.STATUS_UNEXPANDED -> "未扩建";
-            default -> "空置";
+                    ? tr("status.lobotocraft.escaped_distance", entry.escapeDistance)
+                    : tr("status.lobotocraft.escaped");
+            case RoomEntry.STATUS_LOST -> tr("status.lobotocraft.lost");
+            case RoomEntry.STATUS_UNEXPANDED -> tr("status.lobotocraft.unexpanded");
+            default -> tr("status.lobotocraft.empty");
         };
         if (entry.playersInside > 0) {
-            statusText += "  员工x" + entry.playersInside;
+            statusText = tr("screen.lobotocraft.monitor.room.employees_inside", statusText, entry.playersInside);
         }
         drawCentered(graphics, statusText, cx, top + CARD_H - 26, withAlpha(statusColor, alpha));
 
         long lag = serverGameTime - entry.lastUpdate;
         if (lag > 100) {
-            drawCentered(graphics, "数据延迟 " + (lag / 20) + "s", cx, top + CARD_H - 14,
+            drawCentered(graphics, tr("screen.lobotocraft.monitor.data_delay_short", lag / 20),
+                    cx, top + CARD_H - 14,
                     withAlpha(0xFFD9A036, alpha * 0.9F));
         }
     }
@@ -2522,7 +2533,7 @@ public class RoomMapScreen extends Screen {
         graphics.fill(0, HEADER_H, GUTTER_W, this.height, withAlpha(COLOR_PANEL, alpha));
         graphics.fill(GUTTER_W - 1, HEADER_H, GUTTER_W, this.height,
                 withAlpha(LobotomyUiTheme.LINE_MID, alpha));
-        graphics.drawString(this.font, "楼层", 9, HEADER_H + 6,
+        graphics.drawString(this.font, tr("screen.lobotocraft.monitor.floors"), 9, HEADER_H + 6,
                 withAlpha(COLOR_TEXT_DIM, alpha), false);
 
         for (int i = 0; i < floors.size(); i++) {
@@ -2546,8 +2557,10 @@ public class RoomMapScreen extends Screen {
             String label = this.font.plainSubstrByWidth(floor.label, GUTTER_W - 25);
             graphics.drawString(this.font, label, 13, top + 4,
                     withAlpha(selected ? COLOR_TEXT : COLOR_TEXT_DIM, alpha), false);
-            String info = floor.rooms.size() + " 间";
-            if (floor.escaped() > 0) info += "  出逃 " + floor.escaped();
+            String info = floor.escaped() > 0
+                    ? tr("screen.lobotocraft.monitor.floor.rooms_escaped",
+                    floor.rooms.size(), floor.escaped())
+                    : tr("screen.lobotocraft.monitor.floor.rooms", floor.rooms.size());
             graphics.drawString(this.font, info, 13, top + 16,
                     withAlpha(floor.escaped() > 0 ? STATUS_ESCAPED : COLOR_TEXT_DIM, alpha), false);
         }
@@ -2558,7 +2571,8 @@ public class RoomMapScreen extends Screen {
         graphics.fill(0, HEADER_H, panelRight, this.height, withAlpha(COLOR_PANEL, alpha));
         graphics.fill(panelRight, HEADER_H, panelRight + 1, this.height, withAlpha(COLOR_ACCENT, alpha * 0.6F));
 
-        graphics.drawString(this.font, "楼层  §8右键改名", TAB_X, HEADER_H + 8,
+        graphics.drawString(this.font, tr("screen.lobotocraft.monitor.floors.rename_hint"),
+                TAB_X, HEADER_H + 8,
                 withAlpha(COLOR_TEXT_DIM, alpha), false);
 
         for (int i = 0; i < floors.size(); i++) {
@@ -2585,7 +2599,9 @@ public class RoomMapScreen extends Screen {
             graphics.drawString(this.font, label, TAB_X + 9, top + 5,
                     withAlpha(selected ? COLOR_TEXT : COLOR_TEXT_DIM, alpha), false);
 
-            String info = floor.rooms.size() + " 间" + (escaped > 0 ? "   出逃 " + escaped : "");
+            String info = escaped > 0
+                    ? tr("screen.lobotocraft.monitor.floor.rooms_escaped", floor.rooms.size(), escaped)
+                    : tr("screen.lobotocraft.monitor.floor.rooms", floor.rooms.size());
             graphics.drawString(this.font, info, TAB_X + 9, top + 18,
                     withAlpha(escaped > 0 ? STATUS_ESCAPED : COLOR_TEXT_DIM, alpha * 0.9F), false);
         }
@@ -2595,7 +2611,7 @@ public class RoomMapScreen extends Screen {
         graphics.fill(0, 0, this.width, HEADER_H, withAlpha(0xF00A1018, alpha));
         graphics.fill(0, HEADER_H, this.width, HEADER_H + 1, withAlpha(COLOR_ACCENT, alpha));
 
-        String title = "收容设施监控";
+        String title = tr("screen.lobotocraft.monitor.header");
         graphics.drawString(this.font, title, 12, 11, withAlpha(COLOR_TEXT, alpha), false);
         int x = 12 + this.font.width(title) + 14;
 
@@ -2606,8 +2622,8 @@ public class RoomMapScreen extends Screen {
             else if (entry.status == RoomEntry.STATUS_OCCUPIED) contained++;
         }
 
-        String stats = "收容间 " + rooms.size() + "   收容中 " + contained
-                + "   出逃 " + escaped + "   楼层 " + floors.size();
+        String stats = tr("screen.lobotocraft.monitor.stats",
+                rooms.size(), contained, escaped, floors.size());
         ScreenBounds tt2 = tt2ButtonBounds();
         int statsWidth = Math.max(0, tt2.left() - x - 10);
         if (statsWidth > 12) {
@@ -2626,18 +2642,22 @@ public class RoomMapScreen extends Screen {
                 withAlpha(tt2Background, alpha));
         drawBorder(graphics, tt2.left(), tt2.top(), tt2.width(), tt2.height(),
                 withAlpha(tt2Border, alpha));
-        drawCentered(graphics, globalTt2Enabled ? "TT2 x2  开启" : "TT2 x2  关闭",
+        drawCentered(graphics, tr(globalTt2Enabled
+                        ? "screen.lobotocraft.monitor.tt2.enabled"
+                        : "screen.lobotocraft.monitor.tt2.disabled"),
                 tt2.left() + tt2.width() / 2, tt2.top() + 6,
                 withAlpha(globalTt2Enabled ? LobotomyUiTheme.ENERGY_GREEN : COLOR_TEXT_DIM, alpha));
 
-        graphics.drawString(this.font, FACILITY_NAME,
-                this.width - this.font.width(FACILITY_NAME) - 12, 11,
+        String facilityName = tr("screen.lobotocraft.monitor.facility_name");
+        graphics.drawString(this.font, facilityName,
+                this.width - this.font.width(facilityName) - 12, 11,
                 withAlpha(COLOR_TEXT, alpha), false);
 
     }
 
     private ScreenBounds tt2ButtonBounds() {
-        int companyLeft = this.width - this.font.width(FACILITY_NAME) - 12;
+        int companyLeft = this.width - this.font.width(
+                tr("screen.lobotocraft.monitor.facility_name")) - 12;
         int right = companyLeft - 12;
         return new ScreenBounds(right - 94, 6, right, HEADER_H - 6);
     }
@@ -2646,8 +2666,7 @@ public class RoomMapScreen extends Screen {
         int top = this.height - 18;
         graphics.fill(0, top, this.width, this.height, withAlpha(0xF00A1018, alpha));
         graphics.fill(0, top, this.width, top + 1, withAlpha(LobotomyUiTheme.LINE_FAINT, alpha));
-        String hint = "左键房间 派遣工作  ·  空白拖拽 框选员工  ·  右键房间 查看资料  ·  "
-                + "Shift+右键 传送  ·  Ctrl+右键 更换住户  ·  选中员工后右键区域 移动  ·  滚轮 缩放";
+        String hint = tr("screen.lobotocraft.monitor.controls");
         drawFittedString(graphics, hint, 10, top + 5, Math.max(1, this.width - 20),
                 withAlpha(COLOR_TEXT_DIM, alpha));
     }
@@ -2656,51 +2675,57 @@ public class RoomMapScreen extends Screen {
         List<Component> lines = new ArrayList<>();
         lines.add(Component.literal("§f" + entry.resolveTitle()));
         if (entry.floorName != null && !entry.floorName.isEmpty()) {
-            lines.add(Component.literal("§7楼层：§f" + entry.floorName));
+            lines.add(Component.translatable("screen.lobotocraft.monitor.tooltip.floor", entry.floorName));
         }
         if (!entry.abnormalityCode.isEmpty()) {
-            lines.add(Component.literal("§7编号：§f" + entry.abnormalityCode));
+            lines.add(Component.translatable("screen.lobotocraft.monitor.tooltip.code", entry.abnormalityCode));
             if (!entry.riskName.isEmpty()) {
-                lines.add(Component.literal("§7风险等级：")
+                lines.add(Component.translatable("screen.lobotocraft.monitor.tooltip.risk")
                         .append(Component.literal(entry.riskName)
                                 .withStyle(style -> style.withColor(entry.riskColor & 0xFFFFFF))));
             }
         }
-        lines.add(Component.literal("§7状态：" + switch (entry.status) {
-            case RoomEntry.STATUS_OCCUPIED -> "§a收容中";
-            case RoomEntry.STATUS_ESCAPED -> "§c出逃中"
-                    + (entry.escapeDistance > 0 ? " §7(离房间 §c" + entry.escapeDistance + " §7格)" : "");
-            case RoomEntry.STATUS_LOST -> "§6失联 §7(被回收 / 死亡待复活 / 区块未加载)";
-            case RoomEntry.STATUS_UNEXPANDED -> "§7未扩建";
-            default -> "§8空置";
-        }));
+        Component status = switch (entry.status) {
+            case RoomEntry.STATUS_OCCUPIED -> Component.translatable("status.lobotocraft.contained.colored");
+            case RoomEntry.STATUS_ESCAPED -> entry.escapeDistance > 0
+                    ? Component.translatable("status.lobotocraft.escaped_distance.colored", entry.escapeDistance)
+                    : Component.translatable("status.lobotocraft.escaped.colored");
+            case RoomEntry.STATUS_LOST -> Component.translatable("status.lobotocraft.lost.detail");
+            case RoomEntry.STATUS_UNEXPANDED -> Component.translatable("status.lobotocraft.unexpanded.colored");
+            default -> Component.translatable("status.lobotocraft.empty.colored");
+        };
+        lines.add(Component.translatable("screen.lobotocraft.monitor.tooltip.status").append(status));
         if (hasActiveOccupant(entry)) {
-            lines.add(Component.literal("§7生命：§f" + Math.round(entry.healthPercent * 100) + "%"));
+            lines.add(Component.translatable("screen.lobotocraft.monitor.tooltip.health",
+                    Math.round(entry.healthPercent * 100)));
             if (entry.maxQliphoth > 0) {
-                lines.add(Component.literal("§7计数器：§f" + entry.qliphoth + " / " + entry.maxQliphoth));
+                lines.add(Component.translatable("screen.lobotocraft.monitor.tooltip.qliphoth",
+                        entry.qliphoth, entry.maxQliphoth));
             }
         }
         if (entry.meltdownActive) {
-            lines.add(Component.literal("\u00a7c\u878d\u6bc1\u4e2d  \u00a7f"
-                    + Math.max(0, (entry.meltdownRemainingTicks + 19) / 20) + "s"));
+            lines.add(Component.translatable("screen.lobotocraft.monitor.tooltip.meltdown",
+                    Math.max(0, (entry.meltdownRemainingTicks + 19) / 20)));
         }
         RoomEmployeeSnapshot activeWork = roomWorkSnapshot(entry);
         if (activeWork != null) {
             String workName = activeWork.currentWorkType() == null
-                    ? "未知" : activeWork.currentWorkType().getDisplayName();
-            lines.add(Component.literal("§7工作类型：§f" + workName));
-            lines.add(Component.literal("§a正 PE-BOX " + activeWork.workSuccessBoxes()
-                    + "  §c负 PE-BOX " + activeWork.workFailureBoxes()
-                    + "  §7/ §f" + activeWork.workBoxCapacity()));
+                    ? tr("screen.lobotocraft.common.unknown")
+                    : tr(WORK_NAME_KEYS[activeWork.currentWorkType().ordinal()]);
+            lines.add(Component.translatable("screen.lobotocraft.monitor.tooltip.work_type", workName));
+            lines.add(Component.translatable("screen.lobotocraft.monitor.tooltip.pe_boxes",
+                    activeWork.workSuccessBoxes(), activeWork.workFailureBoxes(),
+                    activeWork.workBoxCapacity()));
         }
-        lines.add(Component.literal("§7坐标：§f"
-                + entry.pos.getX() + ", " + entry.pos.getY() + ", " + entry.pos.getZ()));
+        lines.add(Component.translatable("screen.lobotocraft.monitor.tooltip.coordinates",
+                entry.pos.getX(), entry.pos.getY(), entry.pos.getZ()));
         if (entry.playersInside > 0) {
-            lines.add(Component.literal("§7房间内员工：§f" + entry.playersInside));
+            lines.add(Component.translatable("screen.lobotocraft.monitor.tooltip.employees_inside",
+                    entry.playersInside));
         }
         long lag = serverGameTime - entry.lastUpdate;
         if (lag > 100) {
-            lines.add(Component.literal("§6数据延迟 " + (lag / 20) + " 秒（区块未加载）"));
+            lines.add(Component.translatable("screen.lobotocraft.monitor.tooltip.data_delay", lag / 20));
         }
         return lines;
     }
@@ -2713,18 +2738,16 @@ public class RoomMapScreen extends Screen {
         lines.add(Component.literal("§cHP " + Math.round(employee.health()) + "/"
                 + Math.round(employee.maxHealth()) + "  §fSP " + Math.round(employee.mental())
                 + "/" + Math.round(employee.maxMental())));
-        lines.add(Component.literal("§c勇气 " + employee.fortitude()
-                + "  §9谨慎 " + employee.prudence()
-                + "  §a自律 " + employee.temperance()
-                + "  §e正义 " + employee.justice()));
-        lines.add(Component.literal("§7武器  §f" + employee.weaponName()));
-        lines.add(Component.literal("§7防具  §f" + employee.armorName()));
+        lines.add(Component.translatable("screen.lobotocraft.monitor.employee.stats",
+                employee.fortitude(), employee.prudence(), employee.temperance(), employee.justice()));
+        lines.add(Component.translatable("screen.lobotocraft.monitor.employee.weapon", employee.weaponName()));
+        lines.add(Component.translatable("screen.lobotocraft.monitor.employee.armor", employee.armorName()));
         if (employee.eligible() && employee.successRate() >= 0.0F) {
-            lines.add(Component.literal("§a成功率 " + Math.round(employee.successRate() * 100.0F)
-                    + "%  §7预计 " + employee.estimatedSeconds() + " 秒"));
+            lines.add(Component.translatable("screen.lobotocraft.monitor.employee.work_preview",
+                    Math.round(employee.successRate() * 100.0F), employee.estimatedSeconds()));
         } else if (employee.eligible() && employee.successRate() < 0.0F
                 && selectedRoom != null && selectedWork >= 0 && !isSuppressionSelection()) {
-            lines.add(Component.literal("§7成功率 ???  预计时间 ???"));
+            lines.add(Component.translatable("screen.lobotocraft.monitor.employee.work_preview_unknown"));
         } else if (!employee.eligible()) {
             lines.add(Component.literal("§c" + employee.unavailableReason()));
         }
@@ -2732,61 +2755,45 @@ public class RoomMapScreen extends Screen {
     }
 
     private static String employeeStatusText(String status) {
-        return "CONTROLLED".equals(status) ? "被控制" : status;
+        return "CONTROLLED".equals(status) ? tr("status.lobotocraft.controlled") : status;
     }
 
     private List<Component> buildAreaTooltip(FacilityLayoutTemplate.Area area) {
         List<Component> lines = new ArrayList<>();
         lines.add(Component.literal("§f" + departmentLabel(area)));
-        lines.add(Component.literal("§7区域：§f" + areaTypeLabel(area.role())));
-        worldAreaFor(area.areaId()).ifPresent(world -> lines.add(Component.literal("§7锚点：§f"
-                + world.markerPos.getX() + ", " + world.markerPos.getY() + ", " + world.markerPos.getZ())));
+        lines.add(Component.translatable("screen.lobotocraft.monitor.area.type", areaTypeLabel(area.role())));
+        worldAreaFor(area.areaId()).ifPresent(world -> lines.add(Component.translatable(
+                "screen.lobotocraft.monitor.area.anchor", world.markerPos.getX(),
+                world.markerPos.getY(), world.markerPos.getZ())));
         return lines;
     }
 
     private static String departmentLabel(FacilityLayoutTemplate.Area area) {
-        if (area.areaId().startsWith("dept/central/upper/")) return "中央本部 上层";
-        if (area.areaId().startsWith("dept/central/lower/")) return "中央本部 下层";
-        return switch (area.departmentId()) {
-            case "control" -> "控制部";
-            case "information" -> "情报部";
-            case "training" -> "培训部";
-            case "safety" -> "安保部";
-            case "central" -> "中央本部";
-            case "welfare" -> "福利部";
-            case "disciplinary" -> "惩戒部";
-            case "record" -> "记录部";
-            case "extraction" -> "研发部";
-            case "architecture" -> "构筑部";
-            default -> "未分配区域";
-        };
+        if (area.areaId().startsWith("dept/central/upper/")) {
+            return tr("department.lobotocraft.central.upper");
+        }
+        if (area.areaId().startsWith("dept/central/lower/")) {
+            return tr("department.lobotocraft.central.lower");
+        }
+        String id = area.departmentId() == null || area.departmentId().isBlank()
+                ? "unassigned_area" : area.departmentId();
+        return tr("department.lobotocraft." + id);
     }
 
     private static String departmentName(String departmentId) {
-        return switch (departmentId == null ? "" : departmentId) {
-            case "control" -> "控制部";
-            case "information" -> "情报部";
-            case "training" -> "培训部";
-            case "safety" -> "安保部";
-            case "central" -> "中央本部";
-            case "welfare" -> "福利部";
-            case "disciplinary" -> "惩戒部";
-            case "record" -> "记录部";
-            case "extraction" -> "研发部";
-            case "architecture" -> "构筑部";
-            default -> "未分配";
-        };
+        String id = departmentId == null || departmentId.isBlank() ? "unassigned" : departmentId;
+        return tr("department.lobotocraft." + id);
     }
 
     private static String areaTypeLabel(FacilityLayoutTemplate.AreaRole role) {
         return switch (role) {
-            case DEPARTMENT_BACKGROUND -> "部门";
-            case CORRIDOR -> "走廊";
-            case ELEVATOR_ROOM -> "电梯间";
-            case ELEVATOR_SHAFT -> "电梯井";
-            case CONTAINMENT_ROOM -> "收容单元";
-            case REST_ROOM -> "休息室";
-            case MAIN_HALL -> "主厅";
+            case DEPARTMENT_BACKGROUND -> tr("area.lobotocraft.department");
+            case CORRIDOR -> tr("area.lobotocraft.corridor");
+            case ELEVATOR_ROOM -> tr("area.lobotocraft.elevator_room");
+            case ELEVATOR_SHAFT -> tr("area.lobotocraft.elevator_shaft");
+            case CONTAINMENT_ROOM -> tr("area.lobotocraft.containment_room");
+            case REST_ROOM -> tr("area.lobotocraft.rest_room");
+            case MAIN_HALL -> tr("area.lobotocraft.main_hall");
         };
     }
 
@@ -2797,8 +2804,8 @@ public class RoomMapScreen extends Screen {
         Floor floor = floors.get(index);
         if (floor.markerPos == null) {
             if (this.minecraft != null && this.minecraft.player != null) {
-                this.minecraft.player.displayClientMessage(Component.literal(
-                        "§7这一层是按 Y 坐标自动分的，放一个楼层标记方块才能改名。"), true);
+                this.minecraft.player.displayClientMessage(Component.translatable(
+                        "message.lobotocraft.monitor.floor_marker_required"), true);
             }
             return;
         }
@@ -2806,7 +2813,8 @@ public class RoomMapScreen extends Screen {
 
         int top = (int) worldToScreenY(floor.layoutCenter) - FLOOR_LABEL_H / 2;
         renamingFloor = index;
-        renameBox = new EditBox(this.font, TAB_X + 5, top + 8, TAB_W - 10, 16, Component.literal("楼层名"));
+        renameBox = new EditBox(this.font, TAB_X + 5, top + 8, TAB_W - 10, 16,
+                Component.translatable("screen.lobotocraft.monitor.floor_name"));
         renameBox.setMaxLength(24);
         renameBox.setValue(floor.label);
         renameBox.setBordered(true);
@@ -3035,9 +3043,8 @@ public class RoomMapScreen extends Screen {
             if (containmentArea != null && !containmentArea.isBlank()) {
                 dispatchAreaMove(containmentArea);
                 if (this.minecraft != null && this.minecraft.player != null) {
-                    this.minecraft.player.displayClientMessage(Component.literal(
-                            "§b[对讲机] §f已命令所选员工进入“"
-                                    + room.abnormalityName + "”的收容单元。"), true);
+                    this.minecraft.player.displayClientMessage(Component.translatable(
+                            "message.lobotocraft.monitor.move_to_containment", room.abnormalityName), true);
                 }
                 return true;
             }
@@ -3045,8 +3052,9 @@ public class RoomMapScreen extends Screen {
         if (room.abnormalityCode == null || room.abnormalityCode.isEmpty()) {
             if (this.minecraft != null && this.minecraft.player != null) {
                 this.minecraft.player.displayClientMessage(
-                        Component.literal(room.status == RoomEntry.STATUS_UNEXPANDED
-                                ? "§7该收容单元尚未扩建。" : "§7该收容单元当前没有住户。"), true);
+                        Component.translatable(room.status == RoomEntry.STATUS_UNEXPANDED
+                                ? "message.lobotocraft.monitor.room_unexpanded"
+                                : "message.lobotocraft.monitor.room_empty"), true);
             }
             playUiSound(0.55F);
             return true;
@@ -3333,5 +3341,9 @@ public class RoomMapScreen extends Screen {
         if (a == 0) a = 255;
         a = (int) (a * Mth.clamp(multiplier, 0F, 1F));
         return (a << 24) | (argb & 0xFFFFFF);
+    }
+
+    private static String tr(String key, Object... arguments) {
+        return Component.translatable(key, arguments).getString();
     }
 }

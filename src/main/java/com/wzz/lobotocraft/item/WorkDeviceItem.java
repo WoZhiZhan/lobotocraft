@@ -30,17 +30,19 @@ public class WorkDeviceItem extends Item {
         if (!level.isClientSide) {
             if (CoreSuppressionManager.isDeviceRestricted(player)) {
                 setEnabled(stack, false);
-                player.sendSystemMessage(Component.literal("§c核心抑制期间无法使用工作装置。"));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.work_device.core_suppression_restricted"));
                 return InteractionResultHolder.fail(stack);
             }
             boolean enabled = !isEnabled(stack);
             setEnabled(stack, enabled);
-            player.sendSystemMessage(Component.literal(enabled
-                    ? "§a工作装置已开启：下一次工作将进入连续工作模式。"
-                    : "§7工作装置已关闭。"));
+            player.sendSystemMessage(Component.translatable(enabled
+                    ? "message.lobotocraft.work_device.enabled"
+                    : "message.lobotocraft.work_device.disabled"));
             if (!enabled && player instanceof ServerPlayer serverPlayer
                     && WorkManager.isPlayerWorking(serverPlayer)) {
-                WorkManager.requestStopContinuousWork(serverPlayer, "工作装置已关闭");
+                WorkManager.requestStopContinuousWork(serverPlayer, Component.translatable(
+                        "message.lobotocraft.work_device.disabled_reason"));
             }
         }
         return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
@@ -54,9 +56,13 @@ public class WorkDeviceItem extends Item {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("开启后，下一次工作会进入连续工作模式。").withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.literal("连续工作会在本次工作完成后自动重复相同工作。").withStyle(ChatFormatting.DARK_GRAY));
-        tooltip.add(Component.literal(isEnabled(stack) ? "状态：已开启" : "状态：已关闭")
+        tooltip.add(Component.translatable("tooltip.lobotocraft.work_device.1")
+                .withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable("tooltip.lobotocraft.work_device.2")
+                .withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.translatable(isEnabled(stack)
+                        ? "tooltip.lobotocraft.work_device.enabled"
+                        : "tooltip.lobotocraft.work_device.disabled")
                 .withStyle(isEnabled(stack) ? ChatFormatting.GREEN : ChatFormatting.GRAY));
         super.appendHoverText(stack, level, tooltip, flag);
     }

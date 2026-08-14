@@ -187,7 +187,8 @@ public class OpenManualScreenPacket implements IMessage {
         int manualCount = data.getManualCount();
         String[] manualTexts = new String[manualCount];
         for (int i = 0; i < manualCount; i++) {
-            manualTexts[i] = data.getManual(i);
+            manualTexts[i] = AbnormalityEncyclopediaData.getManual(
+                    abnormalityCode, i, minecraft.options.languageCode);
         }
 
         Minecraft.getInstance().setScreen(new AbnormalityEncyclopediaScreen(

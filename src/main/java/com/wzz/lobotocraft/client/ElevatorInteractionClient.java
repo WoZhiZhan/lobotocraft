@@ -71,12 +71,14 @@ public final class ElevatorInteractionClient {
         if (space && shift) {
             heldDirection = null;
             heldTicks = 0;
-            player.displayClientMessage(Component.literal("请选择一个电梯方向")
+            player.displayClientMessage(Component.translatable(
+                            "message.lobotocraft.elevator.choose_direction")
                     .withStyle(ChatFormatting.RED), true);
             return;
         }
         if (latchedUntilRelease) {
-            player.displayClientMessage(Component.literal("松开按键后可再次操作")
+            player.displayClientMessage(Component.translatable(
+                            "message.lobotocraft.elevator.release_to_reuse")
                     .withStyle(ChatFormatting.DARK_GRAY), true);
             return;
         }
@@ -95,12 +97,9 @@ public final class ElevatorInteractionClient {
     }
 
     private static void showPrompt(LocalPlayer player) {
-        Component prompt = Component.literal("长按 ").withStyle(ChatFormatting.GRAY)
-                .append(Component.literal("[SPACE]").withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD))
-                .append(Component.literal(" 上升").withStyle(ChatFormatting.WHITE))
-                .append(Component.literal("   |   ").withStyle(ChatFormatting.DARK_GRAY))
-                .append(Component.literal("[SHIFT]").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD))
-                .append(Component.literal(" 下降").withStyle(ChatFormatting.WHITE));
+        Component prompt = Component.translatable("message.lobotocraft.elevator.prompt",
+                Component.literal("[SPACE]").withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD),
+                Component.literal("[SHIFT]").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
         player.displayClientMessage(prompt, true);
     }
 
@@ -108,7 +107,9 @@ public final class ElevatorInteractionClient {
         ChatFormatting color = direction == Direction.UP ? ChatFormatting.AQUA : ChatFormatting.GOLD;
         int filledSegments = Math.min(BAR_SEGMENTS,
                 (progress * BAR_SEGMENTS + HOLD_TICKS - 1) / HOLD_TICKS);
-        Component bar = Component.literal(direction == Direction.UP ? "上升  " : "下降  ")
+        Component bar = Component.translatable(direction == Direction.UP
+                        ? "message.lobotocraft.elevator.direction.up"
+                        : "message.lobotocraft.elevator.direction.down")
                 .withStyle(color, ChatFormatting.BOLD)
                 .append(Component.literal("I".repeat(filledSegments)).withStyle(color, ChatFormatting.BOLD))
                 .append(Component.literal("I".repeat(BAR_SEGMENTS - filledSegments))

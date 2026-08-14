@@ -6,7 +6,9 @@ import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.ego.SpecialEgoCatalog;
 import com.wzz.lobotocraft.ego.SpecialEgoRegistryData;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.*;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
@@ -243,8 +245,9 @@ public class EndBirdWeapon extends BaseEgoWeapon {
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (stack.getOrCreateTag().getInt(KEY_COOLDOWN) > 0) {
-            player.displayClientMessage(Component.literal(
-                    "§c蓄力攻击冷却中：" + (stack.getOrCreateTag().getInt(KEY_COOLDOWN) / 20) + " 秒"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.end_bird_weapon.cooldown",
+                    stack.getOrCreateTag().getInt(KEY_COOLDOWN) / 20), true);
             return InteractionResultHolder.pass(stack);
         }
         if (stack.getOrCreateTag().getBoolean(KEY_IS_ANIMATING)) return InteractionResultHolder.pass(stack);
@@ -257,7 +260,8 @@ public class EndBirdWeapon extends BaseEgoWeapon {
                 int cur = stack.getOrCreateTag().getInt(KEY_CHARGE_STAGE);
                 if (cur >= STAGE_1 && cur < STAGE_3) {
                     stack.getOrCreateTag().putInt(KEY_CHARGE_STAGE, cur + 1);
-                    player.displayClientMessage(Component.literal("§a蓄力提升至 " + (cur + 1) + " 阶段！"), true);
+                    player.displayClientMessage(Component.translatable(
+                            "message.lobotocraft.end_bird_weapon.charge_advanced", cur + 1), true);
                 }
             }
             stack.getOrCreateTag().putBoolean(KEY_CAN_CHARGE_UP, false);
@@ -288,8 +292,9 @@ public class EndBirdWeapon extends BaseEgoWeapon {
         // 蓄力进度提示
         if (useTime > 0 && useTime % 20 == 0) {
             int stage = Math.max(STAGE_1, stack.getOrCreateTag().getInt(KEY_CHARGE_STAGE));
-            String state = useTime >= CHARGE_ANIM_TICKS ? "§a(已蓄满,松开释放)" : "§7(蓄力中...)";
-            player.displayClientMessage(Component.literal("§e蓄力阶段 " + stage + " " + state), true);
+            player.displayClientMessage(Component.translatable(useTime >= CHARGE_ANIM_TICKS
+                    ? "message.lobotocraft.end_bird_weapon.charge_ready"
+                    : "message.lobotocraft.end_bird_weapon.charging", stage), true);
         }
 
         super.onUseTick(level, entity, stack, remainingUseDuration);
@@ -303,7 +308,8 @@ public class EndBirdWeapon extends BaseEgoWeapon {
         // 蓄力时间必须超过蓄力动画时间,否则不释放
         if (useTime < CHARGE_ANIM_TICKS) {
             if (!level.isClientSide) {
-                player.displayClientMessage(Component.literal("§7蓄力不足……"), true);
+                player.displayClientMessage(Component.translatable(
+                        "message.lobotocraft.end_bird_weapon.charge_insufficient"), true);
                 resetIncompleteCharge(player, stack);
             }
             return;
@@ -691,7 +697,8 @@ public class EndBirdWeapon extends BaseEgoWeapon {
         stack.getOrCreateTag().putLong(KEY_LAST_DAMAGE_TICK, player.level().getGameTime());
         stack.getOrCreateTag().putBoolean(KEY_CAN_CHARGE_UP, true);
         stack.getOrCreateTag().putInt(KEY_CHARGE_STAGE, completedStage);
-        player.displayClientMessage(Component.literal("§b1.5 秒内再次蓄力可提升阶段！"), true);
+        player.displayClientMessage(Component.translatable(
+                "message.lobotocraft.end_bird_weapon.charge_window"), true);
     }
 
     /** 演出结束:解除普攻/蓄力锁定 */
@@ -719,17 +726,23 @@ public class EndBirdWeapon extends BaseEgoWeapon {
                                 List<Component> components, TooltipFlag flag) {
         super.appendHoverText(stack, level, components, flag);
         if (stack.getOrCreateTag().getInt(KEY_COOLDOWN) > 0) {
-            components.add(Component.literal("§a蓄力冷却中：" + (stack.getOrCreateTag().getInt(KEY_COOLDOWN) / 20) + " 秒"));
+            EgoTooltipUtil.add(components, "tooltip.lobotocraft.end_bird_weapon.cooldown",
+                    ChatFormatting.GREEN, stack.getOrCreateTag().getInt(KEY_COOLDOWN) / 20);
         }
         if (ClientInputUtil.isShiftPressed()) {
-            components.add(Component.literal("§6※只有全属性为满级的玩家才能拿起这把武器。"));
-            components.add(Component.literal("§6※这把武器会同时造成物理，精神，侵蚀和灵魂伤害。"));
-            components.add(Component.literal("§6※这把武器右键可蓄力进行特殊攻击，一共三种特殊攻击阶段。"));
+            for (int index = 1; index <= 3; index++) {
+                EgoTooltipUtil.add(components, "tooltip.lobotocraft.end_bird_weapon.detail." + index,
+                        ChatFormatting.GOLD);
+            }
             return;
         }
-        components.add(Component.literal("§7大鸟那永不闭合的眼睛、高鸟那能衡量一切罪恶的天平、小鸟那能吞噬一切的巨口，这三者守护着黑森林的和平。"));
-        components.add(Component.literal("§7而那些能够同时驾驭这三者的人也能带来和平。"));
-        components.add(Component.literal("§7按住<Shift>查看详情"));
-        components.add(Component.literal("§c？？？伤害：12-18"));
+        EgoTooltipUtil.add(components, "tooltip.lobotocraft.end_bird_weapon.story.1",
+                ChatFormatting.GRAY);
+        EgoTooltipUtil.add(components, "tooltip.lobotocraft.end_bird_weapon.story.2",
+                ChatFormatting.GRAY);
+        EgoTooltipUtil.add(components, "tooltip.lobotocraft.common.shift_details",
+                ChatFormatting.GRAY);
+        EgoTooltipUtil.add(components, "tooltip.lobotocraft.end_bird_weapon.damage",
+                ChatFormatting.RED);
     }
 }

@@ -65,6 +65,7 @@ public class AbnormalityEncyclopediaData {
 
     private static final Map<String, EntryData> ENCYCLOPEDIA_DATA = new HashMap<>();
     private static final Map<String, Map<String, StoryEntry[]>> ORIGINAL_STORY_CACHE = new HashMap<>();
+    private static final Map<String, Map<String, String[]>> ORIGINAL_MANUAL_CACHE = new HashMap<>();
     private static final Set<String> LOADED_STORY_LANGUAGES = new HashSet<>();
 
     static {
@@ -420,6 +421,18 @@ public class AbnormalityEncyclopediaData {
                 new EntryData(new String[]{"未知"}, "未知"));
     }
 
+    public static String getManual(String abnormalityCode, int index, String languageCode) {
+        EntryData data = getData(abnormalityCode);
+        if (storyLanguage(languageCode).equals("cn")) return data.getManual(index);
+        ensureOriginalStoriesLoaded("en");
+        String normalized = "0-02-62".equals(abnormalityCode) ? "O-02-62" : abnormalityCode;
+        String[] manuals = ORIGINAL_MANUAL_CACHE.getOrDefault("en", Map.of()).get(normalized);
+        if (manuals != null && index >= 0 && index < manuals.length && !manuals[index].isBlank()) {
+            return manuals[index];
+        }
+        return "No English management guideline is available for this entry.";
+    }
+
     public static StoryEntry[] getStories(String abnormalityCode) {
         return getStories(abnormalityCode, "zh_cn");
     }
@@ -466,6 +479,8 @@ public class AbnormalityEncyclopediaData {
         if (!LOADED_STORY_LANGUAGES.add(storyLanguage)) return;
         Map<String, StoryEntry[]> storyCache = new HashMap<>();
         ORIGINAL_STORY_CACHE.put(storyLanguage, storyCache);
+        Map<String, String[]> manualCache = new HashMap<>();
+        ORIGINAL_MANUAL_CACHE.put(storyLanguage, manualCache);
 
         for (String baseName : BUNDLED_STORY_BASE_NAMES) {
             String fileName = baseName + "_" + storyLanguage + ".xml";
@@ -476,7 +491,7 @@ public class AbnormalityEncyclopediaData {
                     LOGGER.warn("Missing bundled abnormality story resource {}", resourcePath);
                     continue;
                 }
-                loadOriginalStoryStream(stream, resourcePath, storyCache);
+                loadOriginalStoryStream(stream, resourcePath, storyCache, manualCache);
             } catch (Exception exception) {
                 LOGGER.warn("Unable to load bundled abnormality story resource {}",
                         resourcePath, exception);
@@ -490,7 +505,7 @@ public class AbnormalityEncyclopediaData {
             try (java.util.stream.Stream<Path> stream = Files.list(directory)) {
                 stream.filter(path -> path.getFileName().toString()
                                 .endsWith("_" + storyLanguage + ".xml"))
-                        .forEach(path -> loadOriginalStoryFile(path, storyCache));
+                        .forEach(path -> loadOriginalStoryFile(path, storyCache, manualCache));
             } catch (Exception ignored) {
             }
         }
@@ -509,17 +524,19 @@ public class AbnormalityEncyclopediaData {
         };
     }
 
-    private static void loadOriginalStoryFile(Path path, Map<String, StoryEntry[]> storyCache) {
+    private static void loadOriginalStoryFile(Path path, Map<String, StoryEntry[]> storyCache,
+                                              Map<String, String[]> manualCache) {
         if (path == null) return;
         try (InputStream stream = Files.newInputStream(path)) {
-            loadOriginalStoryStream(stream, path.toString(), storyCache);
+            loadOriginalStoryStream(stream, path.toString(), storyCache, manualCache);
         } catch (Exception exception) {
             LOGGER.debug("Unable to load external abnormality story resource {}", path, exception);
         }
     }
 
     private static void loadOriginalStoryStream(InputStream stream, String sourceName,
-                                                Map<String, StoryEntry[]> storyCache) {
+                                                Map<String, StoryEntry[]> storyCache,
+                                                Map<String, String[]> manualCache) {
         if (stream == null) return;
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -553,6 +570,13 @@ public class AbnormalityEncyclopediaData {
                 }
             }
             if (!stories.isEmpty()) storyCache.put(code, stories.toArray(StoryEntry[]::new));
+            NodeList tipNodes = observe.getElementsByTagName("specialTip");
+            java.util.List<String> manuals = new java.util.ArrayList<>();
+            for (int index = 0; index < tipNodes.getLength(); index++) {
+                String text = cleanOriginalStoryText(tipNodes.item(index).getTextContent());
+                if (!text.isBlank()) manuals.add(text);
+            }
+            if (!manuals.isEmpty()) manualCache.put(code, manuals.toArray(String[]::new));
         } catch (Exception exception) {
             LOGGER.warn("Unable to parse abnormality story resource {}", sourceName, exception);
         }

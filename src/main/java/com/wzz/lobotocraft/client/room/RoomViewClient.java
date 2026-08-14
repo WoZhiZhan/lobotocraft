@@ -147,7 +147,7 @@ public final class RoomViewClient {
 
         if (rooms.isEmpty()) {
             player.displayClientMessage(
-                    Component.literal("§c[监控终端] §7没有检测到任何收容间信标。"), true);
+                    Component.translatable("message.lobotocraft.room_terminal.no_beacons"), true);
             return;
         }
 

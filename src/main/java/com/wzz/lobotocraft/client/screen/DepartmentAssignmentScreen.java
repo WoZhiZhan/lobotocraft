@@ -131,7 +131,7 @@ public final class DepartmentAssignmentScreen extends Screen {
     }
 
     public DepartmentAssignmentScreen(CompoundTag snapshot, UUID preferredEmployee) {
-        super(Component.literal("部门部署"));
+        super(Component.translatable("screen.lobotocraft.department_assignment.title"));
         this.snapshot = snapshot.copy();
         rebuildEmployees(preferredEmployee);
         rebuildAbnormalities();
@@ -372,7 +372,7 @@ public final class DepartmentAssignmentScreen extends Screen {
         int nameX = x + box.width - 204;
         int nameY = y - 42;
         drawDepartmentNamePlate(graphics, nameX, nameY, 204, 38, frameColor);
-        drawCenteredScaledText(graphics, box.department.displayName(), nameX + 110,
+        drawCenteredScaledText(graphics, departmentName(box.department), nameX + 110,
                 nameY + 6, 3.0F, frameColor, 176);
 
         if (!isDepartmentOpen(box.department)) {
@@ -390,7 +390,11 @@ public final class DepartmentAssignmentScreen extends Screen {
 
     private void renderDepartmentTabs(GuiGraphics graphics, DepartmentBox box,
                                        double mouseX, double mouseY, int color) {
-        String[] labels = {"部门加成", "部门描述", "已获得研究"};
+        String[] labels = {
+                tr("screen.lobotocraft.department_assignment.tab.function"),
+                tr("screen.lobotocraft.department_assignment.tab.description"),
+                tr("screen.lobotocraft.department_assignment.tab.research")
+        };
         PanelState[] states = {PanelState.FUNCTION, PanelState.DESCRIPTION, PanelState.RESEARCH};
         PanelState current = panelState(box.department);
         if (current != PanelState.MAIN) {
@@ -411,7 +415,9 @@ public final class DepartmentAssignmentScreen extends Screen {
                 graphics.fill(tabX + 2, box.y + 2, tabX + 182, box.y + 40,
                         LobotomyUiRenderer.withAlpha(color, 0.07F));
             }
-            drawCenteredScaledText(graphics, "部门描述", tabX + 92, box.y + 13,
+            drawCenteredScaledText(graphics,
+                    tr("screen.lobotocraft.department_assignment.tab.description"),
+                    tabX + 92, box.y + 13,
                     2.0F, hovered ? 0xFFFFFFFF : color, 164);
             return;
         }
@@ -438,19 +444,23 @@ public final class DepartmentAssignmentScreen extends Screen {
 
     private void renderDepartmentFunction(GuiGraphics graphics, DepartmentBox box,
                                           int x, int y, int color) {
-        drawScaledText(graphics, "文职加成", x + 18, y + 53, 2.0F, color, 120);
+        drawScaledText(graphics,
+                tr("screen.lobotocraft.department_assignment.function.clerk_bonus"),
+                x + 18, y + 53, 2.0F, color, 120);
         drawWrappedScaledText(graphics, departmentOfficerBonus(box.department),
                 x + 18, y + 76, 2.0F, TEXT_PALE, box.width - 36, 2);
         graphics.fill(x + 18, y + 105, x + box.width - 18, y + 106,
                 LobotomyUiRenderer.withAlpha(color, 0.34F));
-        drawScaledText(graphics, "部门常驻加成", x + 18, y + 115, 2.0F, color, 170);
+        drawScaledText(graphics,
+                tr("screen.lobotocraft.department_assignment.function.tenure_bonus"),
+                x + 18, y + 115, 2.0F, color, 170);
         drawWrappedScaledText(graphics, departmentTenureBonus(box.department),
                 x + 18, y + 138, 2.0F, TEXT_PALE, box.width - 36, 2);
     }
 
     private void renderDepartmentDescription(GuiGraphics graphics, DepartmentBox box,
                                               int x, int y, int color) {
-        drawScaledText(graphics, sephirah(box.department) + " / " + box.department.displayName(),
+        drawScaledText(graphics, sephirah(box.department) + " / " + departmentName(box.department),
                 x + 18, y + 55, 2.0F, color, box.width - 58);
         graphics.fill(x + 18, y + 75, x + box.width - 18, y + 76,
                 LobotomyUiRenderer.withAlpha(color, 0.34F));
@@ -477,11 +487,15 @@ public final class DepartmentAssignmentScreen extends Screen {
 
     private void renderDepartmentResearch(GuiGraphics graphics, DepartmentBox box,
                                           int x, int y, int color) {
-        drawCenteredScaledText(graphics, "已获得研究", x + box.width / 2, y + 64,
+        drawCenteredScaledText(graphics,
+                tr("screen.lobotocraft.department_assignment.tab.research"),
+                x + box.width / 2, y + 64,
                 2.0F, color, box.width - 40);
         graphics.fill(x + 86, y + 91, x + box.width - 86, y + 92,
                 LobotomyUiRenderer.withAlpha(color, 0.35F));
-        drawCenteredScaledText(graphics, "暂无已获得研究", x + box.width / 2, y + 116,
+        drawCenteredScaledText(graphics,
+                tr("screen.lobotocraft.department_assignment.research.empty"),
+                x + box.width / 2, y + 116,
                 2.0F, TEXT_DIM, box.width - 40);
     }
 
@@ -512,7 +526,7 @@ public final class DepartmentAssignmentScreen extends Screen {
             } else {
                 renderLockedSection(graphics, x + 14, y + 311,
                         box.width - 28, box.height - 325, color,
-                        "中央本部下部于 LEVEL III 开放");
+                        tr("screen.lobotocraft.department_assignment.central_lower_locked"));
             }
         }
     }
@@ -522,7 +536,9 @@ public final class DepartmentAssignmentScreen extends Screen {
         graphics.fill(x + 1, y + 42, x + box.width - 1, y + box.height - 1, 0xD8030403);
         drawOutline(graphics, x, y, box.width, box.height,
                 LobotomyUiRenderer.withAlpha(LobotomyUiTheme.LINE_FAINT, 0.55F));
-        drawCenteredScaledText(graphics, "尚未开放", x + box.width / 2, y + box.height / 2 - 20,
+        drawCenteredScaledText(graphics,
+                tr("screen.lobotocraft.department_assignment.locked"),
+                x + box.width / 2, y + box.height / 2 - 20,
                 2.5F, LobotomyUiRenderer.withAlpha(color, 0.82F), box.width - 50);
         drawCenteredScaledText(graphics, departmentUnlockRequirement(box.department),
                 x + box.width / 2, y + box.height / 2 + 16, 1.8F,
@@ -540,12 +556,17 @@ public final class DepartmentAssignmentScreen extends Screen {
 
     private String departmentUnlockRequirement(EmployeeDepartment department) {
         return switch (department) {
-            case INFORMATION -> "需要控制部 V";
-            case TRAINING, SAFETY -> "需要情报部 V";
-            case CENTRAL -> "需要上层全部 V";
-            case WELFARE, DISCIPLINARY -> "需要中央本部 V";
-            case RECORD, EXTRACTION -> "需要中层全部 V";
-            case ARCHITECTURE -> "需要记录部与研发部 V";
+            case INFORMATION -> tr("screen.lobotocraft.department_assignment.requirement.department",
+                    departmentName(EmployeeDepartment.CONTROL));
+            case TRAINING, SAFETY -> tr("screen.lobotocraft.department_assignment.requirement.department",
+                    departmentName(EmployeeDepartment.INFORMATION));
+            case CENTRAL -> tr("screen.lobotocraft.department_assignment.requirement.upper");
+            case WELFARE, DISCIPLINARY -> tr("screen.lobotocraft.department_assignment.requirement.department",
+                    departmentName(EmployeeDepartment.CENTRAL));
+            case RECORD, EXTRACTION -> tr("screen.lobotocraft.department_assignment.requirement.middle");
+            case ARCHITECTURE -> tr("screen.lobotocraft.department_assignment.requirement.departments",
+                    departmentName(EmployeeDepartment.RECORD),
+                    departmentName(EmployeeDepartment.EXTRACTION));
             default -> "";
         };
     }
@@ -727,18 +748,21 @@ public final class DepartmentAssignmentScreen extends Screen {
         int buttonW = 126;
         int buttonH = 48;
         renderTopActionButton(graphics, egoButtonX, buttonY, buttonW, buttonH,
-                "E.G.O 分配", "ego", mouseX, mouseY);
+                tr("screen.lobotocraft.ego_assignment.title"), "ego", mouseX, mouseY);
         renderTopActionButton(graphics, 1776, buttonY, buttonW, buttonH,
-                "完成部署", "return", mouseX, mouseY);
+                tr("screen.lobotocraft.department_assignment.finish"),
+                "return", mouseX, mouseY);
 
         EmployeeHit hoveredEmployee = employeeAt(mouseX, mouseY);
         CompoundTag detail = hoveredEmployee == null ? selectedEmployee() : hoveredEmployee.employee;
         renderEmployeeDetail(graphics, detail, mouseX, mouseY);
         if (waitingForServer) {
-            drawCenteredScaledText(graphics, "部署中", 1771, 380,
+            drawCenteredScaledText(graphics,
+                    tr("screen.lobotocraft.department_assignment.deploying"), 1771, 380,
                     2.0F, LobotomyUiTheme.WARN_YELLOW, 240);
         } else if (Util.getMillis() < blockedUntil) {
-            drawCenteredScaledText(graphics, "部门人数已满", 1771, 380,
+            drawCenteredScaledText(graphics,
+                    tr("screen.lobotocraft.department_assignment.department_full"), 1771, 380,
                     2.0F, LobotomyUiTheme.ALERT_RED, 240);
         }
     }
@@ -760,7 +784,8 @@ public final class DepartmentAssignmentScreen extends Screen {
                                       double mouseX, double mouseY) {
         graphics.fill(1644, 72, 1899, 73, SIDE_YELLOW_DIM);
         if (employee == null) {
-            drawCenteredScaledText(graphics, "未选择员工", 1771, 156,
+            drawCenteredScaledText(graphics,
+                    tr("screen.lobotocraft.ego_assignment.no_employee"), 1771, 156,
                     3.0F, TEXT_DIM, 240);
             return;
         }
@@ -775,7 +800,7 @@ public final class DepartmentAssignmentScreen extends Screen {
         drawAgentSlotShell(graphics, 1644, 122, 78, 92, SIDE_YELLOW_DIM, 0.04F);
         drawInventoryDoll(graphics, employee, 1683, 128, 64, 80);
         if (!employee.contains("Health") || !employee.contains("MaxHealth")) {
-            drawCenteredScaledText(graphics, "未部署", 1683, 216,
+            drawCenteredScaledText(graphics, tr("status.lobotocraft.offline"), 1683, 216,
                     2.0F, TEXT_DIM, 92);
         }
 
@@ -784,21 +809,25 @@ public final class DepartmentAssignmentScreen extends Screen {
         renderEgoDetailCard(graphics, employee, "armor", 1730, 174, 168, 45,
                 mouseX, mouseY);
 
-        renderVitalStat(graphics, employee, 1634, 236, "勇气", "FortitudeLevel",
+        renderVitalStat(graphics, employee, 1634, 236, tr("stat.lobotocraft.fortitude"), "FortitudeLevel",
                 "HP", "BaseMaxHealth", "HealthBonus", "Health", "MaxHealth",
                 LobotomyUiTheme.STAT_FORTITUDE);
-        renderVitalStat(graphics, employee, 1772, 236, "谨慎", "PrudenceLevel",
+        renderVitalStat(graphics, employee, 1772, 236, tr("stat.lobotocraft.prudence"), "PrudenceLevel",
                 "SP", "BaseMaxMental", "MentalBonus", "Mental", "MaxMental",
                 LobotomyUiTheme.STAT_PRUDENCE);
-        renderDerivedStat(graphics, employee, 1634, 305, "自律", "TemperanceLevel",
+        renderDerivedStat(graphics, employee, 1634, 305, tr("stat.lobotocraft.temperance"), "TemperanceLevel",
                 "Temperance",
-                "成功率", "WorkSuccessBase", "WorkSuccessBonus", "",
-                "工作速", "WorkSpeedBase", "WorkSpeedBonus", "",
+                tr("screen.lobotocraft.ego_assignment.success_rate"),
+                "WorkSuccessBase", "WorkSuccessBonus", "",
+                tr("screen.lobotocraft.ego_assignment.work_speed"),
+                "WorkSpeedBase", "WorkSpeedBonus", "",
                 LobotomyUiTheme.STAT_TEMPERANCE);
-        renderDerivedStat(graphics, employee, 1772, 305, "正义", "JusticeLevel",
+        renderDerivedStat(graphics, employee, 1772, 305, tr("stat.lobotocraft.justice"), "JusticeLevel",
                 "Justice",
-                "攻速", "AttackSpeedBase", "AttackSpeedBonus", "",
-                "移速", "MovementSpeedBase", "MovementSpeedBonus", "",
+                tr("screen.lobotocraft.ego_assignment.attack_speed"),
+                "AttackSpeedBase", "AttackSpeedBonus", "",
+                tr("screen.lobotocraft.ego_assignment.movement_speed"),
+                "MovementSpeedBase", "MovementSpeedBonus", "",
                 LobotomyUiTheme.STAT_JUSTICE);
     }
 
@@ -812,8 +841,10 @@ public final class DepartmentAssignmentScreen extends Screen {
         renderMetricLine(graphics, employee, x, y + 21, valueLabel,
                 baseKey, bonusKey, "");
         if (employee.contains(currentKey) && employee.contains(maximumKey)) {
-            drawScaledText(graphics, "当前 " + compactNumber(employee.getFloat(currentKey))
-                            + "/" + compactNumber(employee.getFloat(maximumKey)),
+            drawScaledText(graphics,
+                    tr("screen.lobotocraft.ego_assignment.current_value",
+                            compactNumber(employee.getFloat(currentKey)),
+                            compactNumber(employee.getFloat(maximumKey))),
                     x + 6, y + 42, 2.0F, TEXT_DIM, 122);
         }
     }
@@ -866,10 +897,12 @@ public final class DepartmentAssignmentScreen extends Screen {
                 LobotomyUiRenderer.withAlpha(accent, 0.72F));
         CompoundTag stock = egoStock(employee, type);
         drawUnclippedScaledText(graphics,
-                "weapon".equals(type) ? "E.G.O 武器" : "E.G.O 防具",
+                tr("weapon".equals(type)
+                        ? "equipment.lobotocraft.ego_weapon"
+                        : "equipment.lobotocraft.ego_armor"),
                 x + 43, y + 4, 2.0F, accent);
         if (stock == null) {
-            drawScaledText(graphics, "无", x + 43, y + 24,
+            drawScaledText(graphics, tr("screen.lobotocraft.common.none"), x + 43, y + 24,
                     2.0F, TEXT_DIM, width - 50);
             return;
         }
@@ -883,7 +916,7 @@ public final class DepartmentAssignmentScreen extends Screen {
             graphics.pose().popPose();
         }
         String name = stock.getString("DisplayName");
-        if (name.isBlank()) name = "无";
+        if (name.isBlank()) name = tr("screen.lobotocraft.common.none");
         String riskName = stock.getString("RiskLevel");
         drawUnclippedScaledText(graphics, riskName, x + 43, y + 23,
                 2.0F, riskColor(riskName));
@@ -930,7 +963,9 @@ public final class DepartmentAssignmentScreen extends Screen {
         int panelH = 666;
         graphics.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0xFB010201);
         drawHazardFrame(graphics, panelX, panelY, panelW, panelH, SIDE_YELLOW_DIM);
-        drawCenteredScaledText(graphics, "未分配员工  " + spareEmployees.size(),
+        drawCenteredScaledText(graphics,
+                tr("screen.lobotocraft.department_assignment.unassigned_employees",
+                        spareEmployees.size()),
                 panelX + panelW / 2, panelY + 9, 2.0F,
                 waitingForServer ? TEXT_DIM : TEXT_PALE, panelW - 42);
         graphics.fill(panelX + 7, panelY + 30, panelX + panelW - 7, panelY + 31,
@@ -984,7 +1019,9 @@ public final class DepartmentAssignmentScreen extends Screen {
                     hovered ? 0xFFFFFFFF : SIDE_YELLOW);
         }
         if (spareEmployees.isEmpty()) {
-            drawCenteredScaledText(graphics, "全部员工已部署", panelX + panelW / 2,
+            drawCenteredScaledText(graphics,
+                    tr("screen.lobotocraft.department_assignment.all_deployed"),
+                    panelX + panelW / 2,
                     panelY + 92, 2.0F, TEXT_DIM, panelW - 36);
         }
     }
@@ -1528,9 +1565,11 @@ public final class DepartmentAssignmentScreen extends Screen {
     }
 
     private String displayDepartment(CompoundTag employee) {
+        String id = employee.getString("DepartmentId");
+        if (id != null && !id.isBlank()) return departmentName(EmployeeDepartment.byId(id));
         String value = employee.getString("Department");
-        if (value != null && !value.isBlank()) return value;
-        return EmployeeDepartment.byId(employee.getString("DepartmentId")).displayName();
+        return value == null || value.isBlank()
+                ? departmentName(EmployeeDepartment.UNASSIGNED) : value;
     }
 
     private double toLogicalX(double screenX) {
@@ -1843,48 +1882,15 @@ public final class DepartmentAssignmentScreen extends Screen {
     }
 
     private static String departmentOfficerBonus(EmployeeDepartment department) {
-        return switch (department) {
-            case CONTROL -> "提高所有员工的移动速度。";
-            case INFORMATION -> "提高所有员工的工作成功率。";
-            case SAFETY -> "提高所有员工的恢复效率。";
-            case TRAINING -> "提高所有员工的成长速度。";
-            case CENTRAL -> "延长逆卡巴拉能量熔毁的倒计时。";
-            case WELFARE -> "提高子弹的数量上限。";
-            case DISCIPLINARY -> "提高所有员工的攻击速度。";
-            case EXTRACTION -> "降低所有E.G.O的研发成本。";
-            case RECORD -> "提高所有员工的各项能力数值。";
-            case ARCHITECTURE, UNASSIGNED -> "无";
-        };
+        return tr("screen.lobotocraft.department_assignment.officer_bonus." + department.id());
     }
 
     private static String departmentTenureBonus(EmployeeDepartment department) {
-        return switch (department) {
-            case CONTROL -> "提高常驻员工的移动速度。";
-            case INFORMATION -> "提高常驻员工的“自律”能力数值。";
-            case SAFETY -> "提高常驻员工的“勇气”和“谨慎”能力数值。";
-            case TRAINING -> "提高常驻员工的成长速度。";
-            case CENTRAL, RECORD, ARCHITECTURE -> "提高常驻员工的所有能力数值。";
-            case WELFARE -> "提高常驻员工的伤害抗性。";
-            case DISCIPLINARY -> "提高常驻员工的攻击速度。";
-            case EXTRACTION -> "提高常驻员工的攻击速度及伤害抗性。";
-            case UNASSIGNED -> "无";
-        };
+        return tr("screen.lobotocraft.department_assignment.tenure_bonus." + department.id());
     }
 
     private static String departmentDescription(EmployeeDepartment department) {
-        return switch (department) {
-            case CONTROL -> "控制部是一个负责监控员工与异想体，传达工作指令并策划联合训练程序的部门。该部门配有大量连接到各个收容单元的闭路电视，并有权在紧急时刻下达命令并进行现场指挥。控制部的员工大多都很自负，所以与其他部门相处地不太和睦。";
-            case INFORMATION -> "情报部是一个负责对异想体的危险等级和特殊能力进行分类，记录并研究应对方案的部门。他们以福利部的观察记录和咨询记录为基础研究各个异想体的应对方案。为了找到更加明确和安全的方案，他们有时也会负责对异想体进行各种实验。您所看到的异想体资讯都源于情报部长时间的观察记录及其付诸的大量人员牺牲。";
-            case SAFETY -> "安保部是一个负责将新员工训练成安保人员，对潜在事故进行预测并制定作战方案的部门。他们详细制定了针对自然灾害，恐怖袭击，收容失效，员工恐慌等各种突发事件的作战方案和安保条例。据说安保部是由多少有些执拗，细致的员工聚集在一起的，所以他们最反感迟到的家伙。";
-            case TRAINING -> "培训部是一个负责维持公司纪律，商讨及制定培训方案的部门。培训部的员工也会为各部门的员工提供心理咨询，帮助即将调到其他部门的员工更好地适应今后的工作和生活。";
-            case CENTRAL -> "中央本部是整个脑叶公司的中层，它分为上下两个区域，是整个设施的基石。中央本部的存在使得设施能够向上或者向下扩展，它连接着公司的上层和下层，起到桥梁的作用，是一个战略要地。中央本部有权控制，监督所有收容单元。两个区域相辅相成，研究各种高效的管理方法。二区的员工都为自己的审美而感到骄傲，他们一天中的大部分时间都在思考明天该穿什么款式的衣服。二区与一区在指挥权的问题上存在着微妙的斗争。";
-            case WELFARE -> "顾名思义，福利部负责所有员工的福利项目。为了防止因异想体而引起的传染病，继发性感染等潜在问题，福利部采取了预防措施并对员工的身体健康和心理健康等各种福利项目进行改善。“员工的福利一直是脑叶公司最重视的东西。福利部将尽其所能保护公司最珍贵的资......最珍贵的员工们的生命~”";
-            case DISCIPLINARY -> "惩戒部是一个负责制定和执行惩罚措施的部门。惩戒部的高层强硬地制定出一系列规矩，每当有员工违反员工守则，不肯履行义务，消极怠慢工作或是对公司造成重大损失，该部门就会将相关人员抓获并进行惩戒。惩戒部有着最好的控制与制裁能力，无论对象是员工还是异想体。";
-            case EXTRACTION -> "研发部负责管理公司的所有实物材料。从修复破损的设施到E.G.O装备的研发和保养，他们在其中发挥巨大的作用。研发部还负责安置与治疗各种异想体。因此该部门的员工常常待在公司漆黑的最底层应对着某些东西，久而久之他们的内心都缺失了一大块...";
-            case RECORD -> "记录部记录下了公司自成立以来的点点滴滴。他们的记录簿上承载着无可估量的内容，然而每本记录簿的最后一页都是一片空白。他们的记录和评估将直接决定员工的去留。因此，当员工们离开记录部的视线时，他们总是非常担心——因为他们永远不知道自己的记录会在什么时候以什么样的方式被“处理掉”。";
-            case ARCHITECTURE -> "暂无部门描述";
-            case UNASSIGNED -> "";
-        };
+        return tr("screen.lobotocraft.department_assignment.description." + department.id());
     }
 
     private static String sephirah(EmployeeDepartment department) {
@@ -1905,11 +1911,19 @@ public final class DepartmentAssignmentScreen extends Screen {
 
     private static String tabLabel(PanelState state) {
         return switch (state) {
-            case FUNCTION -> "部门加成";
-            case DESCRIPTION -> "部门描述";
-            case RESEARCH -> "已获得研究";
+            case FUNCTION -> tr("screen.lobotocraft.department_assignment.tab.function");
+            case DESCRIPTION -> tr("screen.lobotocraft.department_assignment.tab.description");
+            case RESEARCH -> tr("screen.lobotocraft.department_assignment.tab.research");
             default -> "";
         };
+    }
+
+    private static String departmentName(EmployeeDepartment department) {
+        return tr("department.lobotocraft." + department.id());
+    }
+
+    private static String tr(String key, Object... arguments) {
+        return Component.translatable(key, arguments).getString();
     }
 
     private static String roman(int level) {

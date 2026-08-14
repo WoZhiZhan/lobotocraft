@@ -147,7 +147,7 @@ public class WorkProgressScreen extends Screen {
 
     public WorkProgressScreen(int abnormalityId, WorkType workType, float successRate, int maxExtractions,
                               int entityID, int observationLevel, boolean continuousMode) {
-        super(Component.literal("工作进行中"));
+        super(Component.translatable("screen.lobotocraft.work_progress.title"));
         this.minecraft = Minecraft.getInstance();
         this.abnormalityId = abnormalityId;
         this.workType = workType;
@@ -186,7 +186,7 @@ public class WorkProgressScreen extends Screen {
         if (minecraft != null && minecraft.player != null) {
             return minecraft.player.getGameProfile().getName();
         }
-        return "员工";
+        return Component.translatable("screen.lobotocraft.work_progress.employee").getString();
     }
 
     private IAbnormality getAbnormality() {
@@ -260,23 +260,10 @@ public class WorkProgressScreen extends Screen {
     }
 
     private void initializeDescriptions() {
-        allDescriptions.add("正在确认工作进程");
-        allDescriptions.add("清扫地面污物");
-        allDescriptions.add("开始全面分析");
-        allDescriptions.add("检查知识需求");
-        allDescriptions.add("确认感知与记忆");
-        allDescriptions.add("分析压力原因");
-        allDescriptions.add("调节照明强度");
-        allDescriptions.add("检查内部机动");
-        allDescriptions.add("测试思考过程");
-        allDescriptions.add("检查音响系统");
-        allDescriptions.add("测试问题解决能力");
-        allDescriptions.add("确认系统正常运作");
-        allDescriptions.add("分析外界感知");
-        allDescriptions.add("检查成长速度");
-        allDescriptions.add("分析行为模式");
-        allDescriptions.add("检查空气指标");
-        allDescriptions.add("测试音量稳定");
+        for (int index = 1; index <= 17; index++) {
+            allDescriptions.add(Component.translatable(
+                    "screen.lobotocraft.work_progress.description." + index).getString());
+        }
 
         currentDescIndex = random.nextInt(allDescriptions.size());
     }
@@ -329,7 +316,9 @@ public class WorkProgressScreen extends Screen {
             int buttonWidth = 112;
             int buttonHeight = 20;
             stopContinuousButton = Button.builder(
-                            Component.literal(continuousStopRequested ? "本次结束后停止" : "停止连续工作"),
+                            Component.translatable(continuousStopRequested
+                                    ? "screen.lobotocraft.work_progress.continuous.stopping"
+                                    : "screen.lobotocraft.work_progress.continuous.stop"),
                             button -> requestStopContinuousWork())
                     .bounds(this.width - buttonWidth - 14, this.height - buttonHeight - 14,
                             buttonWidth, buttonHeight)
@@ -344,7 +333,8 @@ public class WorkProgressScreen extends Screen {
         continuousStopRequested = true;
         MessageLoader.getLoader().sendToServer(new StopContinuousWorkPacket());
         if (stopContinuousButton != null) {
-            stopContinuousButton.setMessage(Component.literal("本次结束后停止"));
+            stopContinuousButton.setMessage(Component.translatable(
+                    "screen.lobotocraft.work_progress.continuous.stopping"));
             stopContinuousButton.active = false;
         }
     }
@@ -383,12 +373,15 @@ public class WorkProgressScreen extends Screen {
                 try {
                     if (false && abnormality != null && random.nextFloat() <= abnormality.getGiftProbability()) {
                         MessageLoader.getLoader().sendToServer(new ObtainGiftPacket(abnormality.getEntityId(), abnormality.getEGOGiftData().itemId()));
-                        minecraft.player.sendSystemMessage(Component.literal("§a你获得了 §e" + abnormality.getAbnormalityName()
-                                + " §a异想体的 §e" + abnormality.getEGOGiftData().part() + " §a饰品：§6" + abnormality.getEGOGiftData().name()));
+                        minecraft.player.sendSystemMessage(Component.translatable(
+                                "message.lobotocraft.work.gift_obtained",
+                                abnormality.getAbnormalityName(), abnormality.getEGOGiftData().part(),
+                                abnormality.getEGOGiftData().name()));
                         minecraft.player.playSound(SoundEvents.PLAYER_LEVELUP);
                     }
                 } catch (Throwable e) {
-                    minecraft.player.sendSystemMessage(Component.literal("§c饰品获得失败：异想体消失或离你过远"));
+                    minecraft.player.sendSystemMessage(Component.translatable(
+                            "message.lobotocraft.work.gift_failed"));
                 }
             }
         }
@@ -514,7 +507,8 @@ public class WorkProgressScreen extends Screen {
         renderWorkTimer(graphics);   // ← 右上角计时器
 
         if (CoreSuppressionClientState.isActive(CoreSuppressionType.MALKUTH) && finalResult == null) {
-            String hiddenWork = "工作类型：???";
+            String hiddenWork = Component.translatable(
+                    "screen.lobotocraft.work_progress.hidden_work").getString();
             int textWidth = font.width(hiddenWork);
             graphics.fill(width / 2 - textWidth / 2 - 8, 12,
                     width / 2 + textWidth / 2 + 8, 30, 0xC0000000);
@@ -540,7 +534,8 @@ public class WorkProgressScreen extends Screen {
         long totalSeconds = workTimerTick / 20;
         long minutes = totalSeconds / 60;
         long seconds = totalSeconds % 60;
-        String timeText = String.format("工作时间  %02d:%02d", minutes, seconds);
+        String timeLabel = Component.translatable("screen.lobotocraft.work_progress.time").getString();
+        String timeText = String.format("%s  %02d:%02d", timeLabel, minutes, seconds);
 
         int textWidth = this.font.width(timeText);
         int padding   = 4;
@@ -561,9 +556,9 @@ public class WorkProgressScreen extends Screen {
         RenderSystem.disableBlend();
 
         // 文字：黄色计时数字
-        graphics.drawString(this.font, "工作时间  ", bgX + padding, bgY + padding / 2, 0xAAAAAA, false);
+        graphics.drawString(this.font, timeLabel + "  ", bgX + padding, bgY + padding / 2, 0xAAAAAA, false);
         String countPart = String.format("%02d:%02d", minutes, seconds);
-        int countX = bgX + padding + this.font.width("工作时间  ");
+        int countX = bgX + padding + this.font.width(timeLabel + "  ");
         graphics.drawString(this.font, countPart, countX, bgY + padding / 2, 0xFFFF55, false);
     }
 
@@ -742,8 +737,10 @@ public class WorkProgressScreen extends Screen {
     }
 
     private void drawStats(GuiGraphics graphics, int x, int statsY) {
-        graphics.drawString(this.font, "正: " + positiveCount, x, statsY,      0x00FFFF);
-        graphics.drawString(this.font, "负: " + negativeCount, x, statsY + 12, 0xFF0000);
+        graphics.drawString(this.font, Component.translatable(
+                "screen.lobotocraft.work_progress.positive", positiveCount), x, statsY, 0x00FFFF);
+        graphics.drawString(this.font, Component.translatable(
+                "screen.lobotocraft.work_progress.negative", negativeCount), x, statsY + 12, 0xFF0000);
         graphics.drawString(this.font,
                 String.format("%d/%d", currentExtraction, maxExtractions),
                 x, statsY + 28, 0xFFFFFF);
@@ -828,31 +825,35 @@ public class WorkProgressScreen extends Screen {
                 0, 0, 64, 64, 64, 64);
 
         String resultText = switch (finalResult) {
-            case GOOD   -> "工作结果：优";
-            case NORMAL -> "工作结果：良";
-            case BAD    -> "工作结果：差";
+            case GOOD -> Component.translatable("screen.lobotocraft.work_progress.result.good").getString();
+            case NORMAL -> Component.translatable("screen.lobotocraft.work_progress.result.normal").getString();
+            case BAD -> Component.translatable("screen.lobotocraft.work_progress.result.bad").getString();
         };
 
         graphics.drawCenteredString(this.font, resultText,
                 centerX, panelY + 95, finalResult.getColor());
 
-        String peText = "获得 PE-BOX: " + finalPEOutput;
+        String peText = Component.translatable(
+                "screen.lobotocraft.work_progress.pe_output", finalPEOutput).getString();
         graphics.drawCenteredString(this.font, peText,
                 centerX, panelY + 115, 0xFFFF00);
 
-        String statsText = String.format("成功: %d  失败: %d", positiveCount, negativeCount);
+        String statsText = Component.translatable("screen.lobotocraft.work_progress.stats",
+                positiveCount, negativeCount).getString();
         graphics.drawCenteredString(this.font, statsText,
                 centerX, panelY + 135, 0xAAAAAA);
 
         // 显示本次工作总时长
         long totalSec = workTimerTick / 20;
         long min = totalSec / 60, sec = totalSec % 60;
-        String durationText = String.format("用时 %02d:%02d", min, sec);
+        String durationText = Component.translatable("screen.lobotocraft.work_progress.duration",
+                String.format("%02d:%02d", min, sec)).getString();
         graphics.drawCenteredString(this.font, durationText,
                 centerX, panelY + 148, 0x88AAFF);
 
         int remaining = (RESULT_DISPLAY_TIME - resultDisplayTimer) / 20;
-        graphics.drawCenteredString(this.font, "自动关闭中... " + remaining + "秒",
+        graphics.drawCenteredString(this.font, Component.translatable(
+                        "screen.lobotocraft.work_progress.auto_close", remaining),
                 centerX, panelY + 162, 0x666666);
     }
 

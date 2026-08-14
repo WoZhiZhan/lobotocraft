@@ -74,10 +74,12 @@ public final class UpdateDepartmentAccessPacket implements IMessage {
         if (operator == null
                 || !com.wzz.lobotocraft.util.AbnormalitySpawnHelper.isCompany(operator.level())) return;
         if (!LlmDepartmentAccessService.apply(operator, updates)) {
-            operator.sendSystemMessage(Component.literal("§c部门调度权限保存失败。"));
+            operator.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.department_access.save_failed"));
             return;
         }
-        operator.sendSystemMessage(Component.literal("§a部门调度权限已保存。"));
+        operator.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.department_access.saved"));
         LlmDepartmentAccessService.refresh(operator);
     }
 }

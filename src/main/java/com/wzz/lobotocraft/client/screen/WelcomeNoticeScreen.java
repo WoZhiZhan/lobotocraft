@@ -32,7 +32,7 @@ public final class WelcomeNoticeScreen extends Screen {
     private boolean submitted;
 
     public WelcomeNoticeScreen() {
-        super(Component.literal("LobotoCraft 实验性重置版"));
+        super(Component.translatable("screen.lobotocraft.welcome.version"));
     }
 
     @Override
@@ -52,8 +52,10 @@ public final class WelcomeNoticeScreen extends Screen {
         graphics.fill(panelX - 2, panelY - 2, panelRight + 2, panelBottom + 2, 0xFFB87824);
         graphics.fill(panelX, panelY, panelRight, panelBottom, 0xF2080808);
         graphics.fill(panelX + 1, viewportTop - 1, panelRight - 1, viewportBottom + 1, 0xFF151515);
-        graphics.drawCenteredString(font, "致歉、公告与声明", width / 2, panelY + 16, 0xFFFFC46B);
-        graphics.drawCenteredString(font, "LobotoCraft 实验性重置版", width / 2, panelY + 36, 0xFFE6E6E6);
+        graphics.drawCenteredString(font, Component.translatable("screen.lobotocraft.welcome.title"),
+                width / 2, panelY + 16, 0xFFFFC46B);
+        graphics.drawCenteredString(font, Component.translatable("screen.lobotocraft.welcome.version"),
+                width / 2, panelY + 36, 0xFFE6E6E6);
 
         int contentWidth = Math.max(120, panelWidth - 58);
         List<RenderedLine> lines = buildLines(contentWidth);
@@ -73,7 +75,7 @@ public final class WelcomeNoticeScreen extends Screen {
 
         renderScrollbar(graphics, viewportTop, viewportBottom, maxScroll, mouseX, mouseY);
         graphics.fill(panelX, viewportBottom + 2, panelRight, panelBottom, 0xF20A0A0A);
-        graphics.drawCenteredString(font, "确认后本提示将在当前存档中不再显示", width / 2,
+        graphics.drawCenteredString(font, Component.translatable("screen.lobotocraft.welcome.once_notice"), width / 2,
                 viewportBottom + 12, 0xFF999999);
 
         int buttonWidth = Math.min(300, panelWidth - 36);
@@ -83,7 +85,8 @@ public final class WelcomeNoticeScreen extends Screen {
         graphics.fill(buttonX, buttonY, buttonX + buttonWidth, buttonY + 24,
                 hovered ? 0xFF3B2B16 : 0xFF211A11);
         outline(graphics, buttonX, buttonY, buttonWidth, 24, hovered ? 0xFFFFD27A : 0xFFB87824);
-        graphics.drawCenteredString(font, "我已阅读，进入设施", width / 2, buttonY + 8,
+        graphics.drawCenteredString(font, Component.translatable("screen.lobotocraft.welcome.confirm"),
+                width / 2, buttonY + 8,
                 hovered ? 0xFFFFE5B0 : 0xFFFFC46B);
     }
 
@@ -233,48 +236,44 @@ public final class WelcomeNoticeScreen extends Screen {
 
     private static List<NoticeBlock> createBlocks() {
         return List.of(
-                heading("致歉", 0xFFFFC46B),
-                body("首先，我需要为 1.0 版本较差的游玩体验向各位玩家郑重道歉。", 0xFFE6E6E6, 4),
-                body("1.0 版本在完成度、界面设计、机制合理性、多人同步、性能与稳定性等方面均存在明显不足，包括全设施异常生成、天数与能源机制混乱、引导缺失、界面简陋，以及多项严重影响正常游玩的缺陷。", 0xFFE6E6E6, 4),
-                body("这些问题确实损害了玩家体验。玩家对此提出批评与不满完全合理。问题主要源于早期开发阶段缺乏完整的架构规划、充分测试与质量控制，相应责任应由开发方承担，而不应由玩家通过反复重进存档、修改配置或自行排查问题来弥补。", 0xFFE6E6E6, 4),
-                body("本次实验性重置不是为了否认或掩盖旧版本的问题，而是希望认真修正这些不足。当前版本仍无法保证不存在缺陷，但我们会继续依据测试结果与玩家反馈改善稳定性、完成度与整体体验。", 0xFFE6E6E6, 8),
-
-                heading("版本公告", 0xFFFFC46B),
-                body("本次实验性重置对原有内容进行了大规模重构，主要包括：", 0xFFE6E6E6, 2),
-                body("1. 重构设施运行机制。异想体与事件实体将根据已开放部门生成，不再无条件影响整个设施。", 0xFFE6E6E6, 2),
-                body("2. 统一多人游戏中的设施天数、能源进度与主要事件状态，减少客户端之间的进度差异。", 0xFFE6E6E6, 2),
-                body("3. 重制能源获取、每日结算、逆卡巴拉能量推进、逆流与考验机制，使其更加接近《脑叶公司》的整体流程。", 0xFFE6E6E6, 2),
-                body("4. 大幅重制 Mod 界面，统一视觉风格，并改善工作选择、员工管理、设施监控与异想体信息等页面。", 0xFFE6E6E6, 2),
-                body("5. 补充异想体故事与档案内容，可在异想体详细信息中查看。", 0xFFE6E6E6, 2),
-                body("6. 加入 AI 员工系统。员工能够参与工作、移动、乘坐电梯与镇压，并可在完成配置后接入大语言模型，提供更深入的角色化互动体验。", 0xFFE6E6E6, 6),
-                body("以上仅为主要改动，实际修复、优化与新增内容不限于上述项目。", 0xFFBDBDBD, 8),
-
-                heading("作品声明", 0xFFFFC46B),
-                body("1. LobotoCraft 的核心 Mod 为独立开发内容，可脱离附带的整合环境运行。本作品不属于传统意义上仅由现有 Mod 组合而成的整合包。", 0xFFE6E6E6, 3),
-                body("2. 当前版本仍处于实验阶段，可能存在影响正常游玩的缺陷，包括员工寻路异常、多人状态不同步、实体行为异常及界面显示问题。", 0xFFE6E6E6, 3),
-                body("3. 当前版本不代表最终品质。游戏内容、机制、数值、界面与视觉表现均可能在后续版本中继续调整或重制。", 0xFFE6E6E6, 3),
-                body("4. AI 员工的大语言模型功能属于可选功能。未进行相关配置时，不影响基础员工系统的使用。", 0xFFE6E6E6, 8),
-
-                heading("视觉安全警告", 0xFFFF6666),
-                body("核心抑制及部分异常事件包含闪烁、画面扭曲、色彩变化和其他强烈视觉效果，可能引发光敏性癫痫或造成身体不适。", 0xFFFFB0B0, 4),
-                body("如游玩过程中出现头晕、恶心、视线异常或其他不适，请立即停止游玩，并在必要时咨询医生。", 0xFFFFB0B0, 4),
-                body("你可以在“视觉警告”设置中关闭核心抑制的特殊视觉效果。对闪烁画面较为敏感的玩家，建议在开始游玩前完成相关设置。", 0xFFFFB0B0, 8),
-
-                heading("游玩提示", 0xFFFFC46B),
-                body("• 受部分历史资源兼容问题影响，请确保 Minecraft 的“音乐”音量高于 0，否则部分背景音乐可能无法正常播放。", 0xFFE6E6E6, 3),
-                body("• 推荐使用 2 倍 GUI 缩放进行游玩；其他缩放比例可能因屏幕分辨率不同而产生显示差异。", 0xFFE6E6E6, 3),
-                body("• 建议定期备份重要存档。多人游戏应以服务端保存的设施数据为准。", 0xFFE6E6E6, 3),
-                body("• 如遇问题，请尽量保留日志、存档、复现步骤及相关截图，以便定位和修复。", 0xFFE6E6E6, 8),
-                body("感谢你阅读以上内容，也感谢所有参与测试、反馈问题并帮助本作品继续完善的玩家。", 0xFFFFC46B, 0)
+                heading("screen.lobotocraft.welcome.apology.heading", 0xFFFFC46B),
+                body("screen.lobotocraft.welcome.apology.1", 0xFFE6E6E6, 4),
+                body("screen.lobotocraft.welcome.apology.2", 0xFFE6E6E6, 4),
+                body("screen.lobotocraft.welcome.apology.3", 0xFFE6E6E6, 4),
+                body("screen.lobotocraft.welcome.apology.4", 0xFFE6E6E6, 8),
+                heading("screen.lobotocraft.welcome.announcement.heading", 0xFFFFC46B),
+                body("screen.lobotocraft.welcome.announcement.1", 0xFFE6E6E6, 2),
+                body("screen.lobotocraft.welcome.announcement.2", 0xFFE6E6E6, 2),
+                body("screen.lobotocraft.welcome.announcement.3", 0xFFE6E6E6, 2),
+                body("screen.lobotocraft.welcome.announcement.4", 0xFFE6E6E6, 2),
+                body("screen.lobotocraft.welcome.announcement.5", 0xFFE6E6E6, 2),
+                body("screen.lobotocraft.welcome.announcement.6", 0xFFE6E6E6, 2),
+                body("screen.lobotocraft.welcome.announcement.7", 0xFFE6E6E6, 6),
+                body("screen.lobotocraft.welcome.announcement.8", 0xFFBDBDBD, 8),
+                heading("screen.lobotocraft.welcome.statement.heading", 0xFFFFC46B),
+                body("screen.lobotocraft.welcome.statement.1", 0xFFE6E6E6, 3),
+                body("screen.lobotocraft.welcome.statement.2", 0xFFE6E6E6, 3),
+                body("screen.lobotocraft.welcome.statement.3", 0xFFE6E6E6, 3),
+                body("screen.lobotocraft.welcome.statement.4", 0xFFE6E6E6, 8),
+                heading("screen.lobotocraft.welcome.visual.heading", 0xFFFF6666),
+                body("screen.lobotocraft.welcome.visual.1", 0xFFFFB0B0, 4),
+                body("screen.lobotocraft.welcome.visual.2", 0xFFFFB0B0, 4),
+                body("screen.lobotocraft.welcome.visual.3", 0xFFFFB0B0, 8),
+                heading("screen.lobotocraft.welcome.tips.heading", 0xFFFFC46B),
+                body("screen.lobotocraft.welcome.tips.1", 0xFFE6E6E6, 3),
+                body("screen.lobotocraft.welcome.tips.2", 0xFFE6E6E6, 3),
+                body("screen.lobotocraft.welcome.tips.3", 0xFFE6E6E6, 3),
+                body("screen.lobotocraft.welcome.tips.4", 0xFFE6E6E6, 8),
+                body("screen.lobotocraft.welcome.tips.5", 0xFFFFC46B, 0)
         );
     }
 
-    private static NoticeBlock heading(String text, int color) {
-        return new NoticeBlock(Component.literal(text), color, true, 0);
+    private static NoticeBlock heading(String key, int color) {
+        return new NoticeBlock(Component.translatable(key), color, true, 0);
     }
 
-    private static NoticeBlock body(String text, int color, int gap) {
-        return new NoticeBlock(Component.literal(text), color, false, gap);
+    private static NoticeBlock body(String key, int color, int gap) {
+        return new NoticeBlock(Component.translatable(key), color, false, gap);
     }
 
     private record NoticeBlock(Component text, int color, boolean heading, int gap) {

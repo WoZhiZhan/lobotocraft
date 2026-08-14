@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.client.core;
 import com.wzz.lobotocraft.ModMain;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
@@ -21,9 +22,11 @@ public final class CoreSuppressionWarningOverlay {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player == null || minecraft.options.hideGui) return;
         GuiGraphics graphics = event.getGuiGraphics();
-        String text = "核心抑制等待确认  " + CoreSuppressionWarningClientState.getConfirmed()
-                + "/" + CoreSuppressionWarningClientState.getTotal()
-                + "  ·  " + CoreSuppressionWarningClientState.getRemainingSeconds() + " 秒";
+        Component text = Component.translatable(
+                "overlay.lobotocraft.core_suppression.awaiting_confirmation",
+                CoreSuppressionWarningClientState.getConfirmed(),
+                CoreSuppressionWarningClientState.getTotal(),
+                CoreSuppressionWarningClientState.getRemainingSeconds());
         int width = minecraft.font.width(text) + 20;
         int x = (graphics.guiWidth() - width) / 2;
         int y = 12;

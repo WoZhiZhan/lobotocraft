@@ -53,7 +53,7 @@ public final class SpecialEgoScreen extends Screen {
     private LobotomyButton actionButton;
 
     public SpecialEgoScreen(CompoundTag snapshot, Screen parent) {
-        super(Component.literal("特殊 E.G.O 分配"));
+        super(Component.translatable("screen.lobotocraft.special_ego.title"));
         this.snapshot = snapshot.copy();
         this.parent = parent;
     }
@@ -72,7 +72,8 @@ public final class SpecialEgoScreen extends Screen {
                 .bounds(detailX + Math.max(0, detailW - 132), contentBottom - 29, 124, 20)
                 .build();
         addRenderableWidget(actionButton);
-        addRenderableWidget(LobotomyButton.create(Component.literal("返回"), button -> onClose())
+        addRenderableWidget(LobotomyButton.create(Component.translatable(
+                        "screen.lobotocraft.common.back"), button -> onClose())
                 .bounds(width - 54, height - 25, 44, 18).build());
         updateActionButton();
     }
@@ -112,17 +113,20 @@ public final class SpecialEgoScreen extends Screen {
         int typeColor = typeColor();
         graphics.fill(0, 0, Math.min(280, inventoryX + 130), HEADER_H - 1, 0xFF100505);
         graphics.fill(0, 0, Math.min(280, inventoryX + 130), 3, typeColor);
-        graphics.drawString(font, "特殊 E.G.O 分配", 18, 15, typeColor, false);
+        graphics.drawString(font, tr("screen.lobotocraft.special_ego.title"),
+                18, 15, typeColor, false);
         graphics.drawString(font, "SPECIAL E.G.O INVENTORY", 18, 32,
                 "weapon".equals(equipmentType) ? 0xFFB92E2E : 0xFF3578B9, false);
-        graphics.drawString(font, "武器与护甲席位相互独立，可由不同玩家同时使用", 295, 22,
+        graphics.drawString(font, tr("screen.lobotocraft.special_ego.independent_slots"), 295, 22,
                 TEXT_DIM, false);
-        if (waiting) graphics.drawString(font, "同步中", width - 92, 22, TEXT_DIM, false);
+        if (waiting) graphics.drawString(font,
+                tr("screen.lobotocraft.special_ego.syncing"), width - 92, 22, TEXT_DIM, false);
     }
 
     private void renderRiskColumn(GuiGraphics graphics) {
         int top = HEADER_H + 54;
-        graphics.drawString(font, "风险等级", riskX + 2, top - 18, TEXT_DIM, false);
+        graphics.drawString(font, tr("screen.lobotocraft.ego_assignment.risk_level"),
+                riskX + 2, top - 18, TEXT_DIM, false);
         String[] risks = {"ZAYIN", "TETH", "HE", "WAW", "ALEPH"};
         for (int i = 0; i < risks.length; i++) {
             int y = top + i * 36;
@@ -138,21 +142,24 @@ public final class SpecialEgoScreen extends Screen {
     private void renderInventory(GuiGraphics graphics, int mouseX, int mouseY) {
         int top = HEADER_H + 8;
         int tabW = inventoryW / 2;
-        drawTab(graphics, inventoryX, top, tabW, "武器", "weapon".equals(equipmentType), WEAPON_RED);
+        drawTab(graphics, inventoryX, top, tabW, tr("equipment.lobotocraft.weapon"),
+                "weapon".equals(equipmentType), WEAPON_RED);
         drawTab(graphics, inventoryX + tabW, top, inventoryW - tabW,
-                "护甲", "armor".equals(equipmentType), ARMOR_BLUE);
+                tr("equipment.lobotocraft.armor"), "armor".equals(equipmentType), ARMOR_BLUE);
 
         int headerY = top + 34;
         graphics.fill(inventoryX, headerY, inventoryX + inventoryW, headerY + 22, PANEL);
-        graphics.drawString(font, "E.G.O 名称", inventoryX + 10, headerY + 7, TEXT_DIM, false);
-        graphics.drawString(font, "全服席位", inventoryX + inventoryW - 66,
+        graphics.drawString(font, tr("screen.lobotocraft.special_ego.ego_name"),
+                inventoryX + 10, headerY + 7, TEXT_DIM, false);
+        graphics.drawString(font, tr("screen.lobotocraft.special_ego.server_slot"),
+                inventoryX + inventoryW - 66,
                 headerY + 7, TEXT_DIM, false);
 
         ListTag entries = entries();
         int rowY = headerY + 22;
         if (entries.isEmpty()) {
             graphics.fill(inventoryX, rowY, inventoryX + inventoryW, contentBottom, PANEL);
-            graphics.drawCenteredString(font, "暂无特殊 E.G.O 记录",
+            graphics.drawCenteredString(font, tr("screen.lobotocraft.special_ego.empty"),
                     inventoryX + inventoryW / 2, rowY + 40, TEXT_DIM);
             return;
         }
@@ -170,14 +177,15 @@ public final class SpecialEgoScreen extends Screen {
 
             List<ItemStack> items = itemStacks(entry.getList(prefix() + "Items", Tag.TAG_STRING));
             if (!items.isEmpty()) graphics.renderItem(items.get(0), inventoryX + 10, y + 17);
-            graphics.drawString(font, entry.getString("Name"), inventoryX + 34, y + 10,
+            graphics.drawString(font, tr(entry.getString("NameKey")), inventoryX + 34, y + 10,
                     selected ? TEXT : TEXT_DIM, false);
-            graphics.drawString(font, fit(entry.getString("Subtitle"), inventoryW - 118),
+            graphics.drawString(font, fit(tr(entry.getString("SubtitleKey")), inventoryW - 118),
                     inventoryX + 34, y + 28, TEXT_DIM, false);
 
             boolean inUse = entry.getBoolean(prefix() + "InUse");
             boolean viewer = entry.getBoolean(prefix() + "UsedByViewer");
-            String status = viewer ? "你正在使用" : inUse ? "0 / 1" : "1 / 1";
+            String status = viewer ? tr("screen.lobotocraft.special_ego.using")
+                    : inUse ? "0 / 1" : "1 / 1";
             int statusColor = viewer ? SELECTED : inUse ? CANNOT : typeColor();
             graphics.drawString(font, status,
                     inventoryX + inventoryW - font.width(status) - 12, y + 20,
@@ -196,12 +204,14 @@ public final class SpecialEgoScreen extends Screen {
         int x = detailX + 14;
         int innerW = Math.max(10, detailW - 28);
         graphics.drawString(font, entry.getString("Risk"), x, top + 13, WEAPON_RED, false);
-        drawScaledText(graphics, entry.getString("Name"), x + 48, top + 8, 1.55F, TEXT);
-        graphics.drawString(font, fit(entry.getString("Subtitle"), innerW), x, top + 31,
+        drawScaledText(graphics, tr(entry.getString("NameKey")), x + 48, top + 8, 1.55F, TEXT);
+        graphics.drawString(font, fit(tr(entry.getString("SubtitleKey")), innerW), x, top + 31,
                 TEXT_DIM, false);
         graphics.fill(x, top + 49, x + innerW, top + 50, LINE_DIM);
 
-        String typeName = "weapon".equals(equipmentType) ? "WEAPON / 武器" : "SUIT / 护甲";
+        String typeName = tr("weapon".equals(equipmentType)
+                ? "screen.lobotocraft.special_ego.type.weapon"
+                : "screen.lobotocraft.special_ego.type.suit");
         graphics.drawString(font, typeName, x, top + 61, typeColor(), false);
         List<ItemStack> items = itemStacks(entry.getList(prefix() + "Items", Tag.TAG_STRING));
         int iconY = top + 79;
@@ -217,40 +227,51 @@ public final class SpecialEgoScreen extends Screen {
         boolean inUse = entry.getBoolean(prefix() + "InUse");
         boolean viewer = entry.getBoolean(prefix() + "UsedByViewer");
         String user = entry.getString(prefix() + "User");
-        graphics.drawString(font, "解锁状态", x + 10, stateY + 7, TEXT_DIM, false);
-        graphics.drawString(font, unlocked ? "已解锁" : "未解锁", x + 72, stateY + 7,
+        graphics.drawString(font, tr("screen.lobotocraft.special_ego.unlock_status"),
+                x + 10, stateY + 7, TEXT_DIM, false);
+        graphics.drawString(font, tr(unlocked
+                        ? "screen.lobotocraft.special_ego.unlocked"
+                        : "screen.lobotocraft.special_ego.locked"), x + 72, stateY + 7,
                 unlocked ? SELECTED : CANNOT, false);
-        graphics.drawString(font, "当前使用者", x + 10, stateY + 24, TEXT_DIM, false);
-        String userText = viewer ? user + "（你）" : inUse ? user : "空闲";
-        graphics.drawString(font, fit(userText.isBlank() ? "未知" : userText, innerW - 82),
+        graphics.drawString(font, tr("screen.lobotocraft.special_ego.current_user"),
+                x + 10, stateY + 24, TEXT_DIM, false);
+        String userText = viewer ? tr("screen.lobotocraft.special_ego.viewer", user)
+                : inUse ? user : tr("screen.lobotocraft.special_ego.available");
+        graphics.drawString(font, fit(userText.isBlank()
+                        ? tr("screen.lobotocraft.special_ego.unknown") : userText, innerW - 82),
                 x + 82, stateY + 24, viewer ? SELECTED : inUse ? CANNOT : TEXT, false);
 
         int infoY = stateY + 55;
         if ("weapon".equals(equipmentType)) {
-            graphics.drawString(font, "伤害  " + entry.getString("Damage"), x, infoY, TEXT, false);
-            graphics.drawString(font, "攻速  " + entry.getString("AttackSpeed")
-                    + "    范围  " + entry.getString("AttackRange"), x, infoY + 16, TEXT_DIM, false);
+            graphics.drawString(font, tr("screen.lobotocraft.special_ego.damage",
+                    entry.getString("Damage")), x, infoY, TEXT, false);
+            graphics.drawString(font, tr("screen.lobotocraft.special_ego.weapon_stats",
+                    entry.getString("AttackSpeed"), entry.getString("AttackRange")),
+                    x, infoY + 16, TEXT_DIM, false);
         } else {
-            graphics.drawString(font, "抗性   R " + format(entry.getFloat("RedResistance"))
-                    + "   W " + format(entry.getFloat("WhiteResistance")), x, infoY, TEXT, false);
-            graphics.drawString(font, "       B " + format(entry.getFloat("BlackResistance"))
-                    + "   P " + format(entry.getFloat("PaleResistance")), x, infoY + 16,
+            graphics.drawString(font, tr("screen.lobotocraft.special_ego.resistance.rw",
+                    format(entry.getFloat("RedResistance")),
+                    format(entry.getFloat("WhiteResistance"))), x, infoY, TEXT, false);
+            graphics.drawString(font, tr("screen.lobotocraft.special_ego.resistance.bp",
+                    format(entry.getFloat("BlackResistance")),
+                    format(entry.getFloat("PaleResistance"))), x, infoY + 16,
                     TEXT_DIM, false);
         }
 
         int requirementY = infoY + 45;
         boolean requirementsMet = entry.getBoolean(prefix() + "RequirementsMet");
-        graphics.drawString(font, "属性要求", x, requirementY, TEXT_DIM, false);
-        graphics.drawString(font, fit(entry.getString(prefix() + "Requirements"), innerW),
+        graphics.drawString(font, tr("screen.lobotocraft.special_ego.requirements"),
+                x, requirementY, TEXT_DIM, false);
+        graphics.drawString(font, fit(requirementText(entry, prefix()), innerW),
                 x, requirementY + 15, requirementsMet ? TEXT : CANNOT, false);
         if (!requirementsMet) {
-            String missing = String.join(" / ", strings(
-                    entry.getList(prefix() + "Missing", Tag.TAG_STRING)));
-            graphics.drawString(font, fit("不足：" + missing, innerW), x, requirementY + 30,
+            graphics.drawString(font, fit(tr("screen.lobotocraft.special_ego.missing"), innerW),
+                    x, requirementY + 30,
                     CANNOT, false);
         }
 
-        List<String> lore = strings(entry.getList("Lore", Tag.TAG_STRING));
+        List<String> lore = strings(entry.getList("LoreKeys", Tag.TAG_STRING)).stream()
+                .map(SpecialEgoScreen::tr).toList();
         int loreY = Math.min(contentBottom - 67, requirementY + 55);
         graphics.fill(x, loreY - 8, x + innerW, loreY - 7, LINE_DIM);
         for (int index = 0; index < Math.min(2, lore.size()); index++) {
@@ -303,20 +324,25 @@ public final class SpecialEgoScreen extends Screen {
     private void updateActionButton() {
         if (actionButton == null) return;
         CompoundTag entry = entry();
-        String typeName = "weapon".equals(equipmentType) ? "武器" : "护甲";
+        String typeName = tr("weapon".equals(equipmentType)
+                ? "equipment.lobotocraft.weapon" : "equipment.lobotocraft.armor");
         boolean viewer = entry.getBoolean(prefix() + "UsedByViewer");
         boolean inUse = entry.getBoolean(prefix() + "InUse");
         boolean requirementsMet = entry.getBoolean(prefix() + "RequirementsMet");
-        actionButton.setMessage(Component.literal(viewer ? "释放" + typeName + "席位"
-                : "申请" + typeName + "席位"));
+        actionButton.setMessage(Component.translatable(viewer
+                        ? "screen.lobotocraft.special_ego.release_slot"
+                        : "screen.lobotocraft.special_ego.claim_slot",
+                typeName));
         actionButton.setSelected(viewer);
         actionButton.active = !waiting && !entry.isEmpty() && entry.getBoolean("Unlocked")
                 && (viewer || !inUse && requirementsMet);
-        String tooltip = !entry.getBoolean("Unlocked") ? "击败对应特殊事件后解锁"
-                : viewer ? "卸下并释放给其他玩家"
-                : inUse ? "该席位正由其他玩家使用"
-                : requirementsMet ? "占用全服唯一的当前使用席位" : "属性等级不足";
-        actionButton.setTooltip(Tooltip.create(Component.literal(tooltip)));
+        String tooltipKey = !entry.getBoolean("Unlocked")
+                ? "screen.lobotocraft.special_ego.tooltip.locked"
+                : viewer ? "screen.lobotocraft.special_ego.tooltip.release"
+                : inUse ? "screen.lobotocraft.special_ego.tooltip.in_use"
+                : requirementsMet ? "screen.lobotocraft.special_ego.tooltip.claim"
+                : "screen.lobotocraft.special_ego.tooltip.requirements";
+        actionButton.setTooltip(Tooltip.create(Component.translatable(tooltipKey)));
     }
 
     private ListTag entries() {
@@ -331,6 +357,37 @@ public final class SpecialEgoScreen extends Screen {
 
     private String prefix() {
         return "weapon".equals(equipmentType) ? "Weapon" : "Armor";
+    }
+
+    private static String requirementText(CompoundTag entry, String prefix) {
+        String[] fields = {"FortitudeLevel", "PrudenceLevel", "TemperanceLevel",
+                "JusticeLevel", "EmployeeLevel"};
+        String[] keys = {"stat.lobotocraft.fortitude", "stat.lobotocraft.prudence",
+                "stat.lobotocraft.temperance", "stat.lobotocraft.justice",
+                "stat.lobotocraft.employee_level"};
+        boolean hasPrimary = false;
+        for (int index = 0; index < 4; index++) {
+            if (entry.getInt(prefix + "Required" + fields[index]) > 0) hasPrimary = true;
+        }
+        List<String> values = new ArrayList<>();
+        for (int index = 0; index < fields.length; index++) {
+            if (index == 4 && hasPrimary) continue;
+            int level = entry.getInt(prefix + "Required" + fields[index]);
+            if (level > 0) values.add(tr("screen.lobotocraft.special_ego.requirement_value",
+                    tr(keys[index]), roman(level)));
+        }
+        return values.isEmpty() ? tr("screen.lobotocraft.common.none")
+                : String.join("   ", values);
+    }
+
+    private static String roman(int level) {
+        return switch (level) {
+            case 2 -> "II";
+            case 3 -> "III";
+            case 4 -> "IV";
+            case 5 -> "V";
+            default -> "I";
+        };
     }
 
     private int typeColor() {
@@ -376,6 +433,10 @@ public final class SpecialEgoScreen extends Screen {
 
     private static String format(float value) {
         return String.format(java.util.Locale.ROOT, "%.1f", value);
+    }
+
+    private static String tr(String key, Object... arguments) {
+        return Component.translatable(key, arguments).getString();
     }
 
     @Override

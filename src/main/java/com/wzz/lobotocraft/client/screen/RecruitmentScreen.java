@@ -23,7 +23,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 public final class RecruitmentScreen extends Screen {
-    private static final String[] STAT_NAMES = {"勇气", "谨慎", "自律", "正义"};
+    private static final String[] STAT_NAME_KEYS = {
+            "stat.lobotocraft.fortitude", "stat.lobotocraft.prudence",
+            "stat.lobotocraft.temperance", "stat.lobotocraft.justice"};
     private static final String[] LEVELS = {"I", "II", "III", "IV", "V"};
     private static final int[] STAT_COLORS = {LobotomyUiTheme.STAT_FORTITUDE, LobotomyUiTheme.STAT_PRUDENCE,
             LobotomyUiTheme.STAT_TEMPERANCE, LobotomyUiTheme.STAT_JUSTICE};
@@ -59,7 +61,7 @@ public final class RecruitmentScreen extends Screen {
     private int appearanceButtonWidth;
 
     public RecruitmentScreen(Screen parent, CompoundTag resources) {
-        super(Component.literal("员工招募"));
+        super(Component.translatable("screen.lobotocraft.recruitment.title"));
         this.parent = parent;
         this.resources = resources.copy();
         this.ysmCatalog = YsmModelCatalog.readFrom(this.resources);
@@ -90,10 +92,10 @@ public final class RecruitmentScreen extends Screen {
         appearanceButtonX = panelX + 24 + nameFrameWidth + 8;
 
         nameBox = addRenderableWidget(new EditBox(font, contentX + 5, nameBoxY + 7,
-                nameFrameWidth - 10, 12, Component.literal("员工名称")));
+                nameFrameWidth - 10, 12, Component.translatable("screen.lobotocraft.recruitment.name")));
         nameBox.setBordered(false);
         nameBox.setMaxLength(24);
-        nameBox.setHint(Component.literal("员工名称"));
+        nameBox.setHint(Component.translatable("screen.lobotocraft.recruitment.name"));
         nameBox.setValue(nameDraft);
         nameBox.setResponder(value -> {
             nameDraft = value;
@@ -118,7 +120,8 @@ public final class RecruitmentScreen extends Screen {
         int personaX = panelX + 34 + statsWidth;
         personaBox = addRenderableWidget(new MultiLineEditBox(font, personaX, statTop + 14,
                 panelX + panelWidth - 24 - personaX, compact ? 75 : 88,
-                Component.literal("例如：沉稳寡言，但会照顾新人"), Component.literal("员工人设（可选）")));
+                Component.translatable("screen.lobotocraft.recruitment.persona.example"),
+                Component.translatable("screen.lobotocraft.recruitment.persona")));
         personaBox.setCharacterLimit(RecruitmentService.MAX_PERSONA_UTF16_LENGTH);
         personaBox.setValue(personaDraft);
         personaBox.setValueListener(value -> {
@@ -139,10 +142,12 @@ public final class RecruitmentScreen extends Screen {
             }).bounds(panelX + 22 + statsWidth - 24, rowY, 24, 20).build());
         }
 
-        recruitButton = addRenderableWidget(LobotomyButton.create(Component.literal("确认招募"), button -> recruit())
+        recruitButton = addRenderableWidget(LobotomyButton.create(Component.translatable(
+                        "screen.lobotocraft.recruitment.confirm"), button -> recruit())
                 .bounds(panelX + panelWidth / 2 - 104,
                         panelY + panelHeight - (compact ? 28 : 36), 96, 22).build());
-        addRenderableWidget(LobotomyButton.create(Component.literal("返回"), button -> onClose())
+        addRenderableWidget(LobotomyButton.create(Component.translatable(
+                        "screen.lobotocraft.common.back"), button -> onClose())
                 .bounds(panelX + panelWidth / 2 + 8,
                         panelY + panelHeight - (compact ? 28 : 36), 96, 22).build());
         setInitialFocus(nameBox);
@@ -154,7 +159,7 @@ public final class RecruitmentScreen extends Screen {
         MessageLoader.getLoader().sendToServer(new RecruitEmployeePacket(nameBox.getValue(),
                 levels[0], levels[1], levels[2], levels[3], personaForSubmission(), appearance));
         recruitButton.active = false;
-        recruitButton.setMessage(Component.literal("处理中…"));
+        recruitButton.setMessage(Component.translatable("screen.lobotocraft.common.processing"));
     }
 
     private void updateControls() {
@@ -168,13 +173,16 @@ public final class RecruitmentScreen extends Screen {
             RecruitmentService.Cost cost = cost();
             boolean affordable = canAfford(cost);
             recruitButton.active = validName() && validPersona() && affordable;
-            recruitButton.setMessage(Component.literal("确认招募"));
+            recruitButton.setMessage(Component.translatable("screen.lobotocraft.recruitment.confirm"));
             if (!validName()) {
-                recruitButton.setTooltip(Tooltip.create(Component.literal("请输入有效的员工名称")));
+                recruitButton.setTooltip(Tooltip.create(Component.translatable(
+                        "screen.lobotocraft.recruitment.invalid_name")));
             } else if (!validPersona()) {
-                recruitButton.setTooltip(Tooltip.create(Component.literal("人设最多256个字符，且不能包含§")));
+                recruitButton.setTooltip(Tooltip.create(Component.translatable(
+                        "screen.lobotocraft.recruitment.invalid_persona")));
             } else if (!affordable) {
-                recruitButton.setTooltip(Tooltip.create(Component.literal("资源不足：" + shortfall(cost))));
+                recruitButton.setTooltip(Tooltip.create(Component.translatable(
+                        "screen.lobotocraft.recruitment.insufficient_resources", shortfall(cost))));
             } else {
                 recruitButton.setTooltip(null);
             }
@@ -186,16 +194,17 @@ public final class RecruitmentScreen extends Screen {
         renderBackground(graphics);
         LobotomyUiRenderer.drawPanel(graphics, panelX, panelY, panelWidth, panelHeight);
         LobotomyUiRenderer.drawPanelHeader(graphics, font, panelX, panelY, panelWidth,
-                "EMPLOYEE RECRUITMENT", "员工招募 / 初始能力配置");
+                "EMPLOYEE RECRUITMENT", tr("screen.lobotocraft.recruitment.subtitle"));
 
-        graphics.drawString(font, "名称", panelX + 24, panelY + (compact ? 38 : 45), LobotomyUiTheme.TEXT_MUTED, false);
+        graphics.drawString(font, tr("screen.lobotocraft.recruitment.name"), panelX + 24,
+                panelY + (compact ? 38 : 45), LobotomyUiTheme.TEXT_MUTED, false);
         int boxX = panelX + 24;
         int boxY = panelY + (compact ? 48 : 55);
         LobotomyUiRenderer.drawInsetBox(graphics, boxX, boxY, nameFrameWidth, 22);
         drawFrame(graphics, boxX, boxY, nameFrameWidth, 22, nameBox != null && nameBox.isFocused()
                 ? LobotomyUiTheme.LINE_ACCENT : LobotomyUiTheme.LINE_MID);
         if (ysmSelectable) {
-            graphics.drawString(font, "YSM 外观（可选）", appearanceButtonX,
+            graphics.drawString(font, tr("screen.lobotocraft.recruitment.ysm_appearance"), appearanceButtonX,
                     panelY + (compact ? 38 : 45), LobotomyUiTheme.TEXT_MUTED, false);
         }
 
@@ -207,7 +216,7 @@ public final class RecruitmentScreen extends Screen {
             LobotomyUiRenderer.drawRow(graphics, panelX + 22, rowY - 3, statsWidth, 26,
                     index, false, false);
             drawStatIcon(graphics, index, panelX + 26, rowY + 6);
-            graphics.drawString(font, STAT_NAMES[index], panelX + 38, rowY + 6,
+            graphics.drawString(font, tr(STAT_NAME_KEYS[index]), panelX + 38, rowY + 6,
                     LobotomyUiTheme.TEXT_TITLE, false);
             LobotomyUiRenderer.drawInsetBox(graphics, panelX + 22 + statsWidth - 48, rowY, 24, 20);
             graphics.drawCenteredString(font, LEVELS[levels[index] - 1],
@@ -217,14 +226,15 @@ public final class RecruitmentScreen extends Screen {
         int statsWidth = (panelWidth - 56) / 2;
         int personaX = panelX + 34 + statsWidth;
         String personaCount = personaCodePointCount() + " / " + RecruitmentService.MAX_PERSONA_CODE_POINTS;
-        graphics.drawString(font, "员工人设（可选）", personaX, statTop,
+        graphics.drawString(font, tr("screen.lobotocraft.recruitment.persona"), personaX, statTop,
                 LobotomyUiTheme.TEXT_MUTED, false);
         graphics.drawString(font, personaCount, panelX + panelWidth - 24 - font.width(personaCount),
                 statTop, validPersona() ? LobotomyUiTheme.TEXT_MUTED : LobotomyUiTheme.ALERT_RED, false);
 
         RecruitmentService.Cost cost = cost();
         int costTop = panelY + (compact ? 169 : 214);
-        graphics.drawString(font, "招募成本", panelX + 24, costTop, LobotomyUiTheme.TEXT_MUTED, false);
+        graphics.drawString(font, tr("screen.lobotocraft.recruitment.cost"), panelX + 24,
+                costTop, LobotomyUiTheme.TEXT_MUTED, false);
         int itemWidth = Math.max(58, (panelWidth - 48) / 5);
         drawCost(graphics, panelX + 24, costTop + 15, itemWidth, Items.EMERALD,
                 cost.emeralds(), resources.getInt("RecruitEmeralds"));
@@ -274,17 +284,17 @@ public final class RecruitmentScreen extends Screen {
 
     private String shortfall(RecruitmentService.Cost cost) {
         StringBuilder builder = new StringBuilder();
-        appendShortfall(builder, "绿宝石", cost.emeralds(), resources.getInt("RecruitEmeralds"));
+        appendShortfall(builder, tr("item.minecraft.emerald"), cost.emeralds(), resources.getInt("RecruitEmeralds"));
         appendShortfall(builder, "PE-BOX", cost.peBoxes(), resources.getInt("RecruitPeBoxes"));
-        appendShortfall(builder, "铁锭", cost.iron(), resources.getInt("RecruitIron"));
-        appendShortfall(builder, "金锭", cost.gold(), resources.getInt("RecruitGold"));
-        appendShortfall(builder, "钻石", cost.diamonds(), resources.getInt("RecruitDiamonds"));
+        appendShortfall(builder, tr("item.minecraft.iron_ingot"), cost.iron(), resources.getInt("RecruitIron"));
+        appendShortfall(builder, tr("item.minecraft.gold_ingot"), cost.gold(), resources.getInt("RecruitGold"));
+        appendShortfall(builder, tr("item.minecraft.diamond"), cost.diamonds(), resources.getInt("RecruitDiamonds"));
         return builder.toString();
     }
 
     private static void appendShortfall(StringBuilder builder, String name, int required, int held) {
         if (held >= required) return;
-        if (builder.length() > 0) builder.append("、");
+        if (builder.length() > 0) builder.append(", ");
         builder.append(name).append(" x").append(required - held);
     }
 
@@ -325,7 +335,9 @@ public final class RecruitmentScreen extends Screen {
     }
 
     private String appearanceButtonText() {
-        String text = appearance.isDefault() ? "原版外观" : "YSM: " + displayModelPath();
+        String text = appearance.isDefault()
+                ? tr("screen.lobotocraft.recruitment.default_appearance")
+                : "YSM: " + displayModelPath();
         if (font == null || font.width(text) <= appearanceButtonWidth - 12) return text;
         String suffix = "...";
         int end = text.length();
@@ -335,8 +347,10 @@ public final class RecruitmentScreen extends Screen {
     }
 
     private String appearanceTooltip() {
-        return appearance.isDefault() ? "保持原版员工外观" : appearance.modelPath()
-                + "\n贴图：" + appearance.textureId();
+        return appearance.isDefault()
+                ? tr("screen.lobotocraft.recruitment.default_appearance.tooltip")
+                : tr("screen.lobotocraft.recruitment.ysm_appearance.tooltip",
+                appearance.modelPath(), appearance.textureId());
     }
 
     private String displayModelPath() {
@@ -347,12 +361,16 @@ public final class RecruitmentScreen extends Screen {
 
     private static String nextUpgradeCost(int currentLevel) {
         return switch (currentLevel) {
-            case 1 -> "II级：10 任意PE-BOX";
-            case 2 -> "III级：2 铁锭";
-            case 3 -> "IV级：4 金锭";
-            case 4 -> "V级：5 钻石";
-            default -> "已达最高等级";
+            case 1 -> tr("screen.lobotocraft.recruitment.upgrade.2");
+            case 2 -> tr("screen.lobotocraft.recruitment.upgrade.3");
+            case 3 -> tr("screen.lobotocraft.recruitment.upgrade.4");
+            case 4 -> tr("screen.lobotocraft.recruitment.upgrade.5");
+            default -> tr("screen.lobotocraft.recruitment.max_level");
         };
+    }
+
+    private static String tr(String key, Object... arguments) {
+        return Component.translatable(key, arguments).getString();
     }
 
     @Override

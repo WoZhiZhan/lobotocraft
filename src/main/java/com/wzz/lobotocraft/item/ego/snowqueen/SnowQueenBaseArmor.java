@@ -3,6 +3,8 @@ package com.wzz.lobotocraft.item.ego.snowqueen;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModArmorMaterial;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoArmor;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -69,13 +71,19 @@ public abstract class SnowQueenBaseArmor extends BaseEgoArmor {
     @Override
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
-        p_41423_.add(Component.literal("§6※玩家在细雪中可以正常行走，不会冻伤"));
-        p_41423_.add(Component.literal("§7为了使人待在冰雪皇宫中，一件能够保持温暖的斗篷是很有必要的。"));
-        p_41423_.add(Component.literal("§7由冰雪所编成的斗篷终有融化之日。"));
-        p_41423_.add(Component.literal("§7而当冰雪消融的那天，她冰封的内心也将一并融化。"));
-        p_41423_.add(Component.literal("§c红色伤害：1.3"));
-        p_41423_.add(Component.literal("§f白色伤害：0.6"));
-        p_41423_.add(Component.literal("§5黑色伤害：0.8"));
-        p_41423_.add(Component.literal("§b蓝色伤害：1.5"));
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.frost_splinter_armor.effect",
+                ChatFormatting.GOLD);
+        for (int index = 1; index <= 3; index++) {
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.frost_splinter_armor.story." + index,
+                    ChatFormatting.GRAY);
+        }
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.frost_splinter_armor.resistance.red",
+                ChatFormatting.RED);
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.frost_splinter_armor.resistance.white",
+                ChatFormatting.WHITE);
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.frost_splinter_armor.resistance.black",
+                ChatFormatting.DARK_PURPLE);
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.frost_splinter_armor.resistance.pale",
+                ChatFormatting.AQUA);
     }
 }

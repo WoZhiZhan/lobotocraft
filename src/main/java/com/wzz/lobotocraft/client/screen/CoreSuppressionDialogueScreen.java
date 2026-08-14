@@ -18,7 +18,7 @@ public class CoreSuppressionDialogueScreen extends Screen {
     private final LivingEntity npc;
 
     public CoreSuppressionDialogueScreen(CoreSuppressionType type, int entityId, LivingEntity npc) {
-        super(Component.literal(type.getDisplayName()));
+        super(Component.translatable("core_suppression.lobotocraft." + type.getId()));
         this.type = type;
         this.entityId = entityId;
         this.npc = npc;
@@ -28,14 +28,17 @@ public class CoreSuppressionDialogueScreen extends Screen {
     public void init() {
         int buttonWidth = Math.min(110, Math.max(70, (width - 30) / 2));
         int y = height - 30;
-        addRenderableWidget(Button.builder(Component.literal("准备好了"), button -> {
+        addRenderableWidget(Button.builder(Component.translatable(
+                "screen.lobotocraft.core_suppression_dialogue.ready"), button -> {
                     MessageLoader.getLoader().sendToServer(
                             new StartCoreSuppressionPacket(type.ordinal(), entityId));
                     onClose();
                 })
                 .bounds(width / 2 - buttonWidth - 6, y, buttonWidth, 20)
                 .build());
-        addRenderableWidget(Button.builder(Component.literal("不，还没有"), button -> onClose())
+        addRenderableWidget(Button.builder(Component.translatable(
+                        "screen.lobotocraft.core_suppression_dialogue.not_ready"),
+                button -> onClose())
                 .bounds(width / 2 + 6, y, buttonWidth, 20)
                 .build());
     }
@@ -48,13 +51,14 @@ public class CoreSuppressionDialogueScreen extends Screen {
         graphics.fill(0, height / 2, width, height / 2 + 2, color);
         InventoryScreen.renderEntityInInventoryFollowsMouse(
                 graphics, width / 2, height / 2 + 4, 76, 0, 0, npc);
-        graphics.drawString(font, type.getDisplayName(), 20, height / 2 + 8, color, false);
+        graphics.drawString(font, tr("core_suppression.lobotocraft." + type.getId()),
+                20, height / 2 + 8, color, false);
         int textY = height / 2 + 30;
         textY = drawWrappedCentered(graphics,
-                "看来你在这个世界待的时间已经足够久了，准备好接受考验了吗？",
+                tr("screen.lobotocraft.core_suppression_dialogue.prompt"),
                 textY, 0xFFFFFF);
         drawWrappedCentered(graphics,
-                "完成当天能源配额并到达逆卡巴拉熔毁等级 VI，即可结束挑战。",
+                tr("screen.lobotocraft.core_suppression_dialogue.objective"),
                 textY + 4, 0xB8B8B8);
         super.render(graphics, mouseX, mouseY, partialTick);
     }
@@ -67,6 +71,10 @@ public class CoreSuppressionDialogueScreen extends Screen {
             y += font.lineHeight + 2;
         }
         return y;
+    }
+
+    private static String tr(String key, Object... arguments) {
+        return Component.translatable(key, arguments).getString();
     }
 
     @Override

@@ -4,10 +4,12 @@ import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.item.ego.base.AiSpecialEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.FallBackCameraPacket;
 import com.wzz.lobotocraft.network.packet.TriggerShakePacket;
 import com.wzz.lobotocraft.util.*;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -79,9 +81,9 @@ public class FourthMatchFlameWeapon extends BaseEgoWeapon implements AiSpecialEg
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> components, TooltipFlag flag) {
         super.appendHoverText(stack, level, components, flag);
-        components.add(Component.literal("§7这把武器所喷出的火焰会如同原初之火一样咆哮。"));
-        components.add(Component.literal("§7烈火不会熄灭，直到它将世上所有的幸福温暖和光明统统烧尽。"));
-        components.add(Component.literal("§7被烈焰灼烧的人会对世界产生无尽的仇恨，直至他们的意识与身躯一并化为灰烬。"));
-        components.add(Component.literal("§7实验这把武器时会造成无法避免的伤亡。"));
+        for (int index = 1; index <= 4; index++) {
+            EgoTooltipUtil.add(components, "tooltip.lobotocraft.fourth_match_flame_weapon.story." + index,
+                    ChatFormatting.GRAY);
+        }
     }
 }

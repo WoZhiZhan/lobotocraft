@@ -32,15 +32,18 @@ public final class EmployeeWarehouseScreen extends AbstractContainerScreen<Emplo
         addRenderableWidget(LobotomyButton.create(Component.literal("↓"),
                         button -> press(EmployeeWarehouseMenu.BUTTON_COLLECT_ALL))
                 .bounds(leftPos + 68, topPos + 3, 17, 17)
-                .tooltip(Tooltip.create(Component.literal("一键上交所有员工的普通物品"))).build());
+                .tooltip(Tooltip.create(Component.translatable(
+                        "screen.lobotocraft.employee_warehouse.collect_all"))).build());
         previous = addRenderableWidget(LobotomyButton.create(Component.literal("<"),
                         button -> press(EmployeeWarehouseMenu.BUTTON_PREVIOUS))
                 .bounds(leftPos + 89, topPos + 3, 18, 17)
-                .tooltip(Tooltip.create(Component.literal("上一页"))).build());
+                .tooltip(Tooltip.create(Component.translatable(
+                        "screen.lobotocraft.common.previous_page"))).build());
         next = addRenderableWidget(LobotomyButton.create(Component.literal(">"),
                         button -> press(EmployeeWarehouseMenu.BUTTON_NEXT))
                 .bounds(leftPos + 151, topPos + 3, 18, 17)
-                .tooltip(Tooltip.create(Component.literal("下一页"))).build());
+                .tooltip(Tooltip.create(Component.translatable(
+                        "screen.lobotocraft.common.next_page"))).build());
     }
 
     @Override
@@ -83,7 +86,8 @@ public final class EmployeeWarehouseScreen extends AbstractContainerScreen<Emplo
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
         graphics.drawString(font, title, titleLabelX, titleLabelY, LobotomyUiTheme.TEXT_TITLE, false);
-        graphics.drawString(font, Component.literal("你的物品栏"), 8, inventoryLabelY,
+        graphics.drawString(font, Component.translatable("screen.lobotocraft.inventory.yours"),
+                8, inventoryLabelY,
                 LobotomyUiTheme.TEXT_MUTED, false);
     }
 

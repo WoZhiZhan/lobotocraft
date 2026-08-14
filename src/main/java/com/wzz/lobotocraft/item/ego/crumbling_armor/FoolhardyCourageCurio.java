@@ -5,6 +5,7 @@ import com.mojang.math.Axis;
 import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.item.AttributeEntry;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.EgoArmorHelper;
 import com.wzz.lobotocraft.util.ParticleUtil;
 import net.minecraft.ChatFormatting;
@@ -125,18 +126,27 @@ public class FoolhardyCourageCurio extends BaseEgoCurio {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("  • 移动速度 + 20").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 攻击速度 + 20").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 最大生命值 -20").withStyle(ChatFormatting.RED));
-        tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("由内在的勇气膨胀而成的匹夫之勇。").withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.literal("匹夫之勇，终将葬送一切。").withStyle(ChatFormatting.DARK_RED));
-        tooltip.add(Component.literal("携带者进行沟通工作时会被处决。").withStyle(ChatFormatting.DARK_RED));
-        tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("套装效果（装备+武器+饰品）：").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("  • 当8x8范围内没有其他玩家时，手持武器“决死之心”的玩家造成的伤害提高35%，受到的伤害减少10%").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 玩家不再受到匹夫之勇减少生命值的影响，并且额外提升5%的移动速度和攻击速度").withStyle(ChatFormatting.LIGHT_PURPLE));
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.effects", ChatFormatting.YELLOW);
+        for (int index = 1; index <= 2; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.foolhardy_courage.effect." + index,
+                    ChatFormatting.GREEN);
+        }
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.foolhardy_courage.effect.3",
+                ChatFormatting.RED);
+        EgoTooltipUtil.blank(tooltip);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.foolhardy_courage.story.1",
+                ChatFormatting.GRAY);
+        for (int index = 2; index <= 3; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.foolhardy_courage.story." + index,
+                    ChatFormatting.DARK_RED);
+        }
+        EgoTooltipUtil.blank(tooltip);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.full_set_effect",
+                ChatFormatting.AQUA);
+        for (int index = 1; index <= 2; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.foolhardy_courage.set." + index,
+                    ChatFormatting.LIGHT_PURPLE);
+        }
         super.appendHoverText(stack, level, tooltip, flag);
     }
 }

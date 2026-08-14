@@ -60,7 +60,8 @@ public class OpenRoomAbnormalityInfoPacket implements IMessage {
         if (CompanyRoomData.get(player.serverLevel()).findRoom(dimension, roomPos) == null) return;
         ServerLevel target = player.server.getLevel(ResourceKey.create(Registries.DIMENSION, dimension));
         if (target == null) {
-            player.displayClientMessage(Component.literal("§c目标维度未加载。"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.room.dimension_unloaded"), true);
             return;
         }
         // 先把区块拉起来，这样离得再远也能查资料
@@ -68,18 +69,20 @@ public class OpenRoomAbnormalityInfoPacket implements IMessage {
 
         if (!(target.getBlockEntity(roomPos) instanceof RoomMarkerBlockEntity be)) {
             player.displayClientMessage(
-                    Component.literal("§7该房间的信标读取失败，请稍后再试。"), true);
+                    Component.translatable("message.lobotocraft.room.marker_read_failed"), true);
             return;
         }
 
         UUID bound = be.getBoundAbnormality();
         if (bound == null) {
-            player.displayClientMessage(Component.literal("§7该收容间还没有登记住户。"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.room.no_occupant"), true);
             return;
         }
         Entity entity = target.getEntity(bound);
         if (!(entity instanceof IAbnormality abnormality)) {
-            player.displayClientMessage(Component.literal("§7找不到该异想体，可能已被卸载或死亡。"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.room.abnormality_unavailable"), true);
             return;
         }
 

@@ -3,6 +3,8 @@ package com.wzz.lobotocraft.item.ego.fragment_of_the_universe;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModArmorMaterial;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoArmor;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -60,14 +62,17 @@ public abstract class FragmentUniverseBaseArmor extends BaseEgoArmor {
     @Override
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
-        p_41423_.add(Component.literal("§7不要想着去理解它，只是这样穿着它就可以了。"));
-        p_41423_.add(Component.literal("§7据穿戴者们反馈，这件E.G.O护甲会使他们看到一些被他们遗忘的事物。"));
-        p_41423_.add(Component.literal("§7但是没人能确定穿戴者会看到些什么，因为每一位员工都看到了不同的东西。"));
-        p_41423_.add(Component.literal("§7该异想体的核心形式在每次提取过程中都发生了变化。"));
-        p_41423_.add(Component.literal("§7经过无数次尝试，才稳定成现在的模样。"));
-        p_41423_.add(Component.literal("§c红色伤害：1.0"));
-        p_41423_.add(Component.literal("§f白色伤害：1.2"));
-        p_41423_.add(Component.literal("§5黑色伤害：0.6"));
-        p_41423_.add(Component.literal("§b蓝色伤害：2.0"));
+        for (int index = 1; index <= 5; index++) {
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.fragments_somewhere_armor.story." + index,
+                    ChatFormatting.GRAY);
+        }
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.fragments_somewhere_armor.resistance.red",
+                ChatFormatting.RED);
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.fragments_somewhere_armor.resistance.white",
+                ChatFormatting.WHITE);
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.fragments_somewhere_armor.resistance.black",
+                ChatFormatting.DARK_PURPLE);
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.fragments_somewhere_armor.resistance.pale",
+                ChatFormatting.AQUA);
     }
 }

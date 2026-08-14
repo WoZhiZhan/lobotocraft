@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.abandoned_murderer;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.item.AttributeEntry;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
@@ -34,13 +35,16 @@ public class AbandonedMurdererCurio extends BaseEgoCurio {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("  • 最大生命值 + 2").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 最大精神值 + 2").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 玩家手持任意EGO时伤害 + 1").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("套装效果（装备锁定+装备+武器+饰品）：").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("  • 玩家使用悔恨武器造成伤害后，10秒内减少20%的移动速度，使玩家造成的红色伤害+10%，不可叠加，每次造成伤害刷新持续时间").withStyle(ChatFormatting.LIGHT_PURPLE));
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.effects", ChatFormatting.YELLOW);
+        for (int index = 1; index <= 3; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.regret_curio.effect." + index,
+                    ChatFormatting.GREEN);
+        }
+        EgoTooltipUtil.blank(tooltip);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.full_set_effect",
+                ChatFormatting.AQUA);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.regret_curio.set.1",
+                ChatFormatting.LIGHT_PURPLE);
         super.appendHoverText(stack, level, tooltip, flag);
     }
 
@@ -50,7 +54,8 @@ public class AbandonedMurdererCurio extends BaseEgoCurio {
                 new AttributeEntry(UUID.fromString("a1d91b8d-52a5-4f66-8a66-41d6ee0670dd"),
                         this.getCurrentClassName() + " Max Health Bonus", Attributes.MAX_HEALTH, 2D),
                 new AttributeEntry(UUID.fromString("37051b32-8809-4573-974f-e9d99faa87d4"),
-                        this.getCurrentClassName() + " Extra Mental Value Bonus", ModAttributes.EXTRA_MENTAL_VALUE.get(), 2D)
+                        this.getCurrentClassName() + " Extra Mental Value Bonus",
+                        ModAttributes.EXTRA_MENTAL_VALUE.get(), 2D)
         );
     }
 

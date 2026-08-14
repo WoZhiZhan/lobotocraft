@@ -62,8 +62,8 @@ public final class PlayerProfileService {
         for (SpecialEgoCatalog.Definition definition : SpecialEgoCatalog.definitions()) {
             CompoundTag entry = new CompoundTag();
             entry.putString("Id", definition.id());
-            entry.putString("Name", definition.displayName());
-            entry.putString("Subtitle", definition.subtitle());
+            entry.putString("NameKey", definition.displayNameKey());
+            entry.putString("SubtitleKey", definition.subtitleKey());
             entry.putString("Risk", definition.riskLevel());
             entry.putInt("AccentColor", 0xFF000000 | definition.accentRgb());
             entry.putBoolean("Unlocked", registry.isUnlocked(definition.id()));
@@ -71,11 +71,11 @@ public final class PlayerProfileService {
             putSpecialTypeSnapshot(entry, player, registry, definition, "armor");
 
             ListTag lore = new ListTag();
-            definition.lore().forEach(value -> lore.add(StringTag.valueOf(value)));
-            entry.put("Lore", lore);
+            definition.loreKeys().forEach(value -> lore.add(StringTag.valueOf(value)));
+            entry.put("LoreKeys", lore);
             entry.putString("Damage", "ALL 18");
             entry.putString("AttackSpeed", "0.6");
-            entry.putString("AttackRange", "4格");
+            entry.putString("AttackRange", "4");
             entry.putFloat("RedResistance", 0.3F);
             entry.putFloat("WhiteResistance", 0.3F);
             entry.putFloat("BlackResistance", 0.3F);
@@ -109,34 +109,6 @@ public final class PlayerProfileService {
         Map<String, Integer> requirements = EgoLoadoutService.requiredLevels(
                 definition.itemIds(equipmentType));
         requirements.forEach((key, value) -> entry.putInt(prefix + "Required" + key, value));
-        entry.putString(prefix + "Requirements", requirementText(requirements));
-    }
-
-    private static String requirementText(Map<String, Integer> requirements) {
-        StringBuilder result = new StringBuilder();
-        String[] keys = {"FortitudeLevel", "PrudenceLevel", "TemperanceLevel", "JusticeLevel", "EmployeeLevel"};
-        String[] names = {"勇气", "谨慎", "自律", "正义", "综合"};
-        boolean hasPrimaryRequirement = java.util.Arrays.stream(keys, 0, 4)
-                .anyMatch(key -> requirements.getOrDefault(key, 0) > 0);
-        for (int index = 0; index < keys.length; index++) {
-            if (index == 4 && hasPrimaryRequirement) continue;
-            int value = requirements.getOrDefault(keys[index], 0);
-            if (value <= 0) continue;
-            if (result.length() > 0) result.append("   ");
-            result.append(names[index]).append(' ').append(roman(value));
-        }
-        return result.length() == 0 ? "无" : result.toString();
-    }
-
-    private static String roman(int value) {
-        return switch (value) {
-            case 1 -> "I";
-            case 2 -> "II";
-            case 3 -> "III";
-            case 4 -> "IV";
-            case 5 -> "V";
-            default -> Integer.toString(value);
-        };
     }
 
     private static CompoundTag baseSnapshot(ServerPlayer player, View view) {

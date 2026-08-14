@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
 import net.minecraftforge.client.event.ScreenEvent;
@@ -62,11 +63,13 @@ public final class CoreSuppressionOverlay {
     private static void renderObjective(GuiGraphics graphics, CoreSuppressionType type) {
         Minecraft minecraft = Minecraft.getInstance();
         int y = graphics.guiHeight() - 50;
-        String title = type.getDisplayName() + " 核心抑制";
-        String energy = "能源 " + CoreSuppressionClientState.getEnergy()
-                + "/" + CoreSuppressionClientState.getEnergyQuota();
-        String meltdown = "逆卡巴拉熔毁 " + roman(CoreSuppressionClientState.getMeltdownLevel())
-                + "/" + roman(CoreSuppressionClientState.getRequiredMeltdownLevel());
+        Component title = Component.translatable("overlay.lobotocraft.core_suppression.title",
+                Component.translatable(type.getTranslationKey()));
+        Component energy = Component.translatable("overlay.lobotocraft.core_suppression.energy",
+                CoreSuppressionClientState.getEnergy(), CoreSuppressionClientState.getEnergyQuota());
+        Component meltdown = Component.translatable("overlay.lobotocraft.core_suppression.meltdown",
+                roman(CoreSuppressionClientState.getMeltdownLevel()),
+                roman(CoreSuppressionClientState.getRequiredMeltdownLevel()));
         int width = Math.max(minecraft.font.width(title),
                 Math.max(minecraft.font.width(energy), minecraft.font.width(meltdown))) + 12;
         graphics.fill(7, y - 5, 7 + width, y + 31, 0xB0000000);
@@ -75,7 +78,8 @@ public final class CoreSuppressionOverlay {
         graphics.drawString(minecraft.font, energy, 13, y + 10, 0xFFFFFF, false);
         graphics.drawString(minecraft.font, meltdown, 13, y + 20, 0xD0D0D0, false);
         if (CoreSuppressionClientState.requirementsMet()) {
-            graphics.drawString(minecraft.font, "目标完成：可以结束当天。",
+            graphics.drawString(minecraft.font,
+                    Component.translatable("overlay.lobotocraft.core_suppression.complete"),
                     13, y - 15, 0x7CFF8C, true);
         }
     }

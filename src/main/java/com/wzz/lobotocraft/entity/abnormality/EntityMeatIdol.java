@@ -524,16 +524,16 @@ public class EntityMeatIdol extends AbstractAbnormality {
 
     @Override
     public String getToolWarningTitle() {
-        return "§4§l员工使用后可能会产生未知风险，请谨慎使用";
+        return "screen.lobotocraft.tool_use.warning.caution_title";
     }
 
     @Override
     public String[] getToolWarningMessages() {
         return new String[]{
-                "§c当玩家进行工作时每6秒对玩家造成一次不同类型的伤害3-6点",
-                "§c当玩家工作不满20秒就选择取消工作则直接死亡",
-                "§a玩家工作时间超过21秒，则为其他玩家持续恢复生命值和精神值(一秒恢复1点)",
-                "§4如果工作时间超过90秒，那么祷告者会立刻死亡且设施内所有异想体的逆卡巴拉计数器都将归零"
+                "screen.lobotocraft.tool_use.warning.meat_idol.1",
+                "screen.lobotocraft.tool_use.warning.meat_idol.2",
+                "screen.lobotocraft.tool_use.warning.meat_idol.3",
+                "screen.lobotocraft.tool_use.warning.meat_idol.4"
         };
     }
 

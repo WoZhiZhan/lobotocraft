@@ -15,9 +15,9 @@ import net.minecraftforge.network.NetworkEvent;
  */
 public class OrdealTitlePacket implements IMessage {
 
-    private String top;
-    private String title;
-    private String subtitle;
+    private Component top;
+    private Component title;
+    private Component subtitle;
     private int themeColor;
     private int fadeIn;
     private int stay;
@@ -25,9 +25,17 @@ public class OrdealTitlePacket implements IMessage {
 
     public OrdealTitlePacket(String top, String title, String subtitle, int themeColor,
                              int fadeIn, int stay, int fadeOut) {
-        this.top = top == null ? "" : top;
-        this.title = title == null ? "" : title;
-        this.subtitle = subtitle == null ? "" : subtitle;
+        this(Component.literal(top == null ? "" : top),
+                Component.literal(title == null ? "" : title),
+                Component.literal(subtitle == null ? "" : subtitle),
+                themeColor, fadeIn, stay, fadeOut);
+    }
+
+    public OrdealTitlePacket(Component top, Component title, Component subtitle, int themeColor,
+                             int fadeIn, int stay, int fadeOut) {
+        this.top = top == null ? Component.empty() : top;
+        this.title = title == null ? Component.empty() : title;
+        this.subtitle = subtitle == null ? Component.empty() : subtitle;
         this.themeColor = themeColor;
         this.fadeIn = fadeIn;
         this.stay = stay;
@@ -36,9 +44,9 @@ public class OrdealTitlePacket implements IMessage {
 
     @Override
     public void fromBytes(FriendlyByteBuf buf) {
-        this.top = buf.readUtf();
-        this.title = buf.readUtf();
-        this.subtitle = buf.readUtf();
+        this.top = buf.readComponent();
+        this.title = buf.readComponent();
+        this.subtitle = buf.readComponent();
         this.themeColor = buf.readInt();
         this.fadeIn = buf.readInt();
         this.stay = buf.readInt();
@@ -47,9 +55,9 @@ public class OrdealTitlePacket implements IMessage {
 
     @Override
     public void toBytes(FriendlyByteBuf buf) {
-        buf.writeUtf(top);
-        buf.writeUtf(title);
-        buf.writeUtf(subtitle);
+        buf.writeComponent(top);
+        buf.writeComponent(title);
+        buf.writeComponent(subtitle);
         buf.writeInt(themeColor);
         buf.writeInt(fadeIn);
         buf.writeInt(stay);
@@ -67,9 +75,7 @@ public class OrdealTitlePacket implements IMessage {
         ctx.enqueueWork(() ->
                 DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
                         OrdealTitleOverlay.show(
-                                Component.literal(top),
-                                Component.literal(title),
-                                Component.literal(subtitle),
+                                top, title, subtitle,
                                 themeColor, fadeIn, stay, fadeOut)));
     }
 }

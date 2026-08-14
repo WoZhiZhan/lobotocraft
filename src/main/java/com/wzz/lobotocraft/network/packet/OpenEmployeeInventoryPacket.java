@@ -51,7 +51,8 @@ public final class OpenEmployeeInventoryPacket implements IMessage {
         EmployeeServerPlayer employee = EmployeeRuntimeManager.activePlayer(employeeId);
         if (employee == null || employee.isRemoved() || !employee.isAlive()
                 || !employee.employeeRecord().deployed() || employee.employeeRecord().retired()) {
-            sender.sendSystemMessage(Component.literal("该员工当前未部署或已无法管理。"));
+            sender.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.employee_inventory.unavailable"));
             return;
         }
 
@@ -59,7 +60,8 @@ public final class OpenEmployeeInventoryPacket implements IMessage {
         NetworkHooks.openScreen(sender, new MenuProvider() {
             @Override
             public Component getDisplayName() {
-                return Component.literal(employee.employeeRecord().name() + "的物品栏");
+                return Component.translatable("screen.lobotocraft.employee_inventory.title",
+                        employee.employeeRecord().name());
             }
 
             @Nullable

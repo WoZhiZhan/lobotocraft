@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.repentance;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.item.AttributeEntry;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
@@ -14,16 +15,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * 忏悔饰品
- * 位置：头部
- * 效果：最大精神值+2
- * 特殊效果：
- * - 对"一罪与百善"工作成功率+10%
- * - 装备+武器+饰品 = 免疫白夜和使徒伤害
- */
 public class RepentanceCurio extends BaseEgoCurio {
-
     public RepentanceCurio() {
         super(new Properties().stacksTo(1).fireResistant());
     }
@@ -41,23 +33,29 @@ public class RepentanceCurio extends BaseEgoCurio {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("  • 最大精神值 +2").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 对一罪与百善工作成功率 +10%").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("特殊效果（“白夜”出逃时）：").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("  • 免疫白夜和使徒的伤害").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 无法对白夜和使徒造成伤害").withStyle(ChatFormatting.RED));
-        tooltip.add(Component.literal("  • 无法进行工作").withStyle(ChatFormatting.RED));
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.effects", ChatFormatting.YELLOW);
+        for (int index = 1; index <= 2; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.penitence_curio.effect." + index,
+                    ChatFormatting.GREEN);
+        }
+        EgoTooltipUtil.blank(tooltip);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.penitence_curio.special_heading",
+                ChatFormatting.AQUA);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.penitence_curio.special.1",
+                ChatFormatting.LIGHT_PURPLE);
+        for (int index = 2; index <= 3; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.penitence_curio.special." + index,
+                    ChatFormatting.RED);
+        }
         super.appendHoverText(stack, level, tooltip, flag);
     }
 
     @Override
     public List<AttributeEntry> getAttributeEntries(LivingEntity living) {
-        return List.of(
-                new AttributeEntry(UUID.fromString("29f82af0-fe7f-4f2a-a316-b9a6a1eaafa7"),
-                        this.getCurrentClassName() + " Extra Mental Value Bonus", ModAttributes.EXTRA_MENTAL_VALUE.get(), 2D)
-        );
+        return List.of(new AttributeEntry(
+                UUID.fromString("29f82af0-fe7f-4f2a-a316-b9a6a1eaafa7"),
+                this.getCurrentClassName() + " Extra Mental Value Bonus",
+                ModAttributes.EXTRA_MENTAL_VALUE.get(), 2D));
     }
 
     @Override

@@ -58,10 +58,12 @@ public final class UpdateLlmConfigPacket implements IMessage {
         try {
             LlmConfig.update(enabled, endpoint, model, timeoutSeconds,
                     LlmConfig.KeyAction.byId(keyAction), replacementKey);
-            player.sendSystemMessage(Component.literal("§aLLM 热配置已应用。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.llm_config.applied"));
             LlmConfigService.open(player);
         } catch (IllegalArgumentException | IllegalStateException exception) {
-            player.sendSystemMessage(Component.literal("§cLLM 配置未保存：" + exception.getMessage()));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.llm_config.failed", exception.getMessage()));
         }
     }
 }

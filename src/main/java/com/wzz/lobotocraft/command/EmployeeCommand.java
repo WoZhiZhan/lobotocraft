@@ -96,7 +96,7 @@ public final class EmployeeCommand implements ICommand {
         var result = com.wzz.lobotocraft.employee.RecruitmentService.recruit(owner, name,
                 1, 1, 1, 1);
         if (!result.success()) {
-            source.sendFailure(Component.literal(result.message()));
+            source.sendFailure(result.message());
             return 0;
         }
         EmployeeRecord record = result.employee();

@@ -111,40 +111,51 @@ public final class CoreSuppressionManager {
     private CoreSuppressionManager() {
     }
 
-    public static String getStartDenialReason(ServerPlayer player, CoreSuppressionType type) {
+    public static Component getStartDenialReason(ServerPlayer player, CoreSuppressionType type) {
         CoreSuppressionData state = CoreSuppressionData.get(player.serverLevel());
         if (state.isActive()) {
-            return "当前已有核心抑制正在进行：" + state.getActiveType().getDisplayName();
+            return Component.translatable("message.lobotocraft.core_suppression.denial.active",
+                    Component.translatable("core_suppression.lobotocraft."
+                            + state.getActiveType().getId()));
         }
         if (!type.isImplemented()) {
-            return type.getDisplayName() + " 核心抑制尚未实装。";
+            return Component.translatable("message.lobotocraft.core_suppression.denial.unimplemented",
+                    Component.translatable("core_suppression.lobotocraft." + type.getId()));
         }
         if (state.hasCompleted(type)) {
-            return type.getDisplayName() + " 核心抑制已经完成。";
+            return Component.translatable("message.lobotocraft.core_suppression.denial.completed",
+                    Component.translatable("core_suppression.lobotocraft." + type.getId()));
         }
         if (!state.hasCompletedPrerequisites(type)) {
             CoreSuppressionType previous = CoreSuppressionType.byOrdinal(type.ordinal() - 1);
-            return "请先完成 " + (previous == null ? "前置" : previous.getDisplayName()) + " 核心抑制。";
+            return Component.translatable("message.lobotocraft.core_suppression.denial.prerequisite",
+                    previous == null
+                            ? Component.translatable("message.lobotocraft.core_suppression.prerequisite")
+                            : Component.translatable("core_suppression.lobotocraft." + previous.getId()));
         }
 
         int day = getPlayerDay(player);
         if (day < REQUIRED_DAY) {
-            return "开启条件：玩家游玩天数达到26天。当前第 " + day + " 天。";
+            return Component.translatable("message.lobotocraft.core_suppression.denial.day",
+                    day, REQUIRED_DAY);
         }
 
         int observed = getFullyObservedCount(player);
         if (observed < REQUIRED_FULL_OBSERVATIONS) {
-            return "开启条件：解锁26只异想体的全部信息。当前 " + observed + "/26。";
+            return Component.translatable("message.lobotocraft.core_suppression.denial.observation",
+                    observed, REQUIRED_FULL_OBSERVATIONS);
         }
 
         MinecraftServer server = player.getServer();
         ServerLevel companyLevel = server.getLevel(ModDimensions.LOBOTO_KEY);
         if (companyLevel == null) {
-            return "无法读取公司维度。";
+            return Component.translatable(
+                    "message.lobotocraft.core_suppression.denial.company_dimension");
         }
         OrdealData ordeal = OrdealData.get(server.overworld());
         if (ordeal.hasActiveOrdeal() || BlueMiddayEvent.isTrialActive()) {
-            return "当前考验尚未结束，无法接取核心抑制。";
+            return Component.translatable(
+                    "message.lobotocraft.core_suppression.denial.ordeal_active");
         }
 
         int abnormalityCount = 0;
@@ -155,26 +166,29 @@ public final class CoreSuppressionManager {
             }
             abnormalityCount++;
             if (abnormality.hasEscape()) {
-                return "当前有异想体正在出逃，无法接取核心抑制。";
+                return Component.translatable(
+                        "message.lobotocraft.core_suppression.denial.breach_active");
             }
         }
         if (abnormalityCount < REQUIRED_COMPANY_ABNORMALITIES) {
-            return "开启条件：公司维度内至少存在26只异想体实体。当前 "
-                    + abnormalityCount + "/26。";
+            return Component.translatable("message.lobotocraft.core_suppression.denial.abnormalities",
+                    abnormalityCount, REQUIRED_COMPANY_ABNORMALITIES);
         }
         return null;
     }
 
     public static boolean requestChallenge(ServerPlayer player, CoreSuppressionType type) {
-        String denial = getStartDenialReason(player, type);
+        Component denial = getStartDenialReason(player, type);
         if (denial != null) {
-            player.sendSystemMessage(Component.literal("§c" + denial));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.core_suppression.denied", denial));
             return false;
         }
 
         MinecraftServer server = player.getServer();
         if (PENDING_CHALLENGES.containsKey(server)) {
-            player.sendSystemMessage(Component.literal("§c已有核心抑制正在等待全员视觉安全确认。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.core_suppression.pending_exists"));
             return false;
         }
 
@@ -187,8 +201,9 @@ public final class CoreSuppressionManager {
                 participants, false);
         PENDING_CHALLENGES.put(server, pending);
         sendPendingState(server, pending);
-        server.getPlayerList().broadcastSystemMessage(Component.literal(
-                "§e[核心抑制] 正在等待全员完成视觉安全确认，最多等待 60 秒。"), false);
+        server.getPlayerList().broadcastSystemMessage(Component.translatable(
+                "message.lobotocraft.core_suppression.awaiting_confirmation",
+                VISUAL_WARNING_DURATION_TICKS / 20), false);
         return true;
     }
 
@@ -207,20 +222,23 @@ public final class CoreSuppressionManager {
 
     private static boolean beginChallenge(ServerPlayer player, CoreSuppressionType type,
                                           Map<UUID, Boolean> visualChoices) {
-        String denial = getStartDenialReason(player, type);
+        Component denial = getStartDenialReason(player, type);
         if (denial != null) {
-            player.sendSystemMessage(Component.literal("§c" + denial));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.core_suppression.denied", denial));
             return false;
         }
 
         CompanyDailyData daily = getDailyData(player);
         if (daily == null) {
-            player.sendSystemMessage(Component.literal("§c无法读取公司日程数据。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.core_suppression.daily_data_failed"));
             return false;
         }
 
         if (!DayTransitionService.beginSuppressionDay(player)) {
-            player.sendSystemMessage(Component.literal("§c新一天无法开始，核心抑制已取消。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.core_suppression.day_start_failed"));
             return false;
         }
 
@@ -243,10 +261,15 @@ public final class CoreSuppressionManager {
 
         teleportToCompany(player);
         syncDaily(player, daily);
-        broadcastTitle(server, type, "核心抑制", type.getDisplayName(), "挑战开始", type.getColor());
-        server.getPlayerList().broadcastSystemMessage(Component.literal(
-                "§6[核心抑制] §f" + player.getGameProfile().getName() + " 开启了 "
-                        + type.getDisplayName() + " 核心抑制。"), false);
+        broadcastTitle(server,
+                Component.translatable("title.lobotocraft.core_suppression.start.top"),
+                Component.translatable(type.getTranslationKey()),
+                Component.translatable("title.lobotocraft.core_suppression.start.subtitle"),
+                type.getColor());
+        server.getPlayerList().broadcastSystemMessage(Component.translatable(
+                "message.lobotocraft.core_suppression.started",
+                player.getGameProfile().getName(),
+                Component.translatable("core_suppression.lobotocraft." + type.getId())), false);
         broadcastStopCommand(server);
         syncAll(server);
         return true;
@@ -268,8 +291,9 @@ public final class CoreSuppressionManager {
                 participants, true);
         PENDING_CHALLENGES.put(server, pending);
         sendPendingState(server, pending);
-        server.getPlayerList().broadcastSystemMessage(Component.literal(
-                "§e[核心抑制] 强制挑战正在等待全员视觉安全确认，最多等待 60 秒。"), false);
+        server.getPlayerList().broadcastSystemMessage(Component.translatable(
+                "message.lobotocraft.core_suppression.debug_awaiting_confirmation",
+                VISUAL_WARNING_DURATION_TICKS / 20), false);
         return true;
     }
 
@@ -293,23 +317,35 @@ public final class CoreSuppressionManager {
         }
         teleportToCompany(player);
         syncDaily(player, daily);
-        broadcastTitle(server, type, "核心抑制", type.getDisplayName(), "调试挑战开始", type.getColor());
+        broadcastTitle(server,
+                Component.translatable("title.lobotocraft.core_suppression.start.top"),
+                Component.translatable(type.getTranslationKey()),
+                Component.translatable("title.lobotocraft.core_suppression.debug_start.subtitle"),
+                type.getColor());
         broadcastStopCommand(server);
         syncAll(server);
         return true;
     }
 
     private static void broadcastStopCommand(MinecraftServer server) {
-        Component message = Component.literal("[核心抑制] ").withStyle(ChatFormatting.GOLD)
-                .append(Component.literal("若视觉效果妨碍操作，可").withStyle(ChatFormatting.WHITE))
-                .append(Component.literal("点击这里").withStyle(style -> style
+        Component message = Component.translatable(
+                        "message.lobotocraft.core_suppression.stop_prefix")
+                .withStyle(ChatFormatting.GOLD)
+                .append(Component.translatable(
+                        "message.lobotocraft.core_suppression.stop_before").withStyle(ChatFormatting.WHITE))
+                .append(Component.translatable(
+                        "message.lobotocraft.core_suppression.stop_click").withStyle(style -> style
                         .withColor(ChatFormatting.RED)
                         .withUnderlined(true)
                         .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND,
                                 STOP_SUPPRESSION_COMMAND))
                         .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
-                                Component.literal("填入：" + STOP_SUPPRESSION_COMMAND)))))
-                .append(Component.literal("以停止抑制（不视为完成）。").withStyle(ChatFormatting.WHITE));
+                                Component.translatable(
+                                        "message.lobotocraft.core_suppression.stop_hover",
+                                        STOP_SUPPRESSION_COMMAND)))))
+                .append(Component.translatable(
+                        "message.lobotocraft.core_suppression.stop_after")
+                        .withStyle(ChatFormatting.WHITE));
         server.getPlayerList().broadcastSystemMessage(message, false);
     }
 
@@ -442,7 +478,8 @@ public final class CoreSuppressionManager {
                         && (abnormality.getUUID().equals(completedAbnormality.getUUID())
                         || !WorkManager.isAbnormalityBeingWorked(abnormality)));
         if (candidates.isEmpty()) {
-            player.sendSystemMessage(Component.literal("§e[融毁] 当前没有可进入融毁的异想体。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.core_suppression.no_meltdown_target"));
             return;
         }
 
@@ -701,7 +738,8 @@ public final class CoreSuppressionManager {
             EmployeeStatsApplier.applyAllAttributes(player);
             if (!(player instanceof EmployeeServerPlayer)) {
                 syncStats(player);
-                player.sendSystemMessage(Component.literal("§aHod核心抑制造成的临时属性降低已恢复。"));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.core_suppression.hod_restored"));
             }
         });
         reconcileHodState(player);
@@ -787,7 +825,8 @@ public final class CoreSuppressionManager {
         PendingChallenge pending = PENDING_CHALLENGES.get(server);
         if (pending != null) {
             if (player.getUUID().equals(pending.ownerUuid)) {
-                cancelPendingChallenge(server, pending, "发起者退出了游戏，核心抑制确认已取消。");
+                cancelPendingChallenge(server, pending,
+                        "message.lobotocraft.core_suppression.cancelled.owner_left");
             } else if (pending.participants.remove(player.getUUID())) {
                 pending.visualChoices.remove(player.getUUID());
                 if (pending.visualChoices.size() >= pending.participants.size()) {
@@ -853,13 +892,21 @@ public final class CoreSuppressionManager {
                 grantAdvancement(player, type);
                 applyNetzachHealthBonus(player);
             }
-            broadcastTitle(server, type, "核心抑制完成", type.getDisplayName(), reason, type.getColor());
-            server.getPlayerList().broadcastSystemMessage(Component.literal(
-                    "§a[核心抑制] §f" + type.getDisplayName() + " 核心抑制已完成，永久加成已解锁。"), false);
+            broadcastTitle(server,
+                    Component.translatable("title.lobotocraft.core_suppression.complete.top"),
+                    Component.translatable(type.getTranslationKey()),
+                    Component.literal(reason), type.getColor());
+            server.getPlayerList().broadcastSystemMessage(Component.translatable(
+                    "message.lobotocraft.core_suppression.completed",
+                    Component.translatable(type.getTranslationKey())), false);
         } else {
-            broadcastTitle(server, type, "核心抑制失败", type.getDisplayName(), reason, 0xC43A3A);
-            server.getPlayerList().broadcastSystemMessage(Component.literal(
-                    "§c[核心抑制] " + type.getDisplayName() + " 挑战失败：" + reason), false);
+            broadcastTitle(server,
+                    Component.translatable("title.lobotocraft.core_suppression.failed.top"),
+                    Component.translatable(type.getTranslationKey()),
+                    Component.literal(reason), 0xC43A3A);
+            server.getPlayerList().broadcastSystemMessage(Component.translatable(
+                    "message.lobotocraft.core_suppression.failed",
+                    Component.translatable(type.getTranslationKey()), reason), false);
         }
         syncAll(server);
         // Alert packets are ignored while suppression is active. Send the
@@ -922,7 +969,8 @@ public final class CoreSuppressionManager {
         PendingChallenge pending = PENDING_CHALLENGES.get(server);
         if (pending == null) return;
         if (server.getPlayerList().getPlayer(pending.ownerUuid) == null) {
-            cancelPendingChallenge(server, pending, "发起者已离线，核心抑制确认已取消。");
+            cancelPendingChallenge(server, pending,
+                    "message.lobotocraft.core_suppression.cancelled.owner_offline");
             return;
         }
         long remaining = pending.deadline - server.overworld().getGameTime();
@@ -957,7 +1005,8 @@ public final class CoreSuppressionManager {
         if (PENDING_CHALLENGES.get(server) != pending) return;
         PENDING_CHALLENGES.remove(server);
         clearPendingScreens(server, pending);
-        server.getPlayerList().broadcastSystemMessage(Component.literal("§c[核心抑制] " + reason), false);
+        server.getPlayerList().broadcastSystemMessage(Component.translatable(
+                "message.lobotocraft.core_suppression.cancelled", Component.translatable(reason)), false);
     }
 
     private static void clearPendingScreens(MinecraftServer server, PendingChallenge pending) {
@@ -1033,8 +1082,8 @@ public final class CoreSuppressionManager {
                         stats.getFortitude(), stats.getPrudence(), stats.getTemperance(), stats.getJustice())));
     }
 
-    private static void broadcastTitle(MinecraftServer server, CoreSuppressionType type,
-                                       String top, String title, String subtitle, int color) {
+    private static void broadcastTitle(MinecraftServer server, Component top,
+                                       Component title, Component subtitle, int color) {
         OrdealTitlePacket packet = new OrdealTitlePacket(top, title, subtitle, color, 10, 80, 20);
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             MessageLoader.getLoader().sendToPlayer(player, packet);

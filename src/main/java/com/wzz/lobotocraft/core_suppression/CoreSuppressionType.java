@@ -47,6 +47,10 @@ public enum CoreSuppressionType {
         return displayName;
     }
 
+    public String getTranslationKey() {
+        return "core_suppression.lobotocraft." + getId();
+    }
+
     public int getColor() {
         return color;
     }

@@ -6,6 +6,7 @@ import com.wzz.lobotocraft.network.packet.MustOpenPathMeterSyncPacket;
 import com.wzz.lobotocraft.util.EgoArmorHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
@@ -31,7 +32,7 @@ public final class MustOpenPathHud {
         CompoundTag persisted = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
         int meter = Math.max(0, Math.min(100,
                 persisted.getInt(MustOpenPathMeterSyncPacket.CLIENT_METER_TAG)));
-        String text = "必须维系的界限：" + meter + "%";
+        Component text = Component.translatable("overlay.lobotocraft.must_open_path.meter", meter);
         int x = (event.getWindow().getGuiScaledWidth() - minecraft.font.width(text)) / 2;
         int y = event.getWindow().getGuiScaledHeight() - 61;
         event.getGuiGraphics().drawString(minecraft.font, text, x, y, 0x55DDF0, true);

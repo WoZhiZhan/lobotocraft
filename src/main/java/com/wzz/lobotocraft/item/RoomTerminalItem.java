@@ -39,9 +39,12 @@ public class RoomTerminalItem extends Item {
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("右键切换到设施监控视角").withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.literal("在平面图上点击房间即可传送").withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.literal("只显示放置了「收容间信标」的房间").withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.translatable("tooltip.lobotocraft.room_terminal.1")
+                .withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable("tooltip.lobotocraft.room_terminal.2")
+                .withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable("tooltip.lobotocraft.room_terminal.3")
+                .withStyle(ChatFormatting.DARK_GRAY));
         super.appendHoverText(stack, level, tooltip, flag);
     }
 }

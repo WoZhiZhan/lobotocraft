@@ -45,7 +45,8 @@ public final class SetPlayerDepartmentPacket implements IMessage {
         boolean open = DepartmentProgressData.get(player.server).isOpen(department);
         if (!department.id().equals(departmentId)
                 || !PlayerFacilityProfileData.canSelect(department, open)) {
-            player.sendSystemMessage(Component.literal("§c该部门尚未开放，无法加入。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.player_department.not_open"));
             PlayerProfileService.open(player, PlayerProfileService.View.DEPARTMENT);
             return;
         }
@@ -53,8 +54,9 @@ public final class SetPlayerDepartmentPacket implements IMessage {
         PlayerFacilityProfileData.get(player.server).setDepartment(player.getUUID(), department);
         player.refreshDisplayName();
         PlayerTabListDayHandler.syncDepartmentToAll(player);
-        player.sendSystemMessage(Component.literal("§a已加入" + department.displayName()
-                + "。此身份不占用员工槽位。"));
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.player_department.joined",
+                Component.translatable("department.lobotocraft." + department.id())));
         PlayerProfileService.open(player, PlayerProfileService.View.DEPARTMENT);
     }
 }

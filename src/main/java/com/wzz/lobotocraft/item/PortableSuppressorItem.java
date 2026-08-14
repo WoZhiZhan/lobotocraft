@@ -55,7 +55,8 @@ public class PortableSuppressorItem extends ProhibitDiscardingItem {
     @Override
     public void appendHoverText(ItemStack p_41421_, @org.jetbrains.annotations.Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
-        p_41423_.add(Component.literal("§7玩家外出时携带，可以保护玩家提供在公司外不被负面能量伤害"));
+        p_41423_.add(Component.translatable("tooltip.lobotocraft.portable_suppressor")
+                .withStyle(net.minecraft.ChatFormatting.GRAY));
     }
 
     @Override

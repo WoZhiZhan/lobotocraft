@@ -7,7 +7,9 @@ import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.item.ego.base.AiSpecialEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.*;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
@@ -149,18 +151,18 @@ public class SnowQueenWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapon
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         if (!ClientInputUtil.isShiftPressed()) {
-            p_41423_.add(Component.literal("§6※被这支武器刺中的目标会减少移动速度。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7冰雪女皇是美丽的，但是她的内心只应当在空虚中被冻结。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7锐利的矛尖冰冷无比，被它刺中的目标甚至会因为寒冷而暂时无法动弹。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7由冰雪所铸成的长矛终有融化之日。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7而当冰雪消融的那天，她冰封的内心也将一并融化。"));
-            p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.frost_splinter_weapon.summary",
+                    ChatFormatting.GOLD);
+            for (int index = 1; index <= 4; index++) {
+                EgoTooltipUtil.blank(p_41423_);
+                EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.frost_splinter_weapon.story." + index,
+                        ChatFormatting.GRAY);
+            }
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.common.shift_details",
+                    ChatFormatting.GRAY);
         } else {
-            p_41423_.add(Component.literal("§6※武器每次满蓄力攻击同一个目标10次后为其添加一层亲吻，在无套装效果的情况下最多施加1层，持续10秒，右键特殊攻击伤害距离为6。"));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.frost_splinter_weapon.detail",
+                    ChatFormatting.GOLD);
         }
     }
 }

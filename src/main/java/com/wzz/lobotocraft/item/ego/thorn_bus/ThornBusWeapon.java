@@ -3,7 +3,9 @@ package com.wzz.lobotocraft.item.ego.thorn_bus;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.*;
+import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.damagesource.DamageSource;
@@ -148,12 +150,17 @@ public class ThornBusWeapon extends BaseEgoWeapon {
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         if (ClientInputUtil.isShiftPressed()) {
-            p_41423_.add(Component.literal("§7寻求常人无法承受的快感通常会使人丧失自我。"));
-            p_41423_.add(Component.literal("§7如果那些荆棘上落下的粉末散播到了尘世，那么人们恐怕此生都将像陷入泥沼一般难以求生。"));
+            for (int index = 1; index <= 2; index++) {
+                EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.pleasure_weapon.story." + index,
+                        ChatFormatting.GRAY);
+            }
         } else {
-            p_41423_.add(Component.literal("§6※持有者攻击时会附加额外的精神伤害。"));
-            p_41423_.add(Component.literal("§6※击杀生物后获得一朵随机颜色的郁金香。"));
-            p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
+            for (int index = 1; index <= 2; index++) {
+                EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.pleasure_weapon.effect." + index,
+                        ChatFormatting.GOLD);
+            }
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.common.shift_details",
+                    ChatFormatting.GRAY);
         }
     }
 }

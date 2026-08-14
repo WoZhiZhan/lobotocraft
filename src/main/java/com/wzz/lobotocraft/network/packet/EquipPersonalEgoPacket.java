@@ -45,25 +45,29 @@ public final class EquipPersonalEgoPacket implements IMessage {
                 || !com.wzz.lobotocraft.util.AbnormalitySpawnHelper.isCompany(player.level())) return;
         if (!"weapon".equals(equipmentType) && !"armor".equals(equipmentType)) return;
         if (SpecialEgoService.hasEquippedSpecial(player, equipmentType)) {
-            player.sendSystemMessage(Component.literal("§c请先在特殊 E.G.O 界面卸下当前"
-                    + ("weapon".equals(equipmentType) ? "武器" : "护甲") + "。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.personal_ego.special_conflict",
+                    Component.translatable("weapon".equals(equipmentType)
+                            ? "equipment.lobotocraft.weapon" : "equipment.lobotocraft.armor")));
             return;
         }
         if (abnormalityCode == null || abnormalityCode.isBlank()) {
             if (EgoLoadoutService.unequipPersonal(player, equipmentType)) {
-                player.sendSystemMessage(Component.literal("§a已卸下个人 E.G.O。"));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.personal_ego.unequipped"));
                 FacilityManagementService.open(player);
             }
             return;
         }
         if (EgoLoadoutService.equipPersonal(player, equipmentType, abnormalityCode)) {
-            player.sendSystemMessage(Component.literal("§a已应用个人E.G.O装备方案。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.personal_ego.equipped"));
             FacilityManagementService.open(player);
         } else {
             var missing = EgoLoadoutService.personalMissingRequirements(player, equipmentType, abnormalityCode);
-            player.sendSystemMessage(Component.literal(missing.isEmpty()
-                    ? "§c无法应用：该E.G.O尚未由你研发。"
-                    : "§c无法应用，等级不足：" + String.join("，", missing)));
+            player.sendSystemMessage(Component.translatable(missing.isEmpty()
+                    ? "message.lobotocraft.personal_ego.not_researched"
+                    : "message.lobotocraft.personal_ego.requirements"));
         }
     }
 }

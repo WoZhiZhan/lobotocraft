@@ -49,7 +49,7 @@ public class AbnormalityWorkScreen extends Screen {
     public AbnormalityWorkScreen(int abnormalityId, float[][] fullWorkPreferences, RiskLevel riskLevel,
                                  int observationLevel, int employeeLevel, boolean[] workPrefsUnlocked,
                                  int repeatedWorkPenaltyPercent) {
-        super(Component.literal("选择工作类型"));
+        super(Component.translatable("screen.lobotocraft.work.title"));
         this.minecraft = Minecraft.getInstance();
         this.abnormalityId = abnormalityId;
         this.fullWorkPreferences = fullWorkPreferences;
@@ -89,17 +89,21 @@ public class AbnormalityWorkScreen extends Screen {
         int centerY = this.height / 2;
 
         // 渲染标题
-        graphics.drawCenteredString(this.font, "选择工作类型",
+        graphics.drawCenteredString(this.font, Component.translatable("screen.lobotocraft.work.title"),
                 centerX, centerY - 100, 0xFFFFFF);
         renderRiskLevel(graphics, centerX, centerY - 80);
         // 渲染4个工作图标（田字形布局）
-        renderWorkIcon(graphics, centerX - 60, centerY - 30, 0, INSTINCT_ICON, "本能");
-        renderWorkIcon(graphics, centerX + 20, centerY - 30, 1, INSIGHT_ICON, "洞察");
-        renderWorkIcon(graphics, centerX - 60, centerY + 40, 2, ATTACHMENT_ICON, "沟通");
-        renderWorkIcon(graphics, centerX + 20, centerY + 40, 3, REPRESSION_ICON, "压迫");
+        renderWorkIcon(graphics, centerX - 60, centerY - 30, 0, INSTINCT_ICON,
+                Component.translatable("work.lobotocraft.instinct"));
+        renderWorkIcon(graphics, centerX + 20, centerY - 30, 1, INSIGHT_ICON,
+                Component.translatable("work.lobotocraft.insight"));
+        renderWorkIcon(graphics, centerX - 60, centerY + 40, 2, ATTACHMENT_ICON,
+                Component.translatable("work.lobotocraft.attachment"));
+        renderWorkIcon(graphics, centerX + 20, centerY + 40, 3, REPRESSION_ICON,
+                Component.translatable("work.lobotocraft.repression"));
 
         // 渲染提示
-        graphics.drawCenteredString(this.font, "WASD选择 | 空格确认",
+        graphics.drawCenteredString(this.font, Component.translatable("screen.lobotocraft.work.controls"),
                 centerX, centerY + 120, 0xFFFF00);
 
         super.render(graphics, mouseX, mouseY, partialTick);
@@ -110,7 +114,7 @@ public class AbnormalityWorkScreen extends Screen {
 
         // 获取风险等级的颜色和名称
         int color = riskLevel.getColor();
-        String name = getRiskLevelName(riskLevel);
+        Component name = getRiskLevelName(riskLevel);
 
         // 渲染风险等级背景框
         int textWidth = this.font.width(name);
@@ -133,18 +137,12 @@ public class AbnormalityWorkScreen extends Screen {
         graphics.drawString(this.font, name, textX, textY, color, false);
     }
 
-    private String getRiskLevelName(RiskLevel level) {
-        return switch (level) {
-            case ZAYIN -> "ZAYIN 等级";
-            case TETH -> "TETH 等级";
-            case HE -> "HE 等级";
-            case WAW -> "WAW 等级";
-            case ALEPH -> "ALEPH 等级";
-        };
+    private Component getRiskLevelName(RiskLevel level) {
+        return Component.translatable("risk.lobotocraft.level", level.name());
     }
 
     private void renderWorkIcon(GuiGraphics graphics, int x, int y, int workIndex,
-                                ResourceLocation icon, String name) {
+                                ResourceLocation icon, Component name) {
         boolean isSelected = (workIndex == selectedWork);
         boolean malkuthScramble = CoreSuppressionClientState.isActive(CoreSuppressionType.MALKUTH);
 
@@ -163,7 +161,7 @@ public class AbnormalityWorkScreen extends Screen {
             graphics.blit(icon, x, y, 0, 0, 40, 40, 40, 40);
         }
 
-        String visibleName = malkuthScramble ? "???" : name;
+        Component visibleName = malkuthScramble ? Component.literal("???") : name;
         int nameX = x + 20 - this.font.width(visibleName) / 2;
         graphics.drawString(this.font, visibleName, nameX, y + 45, 0xFFFFFF);
 

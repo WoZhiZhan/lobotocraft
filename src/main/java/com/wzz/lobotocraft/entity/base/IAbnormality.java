@@ -415,7 +415,7 @@ public interface IAbnormality {
      * @return 警告标题，如"危险警告"
      */
     default String getToolWarningTitle() {
-        return "§4§l危险警告";
+        return "screen.lobotocraft.tool_use.warning.default_title";
     }
 
     /**
@@ -427,9 +427,9 @@ public interface IAbnormality {
      */
     default String[] getToolWarningMessages() {
         return new String[]{
-                "§c员工进入后将无法停止使用",
-                "§c将会持续受到递增的RED伤害",
-                "§c直到死亡为止"
+                "screen.lobotocraft.tool_use.warning.default.1",
+                "screen.lobotocraft.tool_use.warning.default.2",
+                "screen.lobotocraft.tool_use.warning.default.3"
         };
     }
 

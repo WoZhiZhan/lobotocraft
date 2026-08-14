@@ -8,6 +8,7 @@ import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.item.ego.base.AiCombatModeEgoWeapon;
 import com.wzz.lobotocraft.item.ego.base.AiRangedEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
@@ -176,7 +177,9 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon
         if (isBlack(stack)) {
             return Component.empty()
                     .append(super.getName(stack))
-                    .append(Component.literal(" [黑]").withStyle(ChatFormatting.DARK_GRAY));
+                    .append(Component.translatable(
+                            "item.lobotocraft.butterfly_funeral_weapon.black_suffix")
+                            .withStyle(ChatFormatting.DARK_GRAY));
         }
         return super.getName(stack);
     }
@@ -245,7 +248,8 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon
 
         if (isJudging(player)) {
             exitJudgement(player);
-            player.displayClientMessage(Component.literal("§7宣判 解除"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.butterfly_funeral.judgement_off"), true);
             return;
         }
 
@@ -259,7 +263,8 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon
         if (!(main.getItem() instanceof ButterflyFuneralWeapon) || isBlack(main)
                 || !(off.getItem() instanceof ButterflyFuneralWeapon) || !isBlack(off)) {
             player.displayClientMessage(
-                    Component.literal("§7需要主手白枪、副手黑枪。"), true);
+                    Component.translatable(
+                            "message.lobotocraft.butterfly_funeral.judgement_requirement"), true);
             return;
         }
 
@@ -272,7 +277,8 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon
         off.getOrCreateTag().putBoolean(TAG_JUDGING, true);
 
         SoundUtil.playSound(player, ModSounds.BUTTERFLY_FUNERAL_WEAPON_MODE.get());
-        player.displayClientMessage(Component.literal("§f▶ 宣判"), true);
+        player.displayClientMessage(Component.translatable(
+                "message.lobotocraft.butterfly_funeral.judgement_on"), true);
     }
 
     /** 退出宣判（再按 R / 死亡 / 持枪条件不满足 时调用） */
@@ -539,18 +545,24 @@ public class ButterflyFuneralWeapon extends BaseEgoWeapon
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
         super.appendHoverText(stack, level, tooltip, flag);
-        tooltip.add(Component.literal(isBlack(stack) ? "§8※ 黑色形态：造成黑色伤害。" : "§f※ 白色形态：造成白色伤害。"));
-        tooltip.add(Component.literal("§6※累计一定攻击次数后，武器的威力会变强。"));
-        tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("§b[E.G.O 套装效果]"));
-        tooltip.add(Component.literal("§7右手白枪、左手黑枪时按 §fR §7键进入宣判状态。"));
-        tooltip.add(Component.literal("§7宣判状态下常驻三连发，且造成的所有伤害无视无敌帧。"));
-        tooltip.add(Component.literal("§7每次造成伤害为目标叠加一层「救赎」，每层使其受到本武器持有者的伤害提高 1%（最多 50 层，25 秒）。"));
-        tooltip.add(Component.literal("§7每命中 10 次为自身叠加一层「蝶引」，每层减少 0.5 秒开火间隔（最多 5 层，50 秒）。"));
-        tooltip.add(Component.literal("§7拥有 5 层「蝶引」且目标拥有 50 层「救赎」时，每次伤害额外附带 1 点蓝色伤害。"));
-        tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("§7这两把枪令人感到严肃。"));
-        tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("§7死者之哀，死亡之惧，烙印其上。"));        
+        EgoTooltipUtil.add(tooltip, isBlack(stack)
+                        ? "tooltip.lobotocraft.butterfly_funeral_weapon.mode.black"
+                        : "tooltip.lobotocraft.butterfly_funeral_weapon.mode.white",
+                isBlack(stack) ? ChatFormatting.DARK_GRAY : ChatFormatting.WHITE);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.butterfly_funeral_weapon.power",
+                ChatFormatting.GOLD);
+        EgoTooltipUtil.blank(tooltip);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.ego_set_effect",
+                ChatFormatting.AQUA);
+        for (int index = 1; index <= 5; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.butterfly_funeral_weapon.set." + index,
+                    ChatFormatting.GRAY);
+        }
+        EgoTooltipUtil.blank(tooltip);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.butterfly_funeral_weapon.story.1",
+                ChatFormatting.GRAY);
+        EgoTooltipUtil.blank(tooltip);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.butterfly_funeral_weapon.story.2",
+                ChatFormatting.GRAY);
     }
 }

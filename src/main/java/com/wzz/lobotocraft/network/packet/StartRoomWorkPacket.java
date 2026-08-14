@@ -74,14 +74,17 @@ public class StartRoomWorkPacket implements IMessage {
 
         ServerLevel target = player.server.getLevel(ResourceKey.create(Registries.DIMENSION, dimension));
         if (target == null) {
-            player.displayClientMessage(Component.literal("§c目标维度未加载。"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.room.dimension_unloaded"), true);
             return;
         }
         FacilityAccessService.ContainmentAccess access = FacilityAccessService.containmentAccess(
                 player.server, dimension, roomPos);
         if (access != FacilityAccessService.ContainmentAccess.OPEN) {
-            player.displayClientMessage(Component.literal(access == FacilityAccessService.ContainmentAccess.UNEXPANDED
-                    ? "§7该收容单元尚未扩建，无法开始工作。" : "§c该收容单元当前不可用。"), true);
+            player.displayClientMessage(Component.translatable(access
+                    == FacilityAccessService.ContainmentAccess.UNEXPANDED
+                    ? "message.lobotocraft.room.unexpanded_work"
+                    : "message.lobotocraft.room.unavailable"), true);
             return;
         }
 
@@ -89,32 +92,36 @@ public class StartRoomWorkPacket implements IMessage {
         target.getChunk(roomPos.getX() >> 4, roomPos.getZ() >> 4);
 
         if (!(target.getBlockEntity(roomPos) instanceof RoomMarkerBlockEntity be)) {
-            player.displayClientMessage(Component.literal("§c该收容间信标已失效。"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.room.marker_invalid"), true);
             return;
         }
 
         UUID bound = be.getBoundAbnormality();
         Entity entity = bound == null ? null : target.getEntity(bound);
         if (!(entity instanceof AbstractAbnormality abnormality) || !abnormality.isAlive()) {
-            player.displayClientMessage(Component.literal("§7该收容间里没有可以工作的异想体。"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.room.no_work_target"), true);
             return;
         }
 
         // 1. 工具类不走工作流程
         if (abnormality.isToolType()) {
             player.displayClientMessage(
-                    Component.literal("§7工具类异想体不能这样开始工作，请到现场直接使用。"), true);
+                    Component.translatable("message.lobotocraft.room.tool_requires_proximity"), true);
             return;
         }
 
         // 2. 一次只能进行一项工作（WorkManager 的会话是按玩家 UUID 存的）
         if (WorkManager.isPlayerWorking(player)) {
-            player.displayClientMessage(Component.literal("§c你正在进行工作，无法开始新的工作！"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.work.already_working"), true);
             return;
         }
         if (com.wzz.lobotocraft.work.AbnormalityWorkRules.isAiEmployee(player)
                 && WorkManager.isAiEmployeeWorking(abnormality)) {
-            player.displayClientMessage(Component.literal("§c已经有人在对这只异想体工作了。"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.room.already_worked"), true);
             return;
         }
 
@@ -133,8 +140,9 @@ public class StartRoomWorkPacket implements IMessage {
             }
         });
         if (mentalBroken[0]) {
-            player.displayClientMessage(Component.literal(
-                    berserk[0] ? "§c你陷入了疯狂状态，无法进行工作！" : "§c你陷入了恐慌状态，无法进行工作！"), true);
+            player.displayClientMessage(Component.translatable(berserk[0]
+                    ? "message.lobotocraft.work.berserk"
+                    : "message.lobotocraft.work.panic"), true);
             return;
         }
 

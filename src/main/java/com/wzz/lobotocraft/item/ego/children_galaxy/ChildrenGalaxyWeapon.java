@@ -5,8 +5,10 @@ import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.item.ego.base.AiSpecialEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.ClientInputUtil;
 import com.wzz.lobotocraft.util.DamageHelper;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -142,11 +144,15 @@ public class ChildrenGalaxyWeapon extends BaseEgoWeapon implements AiSpecialEgoW
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
         super.appendHoverText(stack, level, tooltip, flag);
         if (ClientInputUtil.isShiftPressed()) {
-            tooltip.add(Component.literal("§7别让那枚小小的卵石离开身边。"));
-            tooltip.add(Component.literal("§6※右键挥洒坠落的星泪，对身前3x3范围内敌人造成15点黑色伤害。"));
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.our_galaxy_weapon.story",
+                    ChatFormatting.GRAY);
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.our_galaxy_weapon.effect",
+                    ChatFormatting.GOLD);
             return;
         }
-        tooltip.add(Component.literal("§6※右键挥洒坠落的星泪，对身前3x3范围内敌人造成15点黑色伤害。"));
-        tooltip.add(Component.literal("§7按住<Shift>查看详情"));
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.our_galaxy_weapon.effect",
+                ChatFormatting.GOLD);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.shift_details",
+                ChatFormatting.GRAY);
     }
 }

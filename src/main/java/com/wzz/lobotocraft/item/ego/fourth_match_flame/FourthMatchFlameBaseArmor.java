@@ -3,6 +3,8 @@ package com.wzz.lobotocraft.item.ego.fourth_match_flame;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModArmorMaterial;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoArmor;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -65,12 +67,17 @@ public abstract class FourthMatchFlameBaseArmor extends BaseEgoArmor {
     @Override
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
-        p_41423_.add(Component.literal("§7该异想体的核心被提取时烧成灰烬。虽然这些物质视如焦糊，但依旧充满用处。"));
-        p_41423_.add(Component.literal("§7这件护甲灰暗的设计能够唤起穿戴者对世上一切光明之物强烈的仇恨。"));
-        p_41423_.add(Component.literal("§7然而没人知道这副护甲能否抵御烈焰。"));
-        p_41423_.add(Component.literal("§c红色伤害：0.6"));
-        p_41423_.add(Component.literal("§f白色伤害：1.0"));
-        p_41423_.add(Component.literal("§5黑色伤害：1.2"));
-        p_41423_.add(Component.literal("§b蓝色伤害：2.0"));
+        for (int index = 1; index <= 3; index++) {
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.fourth_match_flame_armor.story." + index,
+                    ChatFormatting.GRAY);
+        }
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.fourth_match_flame_armor.resistance.red",
+                ChatFormatting.RED);
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.fourth_match_flame_armor.resistance.white",
+                ChatFormatting.WHITE);
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.fourth_match_flame_armor.resistance.black",
+                ChatFormatting.DARK_PURPLE);
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.fourth_match_flame_armor.resistance.pale",
+                ChatFormatting.AQUA);
     }
 }

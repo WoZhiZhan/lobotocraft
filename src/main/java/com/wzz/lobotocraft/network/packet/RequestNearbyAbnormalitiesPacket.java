@@ -70,21 +70,24 @@ public class RequestNearbyAbnormalitiesPacket implements IMessage {
 
         ServerLevel target = player.server.getLevel(ResourceKey.create(Registries.DIMENSION, dimension));
         if (target == null) {
-            player.displayClientMessage(Component.literal("§c目标维度未加载。"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.room.dimension_unloaded"), true);
             return;
         }
         FacilityAccessService.ContainmentAccess access = FacilityAccessService.containmentAccess(
                 player.server, dimension, roomPos);
         if (access != FacilityAccessService.ContainmentAccess.OPEN) {
-            player.displayClientMessage(Component.literal(access == FacilityAccessService.ContainmentAccess.UNEXPANDED
-                    ? "§7该收容单元尚未扩建。" : "§c该收容单元当前不可用。"), true);
+            player.displayClientMessage(Component.translatable(access
+                    == FacilityAccessService.ContainmentAccess.UNEXPANDED
+                    ? "message.lobotocraft.room.unexpanded"
+                    : "message.lobotocraft.room.unavailable"), true);
             return;
         }
         if (!target.isLoaded(roomPos)) return;
 
         if (!(target.getBlockEntity(roomPos) instanceof RoomMarkerBlockEntity be)) {
             player.displayClientMessage(
-                    Component.literal("§7该房间的信标读取失败，请稍后再试。"), true);
+                    Component.translatable("message.lobotocraft.room.marker_read_failed"), true);
             return;
         }
 

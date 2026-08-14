@@ -41,7 +41,8 @@ public class ObtainGiftPacket implements IMessage {
             if (player == null) return;
             Entity entity = player.level.getEntity(abnormalityId);
             if (!(entity instanceof IAbnormality abnormality)) {
-                player.sendSystemMessage(Component.literal("§c饰品获得失败：异想体消失或离你过远"));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.gift.obtain_failed"));
                 return;
             }
             ItemStack curio = new ItemStack(

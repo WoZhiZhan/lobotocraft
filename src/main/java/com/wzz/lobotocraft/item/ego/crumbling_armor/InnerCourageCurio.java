@@ -5,6 +5,7 @@ import com.mojang.math.Axis;
 import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.item.AttributeEntry;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.ParticleUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.model.HumanoidModel;
@@ -58,10 +59,8 @@ public class InnerCourageCurio extends BaseEgoCurio {
     @Override
     public void curioTick(SlotContext slotContext, ItemStack stack) {
         super.curioTick(slotContext, stack);
-        if (slotContext.entity() instanceof Player player) {
-            if (player.tickCount % 60 == 0) {
-                ParticleUtil.spawnParticlesAroundEntity(player, ModParticleTypes.BLUE_LIGHT.get(), 20, 0.1D);
-            }
+        if (slotContext.entity() instanceof Player player && player.tickCount % 60 == 0) {
+            ParticleUtil.spawnParticlesAroundEntity(player, ModParticleTypes.BLUE_LIGHT.get(), 20, 0.1D);
         }
     }
 
@@ -85,14 +84,18 @@ public class InnerCourageCurio extends BaseEgoCurio {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("  • 移动速度 + 10").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 攻击速度 + 10").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("破裂盔甲赐予的勇气。").withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.literal("充满勇气的战士时刻准备着冲锋陷阵！勇气愈发强大，一切都成为可能！过度的勇气可能会铸成大错。").withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.literal("继续进行三次压迫工作后会转化为「匹夫之勇」。").withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.literal("携带者进行沟通工作时会被处决。").withStyle(ChatFormatting.DARK_RED));
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.effects", ChatFormatting.YELLOW);
+        for (int index = 1; index <= 2; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.inner_courage.effect." + index,
+                    ChatFormatting.GREEN);
+        }
+        EgoTooltipUtil.blank(tooltip);
+        for (int index = 1; index <= 3; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.inner_courage.story." + index,
+                    ChatFormatting.GRAY);
+        }
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.inner_courage.warning",
+                ChatFormatting.DARK_RED);
         super.appendHoverText(stack, level, tooltip, flag);
     }
 }

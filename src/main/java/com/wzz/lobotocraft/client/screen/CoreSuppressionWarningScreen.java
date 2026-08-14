@@ -23,7 +23,7 @@ public final class CoreSuppressionWarningScreen extends Screen {
     private boolean submitted;
 
     public CoreSuppressionWarningScreen(CoreSuppressionType type) {
-        super(Component.literal("核心抑制视觉安全警告"));
+        super(Component.translatable("screen.lobotocraft.core_suppression_warning.title"));
         this.type = type;
     }
 
@@ -50,37 +50,40 @@ public final class CoreSuppressionWarningScreen extends Screen {
         graphics.fill(panelX - 2, panelY - 2, panelX + panelWidth + 2, panelBottom + 2, 0xFF9F2020);
         graphics.fill(panelX, panelY, panelX + panelWidth, panelBottom, 0xF20A0A0A);
 
-        String warningTitle = type == CoreSuppressionType.YESOD
-                ? "高强度像素化、光敏性癫痫与光影兼容警告"
-                : "光敏性癫痫与光影兼容警告";
+        String warningTitle = tr(type == CoreSuppressionType.YESOD
+                ? "screen.lobotocraft.core_suppression_warning.yesod_heading"
+                : "screen.lobotocraft.core_suppression_warning.heading");
         graphics.drawCenteredString(font, warningTitle,
                 width / 2, panelY + 16, 0xFFFF5353);
-        graphics.drawCenteredString(font, type.getDisplayName() + " 核心抑制",
+        graphics.drawCenteredString(font,
+                tr("screen.lobotocraft.core_suppression_warning.suppression",
+                        tr("core_suppression.lobotocraft." + type.getId())),
                 width / 2, panelY + 34, 0xFF000000 | type.getColor());
 
         int textY = panelY + 57;
         if (type == CoreSuppressionType.YESOD) {
             textY = drawWrapped(graphics,
-                    "Yesod 完整效果会随阶段持续降低画面分辨率，并加入彩色噪点与故障闪烁，后期可能严重妨碍辨认画面。",
+                    tr("screen.lobotocraft.core_suppression_warning.yesod.full"),
                     panelX + 18, textY, panelWidth - 36, 0xFFE6E6E6);
             textY = drawWrapped(graphics,
-                    "安全模式仍保留与当前阶段相同的像素化，只关闭彩色噪点和故障闪烁。两种模式均可能与光影包不兼容。",
+                    tr("screen.lobotocraft.core_suppression_warning.yesod.safe"),
                     panelX + 18, textY + 5, panelWidth - 36, 0xFFFFC46B);
         } else {
             textY = drawWrapped(graphics,
-                    "完整视觉效果包含闪烁、彩色噪点、扫描线、色差与画面扭曲，可能引起不适，并可能诱发光敏性癫痫发作。",
+                    tr("screen.lobotocraft.core_suppression_warning.full"),
                     panelX + 18, textY, panelWidth - 36, 0xFFE6E6E6);
             textY = drawWrapped(graphics,
-                    "完整效果可能与光影包不兼容。仅颜色滤镜只使用一次简单后处理，兼容性更高，但仍无法保证兼容所有光影。",
+                    tr("screen.lobotocraft.core_suppression_warning.color_only"),
                     panelX + 18, textY + 5, panelWidth - 36, 0xFFBDBDBD);
         }
         textY = drawWrapped(graphics,
-                "如无法继续，请输入 " + STOP_COMMAND + " 停止抑制（不视为完成）。",
+                tr("screen.lobotocraft.core_suppression_warning.stop", STOP_COMMAND),
                 panelX + 18, textY + 5, panelWidth - 36, 0xFFFF7A7A);
 
-        String status = "等待确认：" + CoreSuppressionWarningClientState.getConfirmed()
-                + "/" + CoreSuppressionWarningClientState.getTotal()
-                + "    剩余 " + CoreSuppressionWarningClientState.getRemainingSeconds() + " 秒";
+        String status = tr("screen.lobotocraft.core_suppression_warning.status",
+                CoreSuppressionWarningClientState.getConfirmed(),
+                CoreSuppressionWarningClientState.getTotal(),
+                CoreSuppressionWarningClientState.getRemainingSeconds());
         graphics.drawCenteredString(font, status, width / 2, textY + 11, 0xFFFFD76A);
 
         int buttonWidth = (panelWidth - 48) / 2;
@@ -88,10 +91,13 @@ public final class CoreSuppressionWarningScreen extends Screen {
         int fullX = panelX + 16;
         int colorX = panelX + panelWidth - 16 - buttonWidth;
         renderChoice(graphics, Choice.FULL, fullX, buttonY, buttonWidth, BUTTON_HEIGHT,
-                mouseX, mouseY, "长按开启完整效果", 0xFFFF3838);
+                mouseX, mouseY,
+                tr("screen.lobotocraft.core_suppression_warning.choice.full"), 0xFFFF3838);
         renderChoice(graphics, Choice.COLOR_ONLY, colorX, buttonY, buttonWidth, BUTTON_HEIGHT,
                 mouseX, mouseY,
-                type == CoreSuppressionType.YESOD ? "长按安全模式" : "长按仅保留颜色",
+                tr(type == CoreSuppressionType.YESOD
+                        ? "screen.lobotocraft.core_suppression_warning.choice.safe"
+                        : "screen.lobotocraft.core_suppression_warning.choice.color_only"),
                 0xFF8CD9A0);
         super.render(graphics, mouseX, mouseY, partialTick);
     }
@@ -106,7 +112,8 @@ public final class CoreSuppressionWarningScreen extends Screen {
             graphics.fill(x + 2, y + h - 5, x + 2 + Math.round((w - 4) * progress), y + h - 2, color);
         }
         graphics.drawCenteredString(font, label, x + w / 2, y + 10, color);
-        String hint = holding == choice ? Math.round(progress * 100.0F) + "%" : "持续按住 2 秒";
+        String hint = holding == choice ? Math.round(progress * 100.0F) + "%"
+                : tr("screen.lobotocraft.core_suppression_warning.hold");
         graphics.drawCenteredString(font, hint, x + w / 2, y + 23, 0xFF999999);
     }
 
@@ -173,6 +180,10 @@ public final class CoreSuppressionWarningScreen extends Screen {
         graphics.fill(x, y + h - 1, x + w, y + h, color);
         graphics.fill(x, y + 1, x + 1, y + h - 1, color);
         graphics.fill(x + w - 1, y + 1, x + w, y + h - 1, color);
+    }
+
+    private static String tr(String key, Object... arguments) {
+        return Component.translatable(key, arguments).getString();
     }
 
     @Override

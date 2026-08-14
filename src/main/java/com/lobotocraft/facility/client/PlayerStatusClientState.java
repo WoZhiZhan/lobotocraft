@@ -60,18 +60,18 @@ public final class PlayerStatusClientState {
     private static Component build(PlayerStatusPacket.Entry entry) {
         MutableComponent result = Component.literal("  ");
         if (entry.state() == PlayerStatusEvents.CONTROLLED) {
-            result.append(Component.literal("被控制").withStyle(STYLE_CONTROLLED));
+            result.append(Component.translatable("status.lobotocraft.controlled").withStyle(STYLE_CONTROLLED));
         } else if (entry.state() == PlayerStatusEvents.PANIC) {
-            result.append(Component.literal("精神崩溃").withStyle(STYLE_PANIC));
+            result.append(Component.translatable("status.lobotocraft.panic").withStyle(STYLE_PANIC));
         } else if (entry.state() == PlayerStatusEvents.WORKING) {
-            result.append(Component.literal("工作中").withStyle(STYLE_WORKING));
+            result.append(Component.translatable("status.lobotocraft.working").withStyle(STYLE_WORKING));
         } else if (entry.state() == PlayerStatusEvents.NAVIGATING) {
-            result.append(Component.literal("寻路中（" + entry.workTarget() + "）")
+            result.append(Component.translatable("status.lobotocraft.navigating", entry.workTarget())
                     .withStyle(STYLE_NAVIGATING));
         } else if (entry.state() == PlayerStatusEvents.COMBAT) {
-            result.append(Component.literal("战斗中").withStyle(STYLE_COMBAT));
+            result.append(Component.translatable("status.lobotocraft.combat").withStyle(STYLE_COMBAT));
         } else {
-            result.append(Component.literal("空闲").withStyle(STYLE_IDLE));
+            result.append(Component.translatable("status.lobotocraft.idle").withStyle(STYLE_IDLE));
         }
         result.append(Component.literal("  HP ").withStyle(STYLE_HP_LABEL));
         result.append(Component.literal(number(entry.health()) + "/" + number(entry.maxHealth()))

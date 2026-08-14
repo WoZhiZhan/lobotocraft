@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.item.ego.thorn_bus;
 
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -34,15 +35,18 @@ public class ThornBusCurio extends BaseEgoCurio {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("  • 最大精神值 + 10").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 工作成功率 + 6").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 工作速度 + 6").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 受到任何伤害回复 2-4 点精神值").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("套装效果（装备+武器+饰品）：").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("  • 遇到远程和弹射物伤害会直接弹开").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 受到任何伤害时额外回复自身 5% 的精神值").withStyle(ChatFormatting.LIGHT_PURPLE));
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.effects", ChatFormatting.YELLOW);
+        for (int index = 1; index <= 4; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.pleasure_curio.effect." + index,
+                    ChatFormatting.GREEN);
+        }
+        EgoTooltipUtil.blank(tooltip);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.full_set_effect",
+                ChatFormatting.AQUA);
+        for (int index = 1; index <= 2; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.pleasure_curio.set." + index,
+                    ChatFormatting.LIGHT_PURPLE);
+        }
         super.appendHoverText(stack, level, tooltip, flag);
     }
 

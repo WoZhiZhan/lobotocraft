@@ -61,7 +61,7 @@ public final class DepartmentAccessScreen extends Screen {
     private boolean waitingForServer;
 
     public DepartmentAccessScreen(CompoundTag snapshot) {
-        super(Component.literal("LLM 部门调度权限"));
+        super(Component.translatable("screen.lobotocraft.department_access.title"));
         readSnapshot(snapshot);
     }
 
@@ -128,13 +128,17 @@ public final class DepartmentAccessScreen extends Screen {
         int clearX = selectX + 66;
         int saveX = panelX + panelWidth - (compactFooter ? 204 : 218);
         int backX = panelX + panelWidth - (compactFooter ? 106 : 112);
-        addRenderableWidget(LobotomyButton.create(Component.literal("全选"), button -> selectAll())
+        addRenderableWidget(LobotomyButton.create(Component.translatable(
+                        "screen.lobotocraft.department_access.select_all"), button -> selectAll())
                 .bounds(selectX, footerY, 60, 20).build());
-        addRenderableWidget(LobotomyButton.create(Component.literal("清空"), button -> clearSelection())
+        addRenderableWidget(LobotomyButton.create(Component.translatable(
+                        "screen.lobotocraft.department_access.clear"), button -> clearSelection())
                 .bounds(clearX, footerY, 60, 20).build());
-        saveButton = addRenderableWidget(LobotomyButton.create(Component.literal("保存更改"), button -> save())
+        saveButton = addRenderableWidget(LobotomyButton.create(Component.translatable(
+                        "screen.lobotocraft.department_access.save"), button -> save())
                 .bounds(saveX, footerY, compactFooter ? 92 : 96, 20).build());
-        addRenderableWidget(LobotomyButton.create(Component.literal("返回配置"), button -> returnToConfig())
+        addRenderableWidget(LobotomyButton.create(Component.translatable(
+                        "screen.lobotocraft.department_access.back"), button -> returnToConfig())
                 .bounds(backX, footerY, compactFooter ? 94 : 100, 20).build());
         updateButtonState();
     }
@@ -195,11 +199,11 @@ public final class DepartmentAccessScreen extends Screen {
         renderBackground(graphics);
         LobotomyUiRenderer.drawPanel(graphics, panelX, panelY, panelWidth, panelHeight);
         LobotomyUiRenderer.drawPanelHeader(graphics, font, panelX, panelY, panelWidth,
-                "DEPARTMENT DISPATCH ACCESS", "LLM 调度权限");
+                "DEPARTMENT DISPATCH ACCESS", tr("screen.lobotocraft.department_access.heading"));
         renderPlayerList(graphics, mouseX, mouseY);
         renderDepartmentGrid(graphics, mouseX, mouseY);
         if (!dirtyPlayers.isEmpty()) {
-            String text = "待保存 " + dirtyPlayers.size();
+            String text = tr("screen.lobotocraft.department_access.pending", dirtyPlayers.size());
             LobotomyUiRenderer.drawTag(graphics, font, detailX + 146,
                     panelY + panelHeight - 29, text, LobotomyUiTheme.GOLD);
         }
@@ -207,7 +211,8 @@ public final class DepartmentAccessScreen extends Screen {
     }
 
     private void renderPlayerList(GuiGraphics graphics, int mouseX, int mouseY) {
-        graphics.drawString(font, "玩家", listX, panelY + HEADER_H + 9,
+        graphics.drawString(font, tr("screen.lobotocraft.department_access.players"),
+                listX, panelY + HEADER_H + 9,
                 LobotomyUiTheme.TEXT_TITLE, false);
         LobotomyUiRenderer.drawInsetBox(graphics, listX, listY, listWidth, listHeight);
         graphics.enableScissor(listX + 1, listY + 1, listX + listWidth - 1, listY + listHeight - 1);
@@ -247,14 +252,19 @@ public final class DepartmentAccessScreen extends Screen {
     private void renderDepartmentGrid(GuiGraphics graphics, int mouseX, int mouseY) {
         PlayerEntry selected = selectedEntry();
         if (selected == null) {
-            graphics.drawCenteredString(font, "无可配置玩家",
+            graphics.drawCenteredString(font,
+                    tr("screen.lobotocraft.department_access.no_players"),
                     detailX + detailWidth / 2, detailY + 50, LobotomyUiTheme.TEXT_MUTED);
             return;
         }
         graphics.drawString(font, selected.name(), detailX, detailY,
                 LobotomyUiTheme.TEXT_TITLE, false);
-        String status = selected.online() ? "在线" : "离线配置";
-        if (!selected.explicit() && selected.operator()) status += " · 默认全部门";
+        String status = tr(selected.online()
+                ? "screen.lobotocraft.department_access.online"
+                : "screen.lobotocraft.department_access.offline");
+        if (!selected.explicit() && selected.operator()) {
+            status = tr("screen.lobotocraft.department_access.default_all", status);
+        }
         graphics.drawString(font, status, detailX, detailY + 14,
                 LobotomyUiTheme.TEXT_MUTED, false);
 
@@ -295,13 +305,15 @@ public final class DepartmentAccessScreen extends Screen {
             if (checked) {
                 graphics.fill(checkX + 3, checkY + 3, checkX + checkSize - 3, checkY + checkSize - 3, color);
             }
-            graphics.drawString(font, department.displayName(), x + (compactGrid ? 22 : 29),
+            graphics.drawString(font, departmentName(department), x + (compactGrid ? 22 : 29),
                     y + (compactGrid ? 7 : 8),
                     !departmentOpen ? LobotomyUiTheme.TEXT_MUTED
                             : checked ? color : LobotomyUiTheme.TEXT_TITLE, false);
             if (!compactGrid) {
                 graphics.drawString(font, departmentOpen
-                                ? department.id().toUpperCase() : "尚未开放", x + 29, y + 20,
+                                ? department.id().toUpperCase()
+                                : tr("screen.lobotocraft.department_access.not_open"),
+                        x + 29, y + 20,
                         LobotomyUiTheme.TEXT_MUTED, false);
             }
         }
@@ -356,6 +368,14 @@ public final class DepartmentAccessScreen extends Screen {
 
     private int visiblePlayerRows() {
         return Math.max(1, (listHeight - 6) / PLAYER_ROW_H);
+    }
+
+    private static String departmentName(EmployeeDepartment department) {
+        return tr("department.lobotocraft." + department.id());
+    }
+
+    private static String tr(String key, Object... arguments) {
+        return Component.translatable(key, arguments).getString();
     }
 
     private int maxPlayerScroll() {

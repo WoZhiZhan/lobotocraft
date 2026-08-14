@@ -2,9 +2,11 @@ package com.wzz.lobotocraft.item.ego.repentance;
 
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.ClientInputUtil;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.MentalValueUtil;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
@@ -62,9 +64,8 @@ public class RepentanceWeapon extends BaseEgoWeapon {
         player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(stats -> {
             if (stats.getFortitudeLevel() >= 2 && player.getRandom().nextFloat() < 0.05f) {
                 MentalValueUtil.addMentalValue(serverPlayer, 10);
-                serverPlayer.sendSystemMessage(
-                        Component.literal("§a忏悔：恢复了10点精神值")
-                );
+                serverPlayer.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.penitence.restored_mental", 10));
             }
         });
         DamageSource src = DamageHelper.getDamage(player, "white");
@@ -81,15 +82,15 @@ public class RepentanceWeapon extends BaseEgoWeapon {
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         if (ClientInputUtil.isShiftPressed()) {
-            p_41423_.add(Component.literal("§7唯有理解才能获取知识。"));
-            p_41423_.add(Component.literal("§7通过对这个异想体的细心观测，我们成功提取出了它的核心并将其塑造成一把武器。"));
-            p_41423_.add(Component.literal("§7空洞的眼窝凝视着人们的灵魂，荆棘之冠倾诉着人们的罪孽。"));
-            p_41423_.add(Component.literal("§7要想使用这把武器，你必须抱有为了更大的良善而杀戮的决心。"));
-            p_41423_.add(Component.literal("§7这把武器虽然不像其他装备那般强大，但它能为持有者提供心灵上的慰藉。"));
-            p_41423_.add(Component.literal("§7然而，对于那些缺乏正义的人而言，并不存在什么慰藉。"));
+            for (int index = 1; index <= 6; index++) {
+                EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.penitence_weapon.story." + index,
+                        ChatFormatting.GRAY);
+            }
         } else {
-            p_41423_.add(Component.literal("§6当持有者的勇气等级大于等于2级时，每次其造成攻击伤害都有5%的概率恢复10点精神值。"));
-            p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.penitence_weapon.effect",
+                    ChatFormatting.GOLD);
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.common.shift_details",
+                    ChatFormatting.GRAY);
         }
     }
 

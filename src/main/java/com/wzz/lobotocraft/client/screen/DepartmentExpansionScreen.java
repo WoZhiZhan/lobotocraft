@@ -53,7 +53,7 @@ public final class DepartmentExpansionScreen extends Screen {
     private long resolvedAt;
 
     public DepartmentExpansionScreen(CompoundTag snapshot) {
-        super(Component.literal("部门扩建"));
+        super(Component.translatable("screen.lobotocraft.department_expansion.title"));
         this.snapshot = snapshot.copy();
         readSnapshot();
     }
@@ -99,23 +99,29 @@ public final class DepartmentExpansionScreen extends Screen {
     private void renderHeader(GuiGraphics graphics) {
         int day = snapshot.getInt("CurrentDay");
         drawLargeText(graphics, "DAY " + day, 24, 18, 2, OPENABLE);
-        graphics.drawString(font, "部门扩建", 24, 43, TEXT, false);
+        graphics.drawString(font, tr("screen.lobotocraft.department_expansion.title"),
+                24, 43, TEXT, false);
         String state;
         int color;
         if (pendingDay() > 0) {
-            String pendingPrefix = pendingDay() < day ? "补办 DAY " + pendingDay() + " · " : "";
-            state = pendingPrefix + (snapshot.getBoolean("CanConfirm")
-                    ? "选择一个可扩建部门。本日仅接受一次确认。"
-                    : "等待服务器管理员确认本日扩建。");
+            String stateKey = snapshot.getBoolean("CanConfirm")
+                    ? "screen.lobotocraft.department_expansion.state.select"
+                    : "screen.lobotocraft.department_expansion.state.awaiting_admin";
+            state = pendingDay() < day
+                    ? tr("screen.lobotocraft.department_expansion.state.makeup",
+                    pendingDay(), tr(stateKey))
+                    : tr(stateKey);
             color = MUTED;
         } else if (snapshot.getInt("LastExpandedDay") == day) {
             EmployeeDepartment expanded = EmployeeDepartment.byId(
                     snapshot.getString("LastExpandedDepartment"));
-            state = "本日扩建完成" + (expanded == EmployeeDepartment.UNASSIGNED
-                    ? "" : "：" + expanded.displayName());
+            state = expanded == EmployeeDepartment.UNASSIGNED
+                    ? tr("screen.lobotocraft.department_expansion.state.completed")
+                    : tr("screen.lobotocraft.department_expansion.state.completed_department",
+                    departmentName(expanded));
             color = COMPLETE;
         } else {
-            state = "当前没有待处理的扩建决策。";
+            state = tr("screen.lobotocraft.department_expansion.state.none");
             color = MUTED;
         }
         graphics.drawString(font, state, 130, 45, color, false);
@@ -205,7 +211,7 @@ public final class DepartmentExpansionScreen extends Screen {
         outlineClippedPanel(graphics, node, color);
 
         boolean compact = node.height < 56;
-        graphics.drawString(font, node.department.displayName(), node.x + 10,
+        graphics.drawString(font, departmentName(node.department), node.x + 10,
                 node.y + (compact ? 6 : 9), color, false);
         String levelText = level == 0 ? "LOCKED" : "LEVEL " + roman(level);
         graphics.drawString(font, levelText,
@@ -237,27 +243,34 @@ public final class DepartmentExpansionScreen extends Screen {
 
     private String nodeStatus(EmployeeDepartment department, int level,
                               boolean complete, boolean openable) {
-        if (complete) return "扩建完成";
-        if (openable) return level == 0 ? "可开放" : "可继续扩建";
+        if (complete) return tr("screen.lobotocraft.department_expansion.node.completed");
+        if (openable) return tr(level == 0
+                ? "screen.lobotocraft.department_expansion.node.openable"
+                : "screen.lobotocraft.department_expansion.node.expandable");
         if (level > 0) {
             if (department == EmployeeDepartment.CENTRAL && level < 3) {
-                return "下部于 LEVEL III 开放";
+                return tr("screen.lobotocraft.department_expansion.node.central_lower");
             }
-            return "等待后续扩建";
+            return tr("screen.lobotocraft.department_expansion.node.awaiting_expansion");
         }
         return requirement(department);
     }
 
     private String requirement(EmployeeDepartment department) {
         return switch (department) {
-            case CONTROL -> "初始部门";
-            case INFORMATION -> "需要控制部 LEVEL V";
-            case TRAINING, SAFETY -> "需要情报部 LEVEL V";
-            case CENTRAL -> "需要上层全部 LEVEL V";
-            case WELFARE, DISCIPLINARY -> "需要中央本部 LEVEL V";
-            case RECORD, EXTRACTION -> "需要中层全部 LEVEL V";
-            case ARCHITECTURE -> "需要记录部与研发部 LEVEL V";
-            default -> "不可开放";
+            case CONTROL -> tr("screen.lobotocraft.department_expansion.requirement.initial");
+            case INFORMATION -> tr("screen.lobotocraft.department_expansion.requirement.department",
+                    departmentName(EmployeeDepartment.CONTROL));
+            case TRAINING, SAFETY -> tr("screen.lobotocraft.department_expansion.requirement.department",
+                    departmentName(EmployeeDepartment.INFORMATION));
+            case CENTRAL -> tr("screen.lobotocraft.department_expansion.requirement.upper");
+            case WELFARE, DISCIPLINARY -> tr("screen.lobotocraft.department_expansion.requirement.department",
+                    departmentName(EmployeeDepartment.CENTRAL));
+            case RECORD, EXTRACTION -> tr("screen.lobotocraft.department_expansion.requirement.middle");
+            case ARCHITECTURE -> tr("screen.lobotocraft.department_expansion.requirement.departments",
+                    departmentName(EmployeeDepartment.RECORD),
+                    departmentName(EmployeeDepartment.EXTRACTION));
+            default -> tr("screen.lobotocraft.department_expansion.requirement.unavailable");
         };
     }
 
@@ -275,11 +288,17 @@ public final class DepartmentExpansionScreen extends Screen {
                 y + buttonHeight + offset, 0xF20A0B08);
         outline(graphics, x + offset, y + offset, buttonWidth, buttonHeight, color);
         String label;
-        if (waiting) label = "正在提交...";
-        else if (pendingDay() == 0) label = "本日扩建已完成";
-        else if (!snapshot.getBoolean("CanConfirm")) label = "只读：等待管理员确认";
-        else if (selected == null) label = "选择一个可扩建部门";
-        else label = "确认扩建 " + selected.displayName();
+        if (waiting) label = tr("screen.lobotocraft.department_expansion.confirm.submitting");
+        else if (pendingDay() == 0) {
+            label = tr("screen.lobotocraft.department_expansion.confirm.completed");
+        } else if (!snapshot.getBoolean("CanConfirm")) {
+            label = tr("screen.lobotocraft.department_expansion.confirm.read_only");
+        } else if (selected == null) {
+            label = tr("screen.lobotocraft.department_expansion.confirm.select");
+        } else {
+            label = tr("screen.lobotocraft.department_expansion.confirm.department",
+                    departmentName(selected));
+        }
         graphics.drawString(font, label, x + (buttonWidth - font.width(label)) / 2,
                 y + 10, color, false);
 
@@ -374,6 +393,14 @@ public final class DepartmentExpansionScreen extends Screen {
             case 5 -> "V";
             default -> "I";
         };
+    }
+
+    private static String departmentName(EmployeeDepartment department) {
+        return tr("department.lobotocraft." + department.id());
+    }
+
+    private static String tr(String key, Object... arguments) {
+        return Component.translatable(key, arguments).getString();
     }
 
     private void play(net.minecraft.sounds.SoundEvent sound, float volume, float pitch) {

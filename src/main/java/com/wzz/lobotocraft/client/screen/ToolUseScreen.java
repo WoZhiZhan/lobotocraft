@@ -30,7 +30,7 @@ public class ToolUseScreen extends Screen {
     private static final int WARNING_BLINK_INTERVAL = 10;
 
     public ToolUseScreen(int abnormalityId, String abnormalityName, String toolType, String warningTitle, String[] warningMessages) {
-        super(Component.literal("使用工具"));
+        super(Component.translatable("screen.lobotocraft.tool_use.title"));
         this.minecraft = Minecraft.getInstance();
         this.abnormalityId = abnormalityId;
         this.abnormalityName = abnormalityName;
@@ -85,7 +85,7 @@ public class ToolUseScreen extends Screen {
                 panelX + panelWidth, panelY + panelHeight, 0xFF000000);
 
         // 标题
-        graphics.drawCenteredString(this.font, "§l工具使用确认",
+        graphics.drawCenteredString(this.font, tr("screen.lobotocraft.tool_use.confirmation"),
                 centerX, panelY + 20, 0xFFFF00);
 
         // 异想体名称
@@ -102,31 +102,31 @@ public class ToolUseScreen extends Screen {
 
         // 警告信息
         int textY = panelY + 115;
-        graphics.drawCenteredString(this.font, warningTitle,
+        graphics.drawCenteredString(this.font, tr(warningTitle),
                 centerX, textY, 0xFF0000);
 
         textY += 20;
         // 显示动态警告信息
         for (String message : warningMessages) {
-            graphics.drawCenteredString(this.font, message,
+            graphics.drawCenteredString(this.font, tr(message),
                     centerX, textY, 0xFFFFFF);
             textY += 15;
         }
 
         textY += 10;
-        graphics.drawCenteredString(this.font, "§e确定要继续吗？",
+        graphics.drawCenteredString(this.font, tr("screen.lobotocraft.tool_use.continue"),
                 centerX, textY, 0xFFFF00);
 
         // 按钮提示
         textY += 30;
         if (!confirmed) {
-            graphics.drawCenteredString(this.font, "§a按下 Y 确认使用",
+            graphics.drawCenteredString(this.font, tr("screen.lobotocraft.tool_use.confirm"),
                     centerX, textY, 0x00FF00);
             textY += 15;
-            graphics.drawCenteredString(this.font, "§7按下 ESC 取消",
+            graphics.drawCenteredString(this.font, tr("screen.lobotocraft.tool_use.cancel"),
                     centerX, textY, 0xAAAAAA);
         } else {
-            graphics.drawCenteredString(this.font, "§6员工正在进入...",
+            graphics.drawCenteredString(this.font, tr("screen.lobotocraft.tool_use.entering"),
                     centerX, textY, 0xFFAA00);
         }
 
@@ -158,6 +158,10 @@ public class ToolUseScreen extends Screen {
         );
 
         this.onClose();
+    }
+
+    private static String tr(String key, Object... arguments) {
+        return Component.translatable(key, arguments).getString();
     }
 
     @Override

@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.wzz.lobotocraft.entity.abnormality.EntityNothingThere;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
@@ -84,7 +85,8 @@ public class ExecutionCountdownRenderer {
         graphics.drawCenteredString(mc.font, text, x, y, color);
 
         // 副标题
-        String subtitle = "找到并处决伪装的文职！";
+        Component subtitle = Component.translatable(
+                "overlay.lobotocraft.execution_countdown.subtitle");
         graphics.drawCenteredString(mc.font, subtitle, x + 1, y + 24, 0x80000000);
         graphics.drawCenteredString(mc.font, subtitle, x, y + 23, 0xFFFFAA00);
 

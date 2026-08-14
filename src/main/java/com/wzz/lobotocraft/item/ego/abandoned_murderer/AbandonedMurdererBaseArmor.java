@@ -3,6 +3,8 @@ package com.wzz.lobotocraft.item.ego.abandoned_murderer;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModArmorMaterial;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoArmor;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -70,13 +72,17 @@ public abstract class AbandonedMurdererBaseArmor extends BaseEgoArmor {
     @Override
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
-        p_41423_.add(Component.literal("§7秘密研究是从一个地下室开始的，而那项研究有着改变人类未来的无限可能。"));
-        p_41423_.add(Component.literal("§7没人会为那些沦为小白鼠的死囚哀悼，他们只能慢慢烂在束缚自己的紧身衣中。"));
-        p_41423_.add(Component.literal("§7现在那件紧身衣只是被用作配饰，但过去的悔恨和愤怒依然存在。"));
-        p_41423_.add(Component.literal("§7如果穿戴者再也无法忍受这件护甲所带来的压力，那他们必须被送去接受心理咨询。"));
-        p_41423_.add(Component.literal("§c红色伤害：0.7"));
-        p_41423_.add(Component.literal("§f白色伤害：1.2"));
-        p_41423_.add(Component.literal("§5黑色伤害：0.8"));
-        p_41423_.add(Component.literal("§b蓝色伤害：2.0"));
+        for (int index = 1; index <= 4; index++) {
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.regret_armor.story." + index,
+                    ChatFormatting.GRAY);
+        }
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.regret_armor.resistance.red",
+                ChatFormatting.RED);
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.regret_armor.resistance.white",
+                ChatFormatting.WHITE);
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.regret_armor.resistance.black",
+                ChatFormatting.DARK_PURPLE);
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.regret_armor.resistance.pale",
+                ChatFormatting.AQUA);
     }
 }

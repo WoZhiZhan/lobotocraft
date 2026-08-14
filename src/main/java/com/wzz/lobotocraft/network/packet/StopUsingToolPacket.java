@@ -48,10 +48,12 @@ public class StopUsingToolPacket implements IMessage {
                     // 调用接口方法停止使用
                     abnormality.stopUsing(player);
                 } else {
-                    player.sendSystemMessage(Component.literal("§c此异想体不是持续使用型工具"));
+                    player.sendSystemMessage(Component.translatable(
+                            "message.lobotocraft.tool.not_continuous"));
                 }
             } else {
-                player.sendSystemMessage(Component.literal("§c工具异想体不存在或已消失"));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.tool.missing"));
             }
         });
         ctx.setPacketHandled(true);

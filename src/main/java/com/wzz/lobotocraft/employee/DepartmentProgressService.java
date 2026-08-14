@@ -31,7 +31,8 @@ public final class DepartmentProgressService {
     public static void confirm(ServerPlayer sender, int pendingDay,
                                EmployeeDepartment department) {
         if (!sender.hasPermissions(2)) {
-            sender.sendSystemMessage(Component.literal("只有服务器管理员可以确认部门扩建。")
+            sender.sendSystemMessage(Component.translatable(
+                            "message.lobotocraft.department_expansion.permission")
                     .withStyle(ChatFormatting.RED));
             open(sender, false);
             return;
@@ -45,17 +46,17 @@ public final class DepartmentProgressService {
                 : DepartmentProgressData.ExpandResult.PENDING_DAY_MISMATCH;
         if (result == DepartmentProgressData.ExpandResult.SUCCESS) {
             server.getPlayerList().broadcastSystemMessage(
-                    Component.literal(sender.getGameProfile().getName() + " 已将 "
-                                    + department.displayName() + " 扩建至 "
-                                    + progress.level(department) + " 级。")
+                    Component.translatable("message.lobotocraft.department_expansion.success",
+                                    sender.getGameProfile().getName(),
+                                    Component.translatable("department.lobotocraft." + department.id()),
+                                    progress.level(department))
                             .withStyle(ChatFormatting.GOLD), false);
             progress.prepareForDay(pendingDay < currentDay ? pendingDay + 1 : currentDay);
             syncOpenScreens(server);
             return;
         }
 
-        sender.sendSystemMessage(Component.literal(resultMessage(result))
-                .withStyle(ChatFormatting.RED));
+        sender.sendSystemMessage(resultMessage(result).copy().withStyle(ChatFormatting.RED));
         open(sender, false);
     }
 
@@ -98,13 +99,16 @@ public final class DepartmentProgressService {
         }
     }
 
-    private static String resultMessage(DepartmentProgressData.ExpandResult result) {
-        return switch (result) {
-            case ALREADY_EXPANDED, NO_PENDING_EXPANSION -> "今天的部门扩建已经由其他管理员确认。";
-            case LOCKED -> "该部门尚未满足开放条件。";
-            case MAX_LEVEL -> "该部门已经完成全部扩建。";
-            case PENDING_DAY_MISMATCH, INVALID_DAY -> "扩建请求已经过期，请重新打开界面。";
-            default -> "部门扩建请求无效。";
+    private static Component resultMessage(DepartmentProgressData.ExpandResult result) {
+        String key = switch (result) {
+            case ALREADY_EXPANDED, NO_PENDING_EXPANSION ->
+                    "message.lobotocraft.department_expansion.already_confirmed";
+            case LOCKED -> "message.lobotocraft.department_expansion.locked";
+            case MAX_LEVEL -> "message.lobotocraft.department_expansion.max_level";
+            case PENDING_DAY_MISMATCH, INVALID_DAY ->
+                    "message.lobotocraft.department_expansion.expired";
+            default -> "message.lobotocraft.department_expansion.invalid";
         };
+        return Component.translatable(key);
     }
 }

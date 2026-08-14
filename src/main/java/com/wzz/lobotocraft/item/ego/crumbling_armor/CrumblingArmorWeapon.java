@@ -4,7 +4,9 @@ import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.*;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -260,12 +262,16 @@ public class CrumblingArmorWeapon extends BaseEgoWeapon {
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         if (!ClientInputUtil.isShiftPressed()) {
-            p_41423_.add(Component.literal("§7这是一把古老的武士刀。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7就同那副盔甲一样，如果这把刀落在了懦夫的手里，它便一点威力也没有。"));
-            p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.do_or_die_weapon.story.1",
+                    ChatFormatting.GRAY);
+            EgoTooltipUtil.blank(p_41423_);
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.do_or_die_weapon.story.2",
+                    ChatFormatting.GRAY);
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.common.shift_details",
+                    ChatFormatting.GRAY);
         } else {
-            p_41423_.add(Component.literal("§6※这把武器普通攻击造成蓝色伤害时，额外附带对方最大生命值3%的蓝色伤害（最高3点）。特殊攻击造成伤害时，额外附带对方最大生命值5%的蓝色伤害"));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.do_or_die_weapon.detail",
+                    ChatFormatting.GOLD);
         }
     }
 }

@@ -14,8 +14,8 @@ public final class SpecialEgoCatalog {
     private static final List<Definition> DEFINITIONS = List.of(
             new Definition(
                     THIN_DUSK_ID,
-                    "薄暝",
-                    "黑森林的终末裁决",
+                    "special_ego.lobotocraft.thin_dusk.name",
+                    "special_ego.lobotocraft.thin_dusk.subtitle",
                     "ALEPH",
                     0xB58BE2,
                     List.of("lobotocraft:end_bird_weapon"),
@@ -24,8 +24,8 @@ public final class SpecialEgoCatalog {
                             "lobotocraft:end_bird_leggings",
                             "lobotocraft:end_bird_boots"),
                     List.of(
-                            "大鸟的眼、高鸟的秤与小鸟的喙在此合而为一。",
-                            "武器与护甲分别只允许一名管理者同时使用。")));
+                            "special_ego.lobotocraft.thin_dusk.lore.1",
+                            "special_ego.lobotocraft.thin_dusk.lore.2")));
 
     private SpecialEgoCatalog() {
     }
@@ -69,14 +69,14 @@ public final class SpecialEgoCatalog {
         return "";
     }
 
-    public record Definition(String id, String displayName, String subtitle,
+    public record Definition(String id, String displayNameKey, String subtitleKey,
                              String riskLevel, int accentRgb,
                              List<String> weaponItemIds, List<String> armorItemIds,
-                             List<String> lore) {
+                             List<String> loreKeys) {
         public Definition {
             weaponItemIds = List.copyOf(weaponItemIds);
             armorItemIds = List.copyOf(armorItemIds);
-            lore = List.copyOf(lore);
+            loreKeys = List.copyOf(loreKeys);
         }
 
         public List<String> itemIds() {
