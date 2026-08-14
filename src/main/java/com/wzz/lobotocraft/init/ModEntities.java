@@ -558,4 +558,29 @@ public class ModEntities {
                             .clientTrackingRange(64)
                             .updateInterval(1)
                             .build("text"));
+
+    // ============ CENSORED（O-03-89，出逃形态）============
+    public static final RegistryObject<EntityType<EntityCENSORED>> censored =
+            ENTITIES.register("censored",
+                    () -> EntityType.Builder.of(EntityCENSORED::new, MobCategory.MONSTER)
+                            .sized(2.0F, 3.0F)
+                            .clientTrackingRange(8)
+                            .updateInterval(3)
+                            .build("censored"));
+
+    public static final RegistryObject<EntityType<EntityCENSORED1>> censored1 =
+            ENTITIES.register("censored1",
+                    () -> EntityType.Builder.of(EntityCENSORED1::new, MobCategory.MONSTER)
+                            .sized(0.8F, 1.2F)
+                            .clientTrackingRange(8)
+                            .updateInterval(3)
+                            .build("censored1"));
+
+    public static final RegistryObject<EntityType<EntityCENSOREDContained>> o_03_89 =
+            ENTITIES.register("o_03_89",
+                    () -> EntityType.Builder.of(EntityCENSOREDContained::new, MobCategory.MONSTER)
+                            .sized(2.0F, 3.0F)
+                            .clientTrackingRange(8)
+                            .updateInterval(3)
+                            .build("o_03_89"));
 }

@@ -338,5 +338,9 @@
   "message.lobotocraft.elevator.invalid": "The elevator request is no longer valid",
   "message.lobotocraft.navigation_cache.loading": "Parsing the facility navigation snapshot; AI employees will temporarily use local pathfinding.",
   "message.lobotocraft.navigation_cache.ready": "The facility navigation snapshot is ready; full-facility AI pathfinding is available.",
-  "message.lobotocraft.navigation_cache.failed": "The facility navigation snapshot failed to load; AI employees will continue using local pathfinding."
+  "message.lobotocraft.navigation_cache.failed": "The facility navigation snapshot failed to load; AI employees will continue using local pathfinding.",
+  "item.lobotocraft.censored_spawn_egg": "§4CENSORED",
+  "entity.lobotocraft.censored": "§4CENSORED",
+  "entity.lobotocraft.censored1": "§4CENSORED-1",
+  "entity.lobotocraft.o_03_89": "§4CENSORED"
 }

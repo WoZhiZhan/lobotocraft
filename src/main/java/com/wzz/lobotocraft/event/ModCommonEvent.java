@@ -87,5 +87,8 @@ public class ModCommonEvent {
 		event.put(ModEntities.end_bird.get(), EntityEndBird.createAttributes().build());
 		event.put(ModEntities.nothing_there.get(), EntityNothingThere.createAttributes().build());
 		event.put(ModEntities.smiling_corpse_mountain.get(), EntitySmilingCorpseMountain.createAttributes().build());
+		event.put(ModEntities.censored.get(), EntityCENSORED.createAttributes().build());
+		event.put(ModEntities.censored1.get(), EntityCENSORED1.createAttributes().build());
+		event.put(ModEntities.o_03_89.get(), EntityCENSOREDContained.createAttributes().build());
 	}
 }

@@ -219,6 +219,9 @@ public class ModItems {
     public static final RegistryObject<Item> SMILING_CORPSE_MOUNTAIN_SPAWN_EGG = REGISTRY.register("smiling_corpse_mountain_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.smiling_corpse_mountain, ExtendedColor.BLACK.getRGB(), ExtendedColor.WHITE_SMOKE.getRGB(), new Item.Properties(),
                     "§c那些阴森可怖的笑脸上弥漫着哀伤。"));
+    public static final RegistryObject<Item> CENSORED_SPAWN_EGG = REGISTRY.register("censored_spawn_egg",
+            () -> new TextSpawnEggItem(ModEntities.censored, ExtendedColor.RED.getRGB(), ExtendedColor.BLACK.getRGB(), new Item.Properties(),
+                    "§c如果有系统故障导致该异想体的屏蔽措施失效，那我们不得不严肃考虑如何处理主管了。"));
 
     public static final RegistryObject<Item> PE_BOX = REGISTRY.register("pe_box", PEBoxItem::new);
     public static final RegistryObject<Item> STRANGE_BADGE = REGISTRY.register("strange_badge", StrangeBadgeItem::new);

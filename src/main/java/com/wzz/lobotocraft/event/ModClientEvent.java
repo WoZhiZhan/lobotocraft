@@ -163,5 +163,8 @@ public class ModClientEvent {
         event.registerEntityRenderer(ModEntities.smiling_corpse_mountain.get(), (r) -> new AbnormalityRenderer<>(r, 0.8f, 0.8f));
         event.registerEntityRenderer(ModEntities.smiling_corpse_mountain_shock_wave.get(), SmilingCorpseMountainShockWaveRenderer::new);
         event.registerEntityRenderer(ModEntities.text.get(), EntityTextRenderer::new);
+        event.registerEntityRenderer(ModEntities.censored.get(), (r) -> new AbnormalityRenderer<>(r, 1.0f, 1.0f));
+        event.registerEntityRenderer(ModEntities.censored1.get(), (r) -> new GeoEntityRenderer<>(r, 0.9f, 0.9f));
+        event.registerEntityRenderer(ModEntities.o_03_89.get(), (r) -> new AbnormalityRenderer<>(r, 1.0f, 1.0f));
     }
 }
