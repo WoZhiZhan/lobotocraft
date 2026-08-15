@@ -1645,5 +1645,14 @@
   },
   "lumberjack_death_2": {
     "sounds": [{"name": "lobotocraft:lumberjack_death_2", "stream": false}]
+  },
+  "censored_attack": {
+    "sounds": [{"name": "lobotocraft:censored_attack", "stream": false}]
+  },
+  "censored_sacrifice": {
+    "sounds": [{"name": "lobotocraft:censored_sacrifice", "stream": false}]
+  },
+  "censored1_spawn": {
+    "sounds": [{"name": "lobotocraft:censored1_spawn", "stream": false}]
   }
 }

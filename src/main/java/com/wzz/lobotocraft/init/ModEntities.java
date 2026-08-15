@@ -339,6 +339,22 @@ public class ModEntities {
                             .updateInterval(3)
                             .build("lumberjack"));
 
+    public static final RegistryObject<EntityType<EntityCensored>> censored =
+            ENTITIES.register("censored",
+                    () -> EntityType.Builder.of(EntityCensored::new, MobCategory.MONSTER)
+                            .sized(2.0F, 3.0F)
+                            .clientTrackingRange(10)
+                            .updateInterval(3)
+                            .build("censored"));
+
+    public static final RegistryObject<EntityType<EntityCensoredMinion>> censored_minion =
+            ENTITIES.register("censored_minion",
+                    () -> EntityType.Builder.of(EntityCensoredMinion::new, MobCategory.MONSTER)
+                            .sized(0.8F, 1.2F)
+                            .clientTrackingRange(8)
+                            .updateInterval(3)
+                            .build("censored_minion"));
+
     public static final RegistryObject<EntityType<EntityMeatIdol>> meat_idol =
             ENTITIES.register("meat_idol", () -> EntityType.Builder
                     .of(EntityMeatIdol::new, MobCategory.CREATURE)

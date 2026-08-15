@@ -119,6 +119,9 @@ public class ModClientEvent {
         event.registerEntityRenderer(ModEntities.redhat_mercenary.get(), (r) -> new AbnormalityRenderer<>(r, "redhat", "redhat", 0.72f, 0.72f));
         event.registerEntityRenderer(ModEntities.iron_maiden.get(), (r) -> new AbnormalityRenderer<>(r, 1.5f, 1.5f));
         event.registerEntityRenderer(ModEntities.lumberjack.get(), (r) -> new AbnormalityRenderer<>(r, 1.2f, 1.2f));
+        event.registerEntityRenderer(ModEntities.censored.get(), EntityCensoredRenderer::new);
+        event.registerEntityRenderer(ModEntities.censored_minion.get(),
+                (r) -> new GeoEntityRenderer<>(r, 1.0f, 1.0f));
         event.registerEntityRenderer(ModEntities.meat_idol.get(), (r) -> new AbnormalityRenderer<>(r, 1.2f, 1.0f));
         event.registerEntityRenderer(ModEntities.abandoned_murderer.get(), (r) -> new AbnormalityRenderer<>(r, 0.8f, 0.8f));
         event.registerBlockEntityRenderer(ModBlockEntities.REGENERATION_REACTOR.get(), context -> new BaseGeoBlockRenderer(
