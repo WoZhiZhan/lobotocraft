@@ -65,13 +65,13 @@ public class EntityLumberjack extends AbstractAbnormality {
     private static final double SEARCH_RANGE = 20.0D;
     private static final double ATTACK_START_RANGE = 3.5D;
     private static final double TOMBSTONE_RADIUS = 4.0D;
+    private static final int SPECIAL_ATTACK_CHANCE_PERCENT = 35;
 
     private int state = STATE_CONTAINED;
     private int actionTimer;
     private int actionElapsed;
     private int actionCooldown;
     private int specialCooldown;
-    private int normalAttackStack;
     private int lastProcessedHit = -1;
     private float lockedYaw;
     private String activeAttack = "";
@@ -225,7 +225,6 @@ public class EntityLumberjack extends AbstractAbnormality {
         actionElapsed = 0;
         actionCooldown = 0;
         specialCooldown = 0;
-        normalAttackStack = 0;
         lastProcessedHit = -1;
         activeAttack = "";
         selectedTombstone = null;
@@ -348,10 +347,8 @@ public class EntityLumberjack extends AbstractAbnormality {
     }
 
     private void chooseAttack(LivingEntity target) {
-        int specialChance = Math.min(95, 20 + normalAttackStack * 25);
-        if (specialCooldown <= 0 && random.nextInt(100) < specialChance) {
+        if (specialCooldown <= 0 && random.nextInt(100) < SPECIAL_ATTACK_CHANCE_PERCENT) {
             beginAttack("attack4", 165, target);
-            normalAttackStack = 0;
             specialCooldown = randomSpecialCooldown();
             return;
         }
@@ -363,7 +360,6 @@ public class EntityLumberjack extends AbstractAbnormality {
             default -> 60;
         };
         beginAttack(animation, duration, target);
-        normalAttackStack++;
     }
 
     private void beginAttack(String animation, int duration, LivingEntity target) {
@@ -637,7 +633,6 @@ public class EntityLumberjack extends AbstractAbnormality {
         tag.putInt("LumberjackActionElapsed", actionElapsed);
         tag.putInt("LumberjackActionCooldown", actionCooldown);
         tag.putInt("LumberjackSpecialCooldown", specialCooldown);
-        tag.putInt("LumberjackNormalAttackStack", normalAttackStack);
         tag.putFloat("LumberjackLockedYaw", lockedYaw);
         tag.putString("LumberjackActiveAttack", activeAttack);
         tag.putBoolean("LumberjackSacrificeArmed", sacrificeArmed);
@@ -653,7 +648,6 @@ public class EntityLumberjack extends AbstractAbnormality {
         actionElapsed = tag.getInt("LumberjackActionElapsed");
         actionCooldown = tag.getInt("LumberjackActionCooldown");
         specialCooldown = tag.getInt("LumberjackSpecialCooldown");
-        normalAttackStack = tag.getInt("LumberjackNormalAttackStack");
         lockedYaw = tag.getFloat("LumberjackLockedYaw");
         activeAttack = tag.getString("LumberjackActiveAttack");
         sacrificeArmed = tag.getBoolean("LumberjackSacrificeArmed");
