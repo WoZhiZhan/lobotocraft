@@ -184,13 +184,14 @@ public final class PlayerDepartmentScreen extends Screen {
         String status;
         int statusColor;
         if (!open) {
-            status = "LOCKED";
+            status = tr("screen.lobotocraft.player_department.status.locked");
             statusColor = LobotomyUiTheme.TEXT_DISABLED;
         } else if (current) {
-            status = "CURRENT";
+            status = tr("screen.lobotocraft.player_department.status.current");
             statusColor = color;
         } else {
-            status = "LEVEL " + roman(data.getInt("Level"));
+            status = tr("screen.lobotocraft.player_department.status.level",
+                    roman(data.getInt("Level")));
             statusColor = LobotomyUiTheme.TEXT_BODY;
         }
         graphics.drawCenteredString(font, status, card.x + card.w / 2,

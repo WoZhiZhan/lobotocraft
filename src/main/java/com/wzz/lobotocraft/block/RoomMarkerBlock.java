@@ -95,36 +95,40 @@ public class RoomMarkerBlock extends BaseEntityBlock {
         // 剪刀 -> 解除登记
         if (held.is(Items.SHEARS)) {
             be.clearBinding();
-            player.displayClientMessage(Component.literal(
-                    "§b[收容间信标] §7已清空登记，下次扫描会自动重新认房间里的异想体"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.room_marker.binding_cleared"), true);
             return InteractionResult.CONSUME;
         }
 
         // 潜行 -> 切扫描半径
         if (player.isShiftKeyDown()) {
             int radius = be.cycleRadius();
-            player.displayClientMessage(
-                    Component.literal("§b[收容间信标] §7扫描半径 -> §f" + radius + " §7格"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.room_marker.radius", radius), true);
             return InteractionResult.CONSUME;
         }
 
         // 空手 -> 报告状态（登记是全自动的，不需要手动点）
         RoomEntry entry = CompanyRoomData.get(serverLevel).findRoom(serverLevel.dimension().location(), pos);
         if (entry == null) {
-            player.displayClientMessage(Component.literal("§b[收容间信标] §7尚未完成首次扫描……"), false);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.room_marker.not_scanned"), false);
         } else {
-            String statusText = switch (entry.status) {
-                case RoomEntry.STATUS_OCCUPIED -> "§a收容中";
-                case RoomEntry.STATUS_ESCAPED -> "§c出逃中"
-                        + (entry.escapeDistance > 0 ? "§7(§c" + entry.escapeDistance + "格§7)" : "");
-                case RoomEntry.STATUS_LOST -> "§6失联";
-                default -> "§8空置";
+            Component statusText = switch (entry.status) {
+                case RoomEntry.STATUS_OCCUPIED -> Component.translatable(
+                        "message.lobotocraft.room_marker.status.occupied");
+                case RoomEntry.STATUS_ESCAPED -> entry.escapeDistance > 0
+                        ? Component.translatable("message.lobotocraft.room_marker.status.escaped_distance",
+                        entry.escapeDistance)
+                        : Component.translatable("message.lobotocraft.room_marker.status.escaped");
+                case RoomEntry.STATUS_LOST -> Component.translatable(
+                        "message.lobotocraft.room_marker.status.lost");
+                default -> Component.translatable("message.lobotocraft.room_marker.status.empty");
             };
-            player.displayClientMessage(Component.literal(
-                    "§b[收容间信标] §f" + entry.resolveTitle()
-                            + " §7| " + statusText
-                            + " §7| 半径 §f" + be.getRadiusXZ()
-                            + " §7| 房内玩家 §f" + entry.playersInside), false);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.room_marker.status",
+                    entry.resolveTitleComponent(), statusText,
+                    be.getRadiusXZ(), entry.playersInside), false);
         }
         return InteractionResult.CONSUME;
     }

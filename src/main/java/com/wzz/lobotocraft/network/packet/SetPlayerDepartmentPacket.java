@@ -56,7 +56,7 @@ public final class SetPlayerDepartmentPacket implements IMessage {
         PlayerTabListDayHandler.syncDepartmentToAll(player);
         player.sendSystemMessage(Component.translatable(
                 "message.lobotocraft.player_department.joined",
-                Component.translatable("department.lobotocraft." + department.id())));
+                Component.translatable(department.translationKey())));
         PlayerProfileService.open(player, PlayerProfileService.View.DEPARTMENT);
     }
 }

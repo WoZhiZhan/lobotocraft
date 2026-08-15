@@ -7,14 +7,13 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 
 public record PlayerStatusPacket(List<Entry> entries) {
     private static final int MAX_PLAYERS = 1024;
-    private static final int MAX_TARGET_LENGTH = 256;
-
     public static void encode(PlayerStatusPacket packet, FriendlyByteBuf buffer) {
         int entryCount = Math.min(packet.entries.size(), MAX_PLAYERS);
         buffer.writeVarInt(entryCount);
@@ -22,7 +21,7 @@ public record PlayerStatusPacket(List<Entry> entries) {
             Entry entry = packet.entries.get(i);
             buffer.writeUUID(entry.playerId);
             buffer.writeVarInt(entry.state);
-            buffer.writeUtf(entry.workTarget, MAX_TARGET_LENGTH);
+            buffer.writeComponent(entry.workTarget);
             buffer.writeFloat(entry.health);
             buffer.writeFloat(entry.maxHealth);
             buffer.writeFloat(entry.mental);
@@ -35,7 +34,7 @@ public record PlayerStatusPacket(List<Entry> entries) {
         List<Entry> entries = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
             entries.add(new Entry(buffer.readUUID(), buffer.readVarInt(),
-                buffer.readUtf(MAX_TARGET_LENGTH), buffer.readFloat(), buffer.readFloat(),
+                buffer.readComponent(), buffer.readFloat(), buffer.readFloat(),
                 buffer.readFloat(), buffer.readFloat()));
         }
         return new PlayerStatusPacket(entries);
@@ -49,7 +48,7 @@ public record PlayerStatusPacket(List<Entry> entries) {
         context.setPacketHandled(true);
     }
 
-    public record Entry(UUID playerId, int state, String workTarget,
+    public record Entry(UUID playerId, int state, Component workTarget,
                         float health, float maxHealth, float mental, float maxMental) {
     }
 }

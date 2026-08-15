@@ -23,8 +23,11 @@ final class PacketCollectionBoundsTest {
         Arrays.fill(warnings, "warning");
         FriendlyByteBuf encoded = new FriendlyByteBuf(Unpooled.buffer());
         try {
-            new OpenToolUseScreenPacket(1, "name", "type", "title", warnings).toBytes(encoded);
+            new OpenToolUseScreenPacket(
+                    1, "name", "entity.lobotocraft.onebad", "type", "title", warnings)
+                    .toBytes(encoded);
             encoded.readInt();
+            encoded.readUtf();
             encoded.readUtf();
             encoded.readUtf();
             encoded.readUtf();
@@ -39,11 +42,12 @@ final class PacketCollectionBoundsTest {
         try {
             oversized.writeInt(1);
             oversized.writeUtf("name");
+            oversized.writeUtf("entity.lobotocraft.onebad");
             oversized.writeUtf("type");
             oversized.writeUtf("title");
             oversized.writeInt(65);
             assertThrows(IllegalArgumentException.class,
-                    () -> new OpenToolUseScreenPacket(0, "", "", "", new String[0])
+                    () -> new OpenToolUseScreenPacket(0, "", "", "", "", new String[0])
                             .fromBytes(oversized));
         } finally {
             oversized.release();
@@ -113,6 +117,7 @@ final class PacketCollectionBoundsTest {
         candidate.uuid = new UUID(0L, index + 1L);
         candidate.code = "code";
         candidate.name = "name";
+        candidate.nameKey = "entity.lobotocraft.onebad";
         candidate.riskName = "HE";
         return candidate;
     }

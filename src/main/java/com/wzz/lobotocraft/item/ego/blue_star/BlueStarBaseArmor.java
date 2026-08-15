@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.blue_star;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModArmorMaterial;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoArmor;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.ClientInputUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -90,17 +91,22 @@ public abstract class BlueStarBaseArmor extends BaseEgoArmor {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
         super.appendHoverText(stack, level, tooltip, flag);
-        if (ClientInputUtil.isShiftPressed()) {
-            tooltip.add(Component.literal("§7在这件护甲的某处，有一颗心脏正闪烁着令人着迷的光芒。"));
-            tooltip.add(Component.literal("§7那光辉时而隐约暗淡，时而绚烂无比。"));
-            tooltip.add(Component.literal("§7如果仔细地凝视它，那你必会醒悟——我们终有一天会回到那个地方。"));
-        } else {
-            tooltip.add(Component.literal("§6每5秒为同一房间内的所有员工（包括自己）恢复5点精神值。（对陷入恐慌玩家无效）"));
-            tooltip.add(Component.literal("§7<按Shift查看详细信息>"));
-            tooltip.add(Component.literal("§c红色伤害：0.4"));
-            tooltip.add(Component.literal("§f白色伤害：0.4"));
-            tooltip.add(Component.literal("§5黑色伤害：0.4"));
-            tooltip.add(Component.literal("§b蓝色伤害：1.0"));
-        }
+        EgoTooltipUtil.appendStandardDescription(
+                tooltip,
+                ClientInputUtil.isShiftPressed(),
+                "",
+                new String[]{
+                        "tooltip.lobotocraft.blue_star_armor.story.1",
+                        "tooltip.lobotocraft.blue_star_armor.story.2",
+                        "tooltip.lobotocraft.blue_star_armor.story.3"
+                },
+                new String[]{
+                        "tooltip.lobotocraft.blue_star_armor.resistance.red",
+                        "tooltip.lobotocraft.blue_star_armor.resistance.white",
+                        "tooltip.lobotocraft.blue_star_armor.resistance.black",
+                        "tooltip.lobotocraft.blue_star_armor.resistance.pale"
+                },
+                new String[]{"tooltip.lobotocraft.blue_star_armor.detail"}
+        );
     }
 }

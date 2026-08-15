@@ -52,10 +52,14 @@ public class EntityUtil {
     }
 
     public static void broadcastMessage(Level level, String message) {
+        broadcastMessage(level, Component.literal(message));
+    }
+
+    public static void broadcastMessage(Level level, Component message) {
         if (!(level instanceof ServerLevel serverLevel)) return;
         List<ServerPlayer> players = serverLevel.getServer().getPlayerList().getPlayers();
         for (ServerPlayer player : players) {
-            player.sendSystemMessage(Component.literal(message));
+            player.sendSystemMessage(message);
         }
     }
     

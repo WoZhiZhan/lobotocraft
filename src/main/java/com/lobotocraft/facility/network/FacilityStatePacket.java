@@ -36,9 +36,11 @@ public record FacilityStatePacket(
     int ownVote
 ) {
     public static FacilityStatePacket from(FacilityDayData data, long gameTime, ServerPlayer player) {
-        long earliest = data.getActiveMeltdowns().values().stream()
-            .mapToLong(FacilityDayData.ActiveMeltdown::deadline).min().orElse(gameTime);
-        int remaining = data.getActiveMeltdowns().isEmpty() ? 0 : (int) Math.max(0, Math.min(Integer.MAX_VALUE, earliest - gameTime));
+        long earliestRemaining = data.getActiveMeltdowns().values().stream()
+            .mapToLong(meltdown -> meltdown.projectedRemainingTicks(gameTime))
+            .min().orElse(0L);
+        int remaining = data.getActiveMeltdowns().isEmpty() ? 0
+            : (int) Math.max(0, Math.min(Integer.MAX_VALUE, earliestRemaining));
         DayTransitionService.VoteView vote = DayTransitionService.viewFor(player, gameTime);
         return new FacilityStatePacket(data.getDay(), data.getEnergy(), data.getEnergyQuota(),
             data.getMeltdownLevel(), data.getMeltdownGauge(), data.getMeltdownThreshold(),

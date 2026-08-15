@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.smiling_corpse_mountain;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.item.AttributeEntry;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
@@ -34,15 +35,17 @@ public class SmilingCorpseMountainCurio extends BaseEgoCurio {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("  • 最大精神值 + 5").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 最大生命值 + 5").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("套装效果（装备+武器+饰品）：").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("  • 锁定装备后，每清理一个石碑，使自身使用“笑靥”造成的伤害 +1%。").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 特殊攻击命中带有“腐败”的生物时，对方每有一层“腐败”便额外造成一次伤害。").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 每隔30秒生成持续25秒的护盾，护盾值 = 清理石碑数 × 2。").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 使用“笑靥”命中带“腐败”的生物时，使其移动速度降低70%，持续5秒。").withStyle(ChatFormatting.LIGHT_PURPLE));
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.effects", ChatFormatting.YELLOW);
+        for (int index = 1; index <= 2; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.smiling_corpse_mountain_curio.effect." + index,
+                    ChatFormatting.GREEN);
+        }
+        EgoTooltipUtil.blank(tooltip);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.full_set_effect", ChatFormatting.AQUA);
+        for (int index = 1; index <= 4; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.smiling_corpse_mountain_curio.set." + index,
+                    ChatFormatting.LIGHT_PURPLE);
+        }
         super.appendHoverText(stack, level, tooltip, flag);
     }
 

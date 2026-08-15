@@ -157,7 +157,8 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
         }
         if (workType == WorkType.ATTACHMENT) {
             if (!canAcceptCommission()) {
-                player.sendSystemMessage(Component.literal("§c[小红帽雇佣兵] §7我现在没空接你的委托。"));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.abnormality.red_hood.busy"));
                 return;
             }
             // 给予"目标"道具并触发对话(负面能量填满由工作偏好沟通0%自然导致)
@@ -166,7 +167,8 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
                 player.level().addFreshEntity(new ItemEntity(
                         player.level(), player.getX(), player.getY(), player.getZ(), target));
             }
-            player.sendSystemMessage(Component.literal("§c[小红帽雇佣兵] §7想雇佣我的话，希望你付得起代价"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.red_hood.commission_offer"));
         }
     }
 

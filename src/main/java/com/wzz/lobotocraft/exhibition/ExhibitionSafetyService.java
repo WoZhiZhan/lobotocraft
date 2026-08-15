@@ -2,6 +2,8 @@ package com.wzz.lobotocraft.exhibition;
 
 import com.lobotocraft.facility.FacilityManager;
 import com.lobotocraft.facility.data.FacilityDayData;
+import com.lobotocraft.facility.data.MeltdownEndReason;
+import com.lobotocraft.facility.data.MeltdownLifecycle;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.command.ExhibitionCommand;
 import com.wzz.lobotocraft.command.KillCommand;
@@ -64,7 +66,8 @@ public final class ExhibitionSafetyService {
         int returnedAbnormalities = returnAllAbnormalities(server);
         int resetEmployees = resetAllAiNavigation(server);
         EventCleanupReport cleaned = cleanupEventEntities(server);
-        int clearedMeltdowns = FacilityDayData.get(server.overworld()).clearActiveMeltdowns();
+        int clearedMeltdowns = MeltdownLifecycle.clear(FacilityDayData.get(server.overworld()),
+                MeltdownEndReason.EXHIBITION_RECOVERY);
         EscapeTracker.getInstance().resetForDay(server);
         FacilityManager.syncAll(server, FacilityDayData.get(server.overworld()));
         ExhibitionModeData.get(server).recordRecovery();
@@ -94,15 +97,9 @@ public final class ExhibitionSafetyService {
     public static int clearAllControlStates(MinecraftServer server) {
         int recoveredPlayers = 0;
         for (ServerPlayer player : participants(server).values()) {
-            TimerEntry.shutdown(player);
+            com.wzz.lobotocraft.util.ControlStateRecoveryService.clearTransientControls(player);
             TeddyExecutionManager.finish(player);
-            PlayerControlLock.unlock(player);
-            EntityRedShoes.clearControlForRecovery(player);
-            EntityLargeBird.clearLargeBirdCharm(player);
-            BuffUtil.removeKiss(player);
             BuffUtil.removeFriendshipProof(player);
-            player.getPersistentData().remove("isSnowQueen");
-            player.getPersistentData().remove("isSnowQueenDuel");
             player.getPersistentData().remove("isInWingBeat");
             player.getPersistentData().remove("lobotocraft_abnormality_executed");
             player.removeAllEffects();

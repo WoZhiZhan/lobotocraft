@@ -120,6 +120,7 @@ public final class RoomEmployeeSnapshotService {
         boolean eligible = true;
         boolean panicking = MentalValueUtil.isPanic(employee);
         String reason = "";
+        String reasonKey = "";
         float successRate = -1.0F;
         int estimatedSeconds = 0;
         boolean malkuthScramble = CoreSuppressionManager.isMalkuthWorkScrambled(viewer.level());
@@ -135,37 +136,48 @@ public final class RoomEmployeeSnapshotService {
             if (!suppression && EmployeeRuntimeManager.isWorkTargetReserved(abnormality, employee.getUUID())) {
                 eligible = false;
                 reason = "异想体已有工作安排";
+                reasonKey = "screen.lobotocraft.monitor.employee.unavailable.work_reserved";
             } else if (EmployeeRuntimeManager.hasLockedMalkuthWorkOrder(employee.getUUID())) {
                 eligible = false;
                 reason = "Malkuth III 阶段后无法取消既有工作";
+                reasonKey = "screen.lobotocraft.monitor.employee.unavailable.malkuth_locked";
             } else if (suppression && !abnormality.hasEscape()) {
                 eligible = false;
                 reason = "异想体尚未出逃";
+                reasonKey = "screen.lobotocraft.monitor.employee.unavailable.not_escaped";
             } else if (employee.level() != abnormality.level()) {
                 eligible = false;
                 reason = "不在目标设施";
+                reasonKey = "screen.lobotocraft.monitor.employee.unavailable.wrong_facility";
             } else if (panicking) {
                 eligible = false;
                 reason = "精神崩溃";
+                reasonKey = "screen.lobotocraft.monitor.employee.unavailable.panicking";
             } else if (EntitySnowQueen.isFrozen(employee)) {
                 eligible = false;
                 reason = "被冰雪女皇冰封";
+                reasonKey = "screen.lobotocraft.monitor.employee.unavailable.frozen";
             } else if (EntityRedShoes.isRedShoesControlled(employee)) {
                 eligible = false;
                 reason = "被红舞鞋控制";
+                reasonKey = "screen.lobotocraft.monitor.employee.unavailable.red_shoes";
             } else if (!suppression && stats[4] < abnormality.getRequiredEmployeeLevel()) {
                 eligible = false;
                 reason = "员工等级不足";
+                reasonKey = "screen.lobotocraft.monitor.employee.unavailable.level";
             } else if (WorkManager.isPlayerWorking(employee)) {
                 eligible = false;
                 reason = "正在工作";
+                reasonKey = "screen.lobotocraft.monitor.employee.unavailable.working";
             } else if (suppression && record.taskType() == EmployeeTaskType.SEARCH_AND_SUPPRESS) {
                 eligible = false;
                 reason = "正在执行镇压";
+                reasonKey = "screen.lobotocraft.monitor.employee.unavailable.suppressing";
             } else if (suppression && !EgoLoadoutService.hasValidAssignedAiWeapon(employee,
                     AiEgoRepositoryData.get(employee.server))) {
                 eligible = false;
                 reason = "未分配可用的 E.G.O 武器";
+                reasonKey = "screen.lobotocraft.monitor.employee.unavailable.no_weapon";
             }
 
             if (!suppression && workInfoUnlocked) {
@@ -197,8 +209,10 @@ public final class RoomEmployeeSnapshotService {
                 dimension, employee.blockPosition(), employee.getHealth(), employee.getMaxHealth(),
                 mental[0], mental[1], stats[0], stats[1], stats[2], stats[3], stats[4],
                 itemName(employee.getItemBySlot(EquipmentSlot.MAINHAND)),
+                itemNameKey(employee.getItemBySlot(EquipmentSlot.MAINHAND)),
                 itemName(employee.getItemBySlot(EquipmentSlot.CHEST)),
-                status, commandable, eligible, reason, successRate, estimatedSeconds,
+                itemNameKey(employee.getItemBySlot(EquipmentSlot.CHEST)),
+                status, commandable, eligible, reason, reasonKey, successRate, estimatedSeconds,
                 workRoomDimension, workRoomPosition,
                 currentWorkType, workSuccessBoxes, workFailureBoxes, workBoxCapacity);
     }
@@ -224,9 +238,12 @@ public final class RoomEmployeeSnapshotService {
                 dimension, player.blockPosition(), player.getHealth(), player.getMaxHealth(),
                 mental[0], mental[1], stats[0], stats[1], stats[2], stats[3], stats[4],
                 itemName(player.getItemBySlot(EquipmentSlot.MAINHAND)),
+                itemNameKey(player.getItemBySlot(EquipmentSlot.MAINHAND)),
                 itemName(player.getItemBySlot(EquipmentSlot.CHEST)),
+                itemNameKey(player.getItemBySlot(EquipmentSlot.CHEST)),
                 isControlled(player) ? "CONTROLLED" : "PLAYER",
-                false, false, "真人玩家不可调度", -1.0F, 0,
+                false, false, "真人玩家不可调度",
+                "screen.lobotocraft.monitor.employee.unavailable.real_player", -1.0F, 0,
                 null, null, null, 0, 0, 0);
     }
 
@@ -240,7 +257,11 @@ public final class RoomEmployeeSnapshotService {
     }
 
     private static String itemName(ItemStack stack) {
-        return stack.isEmpty() ? "无" : stack.getHoverName().getString();
+        return stack.isEmpty() ? "" : stack.getHoverName().getString();
+    }
+
+    private static String itemNameKey(ItemStack stack) {
+        return stack.isEmpty() || stack.hasCustomHoverName() ? "" : stack.getDescriptionId();
     }
 
 }

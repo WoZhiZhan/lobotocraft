@@ -30,5 +30,9 @@ public enum WorkType {
     public String getDisplayName() {
         return displayName;
     }
+
+    public String getTranslationKey() {
+        return "work_type.lobotocraft." + name;
+    }
 }
 

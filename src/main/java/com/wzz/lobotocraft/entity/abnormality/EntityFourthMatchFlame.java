@@ -131,11 +131,13 @@ public class EntityFourthMatchFlame extends AbstractAbnormality {
         float f = this.random.nextFloat();
         if (result == WorkResult.NORMAL && f <= 0.5f) {
             decreaseQliphothCounter(1);
-            player.displayClientMessage(Component.literal("§c因你的工作失误，焦化少女的计数器减少了..."), false);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.scorched_girl.counter_reduced"), false);
         }
         if (result == WorkResult.BAD && f <= 0.7f) {
             decreaseQliphothCounter(1);
-            player.displayClientMessage(Component.literal("§c因你的工作失误，焦化少女的计数器减少了..."), false);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.scorched_girl.counter_reduced"), false);
         }
     }
 
@@ -248,7 +250,8 @@ public class EntityFourthMatchFlame extends AbstractAbnormality {
         targetPlayerUUID = target.getUUID();
         cachedTargetPlayer = target;
 
-        broadcastMessage("§c焦化少女锁定了 " + target.getName().getString() + "！");
+        broadcastMessage(Component.translatable(
+            "message.lobotocraft.fourth_match_flame.target", target.getDisplayName()));
     }
 
     /**
@@ -289,7 +292,8 @@ public class EntityFourthMatchFlame extends AbstractAbnormality {
         this.getNavigation().stop();
         this.setDeltaMovement(Vec3.ZERO);
         setAnimation("idle");
-        broadcastMessage("§4§l危险！焦化少女开始自爆倒计时！");
+        broadcastMessage(Component.translatable(
+            "message.lobotocraft.fourth_match_flame.countdown"));
 
         // 播放警告音效
         level().playSound(null, this.getX(), this.getY(), this.getZ(),
@@ -397,14 +401,16 @@ public class EntityFourthMatchFlame extends AbstractAbnormality {
             // 出逃状态下被打死
             if (isExploding()) {
                 // 自爆倒计时中被打死 = 镇压成功
-                broadcastMessage("§a焦化少女已被镇压！");
+                broadcastMessage(Component.translatable(
+                    "message.lobotocraft.fourth_match_flame.suppressed"));
 
                 // 取消爆炸
                 setExploding(false);
                 setExplosionTimer(0);
             } else {
                 // 追踪途中被打死 = 镇压成功
-                broadcastMessage("§a焦化少女已被镇压！");
+                broadcastMessage(Component.translatable(
+                    "message.lobotocraft.fourth_match_flame.suppressed"));
             }
         }
 

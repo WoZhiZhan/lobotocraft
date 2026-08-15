@@ -47,20 +47,20 @@ public final class RequestRoomSuppressionCandidatesPacket implements IMessage {
         if (sender == null || !RequestThrottle.allow(sender, "room_suppression_candidates", 150L)) return;
         if (!AbnormalitySpawnHelper.isCompany(sender.level())
                 || !sender.serverLevel().dimension().location().equals(dimension)) {
-            reply(sender, List.of(), "请回到公司后再下达镇压任务");
+            reply(sender, List.of(), "message.lobotocraft.monitor.dispatch.company_only");
             return;
         }
         ServerLevel level = sender.server.getLevel(ResourceKey.create(Registries.DIMENSION, dimension));
         if (level == null || FacilityAccessService.containmentAccess(sender.server, dimension, roomPos)
                 != FacilityAccessService.ContainmentAccess.OPEN
                 || !(level.getBlockEntity(roomPos) instanceof RoomMarkerBlockEntity marker)) {
-            reply(sender, List.of(), "收容单元当前不可用");
+            reply(sender, List.of(), "message.lobotocraft.monitor.dispatch.room_unavailable");
             return;
         }
         Entity entity = marker.getBoundAbnormality() == null ? null : level.getEntity(marker.getBoundAbnormality());
         if (!(entity instanceof AbstractAbnormality abnormality) || !abnormality.isAlive()
                 || !abnormality.hasEscape()) {
-            reply(sender, List.of(), "异想体当前未处于出逃状态");
+            reply(sender, List.of(), "message.lobotocraft.monitor.dispatch.abnormality_not_escaped");
             return;
         }
         reply(sender, RoomEmployeeSnapshotService.collectForSuppression(sender, abnormality), "");

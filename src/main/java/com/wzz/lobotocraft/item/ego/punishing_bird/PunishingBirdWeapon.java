@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.punishing_bird;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.item.ego.base.AiRangedEgoWeapon;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
@@ -68,8 +69,9 @@ public class PunishingBirdWeapon extends BaseEgoWeapon implements AiRangedEgoWea
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (isOnCooldown(player, stack)) {
-            player.displayClientMessage(
-                    Component.literal("§a冷却中,还剩:" + getRemainingCooldown(player, stack) + " tick"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.ego.cooldown_ticks",
+                    getRemainingCooldown(player, stack)), true);
             return InteractionResultHolder.pass(stack);
         }
         startCooldown(player, stack);
@@ -112,8 +114,8 @@ public class PunishingBirdWeapon extends BaseEgoWeapon implements AiRangedEgoWea
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> components, TooltipFlag flag) {
         super.appendHoverText(stack, level, components, flag);
-        components.add(Component.literal("§7虽然这只鸟的身材娇小，可它有着很恐怖的嘴巴。它不会宽恕那些阻碍自己前进的蠢货。"));
-        components.add(Component.literal("§7这把武器配套的子弹有着尖锐的弹头，就像是一颗颗小尖牙。"));
-        components.add(Component.literal("§7它会给目标造成巨大的痛苦。"));
+        for (int index = 1; index <= 3; index++) {
+            EgoTooltipUtil.add(components, "tooltip.lobotocraft.punishing_bird_weapon.story." + index);
+        }
     }
 }

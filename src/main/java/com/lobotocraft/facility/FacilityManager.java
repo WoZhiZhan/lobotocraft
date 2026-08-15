@@ -2,7 +2,13 @@ package com.lobotocraft.facility;
 
 import com.lobotocraft.facility.api.DayCompletionRequirements;
 import com.lobotocraft.facility.data.FacilityDayData;
+import com.lobotocraft.facility.data.MeltdownCause;
+import com.lobotocraft.facility.data.MeltdownEndReason;
+import com.lobotocraft.facility.data.MeltdownFailurePolicy;
+import com.lobotocraft.facility.data.MeltdownLifecycle;
 import com.lobotocraft.facility.data.MeltdownPolicy;
+import com.lobotocraft.facility.data.MeltdownStageContext;
+import com.lobotocraft.facility.data.MeltdownTargetLocator;
 import com.lobotocraft.facility.data.OrdealContentPolicy;
 import com.lobotocraft.facility.data.OrdealSchedulePlanner;
 import com.lobotocraft.facility.data.OrdealTier;
@@ -11,6 +17,7 @@ import com.lobotocraft.facility.network.FacilityNetwork;
 import com.lobotocraft.facility.network.FacilityStatePacket;
 import com.lobotocraft.facility.mixin.access.CompanyDailyDataAccessor;
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
+import com.wzz.lobotocraft.block.entity.RoomMarkerBlockEntity;
 import com.wzz.lobotocraft.command.KillCommand;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionData;
@@ -60,7 +67,6 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 
 public final class FacilityManager {
-    private static final int MELTDOWN_DURATION_TICKS = 20 * 60;
     private static final Set<WorkManager.WorkSession> MELTDOWN_WORKS =
         Collections.newSetFromMap(new WeakHashMap<>());
 
@@ -96,17 +102,19 @@ public final class FacilityManager {
     public static float repeatedWorkPenalty(ServerLevel level, AbstractAbnormality abnormality) {
         if (level == null || abnormality == null || level.dimension() != ModDimensions.LOBOTO_KEY
                 || isMeltdownTarget(level, abnormality)) return 0.0F;
-        RiskLevel risk = abnormality.getRiskLevel();
+        int count = FacilityDayData.get(level).getConsecutiveWorks(abnormality.getUUID());
+        return repeatedWorkPenaltyPercent(abnormality.getRiskLevel(), count) / 100.0F;
+    }
+
+    public static int repeatedWorkPenaltyPercent(RiskLevel risk, int count) {
         int stepPercent;
-        int maximum;
+        int maximumPercent;
         switch (risk) {
-            case WAW -> { stepPercent = 4; maximum = 8; }
-            case ALEPH -> { stepPercent = 6; maximum = 5; }
-            default -> { return 0.0F; }
+            case WAW -> { stepPercent = 4; maximumPercent = 24; }
+            case ALEPH -> { stepPercent = 6; maximumPercent = 32; }
+            default -> { return 0; }
         }
-        int count = Math.min(FacilityDayData.get(level)
-                .getConsecutiveWorks(abnormality.getUUID()), maximum);
-        return count * stepPercent / 100.0F;
+        return Math.min(Math.max(0, count) * stepPercent, maximumPercent);
     }
 
     public static int repeatedWorkPenaltyPercent(ServerLevel level, AbstractAbnormality abnormality) {
@@ -129,9 +137,9 @@ public final class FacilityManager {
         if (event.getPeOutput() > 0) data.addEnergy(event.getPeOutput());
         if (completedWork && (meltdownWork || activeMeltdown)
                 && event.getAbnormality() instanceof AbstractAbnormality entity
-                && data.resolveMeltdown(entity.getUUID())) {
-            event.getEntity().displayClientMessage(Component.literal(
-                    "逆卡巴拉熔毁已解除：" + entity.getAbnormalityName())
+                && MeltdownLifecycle.resolve(data, entity.getUUID())) {
+            event.getEntity().displayClientMessage(Component.translatable(
+                    "message.lobotocraft.meltdown.resolved", entity.getLocalizedAbnormalityName())
                 .withStyle(ChatFormatting.GREEN), false);
             data.notifyState(5);
         }
@@ -325,7 +333,10 @@ public final class FacilityManager {
     }
 
     static void clearStatusEffects(Iterable<? extends ServerPlayer> players) {
-        for (ServerPlayer player : players) player.removeAllEffects();
+        for (ServerPlayer player : players) {
+            com.wzz.lobotocraft.util.ControlStateRecoveryService.clearTransientControls(player);
+            player.removeAllEffects();
+        }
     }
 
     public static void tick(MinecraftServer server) {
@@ -342,38 +353,31 @@ public final class FacilityManager {
                 }
             }
         }
-        // ActiveMeltdowns is only a core-suppression view. Drop stale entries
-        // from older builds as soon as a normal company day is running.
-        if (!CoreSuppressionManager.isSuppressionActive(overworld)
-                && !data.getActiveMeltdowns().isEmpty()) {
-            data.getActiveMeltdowns().clear();
+        boolean suppressionActive = CoreSuppressionManager.isSuppressionActive(overworld);
+        // Only definitions that require core suppression are cancelled here.
+        // Bird-egg and future independent causes keep their own lifecycle.
+        int suppressionBoundRemoved = suppressionActive ? 0
+                : MeltdownLifecycle.endSuppressionBound(data);
+        if (suppressionBoundRemoved > 0) {
             data.notifyState(0);
-            syncAll(server, data);
         }
-        if (!CoreSuppressionManager.isSuppressionActive(overworld)) {
-            DayTransitionService.tick(server, data, gameTime);
-            if (gameTime % 20 == 0) syncAll(server, data);
-            return;
-        }
-        List<UUID> expired = data.getActiveMeltdowns().entrySet().stream()
-            .filter(entry -> entry.getValue().deadline() <= gameTime)
-            .map(java.util.Map.Entry::getKey)
-            .toList();
+        List<UUID> expired = MeltdownLifecycle.advance(data, gameTime);
         for (UUID target : expired) {
             FacilityDayData.ActiveMeltdown meltdown = data.getActiveMeltdowns().get(target);
-            int failedLevel = meltdown.level();
+            if (meltdown == null) continue;
             String targetCode = meltdown.targetCode();
-            AbstractAbnormality loaded = findAbnormality(server, target);
-            data.resolveMeltdown(target);
+            AbstractAbnormality loaded = findAbnormality(server, target, meltdown);
+            MeltdownLifecycle.end(data, target, MeltdownEndReason.EXPIRED);
             // Entries written before target identity was persisted are retired
             // without a penalty when the entity is no longer loaded.
             if (!MeltdownPolicy.isProtectedContainmentCode(targetCode)
                     && (loaded != null || targetCode != null && !targetCode.isBlank())) {
-                failMeltdown(server, data, target, failedLevel);
+                failMeltdown(server, data, target, meltdown);
             }
         }
         DayTransitionService.tick(server, data, gameTime);
-        if (protectedMeltdownsRemoved || !expired.isEmpty() || gameTime % 20 == 0) syncAll(server, data);
+        if (protectedMeltdownsRemoved || suppressionBoundRemoved > 0
+                || !expired.isEmpty() || gameTime % 20 == 0) syncAll(server, data);
     }
 
     public static void sync(ServerPlayer player) {
@@ -418,68 +422,99 @@ public final class FacilityManager {
     }
 
     private static boolean activateMeltdowns(ServerLevel level, FacilityDayData data, int levelNumber) {
-        List<AbstractAbnormality> candidates = new ArrayList<>();
-        int containmentCount = 0;
-        for (Entity entity : level.getAllEntities()) {
-            if (entity instanceof AbstractAbnormality abnormality
-                && abnormality.isAlive()
-                && !abnormality.hasEscape()
-                && !abnormality.isToolType()
-                && !isEndBirdEncounterEntity(abnormality)
-                && !isMeltdownProtected(level, abnormality)
-                && !isCurrentSuppressionDepartment(level, abnormality)
-                && abnormality.getQliphothCounter() > 0) {
-                containmentCount++;
-                if (WorkManager.isAbnormalityBeingWorked(abnormality)
-                        || data.getActiveMeltdowns().containsKey(abnormality.getUUID())) continue;
-                candidates.add(abnormality);
-            }
-        }
+        MeltdownCandidatePool pool = collectMeltdownCandidates(level, data,
+            MeltdownCause.QLIPHOTH_OVERLOAD);
+        List<AbstractAbnormality> candidates = pool.availableTargets();
         if (candidates.isEmpty()) return false;
         RandomSource random = RandomSource.create(level.getSeed() ^ ((long) data.getDay() << 32) ^ levelNumber);
         Collections.shuffle(candidates, new java.util.Random(random.nextLong()));
-        int requested = (containmentCount * levelNumber + 9) / 10;
+        int requested = MeltdownLifecycle.definition(MeltdownCause.QLIPHOTH_OVERLOAD)
+            .requestedTargetCount(pool.eligibleContainments(), levelNumber, Integer.MAX_VALUE);
         int count = Math.min(candidates.size(), requested);
-        long deadline = level.getGameTime() + MELTDOWN_DURATION_TICKS;
+        UUID batchId = UUID.randomUUID();
+        MeltdownStageContext stageContext = meltdownStageContext(level, data, levelNumber);
         for (int i = 0; i < count; i++) {
             AbstractAbnormality target = candidates.get(i);
-            data.addMeltdown(target.getUUID(), deadline, levelNumber, target.getAbnormalityCode());
+            MeltdownLifecycle.start(data, target.getUUID(), level.getGameTime(), levelNumber,
+                    target.getAbnormalityCode(), MeltdownCause.QLIPHOTH_OVERLOAD,
+                    stageContext, batchId, null, "qliphoth_overload",
+                    meltdownTargetLocator(target));
         }
         return count > 0;
     }
 
     /** Direct Apocalypse Bird egg overloads do not advance the facility gauge. */
     public static int activateEndBirdMeltdowns(ServerLevel level, int maximumTargets) {
+        return activateEndBirdMeltdowns(level, maximumTargets, null, "apocalypse_bird_egg");
+    }
+
+    public static int activateEndBirdMeltdowns(ServerLevel level, int maximumTargets,
+                                                UUID sourceEntity, String sourceType) {
         if (level == null || maximumTargets <= 0 || level.dimension() != ModDimensions.LOBOTO_KEY) return 0;
         if (ExhibitionSafetyService.isEnabled(level.getServer())) return 0;
         FacilityDayData data = FacilityDayData.get(level);
-        List<AbstractAbnormality> candidates = new ArrayList<>();
-        for (Entity entity : level.getAllEntities()) {
-            if (entity instanceof AbstractAbnormality abnormality
-                    && abnormality.isAlive()
-                    && !abnormality.hasEscape()
-                    && !abnormality.isToolType()
-                    && !isEndBirdEncounterEntity(abnormality)
-                    && abnormality.getQliphothCounter() > 0
-                    && !data.getActiveMeltdowns().containsKey(abnormality.getUUID())
-                    && !isMeltdownProtected(level, abnormality)
-                    && !isCurrentSuppressionDepartment(level, abnormality)) {
-                candidates.add(abnormality);
-            }
-        }
+        MeltdownCandidatePool pool = collectMeltdownCandidates(level, data,
+            MeltdownCause.APOCALYPSE_BIRD_EGG);
+        List<AbstractAbnormality> candidates = pool.availableTargets();
         if (candidates.isEmpty()) return 0;
         Collections.shuffle(candidates, new java.util.Random(level.getRandom().nextLong()));
-        int count = Math.min(maximumTargets, candidates.size());
         int levelNumber = Math.max(1, data.getMeltdownLevel());
-        long deadline = level.getGameTime() + MELTDOWN_DURATION_TICKS;
+        int requested = MeltdownLifecycle.definition(MeltdownCause.APOCALYPSE_BIRD_EGG)
+            .requestedTargetCount(pool.eligibleContainments(), levelNumber, maximumTargets);
+        int count = Math.min(requested, candidates.size());
+        UUID batchId = UUID.randomUUID();
+        MeltdownStageContext stageContext = meltdownStageContext(level, data, levelNumber);
         for (int i = 0; i < count; i++) {
             AbstractAbnormality target = candidates.get(i);
-            data.addMeltdown(target.getUUID(), deadline, levelNumber, target.getAbnormalityCode());
+            MeltdownLifecycle.start(data, target.getUUID(), level.getGameTime(), levelNumber,
+                    target.getAbnormalityCode(), MeltdownCause.APOCALYPSE_BIRD_EGG,
+                    stageContext, batchId, sourceEntity, sourceType,
+                    meltdownTargetLocator(target));
         }
         CrimsonDawnEvent.sendOrdealTitle(level.getServer(), "终末鸟警报",
                 "逆卡巴拉熔毁", "鸟蛋使 " + count + " 个收容单元进入熔毁。", 0xD84A4A);
         syncAll(level.getServer(), data);
         return count;
+    }
+
+    private static MeltdownCandidatePool collectMeltdownCandidates(ServerLevel level,
+                                                                    FacilityDayData data,
+                                                                    MeltdownCause cause) {
+        List<AbstractAbnormality> available = new ArrayList<>();
+        int eligibleContainments = 0;
+        boolean excludeWorking = MeltdownLifecycle.definition(cause).excludeWorkingTargets();
+        for (Entity entity : level.getAllEntities()) {
+            if (!(entity instanceof AbstractAbnormality abnormality)
+                    || !abnormality.isAlive()
+                    || abnormality.hasEscape()
+                    || abnormality.isToolType()
+                    || isEndBirdEncounterEntity(abnormality)
+                    || abnormality.getQliphothCounter() <= 0
+                    || isMeltdownProtected(level, abnormality)
+                    || isCurrentSuppressionDepartment(level, abnormality)) continue;
+            eligibleContainments++;
+            if ((excludeWorking && WorkManager.isAbnormalityBeingWorked(abnormality))
+                    || data.getActiveMeltdowns().containsKey(abnormality.getUUID())) continue;
+            available.add(abnormality);
+        }
+        return new MeltdownCandidatePool(available, eligibleContainments);
+    }
+
+    private record MeltdownCandidatePool(List<AbstractAbnormality> availableTargets,
+                                         int eligibleContainments) {
+    }
+
+    private static MeltdownStageContext meltdownStageContext(ServerLevel level,
+                                                              FacilityDayData data,
+                                                              int levelNumber) {
+        CoreSuppressionData suppression = CoreSuppressionData.get(level);
+        CoreSuppressionType type = suppression.isActive() ? suppression.getActiveType() : null;
+        return new MeltdownStageContext(data.getDay(), levelNumber, suppression.isActive(),
+            type == null ? "" : type.getId(), -1);
+    }
+
+    private static MeltdownTargetLocator meltdownTargetLocator(AbstractAbnormality target) {
+        return MeltdownTargetLocator.of(target.getHomeRoomDimension(), target.getHomeRoomMarker());
     }
 
     private static boolean isEndBirdEncounterEntity(AbstractAbnormality abnormality) {
@@ -489,20 +524,24 @@ public final class FacilityManager {
                 || abnormality instanceof EntityEndBirdEggEye;
     }
 
-    private static void failMeltdown(MinecraftServer server, FacilityDayData data, UUID target, int failedLevel) {
-        AbstractAbnormality abnormality = findAbnormality(server, target);
+    private static void failMeltdown(MinecraftServer server, FacilityDayData data, UUID target,
+                                     FacilityDayData.ActiveMeltdown meltdown) {
+        if (meltdown == null || MeltdownLifecycle.definition(meltdown.cause()).failurePolicy()
+                == MeltdownFailurePolicy.NONE) return;
+        AbstractAbnormality abnormality = findAbnormality(server, target, meltdown);
         if (abnormality != null && abnormality.level() instanceof ServerLevel level
                 && isMeltdownProtected(level, abnormality)) {
             return;
         }
-        int penalty = 5 * Math.max(1, failedLevel);
+        int penalty = 5 * Math.max(1, meltdown.level());
         data.subtractEnergy(penalty);
         data.notifyState(3);
         if (abnormality != null) {
             int counter = abnormality.getQliphothCounter();
             if (counter > 0) abnormality.decreaseQliphothCounter(counter);
             server.getPlayerList().broadcastSystemMessage(
-                Component.literal("熔毁失败：" + abnormality.getAbnormalityName() + "，能源 -" + penalty)
+                Component.translatable("message.lobotocraft.meltdown.failed",
+                        abnormality.getLocalizedAbnormalityName(), penalty)
                     .withStyle(ChatFormatting.RED), false);
         }
     }
@@ -512,21 +551,56 @@ public final class FacilityManager {
             Entity entity = level.getEntity(uuid);
             if (entity instanceof AbstractAbnormality abnormality) return abnormality;
         }
+        CompanyRoomData rooms = CompanyRoomData.get(server.overworld());
+        for (ServerLevel level : server.getAllLevels()) {
+            for (RoomEntry room : rooms.getRooms(level.dimension().location())) {
+                level.getChunkAt(room.pos);
+                if (!(level.getBlockEntity(room.pos) instanceof RoomMarkerBlockEntity marker)
+                        || !uuid.equals(marker.getBoundAbnormality())) continue;
+                Entity entity = level.getEntity(uuid);
+                if (entity instanceof AbstractAbnormality abnormality) return abnormality;
+            }
+        }
         return null;
+    }
+
+    private static AbstractAbnormality findAbnormality(MinecraftServer server, UUID uuid,
+                                                        FacilityDayData.ActiveMeltdown meltdown) {
+        if (meltdown != null && meltdown.targetLocator().isKnown()) {
+            net.minecraft.resources.ResourceLocation dimension =
+                meltdown.targetLocator().dimension();
+            net.minecraft.core.BlockPos markerPos = meltdown.targetLocator().marker();
+            ServerLevel level = server.getLevel(net.minecraft.resources.ResourceKey.create(
+                net.minecraft.core.registries.Registries.DIMENSION, dimension));
+            if (level != null && markerPos != null) {
+                level.getChunkAt(markerPos);
+                Entity direct = level.getEntity(uuid);
+                if (direct instanceof AbstractAbnormality abnormality) return abnormality;
+                if (level.getBlockEntity(markerPos) instanceof RoomMarkerBlockEntity marker) {
+                    UUID bound = marker.getBoundAbnormality();
+                    Entity rebound = bound == null ? null : level.getEntity(bound);
+                    if (rebound instanceof AbstractAbnormality abnormality) return abnormality;
+                }
+            }
+        }
+        return findAbnormality(server, uuid);
     }
 
     private static boolean removeProtectedMeltdowns(MinecraftServer server, FacilityDayData data) {
         List<UUID> protectedTargets = data.getActiveMeltdowns().entrySet().stream()
             .filter(entry -> {
                 if (MeltdownPolicy.isProtectedContainmentCode(entry.getValue().targetCode())) return true;
-                AbstractAbnormality abnormality = findAbnormality(server, entry.getKey());
+                AbstractAbnormality abnormality = findAbnormality(server, entry.getKey(),
+                    entry.getValue());
                 return abnormality != null
                     && abnormality.level() instanceof ServerLevel level
                     && isMeltdownProtected(level, abnormality);
             })
             .map(java.util.Map.Entry::getKey)
             .toList();
-        for (UUID target : protectedTargets) data.resolveMeltdown(target);
+        for (UUID target : protectedTargets) {
+            MeltdownLifecycle.end(data, target, MeltdownEndReason.RULE_PROTECTED);
+        }
         return !protectedTargets.isEmpty();
     }
 
@@ -578,10 +652,12 @@ public final class FacilityManager {
     }
 
     private static boolean showUnfinishedOrdeal(ServerLevel level, OrdealTier tier) {
-        String name = tier == OrdealTier.DUSK ? "黄昏考验" : "午夜考验";
-        CrimsonDawnEvent.sendOrdealTitle(level.getServer(), name, "未完工",
-                "当前版本不会生成任何实体。", 0x888888);
-        Component message = Component.literal("[" + name + "] 未完工，当前版本不会生成任何实体。")
+        Component name = Component.translatable(tier == OrdealTier.DUSK
+                ? "ordeal.lobotocraft.dusk.name" : "ordeal.lobotocraft.midnight.name");
+        CrimsonDawnEvent.sendOrdealTitle(level.getServer(), name,
+                Component.translatable("ordeal.lobotocraft.unfinished.title"),
+                Component.translatable("ordeal.lobotocraft.unfinished.subtitle"), 0x888888);
+        Component message = Component.translatable("message.lobotocraft.ordeal.unfinished", name)
                 .withStyle(ChatFormatting.GRAY);
         for (ServerPlayer player : level.getServer().getPlayerList().getPlayers()) {
             player.sendSystemMessage(message);

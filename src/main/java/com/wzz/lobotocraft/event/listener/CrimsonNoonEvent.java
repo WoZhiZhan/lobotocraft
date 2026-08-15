@@ -14,6 +14,7 @@ import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.world.data.OrdealData;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -72,9 +73,9 @@ public class CrimsonNoonEvent {
 
         MinecraftServer server = level.getServer();
         showCrimsonNoonTitle(server,
-                "血色的正午",
-                "汁水大合唱",
-                "我们每时都在游行，每刻都在分享喜悦。");
+                "ordeal.lobotocraft.crimson_midday.name",
+                "ordeal.lobotocraft.crimson_midday.title",
+                "ordeal.lobotocraft.crimson_midday.start_subtitle");
         playGlobalSound(server, ModSounds.CRIMSON_NOON_START.get());
         EscapeTracker.getInstance().onOrdealStart(level, OrdealTier.NOON);
         return true;
@@ -115,9 +116,9 @@ public class CrimsonNoonEvent {
         MinecraftServer server = level.getServer();
         OrdealRewardService.complete(server, OrdealTier.NOON);
         showCrimsonNoonTitle(server,
-                "血色的正午",
-                "汁水大合唱",
-                "我们绘出了生命的碰撞...肉体的交融...更美丽的外表...");
+                "ordeal.lobotocraft.crimson_midday.name",
+                "ordeal.lobotocraft.crimson_midday.title",
+                "ordeal.lobotocraft.crimson_midday.end_subtitle");
         playGlobalSound(server, ModSounds.CRIMSON_NOON_END.get());
     }
 
@@ -282,7 +283,8 @@ public class CrimsonNoonEvent {
     }
 
     private static void showCrimsonNoonTitle(MinecraftServer server, String top, String middle, String bottom) {
-        sendOrdealTitle(server, top, middle, bottom, CRIMSON_MIDDAY_COLOR);
+        sendOrdealTitle(server, Component.translatable(top), Component.translatable(middle),
+                Component.translatable(bottom), CRIMSON_MIDDAY_COLOR);
     }
 
     private static void playGlobalSound(MinecraftServer server, SoundEvent sound) {

@@ -21,24 +21,16 @@ public class ResistanceCommand implements ICommand {
     @Override
     public LiteralArgumentBuilder<CommandSourceStack> build() {
         return Commands.literal(getName())
-                // 红色伤害抗性
                 .then(buildColorResistance("red"))
-                // 白色伤害抗性
                 .then(buildColorResistance("white"))
-                // 黑色伤害抗性
                 .then(buildColorResistance("black"))
-                // 蓝色伤害抗性
                 .then(buildColorResistance("blue"))
-                // 获取所有抗性
                 .then(Commands.literal("getall")
                         .then(Commands.argument("player", EntityArgument.player())
                                 .executes(context -> getAllResistances(context,
                                         EntityArgument.getPlayer(context, "player")))));
     }
 
-    /**
-     * 构建单个颜色的抗性指令分支
-     */
     private LiteralArgumentBuilder<CommandSourceStack> buildColorResistance(String color) {
         return Commands.literal(color)
                 .then(Commands.literal("set")
@@ -46,48 +38,44 @@ public class ResistanceCommand implements ICommand {
                                 .then(Commands.argument("value", FloatArgumentType.floatArg(-1, 10))
                                         .executes(context -> setResistance(context,
                                                 EntityArgument.getPlayer(context, "player"),
-                                                FloatArgumentType.getFloat(context, "value"),
-                                                color)))))
+                                                FloatArgumentType.getFloat(context, "value"), color)))))
                 .then(Commands.literal("add")
                         .then(Commands.argument("player", EntityArgument.player())
                                 .then(Commands.argument("amount", FloatArgumentType.floatArg())
                                         .executes(context -> addResistance(context,
                                                 EntityArgument.getPlayer(context, "player"),
-                                                FloatArgumentType.getFloat(context, "amount"),
-                                                color)))))
+                                                FloatArgumentType.getFloat(context, "amount"), color)))))
                 .then(Commands.literal("get")
                         .then(Commands.argument("player", EntityArgument.player())
                                 .executes(context -> getResistance(context,
-                                        EntityArgument.getPlayer(context, "player"),
-                                        color))));
+                                        EntityArgument.getPlayer(context, "player"), color))));
     }
 
-    private int setResistance(CommandContext<CommandSourceStack> context, ServerPlayer player, float value, String type) {
+    private int setResistance(CommandContext<CommandSourceStack> context, ServerPlayer player,
+                              float value, String type) {
         AttributeInstance attribute = getAttributeByType(player, type);
         if (attribute != null) {
             attribute.setBaseValue(value);
-            context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("设置 %s 的%s伤害抗性为 %.1f",
-                            player.getName().getString(),
-                            getTypeName(type),
-                            value)), true);
+            context.getSource().sendSuccess(() -> Component.translatable(
+                    "command.lobotocraft.resistance.set", player.getDisplayName(),
+                    getTypeName(type), value), true);
         }
         return 1;
     }
 
-    private int addResistance(CommandContext<CommandSourceStack> context, ServerPlayer player, float amount, String type) {
+    private int addResistance(CommandContext<CommandSourceStack> context, ServerPlayer player,
+                              float amount, String type) {
         AttributeInstance attribute = getAttributeByType(player, type);
         if (attribute != null) {
             double currentValue = attribute.getBaseValue();
             double newValue = Math.max(-1.0D, Math.min(10.0D, currentValue + amount));
             attribute.setBaseValue(newValue);
-            context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("为 %s 的%s伤害抗性 %s %.1f，当前: %.1f",
-                            player.getName().getString(),
-                            getTypeName(type),
-                            amount > 0 ? "增加" : "减少",
-                            Math.abs(amount),
-                            newValue)), true);
+            context.getSource().sendSuccess(() -> Component.translatable(
+                    "command.lobotocraft.resistance.add", player.getDisplayName(),
+                    getTypeName(type), Component.translatable(amount > 0
+                            ? "command.lobotocraft.action.increase"
+                            : "command.lobotocraft.action.decrease"),
+                    Math.abs(amount), newValue), true);
         }
         return 1;
     }
@@ -96,13 +84,9 @@ public class ResistanceCommand implements ICommand {
         AttributeInstance attribute = getAttributeByType(player, type);
         if (attribute != null) {
             double value = attribute.getBaseValue();
-            String status = getResistanceStatus(value);
-            context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("%s 的%s伤害抗性: %.1f (%s)",
-                            player.getName().getString(),
-                            getTypeName(type),
-                            value,
-                            status)), false);
+            context.getSource().sendSuccess(() -> Component.translatable(
+                    "command.lobotocraft.resistance.get", player.getDisplayName(),
+                    getTypeName(type), value, getResistanceStatus(value)), false);
         }
         return 1;
     }
@@ -111,15 +95,14 @@ public class ResistanceCommand implements ICommand {
         double redRes = player.getAttributeValue(ModAttributes.RED_DAMAGE_RESISTANCE.get());
         double whiteRes = player.getAttributeValue(ModAttributes.WHITE_DAMAGE_RESISTANCE.get());
         double blackRes = player.getAttributeValue(ModAttributes.BLACK_DAMAGE_RESISTANCE.get());
-        double blueRes = player.getAttributeValue(ModAttributes.BLUE_DAMAGE_RESISTANCE.get());
+        double paleRes = player.getAttributeValue(ModAttributes.BLUE_DAMAGE_RESISTANCE.get());
 
-        context.getSource().sendSuccess(() -> Component.literal(
-                String.format("%s 的伤害抗性:\n红色: %.1f (%s)\n白色: %.1f (%s)\n黑色: %.1f (%s)\n蓝色: %.1f (%s)",
-                        player.getName().getString(),
-                        redRes, getResistanceStatus(redRes),
-                        whiteRes, getResistanceStatus(whiteRes),
-                        blackRes, getResistanceStatus(blackRes),
-                        blueRes, getResistanceStatus(blueRes))), false);
+        context.getSource().sendSuccess(() -> Component.translatable(
+                "command.lobotocraft.resistance.get_all", player.getDisplayName(),
+                redRes, getResistanceStatus(redRes),
+                whiteRes, getResistanceStatus(whiteRes),
+                blackRes, getResistanceStatus(blackRes),
+                paleRes, getResistanceStatus(paleRes)), false);
         return 1;
     }
 
@@ -133,27 +116,21 @@ public class ResistanceCommand implements ICommand {
         };
     }
 
-    private String getTypeName(String type) {
-        return switch (type) {
-            case "red" -> "红色";
-            case "white" -> "白色";
-            case "black" -> "黑色";
-            case "blue" -> "蓝色";
-            default -> "未知";
-        };
+    private Component getTypeName(String type) {
+        String languageType = "blue".equals(type) ? "pale" : type;
+        return Component.translatable("command.lobotocraft.damage_type." + languageType);
     }
 
-    private String getResistanceStatus(double value) {
+    private Component getResistanceStatus(double value) {
         if (value <= -1.0D) {
-            return "免疫并吸收";
+            return Component.translatable("command.lobotocraft.resistance.status.absorb");
         } else if (value <= 0.0D) {
-            return "完全免疫";
+            return Component.translatable("command.lobotocraft.resistance.status.immune");
         } else if (value < 1.0D) {
-            return "有抗性";
+            return Component.translatable("command.lobotocraft.resistance.status.resistant");
         } else if (value == 1.0D) {
-            return "正常伤害";
-        } else {
-            return "易伤";
+            return Component.translatable("command.lobotocraft.resistance.status.normal");
         }
+        return Component.translatable("command.lobotocraft.resistance.status.vulnerable");
     }
 }

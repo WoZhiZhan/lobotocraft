@@ -167,7 +167,6 @@ public abstract class BaseEgoWeapon extends SwordItem implements GeoItem, IAnima
     @Override
     public boolean onDroppedByPlayer(ItemStack item, Player player) {
         if (isOnCooldown(player, item)) {
-            resetCooldown(item);
             return false;
         }
         return super.onDroppedByPlayer(item, player);

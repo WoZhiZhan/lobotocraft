@@ -31,6 +31,10 @@ public enum EmployeeDepartment {
         return displayName;
     }
 
+    public String translationKey() {
+        return "department.lobotocraft." + id;
+    }
+
     public int textColorRgb() {
         return textColorRgb;
     }

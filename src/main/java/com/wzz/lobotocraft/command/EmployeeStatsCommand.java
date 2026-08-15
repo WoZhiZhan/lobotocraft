@@ -109,10 +109,8 @@ public class EmployeeStatsCommand implements ICommand {
             syncToClient(player, stats);
             // 重新应用属性效果
             EmployeeStatsApplier.applyAllAttributes(player);
-            context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("§a设置 %s 的勇气值为 %d (等级 %s)",
-                            player.getName().getString(), value,
-                            EmployeeLevelCalculator.statGrade(stats.getFortitude()))), true);
+            context.getSource().sendSuccess(() -> statSetMessage(player, "fortitude", value,
+                    EmployeeLevelCalculator.statGrade(stats.getFortitude())), true);
         });
         return 1;
     }
@@ -123,10 +121,8 @@ public class EmployeeStatsCommand implements ICommand {
             syncToClient(player, stats);
             // 重新应用属性效果
             EmployeeStatsApplier.applyAllAttributes(player);
-            context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("§a设置 %s 的谨慎值为 %d (等级 %s)",
-                            player.getName().getString(), value,
-                            EmployeeLevelCalculator.statGrade(stats.getPrudence()))), true);
+            context.getSource().sendSuccess(() -> statSetMessage(player, "prudence", value,
+                    EmployeeLevelCalculator.statGrade(stats.getPrudence())), true);
         });
         return 1;
     }
@@ -137,10 +133,8 @@ public class EmployeeStatsCommand implements ICommand {
             syncToClient(player, stats);
             // 重新应用属性效果
             EmployeeStatsApplier.applyAllAttributes(player);
-            context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("§a设置 %s 的自律值为 %d (等级 %s)",
-                            player.getName().getString(), value,
-                            EmployeeLevelCalculator.statGrade(stats.getTemperance()))), true);
+            context.getSource().sendSuccess(() -> statSetMessage(player, "temperance", value,
+                    EmployeeLevelCalculator.statGrade(stats.getTemperance())), true);
         });
         return 1;
     }
@@ -151,10 +145,8 @@ public class EmployeeStatsCommand implements ICommand {
             syncToClient(player, stats);
             // 重新应用属性效果
             EmployeeStatsApplier.applyAllAttributes(player);
-            context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("§a设置 %s 的正义值为 %d (等级 %s)",
-                            player.getName().getString(), value,
-                            EmployeeLevelCalculator.statGrade(stats.getJustice()))), true);
+            context.getSource().sendSuccess(() -> statSetMessage(player, "justice", value,
+                    EmployeeLevelCalculator.statGrade(stats.getJustice())), true);
         });
         return 1;
     }
@@ -167,13 +159,9 @@ public class EmployeeStatsCommand implements ICommand {
             syncToClient(player, stats);
             // 重新应用属性效果
             EmployeeStatsApplier.applyAllAttributes(player);
-            context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("§a为 %s %s %d 勇气值，当前: %d (等级 %s)",
-                            player.getName().getString(),
-                            amount > 0 ? "增加" : "减少",
-                            Math.abs(actualIncrease),
-                            stats.getFortitude(),
-                            EmployeeLevelCalculator.statGrade(stats.getFortitude()))), true);
+            context.getSource().sendSuccess(() -> statAddMessage(player, "fortitude", amount,
+                    actualIncrease, stats.getFortitude(),
+                    EmployeeLevelCalculator.statGrade(stats.getFortitude())), true);
         });
         return 1;
     }
@@ -184,13 +172,9 @@ public class EmployeeStatsCommand implements ICommand {
             syncToClient(player, stats);
             // 重新应用属性效果
             EmployeeStatsApplier.applyAllAttributes(player);
-            context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("§a为 %s %s %d 谨慎值，当前: %d (等级 %s)",
-                            player.getName().getString(),
-                            amount > 0 ? "增加" : "减少",
-                            Math.abs(actualIncrease),
-                            stats.getPrudence(),
-                            EmployeeLevelCalculator.statGrade(stats.getPrudence()))), true);
+            context.getSource().sendSuccess(() -> statAddMessage(player, "prudence", amount,
+                    actualIncrease, stats.getPrudence(),
+                    EmployeeLevelCalculator.statGrade(stats.getPrudence())), true);
         });
         return 1;
     }
@@ -201,13 +185,9 @@ public class EmployeeStatsCommand implements ICommand {
             syncToClient(player, stats);
             // 重新应用属性效果
             EmployeeStatsApplier.applyAllAttributes(player);
-            context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("§a为 %s %s %d 自律值，当前: %d (等级 %s)",
-                            player.getName().getString(),
-                            amount > 0 ? "增加" : "减少",
-                            Math.abs(actualIncrease),
-                            stats.getTemperance(),
-                            EmployeeLevelCalculator.statGrade(stats.getTemperance()))), true);
+            context.getSource().sendSuccess(() -> statAddMessage(player, "temperance", amount,
+                    actualIncrease, stats.getTemperance(),
+                    EmployeeLevelCalculator.statGrade(stats.getTemperance())), true);
         });
         return 1;
     }
@@ -218,13 +198,9 @@ public class EmployeeStatsCommand implements ICommand {
             syncToClient(player, stats);
             // 重新应用属性效果
             EmployeeStatsApplier.applyAllAttributes(player);
-            context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("§a为 %s %s %d 正义值，当前: %d (等级 %s)",
-                            player.getName().getString(),
-                            amount > 0 ? "增加" : "减少",
-                            Math.abs(actualIncrease),
-                            stats.getJustice(),
-                            EmployeeLevelCalculator.statGrade(stats.getJustice()))), true);
+            context.getSource().sendSuccess(() -> statAddMessage(player, "justice", amount,
+                    actualIncrease, stats.getJustice(),
+                    EmployeeLevelCalculator.statGrade(stats.getJustice())), true);
         });
         return 1;
     }
@@ -233,21 +209,30 @@ public class EmployeeStatsCommand implements ICommand {
 
     private int getStats(CommandContext<CommandSourceStack> context, ServerPlayer player) {
         player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(stats -> {
-            context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("§e%s 的员工属性:\n" +
-                                  "§c勇气 (Fortitude): %d (等级 %s)\n" +
-                                  "§b谨慎 (Prudence): %d (等级 %s)\n" +
-                                  "§a自律 (Temperance): %d (等级 %s)\n" +
-                                  "§6正义 (Justice): %d (等级 %s)\n" +
-                                  "§d员工总等级: %d",
-                            player.getName().getString(),
-                            stats.getFortitude(), EmployeeLevelCalculator.statGrade(stats.getFortitude()),
-                            stats.getPrudence(), EmployeeLevelCalculator.statGrade(stats.getPrudence()),
-                            stats.getTemperance(), EmployeeLevelCalculator.statGrade(stats.getTemperance()),
-                            stats.getJustice(), EmployeeLevelCalculator.statGrade(stats.getJustice()),
-                            stats.getEmployeeLevel())), false);
+            context.getSource().sendSuccess(() -> Component.translatable(
+                    "command.lobotocraft.employee_stats.summary", player.getDisplayName(),
+                    stats.getFortitude(), EmployeeLevelCalculator.statGrade(stats.getFortitude()),
+                    stats.getPrudence(), EmployeeLevelCalculator.statGrade(stats.getPrudence()),
+                    stats.getTemperance(), EmployeeLevelCalculator.statGrade(stats.getTemperance()),
+                    stats.getJustice(), EmployeeLevelCalculator.statGrade(stats.getJustice()),
+                    stats.getEmployeeLevel()), false);
         });
         return 1;
+    }
+
+    private Component statSetMessage(ServerPlayer player, String stat, int value, String grade) {
+        return Component.translatable("command.lobotocraft.employee_stats.set", player.getDisplayName(),
+                Component.translatable("stat.lobotocraft." + stat), value, grade);
+    }
+
+    private Component statAddMessage(ServerPlayer player, String stat, int requestedAmount,
+                                     int actualAmount, int current, String grade) {
+        return Component.translatable("command.lobotocraft.employee_stats.add", player.getDisplayName(),
+                Component.translatable(requestedAmount > 0
+                        ? "command.lobotocraft.action.increase"
+                        : "command.lobotocraft.action.decrease"),
+                Math.abs(actualAmount), Component.translatable("stat.lobotocraft." + stat),
+                current, grade);
     }
 
     // ==================== 辅助方法 ====================

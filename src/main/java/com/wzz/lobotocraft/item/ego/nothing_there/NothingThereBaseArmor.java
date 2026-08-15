@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.nothing_there;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModArmorMaterial;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoArmor;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -75,12 +76,12 @@ public abstract class NothingThereBaseArmor extends BaseEgoArmor {
     @Override
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
-        p_41423_.add(Component.literal("§6※这件护甲会给予穿戴者再来一次的机会。"));
-        p_41423_.add(Component.literal("§7它可能并不来自于人类，但是它的皮肤却有着人类一样的触感。"));
-        p_41423_.add(Component.literal("§7穿上它的员工有可能会失去理智。"));
-        p_41423_.add(Component.literal("§c红色伤害：0.2"));
-        p_41423_.add(Component.literal("§f白色伤害：0.5"));
-        p_41423_.add(Component.literal("§5黑色伤害：0.5"));
-        p_41423_.add(Component.literal("§b蓝色伤害：1.0"));
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.nothing_there_armor.detail");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.nothing_there_armor.story.1");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.nothing_there_armor.story.2");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.nothing_there_armor.resistance.red");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.nothing_there_armor.resistance.white");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.nothing_there_armor.resistance.black");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.nothing_there_armor.resistance.pale");
     }
 }

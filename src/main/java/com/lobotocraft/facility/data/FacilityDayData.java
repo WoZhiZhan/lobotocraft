@@ -90,7 +90,28 @@ public final class FacilityDayData extends SavedData {
                 if (entry.hasUUID("Target")) {
                     data.activeMeltdowns.put(entry.getUUID("Target"),
                     new ActiveMeltdown(entry.getLong("Deadline"), Math.max(1, entry.getInt("Level")),
-                        entry.getString("TargetCode")));
+                        entry.getString("TargetCode"), MeltdownCause.read(entry.getString("Cause")),
+                        entry.contains("CreatedTick") ? entry.getLong("CreatedTick") : -1L,
+                        entry.contains("RemainingTimeUnits") ? entry.getLong("RemainingTimeUnits") : -1L,
+                        entry.contains("TimeRatePermille") ? entry.getInt("TimeRatePermille")
+                                : ActiveMeltdown.NORMAL_TIME_RATE_PERMILLE,
+                        entry.contains("LastProcessedTick") ? entry.getLong("LastProcessedTick") : -1L,
+                        entry.contains("DefinitionVersion") ? entry.getInt("DefinitionVersion") : 0,
+                        entry.hasUUID("InstanceId") ? entry.getUUID("InstanceId") : UUID.randomUUID(),
+                        entry.hasUUID("BatchId") ? entry.getUUID("BatchId") : null,
+                        entry.hasUUID("SourceEntity") ? entry.getUUID("SourceEntity") : null,
+                        entry.getString("SourceType"),
+                        new MeltdownStageContext(entry.getInt("FacilityDay"),
+                            entry.contains("TriggeredQliphothLevel")
+                                ? entry.getInt("TriggeredQliphothLevel")
+                                : Math.max(1, entry.getInt("Level")),
+                            entry.getBoolean("CoreSuppressionActive"),
+                            entry.getString("CoreSuppressionType"),
+                            entry.contains("CoreSuppressionPhase")
+                                ? entry.getInt("CoreSuppressionPhase") : -1),
+                        new MeltdownTargetLocator(entry.getString("TargetDimension"),
+                            entry.getLong("TargetRoomMarker"),
+                            entry.getBoolean("HasTargetRoomMarker"))));
             }
         }
         ListTag streaks = tag.getList("ConsecutiveWorks", 10);
@@ -133,6 +154,28 @@ public final class FacilityDayData extends SavedData {
             entry.putLong("Deadline", meltdown.deadline());
             entry.putInt("Level", meltdown.level());
             entry.putString("TargetCode", meltdown.targetCode());
+            entry.putString("Cause", meltdown.cause().name());
+            entry.putLong("CreatedTick", meltdown.createdTick());
+            entry.putLong("RemainingTimeUnits", meltdown.remainingTimeUnits());
+            entry.putInt("TimeRatePermille", meltdown.timeRatePermille());
+            entry.putLong("LastProcessedTick", meltdown.lastProcessedTick());
+            entry.putInt("DefinitionVersion", meltdown.definitionVersion());
+            entry.putUUID("InstanceId", meltdown.instanceId());
+            if (meltdown.batchId() != null) entry.putUUID("BatchId", meltdown.batchId());
+            if (meltdown.sourceEntity() != null) entry.putUUID("SourceEntity", meltdown.sourceEntity());
+            entry.putString("SourceType", meltdown.sourceType());
+            entry.putInt("FacilityDay", meltdown.stageContext().facilityDay());
+            entry.putInt("TriggeredQliphothLevel",
+                meltdown.stageContext().triggeredQliphothLevel());
+            entry.putBoolean("CoreSuppressionActive",
+                meltdown.stageContext().coreSuppressionActive());
+            entry.putString("CoreSuppressionType",
+                meltdown.stageContext().coreSuppressionType());
+            entry.putInt("CoreSuppressionPhase",
+                meltdown.stageContext().coreSuppressionPhase());
+            entry.putString("TargetDimension", meltdown.targetLocator().dimensionId());
+            entry.putLong("TargetRoomMarker", meltdown.targetLocator().roomMarker());
+            entry.putBoolean("HasTargetRoomMarker", meltdown.targetLocator().hasRoomMarker());
             meltdowns.add(entry);
         });
         tag.put("ActiveMeltdowns", meltdowns);
@@ -160,7 +203,7 @@ public final class FacilityDayData extends SavedData {
         dawnTriggered = false;
         noonTriggered = false;
         clearSchedule();
-        activeMeltdowns.clear();
+        MeltdownLifecycle.clear(this, MeltdownEndReason.DAY_CHANGED);
         consecutiveWorks.clear();
         notifyState(4);
     }
@@ -350,8 +393,25 @@ public final class FacilityDayData extends SavedData {
     }
 
     public void addMeltdown(UUID target, long deadline, int level, String targetCode) {
+        addMeltdown(target, deadline, level, targetCode, MeltdownCause.LEGACY_OR_UNKNOWN);
+    }
+
+    public void addMeltdown(UUID target, long deadline, int level, String targetCode,
+                             MeltdownCause cause) {
         activeMeltdowns.put(target, new ActiveMeltdown(deadline, level,
-            targetCode == null ? "" : targetCode));
+            targetCode == null ? "" : targetCode,
+            cause == null ? MeltdownCause.LEGACY_OR_UNKNOWN : cause));
+        setDirty();
+    }
+
+    public void addMeltdown(UUID target, long gameTime, int durationTicks, int level,
+                             String targetCode, MeltdownCause cause, int timeRatePermille,
+                             int definitionVersion, MeltdownStageContext stageContext,
+                             UUID batchId, UUID sourceEntity, String sourceType,
+                             MeltdownTargetLocator targetLocator) {
+        activeMeltdowns.put(target, ActiveMeltdown.create(gameTime, durationTicks, level,
+            targetCode, cause, timeRatePermille, definitionVersion, stageContext,
+            batchId, sourceEntity, sourceType, targetLocator));
         setDirty();
     }
 
@@ -394,6 +454,113 @@ public final class FacilityDayData extends SavedData {
         setDirty();
     }
 
-    public record ActiveMeltdown(long deadline, int level, String targetCode) {
+    public record ActiveMeltdown(long deadline, int level, String targetCode, MeltdownCause cause,
+                                 long createdTick, long remainingTimeUnits,
+                                 int timeRatePermille, long lastProcessedTick,
+                                 int definitionVersion, UUID instanceId, UUID batchId,
+                                 UUID sourceEntity, String sourceType,
+                                 MeltdownStageContext stageContext,
+                                 MeltdownTargetLocator targetLocator) {
+        public static final int TIME_UNITS_PER_TICK = 1000;
+        public static final int NORMAL_TIME_RATE_PERMILLE = 1000;
+
+        public ActiveMeltdown {
+            targetCode = targetCode == null ? "" : targetCode;
+            cause = cause == null ? MeltdownCause.LEGACY_OR_UNKNOWN : cause;
+            timeRatePermille = Math.max(0, timeRatePermille);
+            definitionVersion = Math.max(0, definitionVersion);
+            instanceId = instanceId == null ? UUID.randomUUID() : instanceId;
+            sourceType = sourceType == null ? "" : sourceType;
+            stageContext = stageContext == null ? MeltdownStageContext.legacy(level) : stageContext;
+            targetLocator = targetLocator == null ? MeltdownTargetLocator.unknown() : targetLocator;
+        }
+
+        /** Compatibility constructor for callers that only know the old fields. */
+        public ActiveMeltdown(long deadline, int level, String targetCode) {
+            this(deadline, level, targetCode, MeltdownCause.LEGACY_OR_UNKNOWN);
+        }
+
+        /** Legacy absolute-deadline constructor. It migrates on the first server tick. */
+        public ActiveMeltdown(long deadline, int level, String targetCode, MeltdownCause cause) {
+            this(deadline, level, targetCode, cause, -1L, -1L,
+                NORMAL_TIME_RATE_PERMILLE, -1L, 0, UUID.randomUUID(), null,
+                null, "", MeltdownStageContext.legacy(level), MeltdownTargetLocator.unknown());
+        }
+
+        public static ActiveMeltdown create(long gameTime, int durationTicks, int level,
+                                             String targetCode, MeltdownCause cause,
+                                             int timeRatePermille, int definitionVersion,
+                                             MeltdownStageContext stageContext, UUID batchId,
+                                             UUID sourceEntity, String sourceType,
+                                             MeltdownTargetLocator targetLocator) {
+            long duration = Math.max(1, durationTicks);
+            int rate = Math.max(0, timeRatePermille);
+            long remaining = saturatedMultiply(duration, TIME_UNITS_PER_TICK);
+            return new ActiveMeltdown(projectDeadline(gameTime, remaining, rate), level,
+                targetCode, cause, gameTime, remaining, rate, gameTime, definitionVersion,
+                UUID.randomUUID(), batchId, sourceEntity, sourceType, stageContext, targetLocator);
+        }
+
+        public boolean usesDynamicClock() {
+            return remainingTimeUnits >= 0L && lastProcessedTick >= 0L;
+        }
+
+        public ActiveMeltdown advance(long gameTime) {
+            long now = Math.max(0L, gameTime);
+            long remaining = remainingTimeUnits;
+            long created = createdTick;
+            long last = lastProcessedTick;
+            if (!usesDynamicClock()) {
+                remaining = saturatedMultiply(Math.max(0L, deadline - now), TIME_UNITS_PER_TICK);
+                created = now;
+                last = now;
+            } else if (now > last && remaining > 0L && timeRatePermille > 0) {
+                long consumed = saturatedMultiply(now - last, timeRatePermille);
+                remaining = Math.max(0L, remaining - Math.min(remaining, consumed));
+                last = now;
+            } else if (now > last) {
+                last = now;
+            }
+            return new ActiveMeltdown(projectDeadline(now, remaining, timeRatePermille), level,
+                targetCode, cause, created, remaining, timeRatePermille, last, definitionVersion,
+                instanceId, batchId, sourceEntity, sourceType, stageContext, targetLocator);
+        }
+
+        public ActiveMeltdown withTimeRate(long gameTime, int newRatePermille) {
+            ActiveMeltdown current = advance(gameTime);
+            int rate = Math.max(0, newRatePermille);
+            return new ActiveMeltdown(projectDeadline(Math.max(0L, gameTime),
+                    current.remainingTimeUnits, rate), level, targetCode, cause,
+                current.createdTick, current.remainingTimeUnits, rate,
+                Math.max(0L, gameTime), definitionVersion, instanceId, batchId,
+                sourceEntity, sourceType, stageContext, targetLocator);
+        }
+
+        public boolean expired() {
+            return usesDynamicClock() && remainingTimeUnits <= 0L;
+        }
+
+        public long projectedRemainingTicks(long gameTime) {
+            if (!usesDynamicClock()) return Math.max(0L, deadline - gameTime);
+            if (remainingTimeUnits <= 0L) return 0L;
+            if (timeRatePermille <= 0) return Long.MAX_VALUE;
+            return ceilingDivide(remainingTimeUnits, timeRatePermille);
+        }
+
+        private static long projectDeadline(long gameTime, long remaining, int ratePermille) {
+            if (remaining <= 0L) return gameTime;
+            if (ratePermille <= 0) return Long.MAX_VALUE;
+            long ticks = ceilingDivide(remaining, ratePermille);
+            return gameTime > Long.MAX_VALUE - ticks ? Long.MAX_VALUE : gameTime + ticks;
+        }
+
+        private static long ceilingDivide(long value, long divisor) {
+            return value / divisor + (value % divisor == 0L ? 0L : 1L);
+        }
+
+        private static long saturatedMultiply(long left, long right) {
+            if (left <= 0L || right <= 0L) return 0L;
+            return left > Long.MAX_VALUE / right ? Long.MAX_VALUE : left * right;
+        }
     }
 }

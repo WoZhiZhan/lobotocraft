@@ -91,7 +91,8 @@ public class StructureLoader {
             return true;
         } catch (Exception e) {
             if (player != null)
-                player.displayClientMessage(Component.literal("§c加载失败: " + e.getMessage()), false);
+                player.displayClientMessage(Component.translatable(
+                        "message.lobotocraft.structure_load.start_failed", e.getMessage()), false);
             ModLogger.getLogger().error("结构加载失败", e);
             return false;
         }
@@ -218,7 +219,8 @@ public class StructureLoader {
             } catch (Exception e) {
                 ModLogger.getLogger().error("结构加载过程出错", e);
                 if (player != null) {
-                    player.displayClientMessage(Component.literal("§c结构加载出错: " + e.getMessage()), false);
+                    player.displayClientMessage(Component.translatable(
+                            "message.lobotocraft.structure_load.error", e.getMessage()), false);
                 }
             } finally {
                 // pipeline 结束标记：必须在 finally，确保异常/取消也能让主线程收尾
@@ -240,7 +242,7 @@ public class StructureLoader {
             level.getServer().execute(() -> {
                 if (cancelled) {
                     if (player != null) player.displayClientMessage(
-                            Component.literal("§6结构加载已取消"), false);
+                            Component.translatable("message.lobotocraft.structure_load.cancelled"), false);
                     if (this.callBack != null) this.callBack.run();
                     cleanup();
                     return;
@@ -404,13 +406,9 @@ public class StructureLoader {
             int progress = total == 0 ? 100 : (enqueued * 100 / total);
             if (player != null) {
                 player.displayClientMessage(
-                        Component.literal(String.format(
-                                "§b加载进度: %d%% (入队 %d/%d) | 流水线: %d%% | 已放置: %d | 成功: %d, 失败: %d",
-                                progress, enqueued, total,
-                                stats.getProgress(),
-                                placedCount.get(),
-                                successCount.get(), failCount.get()
-                        )),
+                        Component.translatable("message.lobotocraft.structure_load.progress",
+                                progress, enqueued, total, stats.getProgress(), placedCount.get(),
+                                successCount.get(), failCount.get()),
                         true
                 );
             }
@@ -447,7 +445,8 @@ public class StructureLoader {
             if (usedRatio > MEMORY_WARNING_THRESHOLD) {
                 if (player != null) {
                     player.displayClientMessage(
-                            Component.literal(String.format("§e内存使用率 %.1f%%，释放缓存中...", usedRatio * 100)),
+                            Component.translatable("message.lobotocraft.structure_load.memory",
+                                    String.format(java.util.Locale.ROOT, "%.1f", usedRatio * 100)),
                             false
                     );
                 }
@@ -465,16 +464,15 @@ public class StructureLoader {
                 long elapsed = System.currentTimeMillis() - startTime;
 
                 player.displayClientMessage(
-                        Component.literal(String.format(
-                                "§a结构加载完成! 总计: %d, 成功: %d, 失败: %d, 用时: %d 秒",
-                                totalChunks, successCount.get(), failCount.get(), elapsed / 1000
-                        )),
+                        Component.translatable("message.lobotocraft.structure_load.completed",
+                                totalChunks, successCount.get(), failCount.get(), elapsed / 1000),
                         false
                 );
                 if (this.callBack != null)
                     this.callBack.run();
             } else if (cancelled && player != null) {
-                player.displayClientMessage(Component.literal("§6结构加载已取消"), false);
+                player.displayClientMessage(Component.translatable(
+                        "message.lobotocraft.structure_load.cancelled"), false);
             }
         }
 

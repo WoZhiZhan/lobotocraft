@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.color.ExtendedColor;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModArmorMaterial;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoArmor;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -104,16 +105,16 @@ public abstract class SmilingCorpseMountainBaseArmor extends BaseEgoArmor {
     public void appendHoverText(ItemStack stack, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(stack, p_41422_, p_41423_, p_41424_);
         int cleared = getClearedCount(stack);
-        p_41423_.add(Component.literal("已清理石碑数量：").withStyle(ExtendedColor.PINK.toStyle())
-                .append(Component.literal(String.valueOf(cleared))).withStyle(ExtendedColor.GREEN.toStyle()));
-        p_41423_.add(Component.literal(""));
-        p_41423_.add(Component.literal("§6※穿戴者可以通过shift右键清理石碑来获得加成。"));
-        p_41423_.add(Component.literal("§7护甲上嵌入了一张熟悉的面孔...穿戴者会在瞬间感受到死亡之重。"));
-        p_41423_.add(Component.literal("§7死尸们能化解外界的伤害。"));
-        p_41423_.add(Component.literal("§7“我经常听到那些怪异的呻吟，但我只能选择忽视，因为我无能为力。”"));
-        p_41423_.add(Component.literal("§c红色伤害：0.5"));
-        p_41423_.add(Component.literal("§f白色伤害：0.5"));
-        p_41423_.add(Component.literal("§5黑色伤害：0.2"));
-        p_41423_.add(Component.literal("§b蓝色伤害：1.0"));
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.smiling_corpse_mountain_armor.cleared",
+                ExtendedColor.PINK.toStyle(), cleared);
+        EgoTooltipUtil.blank(p_41423_);
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.smiling_corpse_mountain_armor.detail");
+        for (int index = 1; index <= 3; index++) {
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.smiling_corpse_mountain_armor.story." + index);
+        }
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.smiling_corpse_mountain_armor.resistance.red");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.smiling_corpse_mountain_armor.resistance.white");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.smiling_corpse_mountain_armor.resistance.black");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.smiling_corpse_mountain_armor.resistance.pale");
     }
 }

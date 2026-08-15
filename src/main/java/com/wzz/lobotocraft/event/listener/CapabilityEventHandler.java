@@ -22,6 +22,7 @@ import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -225,7 +226,8 @@ public class CapabilityEventHandler {
             boolean wasActive = player.getPersistentData().getBoolean(EntityWingBeat.ACTIVE_FLAG);
             EntityWingBeat.clearSession(player);
             if (wasActive) {
-                player.sendSystemMessage(Component.literal("§a精灵的舞会结束了..."));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.wingbeat.session_ended"));
             }
         }
     }
@@ -246,6 +248,13 @@ public class CapabilityEventHandler {
         if (event.getEntity() instanceof ServerPlayer player) {
             EntityWingBeat.clearSession(player);
         }
+    }
+
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        deathBackupData.clear();
+        deathBackupStats.clear();
+        deathBackupDaily.clear();
     }
 
     static void syncDailyToClient(ServerPlayer player) {

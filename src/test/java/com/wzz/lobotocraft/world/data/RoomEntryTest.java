@@ -3,11 +3,13 @@ package com.wzz.lobotocraft.world.data;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.contents.LiteralContents;
 import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 class RoomEntryTest {
 
@@ -80,5 +82,37 @@ class RoomEntryTest {
         FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
         room.write(buffer);
         assertTrue(RoomEntry.read(buffer).toolType);
+    }
+
+    @Test
+    void abnormalityNameKeySurvivesPersistentAndNetworkSnapshots() {
+        RoomEntry room = new RoomEntry(
+                ResourceLocation.fromNamespaceAndPath("lobotocraft", "loboto"),
+                new BlockPos(9, 81, 14));
+        room.abnormalityName = "一罪与百善";
+        room.abnormalityNameKey = "entity.lobotocraft.onebad";
+
+        assertEquals(room.abnormalityNameKey,
+                RoomEntry.load(room.save()).abnormalityNameKey);
+        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+        room.write(buffer);
+        assertEquals(room.abnormalityNameKey, RoomEntry.read(buffer).abnormalityNameKey);
+        buffer.release();
+    }
+
+    @Test
+    void legacySnapshotWithoutNameKeyFallsBackToStoredName() {
+        RoomEntry room = new RoomEntry(
+                ResourceLocation.fromNamespaceAndPath("lobotocraft", "loboto"),
+                new BlockPos(10, 82, 15));
+        room.abnormalityName = "旧存档异想体";
+        net.minecraft.nbt.CompoundTag legacy = room.save();
+        legacy.remove("AbNameKey");
+
+        RoomEntry restored = RoomEntry.load(legacy);
+
+        assertEquals("", restored.abnormalityNameKey);
+        assertInstanceOf(LiteralContents.class, restored.resolveTitleComponent().getContents());
+        assertEquals("旧存档异想体", restored.resolveTitleComponent().getString());
     }
 }

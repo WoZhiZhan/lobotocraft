@@ -167,6 +167,17 @@ public class EntityChildrenGalaxy extends AbstractAbnormality {
     }
 
     @Override
+    public List<String> getWorkLogTranslationKeys() {
+        String state = qliphothCounter > 0 ? "positive" : "depleted";
+        int count = qliphothCounter > 0 ? 4 : 5;
+        List<String> keys = new ArrayList<>(count);
+        for (int index = 0; index < count; index++) {
+            keys.add("work_log.lobotocraft.children_galaxy." + state + "." + index);
+        }
+        return List.copyOf(keys);
+    }
+
+    @Override
     public boolean canEscape() {
         return false;
     }
@@ -203,17 +214,20 @@ public class EntityChildrenGalaxy extends AbstractAbnormality {
         if (BuffUtil.hasFriendshipProof(player)) {
             increaseQliphothCounter(1);
             increaseQliphothCounter(1);
-            player.sendSystemMessage(Component.literal("§a「友谊之证」让银河之子的计数器增加了。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.children_galaxy.friendship_counter"));
             return;
         }
         increaseQliphothCounter(1);
         if (qliphothCounter <= 0) {
             qliphothCounter = 1;
             com.wzz.lobotocraft.util.BuffUtil.giveFriendshipProof(player, 1);
-            player.sendSystemMessage(Component.literal("你得到了「友谊之证」！"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.children_galaxy.friendship_obtained"));
         } else if (!com.wzz.lobotocraft.util.BuffUtil.hasFriendshipProof(player)) {
             com.wzz.lobotocraft.util.BuffUtil.giveFriendshipProof(player, qliphothCounter);
-            player.sendSystemMessage(Component.literal("你得到了「友谊之证」！"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.children_galaxy.friendship_obtained"));
         }
     }
 

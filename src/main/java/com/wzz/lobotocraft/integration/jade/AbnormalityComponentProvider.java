@@ -25,13 +25,16 @@ public enum AbnormalityComponentProvider implements IEntityComponentProvider {
         if (serverData.contains("AbnormalityCode") && serverData.contains("AbnormalityJadeName")) {
             String code = serverData.getString("AbnormalityCode");
             String name = serverData.getString("AbnormalityJadeName");
+            Component nameComponent = serverData.getBoolean("AbnormalityNameKnown")
+                    ? Component.translatable(serverData.getString("AbnormalityNameKey"))
+                    : Component.literal(name);
             String riskLevel = serverData.getString("RiskLevel");
             int riskColorValue = serverData.getInt("RiskLevelColor");
             TextColor riskTextColor = TextColor.fromRgb(riskColorValue);
 
             tooltip.add(Component.literal("[" + code + "] ")
                     .withStyle(ChatFormatting.GOLD)
-                    .append(Component.literal(name)
+                    .append(nameComponent.copy()
                             .withStyle(style -> style.withColor(riskTextColor)))
                     .append(Component.literal(" (" + riskLevel + ")")
                             .withStyle(ChatFormatting.GRAY)));
@@ -56,7 +59,7 @@ public enum AbnormalityComponentProvider implements IEntityComponentProvider {
                 if (max == 114514) {
                     tooltip.add(Component.translatable("config.jade.plugin_lobotocraft.qliphoth_counter")
                             .withStyle(ChatFormatting.GRAY)
-                            .append(Component.literal("无")
+                            .append(Component.translatable("config.jade.plugin_lobotocraft.none")
                                     .withStyle(ChatFormatting.GREEN)));
                 } else {
                     tooltip.add(Component.translatable("config.jade.plugin_lobotocraft.qliphoth_counter")
@@ -70,10 +73,10 @@ public enum AbnormalityComponentProvider implements IEntityComponentProvider {
         // 显示出逃能力
         if (serverData.contains("CanEscape")) {
             if (serverData.getBoolean("CanEscape")) {
-                tooltip.add(Component.literal("类型: 出逃类异想体")
+                tooltip.add(Component.translatable("config.jade.plugin_lobotocraft.type.escaping")
                         .withStyle(ChatFormatting.YELLOW));
             } else {
-                tooltip.add(Component.literal("类型: 不会出逃类异想体")
+                tooltip.add(Component.translatable("config.jade.plugin_lobotocraft.type.contained")
                         .withStyle(ChatFormatting.YELLOW));
             }
         }

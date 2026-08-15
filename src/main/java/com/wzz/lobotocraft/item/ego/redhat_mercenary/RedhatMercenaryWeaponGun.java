@@ -70,8 +70,8 @@ public class RedhatMercenaryWeaponGun extends RedhatMercenaryWeapon implements A
 
         int cooldown = stack.getOrCreateTag().getInt("UseTick");
         if (cooldown > 0) {
-            player.displayClientMessage(
-                    Component.literal("§a冷却中,还剩:" + cooldown + " tick"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.ego.cooldown_ticks", cooldown), true);
             return InteractionResultHolder.pass(stack);
         }
         stack.getOrCreateTag().putInt("UseTick",

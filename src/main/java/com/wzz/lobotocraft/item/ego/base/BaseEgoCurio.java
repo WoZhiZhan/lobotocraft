@@ -26,7 +26,6 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 import top.theillusivec4.curios.api.SlotContext;
 import top.theillusivec4.curios.api.type.capability.ICurioItem;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -38,8 +37,7 @@ public abstract class BaseEgoCurio extends Item implements ICurioItem, GeoItem, 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private static final RawAnimation IDLE_ANIMATION = RawAnimation.begin().thenLoop("idle");
     private static final RawAnimation MOVE_ANIMATION = RawAnimation.begin().thenLoop("move");
-    public static final Map<Integer, Boolean> WEARER_MOVING = new HashMap<>();
-    public static int currentRenderEntityId = -1;
+    public static boolean currentRenderMoving = false;
     public static boolean isRenderingAsCurio = false;
 
     public BaseEgoCurio(Properties properties) {
@@ -133,7 +131,7 @@ public abstract class BaseEgoCurio extends Item implements ICurioItem, GeoItem, 
 
         controllers.add(new AnimationController<>(this, "move_controller", 0, state -> {
             if (!isRenderingAsCurio) return PlayState.STOP;
-            boolean isMoving = WEARER_MOVING.getOrDefault(currentRenderEntityId, false);
+            boolean isMoving = currentRenderMoving;
             if (hasMoveAnimation() && isMoving) {
                 state.getController().setAnimation(MOVE_ANIMATION);
                 return PlayState.CONTINUE;

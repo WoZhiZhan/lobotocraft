@@ -231,7 +231,8 @@ public class EntityWingBeat extends AbstractAbnormality {
 
     @Override
     public void onGoodWork(ServerPlayer player) {
-        player.sendSystemMessage(Component.literal("§a你获得了祝福！"));
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.abnormality.wingbeat.blessing_obtained"));
         clearSession(player);
         UUID newSession = UUID.randomUUID();
         player.getPersistentData().putBoolean(ACTIVE_FLAG, true);
@@ -407,7 +408,8 @@ public class EntityWingBeat extends AbstractAbnormality {
                 clearPlayerSessionFlag(owner);
             }
             if (notifyPlayer) {
-                owner.sendSystemMessage(Component.literal("§a精灵的舞会结束了..."));
+                owner.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.abnormality.wingbeat.feast_ended"));
             }
         }
         clearOwnerBinding();

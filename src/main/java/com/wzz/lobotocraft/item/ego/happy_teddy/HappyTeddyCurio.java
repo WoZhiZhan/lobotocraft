@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.item.ego.happy_teddy;
 
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.EgoArmorHelper;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.ChatFormatting;
@@ -34,14 +35,17 @@ public class HappyTeddyCurio extends BaseEgoCurio {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("  • 最大精神值 + 4").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 沟通工作的成功率 + 3%").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("套装效果（装备+武器+饰品）：").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("  • 玩家进行沟通工作时，成功率额外提高6%。").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 玩家使用武器“熊熊抱”造成伤害时，有20%概率额外造成一次等同于这次伤害的白色伤害。").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 玩家使用武器“熊熊抱”每造成40红色伤害，则眩晕对方1秒。期间无法移动和攻击。").withStyle(ChatFormatting.LIGHT_PURPLE));
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.effects", ChatFormatting.YELLOW);
+        for (int index = 1; index <= 2; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.happy_teddy_curio.effect." + index,
+                    ChatFormatting.GREEN);
+        }
+        EgoTooltipUtil.blank(tooltip);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.full_set_effect", ChatFormatting.AQUA);
+        for (int index = 1; index <= 3; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.happy_teddy_curio.set." + index,
+                    ChatFormatting.LIGHT_PURPLE);
+        }
         super.appendHoverText(stack, level, tooltip, flag);
     }
 

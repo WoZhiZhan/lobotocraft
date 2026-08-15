@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.item.ego.red_shoes;
 
 import com.wzz.lobotocraft.item.AttributeEntry;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.EgoArmorHelper;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.ChatFormatting;
@@ -37,12 +38,16 @@ public class RedShoesCurio extends BaseEgoCurio {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("  • 最大生命值 + 4").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("套装效果（装备+武器+饰品）：").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("  • 玩家每次造成伤害会额外造成3点红色伤害的dot，最多叠加5层").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 玩家每有1级自律等级额外提高“血之渴望”1点伤害。玩家击杀生物后回复5%的生命值和精神值").withStyle(ChatFormatting.LIGHT_PURPLE));
+        EgoTooltipUtil.appendGiftDescription(
+                tooltip,
+                new String[]{"tooltip.lobotocraft.red_shoes_curio.effect.1"},
+                ChatFormatting.GREEN,
+                new String[]{
+                        "tooltip.lobotocraft.red_shoes_curio.set.1",
+                        "tooltip.lobotocraft.red_shoes_curio.set.2"
+                },
+                ChatFormatting.LIGHT_PURPLE
+        );
         super.appendHoverText(stack, level, tooltip, flag);
     }
 

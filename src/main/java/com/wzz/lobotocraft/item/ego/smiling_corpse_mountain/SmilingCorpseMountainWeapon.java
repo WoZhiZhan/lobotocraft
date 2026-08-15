@@ -6,6 +6,7 @@ import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.item.ego.base.AiSpecialEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
@@ -96,8 +97,9 @@ public class SmilingCorpseMountainWeapon extends BaseEgoWeapon implements AiSpec
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (isOnCooldown(player, stack)) {
-            player.displayClientMessage(
-                    Component.literal("§a冷却中,还剩:" + getRemainingCooldown(player, stack) + " tick"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.ego.cooldown_ticks",
+                    getRemainingCooldown(player, stack)), true);
             return InteractionResultHolder.pass(stack);
         }
         startCooldown(player, stack);
@@ -208,15 +210,15 @@ public class SmilingCorpseMountainWeapon extends BaseEgoWeapon implements AiSpec
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         if (!ClientInputUtil.isShiftPressed()) {
-            p_41423_.add(Component.literal("§6※这把武器每次攻击会给予对方“腐败”效果，提高特殊攻击的伤害。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7锤子上有某个员工的苍白脸庞，以及...一张巨口。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7当你挥动这把武器时，你就像一只扑向猎物的苍鹰。"));
-            p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.smiling_corpse_mountain_weapon.summary");
+            EgoTooltipUtil.blank(p_41423_);
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.smiling_corpse_mountain_weapon.story.1");
+            EgoTooltipUtil.blank(p_41423_);
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.smiling_corpse_mountain_weapon.story.2");
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.common.shift_details");
         } else {
-            p_41423_.add(Component.literal("§6※每次普通攻击为对方施加1层腐败（最高5层，持续10秒，满层刷新），每层使特殊攻击伤害+20%。"));
-            p_41423_.add(Component.literal("§6※特殊攻击造成翻倍的黑色伤害（32点）。使用后清除对方全部腐败。"));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.smiling_corpse_mountain_weapon.detail.1");
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.smiling_corpse_mountain_weapon.detail.2");
         }
     }
 }

@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.army_in_black;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.item.AttributeEntry;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.EgoArmorHelper;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.ChatFormatting;
@@ -37,15 +38,17 @@ public class ArmyInBlackCurio extends BaseEgoCurio {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("  • 最大精神值 + 5").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 攻击速度 + 5").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 装备全套“粉红军备”时，E.G.O武器“粉红军备”的攻击力将提高15点").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("套装效果（装备+武器+饰品）：").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("  • 玩家进行任意工作时，成功率提高10%。工作失误造成的伤害更改为1点。").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 玩家使用武器“粉红军备”命中生物后，恢复10点生命值与精神值。若生命值低于50%则改为每次溅射都会恢复3点精神值与生命值。").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 当玩家精神值全满时，单次受伤不会超过生命值30%。").withStyle(ChatFormatting.LIGHT_PURPLE));
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.effects", ChatFormatting.YELLOW);
+        for (int index = 1; index <= 3; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.army_in_black_curio.effect." + index,
+                    ChatFormatting.GREEN);
+        }
+        EgoTooltipUtil.blank(tooltip);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.full_set_effect", ChatFormatting.AQUA);
+        for (int index = 1; index <= 3; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.army_in_black_curio.set." + index,
+                    ChatFormatting.LIGHT_PURPLE);
+        }
         super.appendHoverText(stack, level, tooltip, flag);
     }
 

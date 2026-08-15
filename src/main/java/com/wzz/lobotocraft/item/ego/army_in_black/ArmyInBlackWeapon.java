@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.item.ego.base.AiRangedEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
@@ -70,8 +71,9 @@ public class ArmyInBlackWeapon extends BaseEgoWeapon implements AiRangedEgoWeapo
             return InteractionResultHolder.pass(stack);
         }
         if (isOnCooldown(player, stack)) {
-            player.displayClientMessage(
-                    Component.literal("§a冷却中,还剩:" + getRemainingCooldown(player, stack) + " tick"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.ego.cooldown_ticks",
+                    getRemainingCooldown(player, stack)), true);
             return InteractionResultHolder.pass(stack);
         }
         startCooldown(player, stack);
@@ -263,17 +265,16 @@ public class ArmyInBlackWeapon extends BaseEgoWeapon implements AiRangedEgoWeapo
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         if (!ClientInputUtil.isShiftPressed()) {
-            p_41423_.add(Component.literal("§7粉红色象征着温暖与爱。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7但这把粉红涂装的枪真的能够代表爱吗？"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7伤害他人的工具又该如何传递爱与和平？"));
-            p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
-            p_41423_.add(Component.literal("§f白色伤害：24"));
+            for (int index = 1; index <= 3; index++) {
+                EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.army_in_black_weapon.story." + index);
+                if (index < 3) EgoTooltipUtil.blank(p_41423_);
+            }
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.common.shift_details");
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.army_in_black_weapon.damage");
         } else {
-            p_41423_.add(Component.literal("§6※当玩家生命值大于50%时，该武器射出的子弹会造成白色伤害，对单个目标造成的伤害提高300%。"));
-            p_41423_.add(Component.literal("§6※当玩家生命值小于50%时，武器射出的子弹会造成黑色伤害，对多个目标造成溅射伤害，并提高伤害500%。"));
-            p_41423_.add(Component.literal("§6※每次攻击会造成2段伤害。"));
+            for (int index = 1; index <= 3; index++) {
+                EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.army_in_black_weapon.detail." + index);
+            }
         }
     }
 }

@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.queen_bee;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModArmorMaterial;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoArmor;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -69,12 +70,12 @@ public abstract class QueenBeeBaseArmor extends BaseEgoArmor {
     @Override
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
-        p_41423_.add(Component.literal("§6※受到来自”威胁“目标的攻击时，减少30%受到的伤害。"));
-        p_41423_.add(Component.literal("§7尽管王国会在历史上备受瞩目，但是又有谁会记得为它做出奉献与牺牲的工蜂呢？"));
-        p_41423_.add(Component.literal("§7旧日的荣耀仍在继续绽放光辉。"));
-        p_41423_.add(Component.literal("§c红色伤害：0.7"));
-        p_41423_.add(Component.literal("§f白色伤害：0.7"));
-        p_41423_.add(Component.literal("§5黑色伤害：0.7"));
-        p_41423_.add(Component.literal("§b蓝色伤害：1.5"));
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.queen_bee_armor.detail");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.queen_bee_armor.story.1");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.queen_bee_armor.story.2");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.queen_bee_armor.resistance.red");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.queen_bee_armor.resistance.white");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.queen_bee_armor.resistance.black");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.queen_bee_armor.resistance.pale");
     }
 }

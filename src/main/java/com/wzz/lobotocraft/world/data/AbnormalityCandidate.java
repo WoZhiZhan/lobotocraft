@@ -12,6 +12,7 @@ public class AbnormalityCandidate {
     public UUID uuid;
     public String code = "";
     public String name = "";
+    public String nameKey = "";
     public int riskColor = 0xFFAAAAAA;
     public String riskName = "";
     /** 离信标的直线距离（格） */
@@ -28,6 +29,7 @@ public class AbnormalityCandidate {
         buf.writeUUID(uuid);
         buf.writeUtf(code, 32);
         buf.writeUtf(name, 64);
+        buf.writeUtf(nameKey, 128);
         buf.writeInt(riskColor);
         buf.writeUtf(riskName, 32);
         buf.writeVarInt(distance);
@@ -40,6 +42,7 @@ public class AbnormalityCandidate {
         candidate.uuid = buf.readUUID();
         candidate.code = buf.readUtf(32);
         candidate.name = buf.readUtf(64);
+        candidate.nameKey = buf.readUtf(128);
         candidate.riskColor = buf.readInt();
         candidate.riskName = buf.readUtf(32);
         candidate.distance = buf.readVarInt();

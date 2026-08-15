@@ -7,6 +7,7 @@ import com.wzz.lobotocraft.employee.FacilityManagementService;
 import com.wzz.lobotocraft.employee.FacilityPersonnelData;
 import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
 import com.wzz.lobotocraft.entity.abnormality.EntitySnowQueen;
+import com.wzz.lobotocraft.item.ego.base.IEgoLevelItem;
 import com.wzz.lobotocraft.network.IMessage;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import net.minecraft.network.FriendlyByteBuf;
@@ -91,10 +92,11 @@ public final class AssignAiEgoPacket implements IMessage {
             sender.sendSystemMessage(Component.translatable("message.lobotocraft.ai_ego.invalid"));
             return;
         }
-        var missing = EgoLoadoutService.missingRequirements(employee, stock.itemIds());
+        var missing = EgoLoadoutService.missingRequirementComponents(employee, stock.itemIds());
         if (!missing.isEmpty()) {
             sender.sendSystemMessage(Component.translatable(
-                    "message.lobotocraft.ai_ego.requirements_missing", String.join(", ", missing)));
+                    "message.lobotocraft.ai_ego.requirements_missing",
+                    IEgoLevelItem.joinMissingLevels(missing)));
             return;
         }
         String previousCode = repository.assignedCode(employeeId, equipmentType);

@@ -682,7 +682,6 @@ public final class EgoAssignmentScreen extends Screen {
             ItemStack icon = iconStack(stock);
             if (!icon.isEmpty()) graphics.renderItem(icon, x + 5, y + 11);
         }
-        String nameKey = "weapon".equals(type) ? "WeaponEgoName" : "ArmorEgoName";
         graphics.drawString(font, tr("weapon".equals(type)
                         ? "equipment.lobotocraft.ego_weapon"
                         : "equipment.lobotocraft.ego_armor"),
@@ -693,7 +692,7 @@ public final class EgoAssignmentScreen extends Screen {
             graphics.drawString(font, riskName, nameX, y + 20, risk(stock).getColor(), false);
             nameX += font.width(riskName) + 5;
         }
-        drawMarqueeText(graphics, blankAsNone(employee.getString(nameKey)), nameX, y + 20,
+        drawMarqueeText(graphics, employeeEgoName(employee, type), nameX, y + 20,
                 Math.max(1, x + width - 5 - nameX), TEXT);
 
         if (stock == null) {
@@ -875,8 +874,8 @@ public final class EgoAssignmentScreen extends Screen {
                     Component.translatable("screen.lobotocraft.ego_assignment.employee_stats_tj",
                             statGrade(employee, "TemperanceLevel"), statGrade(employee, "JusticeLevel")),
                     Component.translatable("screen.lobotocraft.ego_assignment.employee_equipment",
-                            blankAsNone(employee.getString("WeaponEgoName")),
-                            blankAsNone(employee.getString("ArmorEgoName")))
+                            employeeEgoName(employee, "weapon"),
+                            employeeEgoName(employee, "armor"))
             );
             graphics.renderComponentTooltip(font, lines, mouseX, mouseY);
         }
@@ -1276,8 +1275,17 @@ public final class EgoAssignmentScreen extends Screen {
     }
 
     private String displayName(CompoundTag stock) {
+        String key = stock.getString("DisplayNameKey");
+        if (!key.isBlank()) return tr(key);
         String value = stock.getString("DisplayName");
         return value.isBlank() ? tr("screen.lobotocraft.common.none") : value;
+    }
+
+    private String employeeEgoName(CompoundTag employee, String type) {
+        String prefix = "weapon".equals(type) ? "Weapon" : "Armor";
+        String key = employee.getString(prefix + "EgoNameKey");
+        if (!key.isBlank()) return tr(key);
+        return blankAsNone(employee.getString(prefix + "EgoName"));
     }
 
     private void renderEmployeeFace(GuiGraphics graphics, CompoundTag employee,

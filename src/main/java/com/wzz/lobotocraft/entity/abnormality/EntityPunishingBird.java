@@ -218,7 +218,8 @@ public class EntityPunishingBird extends AbstractAbnormality {
     public void onWorkComplete(ServerPlayer player, WorkType workType, WorkResult result) {
         if (MentalValueUtil.isPanic(player)) {
             decreaseQliphothCounter(1);
-            player.sendSystemMessage(Component.literal("§c你陷入了恐慌，惩戒鸟的计数器-1..."));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.punishing_bird.panic_counter"));
         }
     }
 
@@ -336,7 +337,8 @@ public class EntityPunishingBird extends AbstractAbnormality {
         this.level().playSound(null, this.getX(), this.getY(), this.getZ(),
                 SoundEvents.ENDER_DRAGON_GROWL, SoundSource.HOSTILE, 1.5F, 0.8F);
 
-        broadcastMessage("§c§l惩戒鸟被激怒了！它开始追击 " + attacker.getName().getString() + "！");
+        broadcastMessage(Component.translatable(
+            "message.lobotocraft.punishing_bird.angered", attacker.getDisplayName()));
 
         setTarget(attacker);
         setCurrentAction("idle");
@@ -506,7 +508,8 @@ public class EntityPunishingBird extends AbstractAbnormality {
 
                 if (!MentalValueUtil.isPanic(target) && currentHelpTarget != null &&
                         currentHelpTarget.equals(target.getUUID())) {
-                    target.sendSystemMessage(Component.literal("§a惩戒鸟帮助你恢复了精神！"));
+                    target.sendSystemMessage(Component.translatable(
+                            "message.lobotocraft.abnormality.punishing_bird.mental_restored"));
                 }
             });
         }
@@ -543,7 +546,8 @@ public class EntityPunishingBird extends AbstractAbnormality {
         }
         angryTimer--;
         if (angryTimer <= 0) {
-            broadcastMessage("§e惩戒鸟的愤怒平息了，它返回收容室...");
+            broadcastMessage(Component.translatable(
+                "message.lobotocraft.punishing_bird.calm_return"));
             startReturningToNest();
             return;
         }
@@ -628,7 +632,8 @@ public class EntityPunishingBird extends AbstractAbnormality {
             bestReturnDistanceSqr = this.distanceToSqr(Vec3.atCenterOf(returnTarget));
         }
         setCurrentAction("fly");
-        broadcastMessage("§e惩戒鸟正在返回收容室...");
+        broadcastMessage(Component.translatable(
+            "message.lobotocraft.punishing_bird.returning"));
     }
 
     private void finishReturningToNest() {

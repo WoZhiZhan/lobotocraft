@@ -96,6 +96,7 @@ public class BlueStarSetEvent {
         player.invulnerableTime = 40;
         player.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 40, 4, false, false));
         player.displayClientMessage(
-                net.minecraft.network.chat.Component.literal("§b新星之声：自绝望中重燃！"), true);
+                net.minecraft.network.chat.Component.translatable(
+                        "message.lobotocraft.blue_star.set_revive"), true);
     }
 }

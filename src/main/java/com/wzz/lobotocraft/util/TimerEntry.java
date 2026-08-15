@@ -41,11 +41,19 @@ public abstract class TimerEntry<T extends LivingEntity> {
     private static final class TimerState<E extends LivingEntity> {
         private final E entity;
         private ScheduledFuture<?> repeatingFuture;
-        private ScheduledFuture<?> endFuture;
+        private final long endGameTick;
+        private final long intervalTicks;
+        private long nextExecutionTick;
         private boolean cancelled;
 
-        private TimerState(E entity) {
+        private TimerState(E entity, int delayMs, int durationMs, int executionsPerSecond) {
             this.entity = entity;
+            long now = entity.level().getGameTime();
+            long delayTicks = millisecondsToTicks(delayMs);
+            long durationTicks = Math.max(1L, millisecondsToTicks(durationMs));
+            this.nextExecutionTick = now + delayTicks;
+            this.endGameTick = this.nextExecutionTick + durationTicks;
+            this.intervalTicks = Math.max(1L, Math.round(20.0D / executionsPerSecond));
         }
 
         private synchronized void setRepeatingFuture(ScheduledFuture<?> future) {
@@ -53,21 +61,26 @@ public abstract class TimerEntry<T extends LivingEntity> {
             else repeatingFuture = future;
         }
 
-        private synchronized void setEndFuture(ScheduledFuture<?> future) {
-            if (cancelled) future.cancel(false);
-            else endFuture = future;
-        }
-
         private synchronized void cancelFutures() {
             cancelled = true;
             if (repeatingFuture != null) repeatingFuture.cancel(false);
-            if (endFuture != null) endFuture.cancel(false);
         }
 
         private synchronized long getRemainingDelay(TimeUnit unit) {
-            if (cancelled || endFuture == null || endFuture.isDone() || endFuture.isCancelled()) return -1L;
-            return Math.max(0L, endFuture.getDelay(unit));
+            if (cancelled) return -1L;
+            long remainingTicks = Math.max(0L, endGameTick - entity.level().getGameTime());
+            return unit.convert(remainingTicks * 50L, TimeUnit.MILLISECONDS);
         }
+
+        private synchronized boolean isDue(long gameTime) {
+            if (cancelled || gameTime < nextExecutionTick) return false;
+            nextExecutionTick = gameTime + intervalTicks;
+            return true;
+        }
+    }
+
+    private static long millisecondsToTicks(long milliseconds) {
+        return Math.max(0L, (milliseconds + 49L) / 50L);
     }
 
     private static ScheduledExecutorService createScheduler() {
@@ -131,7 +144,7 @@ public abstract class TimerEntry<T extends LivingEntity> {
         Class<? extends TimerEntry<?>> entryClass = (Class<? extends TimerEntry<?>>) this.getClass();
         globalEntityEntryMap.computeIfAbsent(entryClass, k -> new ConcurrentHashMap<>());
         Map<UUID, TimerEntry<?>> entryMap = globalEntityEntryMap.get(entryClass);
-        TimerState<T> state = new TimerState<>(entity);
+        TimerState<T> state = new TimerState<>(entity, delay, duration, executionsPerSecond);
         if (timerMap.putIfAbsent(uuid, state) != null) {
             classLock.remove(uuid, true);
             return false;
@@ -140,20 +153,13 @@ public abstract class TimerEntry<T extends LivingEntity> {
         try {
             onStart(entity);
             if (!isCurrent(uuid, state)) return false;
-            long period = Math.max(1, 1000L / executionsPerSecond);
             ScheduledFuture<?> skillTask = currentScheduler.scheduleAtFixedRate(
                     () -> executeTaskSafely(uuid, state),
-                    delay,
-                    period,
+                    0L,
+                    50L,
                     TimeUnit.MILLISECONDS
             );
             state.setRepeatingFuture(skillTask);
-            ScheduledFuture<?> endTask = currentScheduler.schedule(
-                    () -> stopTimerSafely(uuid, state),
-                    delay + duration,
-                    TimeUnit.MILLISECONDS
-            );
-            state.setEndFuture(endTask);
             return true;
         } catch (Exception e) {
             cancelState(uuid, state, CancellationReason.START_FAILURE, true);
@@ -195,6 +201,12 @@ public abstract class TimerEntry<T extends LivingEntity> {
             if (!isCurrent(entityId, state)) return;
             T entity = state.entity;
             if (isEntityValid(entity)) {
+                long gameTime = entity.level().getGameTime();
+                if (gameTime >= state.endGameTick) {
+                    stopTimerSafely(entityId, state);
+                    return;
+                }
+                if (!state.isDue(gameTime)) return;
                 this.executions++;
                 if (requireMainThread) {
                     ThreadExecutor.executeOnMainThread(entity, () -> {

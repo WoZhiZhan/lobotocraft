@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.queen_bee;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.item.AttributeEntry;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
@@ -34,14 +35,17 @@ public class QueenBeeCurio extends BaseEgoCurio {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("  • 最大生命值 + 2").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 最大精神值 + 4").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("套装效果（装备+武器+饰品）：").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("  • 玩家造成伤害命中目标后，为其施加孢子效果。使其无法恢复生命值，减少10%移动速度，且每2秒造成8点红色dot伤害，持续10秒。").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 攻击威胁时，若目标对应伤害抗性大于0.0时，所有dot类型的伤害将不再受到抗性的影响。").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 当玩家生命值低于20%时，会被敌对生物优先标记为仇恨目标。且受到的伤害提高30%。").withStyle(ChatFormatting.LIGHT_PURPLE));
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.effects", ChatFormatting.YELLOW);
+        for (int index = 1; index <= 2; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.queen_bee_curio.effect." + index,
+                    ChatFormatting.GREEN);
+        }
+        EgoTooltipUtil.blank(tooltip);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.full_set_effect", ChatFormatting.AQUA);
+        for (int index = 1; index <= 3; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.queen_bee_curio.set." + index,
+                    ChatFormatting.LIGHT_PURPLE);
+        }
         super.appendHoverText(stack, level, tooltip, flag);
     }
 

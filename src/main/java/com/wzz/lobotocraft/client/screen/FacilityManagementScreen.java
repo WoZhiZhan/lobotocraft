@@ -293,7 +293,8 @@ public final class FacilityManagementScreen extends Screen {
                 "FACILITY CONTROL", tr("screen.lobotocraft.facility.subtitle"));
         boolean llmEnabled = snapshot.getBoolean("LlmEnabled");
         LobotomyUiRenderer.drawTag(graphics, font, panelX + LobotomyUiTheme.PAD, panelY + 44,
-                llmEnabled ? "LLM READY" : "LLM OFFLINE",
+                tr(llmEnabled ? "screen.lobotocraft.facility.llm.ready"
+                        : "screen.lobotocraft.facility.llm.offline"),
                 llmEnabled ? LobotomyUiTheme.ACCENT : LobotomyUiTheme.TEXT_MUTED);
         renderTabs(graphics, mouseX, mouseY);
         if (departmentButton != null) departmentButton.active = hasAiEmployees();
@@ -498,7 +499,8 @@ public final class FacilityManagementScreen extends Screen {
 
     private EmployeeRowView buildEmployeeRow(CompoundTag entry) {
         boolean ai = "AI_EMPLOYEE".equals(entry.getString("ActorType"));
-        String deptId = departmentId(entry.getString("Department"));
+        String deptId = entry.getString("DepartmentId");
+        if (deptId.isBlank()) deptId = departmentId(entry.getString("Department"));
         boolean deptKnown = deptId != null && !"unassigned".equals(deptId);
         AgentState state = agentState(entry, ai);
         String[] statValues = new String[STAT_KEYS.length];
@@ -506,10 +508,6 @@ public final class FacilityManagementScreen extends Screen {
             statValues[s] = String.valueOf(entry.getInt(STAT_KEYS[s]));
         }
         String stateText = state == AgentState.IDLE ? "" : tr(state.translationKey);
-        if (state == AgentState.MOVING) {
-            String purpose = entry.getString("NavigationPurpose");
-            if (!purpose.isBlank()) stateText = tr("status.lobotocraft.moving_detail", purpose);
-        }
         String department = departmentName(entry);
         return new EmployeeRowView(
                 entry.hasUUID("Id") ? entry.getUUID("Id") : null, ai,
@@ -518,8 +516,7 @@ public final class FacilityManagementScreen extends Screen {
                 tr(ai ? "screen.lobotocraft.facility.employee.ai"
                         : "screen.lobotocraft.facility.employee.player", department),
                 tr("screen.lobotocraft.facility.employee.ego",
-                        emptyAsNone(entry.getString("WeaponEgoName")),
-                        emptyAsNone(entry.getString("ArmorEgoName"))),
+                        egoName(entry, "Weapon"), egoName(entry, "Armor")),
                 roman(Math.max(1, entry.getInt("EmployeeLevel"))),
                 stateText, statValues,
                 entry.getFloat("Health"), entry.getFloat("MaxHealth"),
@@ -753,10 +750,6 @@ public final class FacilityManagementScreen extends Screen {
     /** tooltip 用状态文案；与行内 FilterText 走同一套 AgentState 判定，避免两处措辞不一致。 */
     private String statusText(CompoundTag entry) {
         AgentState state = agentState(entry, "AI_EMPLOYEE".equals(entry.getString("ActorType")));
-        if (state == AgentState.MOVING) {
-            String purpose = entry.getString("NavigationPurpose");
-            if (!purpose.isBlank()) return tr("status.lobotocraft.moving_parenthetical", purpose);
-        }
         return tr(state.translationKey);
     }
 
@@ -909,8 +902,7 @@ public final class FacilityManagementScreen extends Screen {
                     departmentName(entry), statusText(entry),
                     Math.round(entry.getFloat("Health")), Math.round(entry.getFloat("MaxHealth")),
                     Math.round(entry.getFloat("Mental")), Math.round(entry.getFloat("MaxMental")),
-                    emptyAsNone(entry.getString("WeaponEgoName")),
-                    emptyAsNone(entry.getString("ArmorEgoName")))
+                    egoName(entry, "Weapon"), egoName(entry, "Armor"))
                     : tr("screen.lobotocraft.facility.employee.player_uncommandable");
             graphics.renderTooltip(font, Component.literal(detail), mouseX, mouseY);
         } else if (activeTab != 0 && mouseX >= panelX + 18 && mouseX < panelX + panelWidth - 14) {
@@ -927,6 +919,12 @@ public final class FacilityManagementScreen extends Screen {
 
     private String emptyAsNone(String value) {
         return value == null || value.isBlank() ? tr("screen.lobotocraft.common.none") : value;
+    }
+
+    private String egoName(CompoundTag entry, String prefix) {
+        String key = entry.getString(prefix + "EgoNameKey");
+        if (!key.isBlank()) return tr(key);
+        return emptyAsNone(entry.getString(prefix + "EgoName"));
     }
 
     private String departmentName(CompoundTag entry) {

@@ -3,7 +3,9 @@ package com.wzz.lobotocraft.network.packet;
 import com.wzz.lobotocraft.block.entity.RoomMarkerBlockEntity;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
+import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.network.IMessage;
+import com.wzz.lobotocraft.network.RequestThrottle;
 import com.wzz.lobotocraft.work.AbnormalityWorkHandler;
 import com.wzz.lobotocraft.world.RoomChunkTickets;
 import com.wzz.lobotocraft.world.data.CompanyRoomData;
@@ -56,6 +58,9 @@ public class OpenRoomAbnormalityInfoPacket implements IMessage {
     public void run(net.minecraftforge.network.NetworkEvent.Context ctx) {
         ServerPlayer player = ctx.getSender();
         if (player == null) return;
+        if (!RequestThrottle.allow(player, "room-abnormality-info", 250L)) return;
+        if (FacilityAccessService.containmentAccess(player.server, dimension, roomPos)
+                != FacilityAccessService.ContainmentAccess.OPEN) return;
 
         if (CompanyRoomData.get(player.serverLevel()).findRoom(dimension, roomPos) == null) return;
         ServerLevel target = player.server.getLevel(ResourceKey.create(Registries.DIMENSION, dimension));

@@ -169,7 +169,8 @@ public class EntityDarkSkadi extends AbstractAbnormality {
         if (player instanceof ServerPlayer) {
             float heal = 3 + this.random.nextInt(4); // 3-6
             player.heal(heal);
-            player.sendSystemMessage(Component.literal("§b斯卡蒂的歌声抚平了你的伤口。§r(+" + (int) heal + " 生命)"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.skadi.healed", (int) heal));
         }
     }
 
@@ -189,7 +190,8 @@ public class EntityDarkSkadi extends AbstractAbnormality {
                 -1, 0, false, false, true
         ));
         SkadiBlessingManager.bind(player, this);
-        player.sendSystemMessage(Component.literal("§9你获得了「同葬无光之愿」。"));
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.abnormality.skadi.blessing_obtained"));
     }
 
     @Override
@@ -234,29 +236,31 @@ public class EntityDarkSkadi extends AbstractAbnormality {
             boolean lowMental = MentalValueUtil.getMentalValue(player)
                     < MentalValueUtil.getEffectiveMaxMentalValue(player) * 0.5f;
 
-            String msg;
+            String messageKey;
             if (lowHp || lowMental) {
                 // 生命值/精神值低于一半:立刻随机出现担忧台词
-                String[] worried = {
-                        "博士，离开吧。",
-                        "博士......来这里。",
-                        "这里迟早也会回归它原来的样子。",
-                        "放心吧。不会有问题的。"
+                String[] worriedKeys = {
+                        "message.lobotocraft.abnormality.skadi.worried.1",
+                        "message.lobotocraft.abnormality.skadi.worried.2",
+                        "message.lobotocraft.abnormality.skadi.worried.3",
+                        "message.lobotocraft.abnormality.skadi.worried.4"
                 };
-                msg = worried[this.random.nextInt(worried.length)];
+                messageKey = worriedKeys[this.random.nextInt(worriedKeys.length)];
             } else {
                 // 状态健康:每30秒随机出现陪伴台词
-                String[] calm = {
-                        "这样的我，在这里呆着会打扰到你吗？会让你回想起那些不堪的过去吗？",
-                        "我......想你允许我陪伴在你身边。等时候到了，我们就一起离开这里，好吗？",
-                        "过去的你想过这样的未来吗，博士？哪怕现在的你只会恨我。我不怕你的恨，博士。",
-                        "如果想的话，就这样继续恨下去吧......在你依然还能恨的时候。",
-                        "我的血亲和我的歌，一点都不可怕。人才可怕。",
-                        "梦......你会有怎样一个梦呢？你现在身处何方？那里......会不会也是一个梦呢？"
+                String[] calmKeys = {
+                        "message.lobotocraft.abnormality.skadi.calm.1",
+                        "message.lobotocraft.abnormality.skadi.calm.2",
+                        "message.lobotocraft.abnormality.skadi.calm.3",
+                        "message.lobotocraft.abnormality.skadi.calm.4",
+                        "message.lobotocraft.abnormality.skadi.calm.5",
+                        "message.lobotocraft.abnormality.skadi.calm.6"
                 };
-                msg = calm[this.random.nextInt(calm.length)];
+                messageKey = calmKeys[this.random.nextInt(calmKeys.length)];
             }
-            player.sendSystemMessage(Component.literal("§3[浊心斯卡蒂] §7" + msg));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.skadi.chat",
+                    Component.translatable(messageKey)));
         }
         chatCooldown = 600; // 30秒冷却
     }
@@ -268,14 +272,16 @@ public class EntityDarkSkadi extends AbstractAbnormality {
     public void onBlessedPlayerRevive(ServerPlayer player) {
         decreaseQliphothCounter(1);
         // 复活台词
-        String[] reviveLines = {
-                "不该再有更多生命消逝了。",
-                "别把我当成灾厄。我不想让谁死去。",
-                "我们什么都保护不了。我们只能寄望于那个和谐的未来。",
-                "我们都失去了所有的家人......你愿意成为现在的我的家人吗？"
+        String[] reviveLineKeys = {
+                "message.lobotocraft.abnormality.skadi.revive.1",
+                "message.lobotocraft.abnormality.skadi.revive.2",
+                "message.lobotocraft.abnormality.skadi.revive.3",
+                "message.lobotocraft.abnormality.skadi.revive.4"
         };
-        player.sendSystemMessage(Component.literal("§3[浊心斯卡蒂] §7"
-                + reviveLines[this.random.nextInt(reviveLines.length)]));
+        String messageKey = reviveLineKeys[this.random.nextInt(reviveLineKeys.length)];
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.abnormality.skadi.chat",
+                Component.translatable(messageKey)));
 
     }
 

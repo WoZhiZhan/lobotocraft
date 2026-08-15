@@ -42,10 +42,8 @@ public class KillCommand implements ICommand {
     private static int execute(CommandSourceStack source) {
         int count = queueAllSuppressionTargets(source.getServer());
 
-        int finalCount = count;
-        source.sendSuccess(() ->
-                        Component.literal("已将 " + finalCount + " 个出逃异想体/生物加入清理队列"),
-                true);
+        source.sendSuccess(() -> Component.translatable(
+                "command.lobotocraft.kill.queued", count), true);
         return count;
     }
 

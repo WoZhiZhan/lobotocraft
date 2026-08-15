@@ -667,7 +667,8 @@ public final class DepartmentAssignmentScreen extends Screen {
         }
         drawOutline(graphics, x, y, width, height,
                 LobotomyUiRenderer.withAlpha(color, hovered ? 1.0F : 0.82F));
-        drawCenteredScaledText(graphics, risk.isBlank() ? "UNKNOWN" : risk,
+        drawCenteredScaledText(graphics, risk.isBlank()
+                        ? tr("screen.lobotocraft.common.unknown") : risk,
                 x + width / 2, y + 4, 2.0F, color, width - 8);
         graphics.fill(x + 5, y + 22, x + width - 5, y + 23,
                 LobotomyUiRenderer.withAlpha(color, 0.42F));
@@ -724,7 +725,8 @@ public final class DepartmentAssignmentScreen extends Screen {
     }
 
     private static List<Component> abnormalityTooltip(CompoundTag abnormality) {
-        String name = abnormality.getString("Name");
+        String nameKey = abnormality.getString("NameKey");
+        String name = nameKey.isBlank() ? abnormality.getString("Name") : tr(nameKey);
         if (name.isBlank()) name = abnormality.getString("Code");
         return List.of(
                 Component.literal(name),
@@ -915,7 +917,8 @@ public final class DepartmentAssignmentScreen extends Screen {
             graphics.renderItem(icon, 0, 0);
             graphics.pose().popPose();
         }
-        String name = stock.getString("DisplayName");
+        String nameKey = stock.getString("DisplayNameKey");
+        String name = nameKey.isBlank() ? stock.getString("DisplayName") : tr(nameKey);
         if (name.isBlank()) name = tr("screen.lobotocraft.common.none");
         String riskName = stock.getString("RiskLevel");
         drawUnclippedScaledText(graphics, riskName, x + 43, y + 23,
@@ -1060,7 +1063,9 @@ public final class DepartmentAssignmentScreen extends Screen {
         drawAgentSlotShell(graphics, x, y, width, height,
                 LobotomyUiRenderer.withAlpha(color, hovered ? 0.88F : 0.56F),
                 hovered ? 0.07F : 0.02F);
-        drawCenteredScaledText(graphics, "EMPTY", x + width / 2, y + 4,
+        drawCenteredScaledText(graphics,
+                tr("screen.lobotocraft.department_assignment.slot.empty"),
+                x + width / 2, y + 4,
                 2.0F, LobotomyUiRenderer.withAlpha(color, hovered ? 1.0F : 0.65F),
                 width - 8);
         int emptyW = Math.min(43, Math.max(18, width - 10));
@@ -1079,7 +1084,9 @@ public final class DepartmentAssignmentScreen extends Screen {
                                        int width, int height, int color) {
         drawAgentSlotShell(graphics, x, y, width, height,
                 LobotomyUiRenderer.withAlpha(color, 0.18F), 0.01F);
-        drawCenteredScaledText(graphics, "LOCKED", x + width / 2, y + 5,
+        drawCenteredScaledText(graphics,
+                tr("screen.lobotocraft.department_assignment.slot.locked"),
+                x + width / 2, y + 5,
                 1.6F, LobotomyUiRenderer.withAlpha(color, 0.46F), width - 8);
         drawCrispLine(graphics, x + 12, y + 42, x + width - 12, y + height - 13,
                 LobotomyUiRenderer.withAlpha(color, 0.24F));

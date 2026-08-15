@@ -26,18 +26,15 @@ public class ReloadCommand implements ICommand {
         CommandSourceStack source = context.getSource();
         ServerLevel level = source.getServer().getLevel(ModDimensions.LOBOTO_KEY);
         if (level == null) {
-            source.sendFailure(Component.literal("§cLobotomy Corporation 维度未加载，无法重置文职"));
+            source.sendFailure(Component.translatable(
+                    "command.lobotocraft.clerk_reset.dimension_missing"));
             return 0;
         }
 
         ClerkEvent.ClerkResetResult result = ClerkEvent.resetDayClerks(level);
-        source.sendSuccess(() -> Component.literal(String.format(
-                "§a已重置文职 §7(墓碑清除:%d, 状态重置:%d, 新增:%d, 移除:%d)",
-                result.clearedTombstones(),
-                result.resetClerks(),
-                result.spawnedClerks(),
-                result.removedClerks()
-        )), true);
+        source.sendSuccess(() -> Component.translatable("command.lobotocraft.clerk_reset.completed",
+                result.clearedTombstones(), result.resetClerks(),
+                result.spawnedClerks(), result.removedClerks()), true);
         return 1;
     }
 }

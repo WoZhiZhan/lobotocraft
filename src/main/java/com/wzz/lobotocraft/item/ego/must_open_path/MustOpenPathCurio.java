@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.item.ego.must_open_path;
 
 import com.wzz.lobotocraft.item.AttributeEntry;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.event.listener.MentalValueEventHandler;
 import com.wzz.lobotocraft.util.EgoArmorHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
@@ -103,19 +104,21 @@ public final class MustOpenPathCurio extends BaseEgoCurio {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("  • 最大生命值 + 10").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 攻击速度 + 20").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("套装效果（装备+武器+饰品）：").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("  • 玩家生命值提高325点，受到伤害时，玩家屏幕将不再会抖动。")
-                .withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 玩家受到或者造成伤害时，会累计“必须维系的界限”；满蓄力攻击才会增加攻击方的进度。")
-                .withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 必须维系的界限触发后，持续30秒，期间受到伤害或者造成伤害会刷新持续时间，并且只削减四分之一的无敌帧。")
-                .withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 玩家陷入恐慌后会受到自身生命值上限65%的伤害，解除恐慌并恢复5%精神值，同时清除负面状态。")
-                .withStyle(ChatFormatting.RED));
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.effects", ChatFormatting.YELLOW);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.must_open_path_curio.stats",
+                ChatFormatting.GREEN);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.must_open_path_curio.stats_attack_speed",
+                ChatFormatting.GREEN);
+        EgoTooltipUtil.blank(tooltip);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.full_set_effect", ChatFormatting.AQUA);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.must_open_path_curio.set",
+                ChatFormatting.LIGHT_PURPLE);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.must_open_path_curio.boundary",
+                ChatFormatting.LIGHT_PURPLE);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.must_open_path_curio.boundary_active",
+                ChatFormatting.LIGHT_PURPLE);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.must_open_path_curio.panic",
+                ChatFormatting.RED);
         super.appendHoverText(stack, level, tooltip, flag);
     }
 }

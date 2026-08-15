@@ -23,4 +23,8 @@ public enum WorkResult {
     public int getColor() {
         return color;
     }
+
+    public String getTranslationKey() {
+        return "work_result.lobotocraft." + name().toLowerCase(java.util.Locale.ROOT);
+    }
 }

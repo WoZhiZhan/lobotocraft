@@ -13,6 +13,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.FormattedText;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
@@ -48,6 +49,10 @@ public final class CarmenConversationOverlay {
     public static void add(String message) {
         MESSAGES.addLast(new Message(message));
         while (MESSAGES.size() > 7) MESSAGES.removeFirst();
+    }
+
+    public static void add(Component message) {
+        add(message.getString());
     }
 
     /** 退出世界时清空，否则上个存档未播完的 Carmen 播报会继续在新世界里显示。 */

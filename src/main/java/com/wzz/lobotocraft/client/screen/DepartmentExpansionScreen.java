@@ -213,7 +213,9 @@ public final class DepartmentExpansionScreen extends Screen {
         boolean compact = node.height < 56;
         graphics.drawString(font, departmentName(node.department), node.x + 10,
                 node.y + (compact ? 6 : 9), color, false);
-        String levelText = level == 0 ? "LOCKED" : "LEVEL " + roman(level);
+        String levelText = level == 0
+                ? tr("screen.lobotocraft.department_expansion.node.locked")
+                : tr("screen.lobotocraft.department_expansion.node.level", roman(level));
         graphics.drawString(font, levelText,
                 node.x + node.width - 10 - font.width(levelText), node.y + (compact ? 17 : 9),
                 level == 0 ? LOCKED : color, false);

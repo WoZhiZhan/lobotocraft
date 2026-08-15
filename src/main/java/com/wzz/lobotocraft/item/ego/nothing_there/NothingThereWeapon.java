@@ -4,6 +4,8 @@ import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.AiSpecialEgoWeapon;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
+import com.wzz.lobotocraft.item.ego.base.EgoDamageRecoveryPolicy;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -58,17 +60,16 @@ public class NothingThereWeapon extends BaseEgoWeapon implements AiSpecialEgoWea
                 p -> p.broadcastBreakEvent(EquipmentSlot.MAINHAND)
         );
         float damage = 11 + player.random.nextInt(4);
+        float healthBefore = target.getHealth();
         boolean hit = target.hurt(DamageHelper.getDamage(player, "red"), damage);
+        float damageDealt = EgoDamageRecoveryPolicy.actualHealthLoss(healthBefore, target.getHealth());
         if (!player.level().isClientSide && hit && isOnCooldown(player, stack)
                 && player.random.nextFloat() < NORMAL_HIT_COOLDOWN_RESET_CHANCE) {
             resetCooldown(stack);
-            player.displayClientMessage(Component.literal("§a拟态的特殊攻击冷却已完成！"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.ego.nothing_there.cooldown_ready"), true);
         }
-        if (!isFullEGO) {
-            player.heal(damage * 0.5f);
-        } else {
-            player.heal(damage);
-        }
+        if (damageDealt > 0.0F) player.heal(isFullEGO ? damageDealt : damageDealt * 0.5F);
         return true;
     }
 
@@ -84,8 +85,9 @@ public class NothingThereWeapon extends BaseEgoWeapon implements AiSpecialEgoWea
             return InteractionResultHolder.pass(stack);
         }
         if (isOnCooldown(player, stack)) {
-            player.displayClientMessage(
-                    Component.literal("§a冷却中,还剩:" + getRemainingCooldown(player, stack) + " tick"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.ego.cooldown_ticks",
+                    getRemainingCooldown(player, stack)), true);
             return InteractionResultHolder.pass(stack);
         }
         startCooldown(player, stack);
@@ -120,17 +122,15 @@ public class NothingThereWeapon extends BaseEgoWeapon implements AiSpecialEgoWea
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         if (!ClientInputUtil.isShiftPressed()) {
-            p_41423_.add(Component.literal("§6※右键发动特殊攻击；普通攻击命中时有15%概率完成其冷却。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7对这种怪异的类人型生物的组织仿制是失败的，"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7当那武器上不可名状的眼睛注视着你的时候，你的身体会不由得颤抖起来。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7若持有者能够将这把武器的能力发挥到极致，那么挥舞它足以造成毁灭性的后果。"));
-            p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.nothing_there_weapon.summary");
+            for (int index = 1; index <= 3; index++) {
+                EgoTooltipUtil.blank(p_41423_);
+                EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.nothing_there_weapon.story." + index);
+            }
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.common.shift_details");
         } else {
-            p_41423_.add(Component.literal("§6※右键时持有者高举大刀并重劈，对目标造成40到90点RED伤害，使用后进入冷却。"));
-            p_41423_.add(Component.literal("§6※普通攻击命中时有15%概率完成特殊攻击冷却，并回复伤害量50%的生命值；穿戴完整拟态时回复100%。"));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.nothing_there_weapon.detail.1");
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.nothing_there_weapon.detail.2");
         }
     }
 

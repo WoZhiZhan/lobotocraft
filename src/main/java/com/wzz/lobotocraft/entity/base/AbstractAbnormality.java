@@ -7,7 +7,6 @@ import com.wzz.lobotocraft.block.entity.EscapeBlockEntity;
 import com.wzz.lobotocraft.block.entity.RoomMarkerBlockEntity;
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
-import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
 import com.wzz.lobotocraft.entity.EntityRedShoesClerk;
 import com.wzz.lobotocraft.entity.ai.goal.MoveToBlackForestDoorGoal;
 import com.wzz.lobotocraft.entity.abnormality.EntityIsharmla;
@@ -132,6 +131,10 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         EntityUtil.broadcastMessage(level(), message);
     }
 
+    protected void broadcastMessage(Component message) {
+        EntityUtil.broadcastMessage(level(), message);
+    }
+
     @Override
     public boolean fireImmune() {
         return true;
@@ -161,6 +164,10 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
 
     public String getAbnormalityJadeName() {
         return this.entityData.get(DATA_JADE_NAME);
+    }
+
+    public Component getLocalizedAbnormalityName() {
+        return Component.translatable(this.getType().getDescriptionId());
     }
 
     @Override
@@ -269,7 +276,6 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
                 // Dynamic dispatch is required so subtype cleanup runs after a deferred return succeeds.
                 stopEscape();
             }
-            CoreSuppressionManager.tickMeltdown(this);
             if (this.tickCount == 1 || this.tickCount % 100 == 0) {
                 syncNearbyPlayers();
             }
@@ -557,7 +563,8 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
     }
 
     protected void broadcastEscapeMessage() {
-        EntityUtil.broadcastMessage(level,"§c§l警告！" + getAbnormalityName() + "已经出逃！");
+        EntityUtil.broadcastMessage(level(), Component.translatable(
+                "message.lobotocraft.abnormality.escaped", getLocalizedAbnormalityName()));
     }
 
     private BlockPos findAvailableEscapePosition() {
@@ -726,7 +733,7 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
                 .ifPresent(data -> {
                     int observationLevel = data.getObservationLevel(this.abnormalityCode);
                     Component displayName = observationLevel > 0
-                            ? Component.literal(this.abnormalityName)
+                            ? getLocalizedAbnormalityName()
                             : Component.literal(this.abnormalityCode);
                     sendPerPlayerName(player, displayName);
                 });
@@ -1035,12 +1042,12 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
     @Override
     public void decreaseQliphothCounter(int amount) {
         int old = qliphothCounter;
-        qliphothCounter -= amount;
-        if (qliphothCounter <= 0) {
-            qliphothCounter = 0;
+        QliphothCounterPolicy.Result result = QliphothCounterPolicy.decrease(old, amount);
+        qliphothCounter = result.value();
+        if (result.firstMeltdown()) {
             onQliphothMeltdown();
             MinecraftForge.EVENT_BUS.post(new QliphothCounterEvent(this, old, 0, true));
-        } else {
+        } else if (old != qliphothCounter) {
             MinecraftForge.EVENT_BUS.post(new QliphothCounterEvent(this, old, qliphothCounter, false));
         }
     }

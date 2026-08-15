@@ -102,6 +102,7 @@ public class RequestNearbyAbnormalitiesPacket implements IMessage {
             candidate.uuid = abnormality.getUUID();
             candidate.code = abnormality.getAbnormalityCode() == null ? "" : abnormality.getAbnormalityCode();
             candidate.name = abnormality.getAbnormalityName() == null ? "" : abnormality.getAbnormalityName();
+            candidate.nameKey = abnormality.getType().getDescriptionId();
             RiskLevel risk = abnormality.getRiskLevel();
             if (risk != null) {
                 candidate.riskName = risk.name();

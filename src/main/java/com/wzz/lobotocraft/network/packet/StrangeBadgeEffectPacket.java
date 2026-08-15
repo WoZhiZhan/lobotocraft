@@ -1,6 +1,5 @@
 package com.wzz.lobotocraft.network.packet;
 
-import com.wzz.lobotocraft.client.StrangeBadgeEffectHandler;
 import com.wzz.lobotocraft.network.IMessage;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.api.distmarker.Dist;
@@ -19,7 +18,7 @@ public class StrangeBadgeEffectPacket implements IMessage {
     @OnlyIn(Dist.CLIENT)
     @Override
     public void runClient(NetworkEvent.Context ctx) {
-        StrangeBadgeEffectHandler.triggerEffect();
+        // Protocol tombstone. The former save mutation and forced process exit are retired.
     }
 
     @Override

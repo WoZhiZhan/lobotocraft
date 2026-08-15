@@ -30,11 +30,14 @@ public class CompleteCoreSuppressionCommand implements ICommand {
         CoreSuppressionData suppression = CoreSuppressionData.get(server.overworld());
         CoreSuppressionType type = suppression.getActiveType();
         if (!suppression.isActive() || type == null) {
-            source.sendFailure(Component.literal("当前没有正在进行的核心抑制。"));
+            source.sendFailure(Component.translatable(
+                    "command.lobotocraft.core_suppression.none_active"));
             return 0;
         }
         if (!type.isImplemented() || type.getRequiredBossPhases() > 0) {
-            source.sendFailure(Component.literal(type.getDisplayName() + " 核心抑制尚未实装。"));
+            source.sendFailure(Component.translatable(
+                    "command.lobotocraft.core_suppression.unimplemented",
+                    Component.translatable(type.getTranslationKey())));
             return 0;
         }
 
@@ -48,10 +51,11 @@ public class CompleteCoreSuppressionCommand implements ICommand {
 
         FacilityManager.syncAll(server, facility);
         CoreSuppressionManager.syncAll(server);
-        source.sendSuccess(() -> Component.literal(type.getDisplayName()
-                + " 核心抑制条件已补齐（能源 " + facility.getEnergy() + "/"
-                + facility.getEnergyQuota() + "，熔毁等级 " + facility.getMeltdownLevel()
-                + "/" + type.getRequiredMeltdownLevel() + "）。"), true);
+        source.sendSuccess(() -> Component.translatable(
+                "command.lobotocraft.core_suppression.completed_conditions",
+                Component.translatable(type.getTranslationKey()), facility.getEnergy(),
+                facility.getEnergyQuota(), facility.getMeltdownLevel(),
+                type.getRequiredMeltdownLevel()), true);
         return 1;
     }
 }

@@ -168,9 +168,11 @@ public class ElevatorScreen extends Screen {
      */
     private void onConfirm() {
         if (minecraft != null && minecraft.player != null) {
-            minecraft.player.sendSystemMessage(Component.literal(
-                    "已设置电梯的传送方向为：" + (this.isUp ? "上" : "下")
-            ));
+            minecraft.player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.elevator.direction_set",
+                    Component.translatable(this.isUp
+                            ? "message.lobotocraft.elevator.direction_value.up"
+                            : "message.lobotocraft.elevator.direction_value.down")));
         }
         MessageLoader.getLoader().sendToServer(new SetElevatorPacket(this.blockPos, this.defaultDistance, this.isUp));
         this.onClose();

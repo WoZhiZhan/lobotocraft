@@ -18,7 +18,6 @@ import software.bernie.geckolib.model.GeoModel;
  */
 public class EntityBigBadWolfRenderer extends AbnormalityRenderer<EntityBigBadWolf> {
 
-    private EntityBigBadWolf wolf;
     private final GeoModel<EntityBigBadWolf> normalModel;
     private final GeoModel<EntityBigBadWolf> escapeModel;
     private final float normalScale;
@@ -38,7 +37,6 @@ public class EntityBigBadWolfRenderer extends AbnormalityRenderer<EntityBigBadWo
                           MultiBufferSource bufferSource, VertexConsumer buffer,
                           boolean isReRender, float partialTick, int packedLight,
                           int packedOverlay, float red, float green, float blue, float alpha) {
-        this.wolf = entity;
         // 显式缩放(修复 scaleHeight/scaleWidth 在多模型切换下不生效的问题)
         float s = entity.hasEscape() ? escapeScale : normalScale;
         poseStack.scale(s, s, s);
@@ -48,7 +46,8 @@ public class EntityBigBadWolfRenderer extends AbnormalityRenderer<EntityBigBadWo
 
     @Override
     public GeoModel<EntityBigBadWolf> getGeoModel() {
-        if (this.wolf != null && this.wolf.hasEscape()) {
+        EntityBigBadWolf entity = getAnimatable();
+        if (entity != null && entity.hasEscape()) {
             return this.escapeModel;
         }
         return this.normalModel;

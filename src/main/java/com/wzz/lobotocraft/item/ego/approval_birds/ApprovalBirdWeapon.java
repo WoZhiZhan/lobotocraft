@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.approval_birds;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.item.ego.base.AiSpecialEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
@@ -79,7 +80,8 @@ public class ApprovalBirdWeapon extends BaseEgoWeapon implements AiSpecialEgoWea
                 player.getServer().execute(() -> {
                     float f = player.random.nextFloat();
                     if (f <= 0.4f && stack.getOrCreateTag().getInt("UseTick") > 0) {
-                        player.displayClientMessage(Component.literal("§a特殊攻击的冷却提前解除了！"), false);
+                        player.displayClientMessage(Component.translatable(
+                                "message.lobotocraft.ego.approval_bird.cooldown_ready"), false);
                         player.playSound(SoundEvents.PLAYER_LEVELUP);
                         stack.getOrCreateTag().putInt("UseTick", 0);
                     }
@@ -118,8 +120,9 @@ public class ApprovalBirdWeapon extends BaseEgoWeapon implements AiSpecialEgoWea
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (isOnCooldown(player, stack)) {
-            player.displayClientMessage(
-                    Component.literal("§a冷却中,还剩:" + getRemainingCooldown(player, stack) + " tick"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.ego.cooldown_ticks",
+                    getRemainingCooldown(player, stack)), true);
             return InteractionResultHolder.pass(stack);
         }
         if (!canUseItem(player))
@@ -211,18 +214,16 @@ public class ApprovalBirdWeapon extends BaseEgoWeapon implements AiSpecialEgoWea
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> components, TooltipFlag flag) {
         super.appendHoverText(stack, level, components, flag);
         if (ClientInputUtil.isShiftPressed()) {
-            components.add(Component.literal("§6※这把武器每次满蓄力攻击时会额外造成4段蓝色伤害（由这把武器造成的灵魂伤害在基础数值上额外附带对方生命值上限2%-3%的蓝色伤害，最高3点）。"));
-            components.add(Component.literal(""));
-            components.add(Component.literal("§6※这把武器右键时使用特殊攻击，持有者对目标进行一次劈砍后接两次戳刺和两次劈砍，造成2次7-10点蓝色伤害和3次2-4点蓝色伤害（由这把武器特殊攻击造成的灵魂伤害在基础数值上额外附带对方生命值上限7%-10%的蓝色伤害，最高24点）。"));
-            components.add(Component.literal("§7特殊攻击使用后武器进入60s冷却，可以左键无法右键，每次满蓄力左键攻击有40%的概率解除冷却"));
+            EgoTooltipUtil.add(components, "tooltip.lobotocraft.approval_bird_weapon.detail.1");
+            EgoTooltipUtil.blank(components);
+            EgoTooltipUtil.add(components, "tooltip.lobotocraft.approval_bird_weapon.detail.2");
+            EgoTooltipUtil.add(components, "tooltip.lobotocraft.approval_bird_weapon.detail.3");
             return;
         }
-        components.add(Component.literal("§7这把武器象征着审判鸟的公平制裁，这也意味着它需要去权衡全部的罪恶。"));
-        components.add(Component.literal("§7当这把武器穿过敌人的身体时，它能一并抹去敌人身上所携的罪恶之痕。"));
-        components.add(Component.literal("§7只有公司中最公正无私的人才能拿起这把E.G.O武器。"));
-        components.add(Component.literal("§7不要试着移去缠在这把武器上的绷带，它掩盖着那些属于过去的，不应被人所了解的悲哀记忆。"));
-        components.add(Component.literal("§7这把武器也在寻求着，渴望着为所有人带来和平与公正，就如同审判鸟的初衷一样..."));
-        components.add(Component.literal("§7按住<Shift>查看详情"));
-        components.add(Component.literal("§b蓝色伤害：2-4"));
+        for (int index = 1; index <= 5; index++) {
+            EgoTooltipUtil.add(components, "tooltip.lobotocraft.approval_bird_weapon.story." + index);
+        }
+        EgoTooltipUtil.add(components, "tooltip.lobotocraft.common.shift_details");
+        EgoTooltipUtil.add(components, "tooltip.lobotocraft.approval_bird_weapon.damage");
     }
 }

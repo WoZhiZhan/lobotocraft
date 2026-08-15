@@ -37,9 +37,10 @@ public class CaptureUnitItem extends Item {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level p_41422_, List<Component> list, TooltipFlag p_41424_) {
         super.appendHoverText(stack, p_41422_, list, p_41424_);
-        list.add(Component.literal("§7添加了抑制器能量的捕捉单元，可以收容一只未出逃的异想体携带在身上。"));
+        list.add(Component.translatable("tooltip.lobotocraft.capture_unit.description"));
         if (stack.getOrCreateTag().contains(ENTITY_UUID)) {
-            list.add(Component.literal("§7当前已捕获的异想体编号：" + stack.getOrCreateTag().getString(ENTITY_CODE)));
+            list.add(Component.translatable("tooltip.lobotocraft.capture_unit.captured_code",
+                    stack.getOrCreateTag().getString(ENTITY_CODE)));
         }
     }
 
@@ -53,20 +54,20 @@ public class CaptureUnitItem extends Item {
     @Override
     public InteractionResult interactLivingEntity(ItemStack stack, Player player, LivingEntity living, InteractionHand hand) {
         if (CoreSuppressionManager.isDeviceRestricted(player)) {
-            player.displayClientMessage(Component.literal("§c核心抑制期间无法使用捕捉单元。"), true);
+            player.displayClientMessage(Component.translatable("message.lobotocraft.capture_unit.restricted"), true);
             return InteractionResult.FAIL;
         }
         if (stack.getOrCreateTag().contains(ENTITY_UUID)) {
-            player.displayClientMessage(Component.literal("§c捕获失败，当前已有捕获的异想体"), true);
+            player.displayClientMessage(Component.translatable("message.lobotocraft.capture_unit.occupied"), true);
             return InteractionResult.FAIL;
         }
         if (living instanceof AbstractAbnormality abnormality) {
             if (abnormality.hasEscape()) {
-                player.displayClientMessage(Component.literal("§c捕获失败！"), true);
+                player.displayClientMessage(Component.translatable("message.lobotocraft.capture_unit.escaped"), true);
                 return InteractionResult.FAIL;
             }
         } else {
-            player.displayClientMessage(Component.literal("§c目标实体不是异想体，无法捕获！"), true);
+            player.displayClientMessage(Component.translatable("message.lobotocraft.capture_unit.not_abnormality"), true);
             return InteractionResult.PASS;
         }
         return super.interactLivingEntity(stack, player, living, hand);
@@ -81,7 +82,7 @@ public class CaptureUnitItem extends Item {
             return InteractionResult.SUCCESS;
         }
         if (CoreSuppressionManager.isDeviceRestricted(player)) {
-            player.displayClientMessage(Component.literal("§c核心抑制期间无法使用捕捉单元。"), true);
+            player.displayClientMessage(Component.translatable("message.lobotocraft.capture_unit.restricted"), true);
             return InteractionResult.FAIL;
         }
         if (!(level instanceof ServerLevel serverLevel)) {
@@ -111,16 +112,16 @@ public class CaptureUnitItem extends Item {
                         tag.remove(ENTITY_TYPE);
                         tag.remove(ENTITY_NBT);
                         player.playSound(SoundEvents.BOTTLE_EMPTY, 1.0f, 1.0f);
-                        player.displayClientMessage(Component.literal("§a已释放异想体"), true);
+                        player.displayClientMessage(Component.translatable("message.lobotocraft.capture_unit.released"), true);
                         return InteractionResult.SUCCESS;
                     }
                 }
             } catch (Exception e) {
-                player.displayClientMessage(Component.literal("§c释放失败：实体数据损坏"), true);
+                player.displayClientMessage(Component.translatable("message.lobotocraft.capture_unit.corrupt"), true);
                 e.printStackTrace();
             }
         }
-        player.displayClientMessage(Component.literal("§c错误：异想体数据已失效，捕捉单元已重置"), true);
+        player.displayClientMessage(Component.translatable("message.lobotocraft.capture_unit.reset"), true);
         tag.remove(ENTITY_UUID);
         tag.remove(ENTITY_CODE);
         tag.remove(ENTITY_TYPE);

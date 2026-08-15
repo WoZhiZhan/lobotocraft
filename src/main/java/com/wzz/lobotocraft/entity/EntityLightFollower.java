@@ -15,6 +15,7 @@ import java.util.UUID;
 public class EntityLightFollower extends Entity {
     private UUID ownerUUID;
     private int lightLevel;
+    private BlockPos lastLightPos;
     
     public EntityLightFollower(EntityType<?> type, Level level) {
         super(type, level);
@@ -43,12 +44,14 @@ public class EntityLightFollower extends Entity {
             if (owner instanceof LivingEntity living && owner.isAlive()) {
                 this.setPos(living.getX(), living.getY() + 1, living.getZ());
                 BlockPos pos = this.blockPosition();
+                if (lastLightPos != null && !lastLightPos.equals(pos)) clearLight(lastLightPos);
                 if (level().getBlockState(pos).isAir()) {
                     level().setBlock(pos, 
                         Blocks.LIGHT.defaultBlockState()
                             .setValue(LightBlock.LEVEL, lightLevel),
                         3);
                 }
+                lastLightPos = pos.immutable();
             } else {
                 this.discard();
             }
@@ -59,20 +62,28 @@ public class EntityLightFollower extends Entity {
     protected void readAdditionalSaveData(CompoundTag compoundTag) {
         this.ownerUUID = compoundTag.getUUID("OwnerUUID");
         this.lightLevel = compoundTag.getInt("LightLevel");
+        if (compoundTag.contains("LastLightPos")) {
+            this.lastLightPos = BlockPos.of(compoundTag.getLong("LastLightPos"));
+        }
     }
 
     @Override
     protected void addAdditionalSaveData(CompoundTag compoundTag) {
         compoundTag.putUUID("OwnerUUID", this.ownerUUID);
         compoundTag.putInt("LightLevel", this.lightLevel);
+        if (lastLightPos != null) compoundTag.putLong("LastLightPos", lastLightPos.asLong());
     }
 
     @Override
     public void remove(Entity.RemovalReason reason) {
-        BlockPos pos = this.blockPosition();
-        if (level().getBlockState(pos).is(Blocks.LIGHT)) {
+        if (lastLightPos != null) clearLight(lastLightPos);
+        clearLight(this.blockPosition());
+        super.remove(reason);
+    }
+
+    private void clearLight(BlockPos pos) {
+        if (pos != null && level().getBlockState(pos).is(Blocks.LIGHT)) {
             level().setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
         }
-        super.remove(reason);
     }
 }

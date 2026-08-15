@@ -12,6 +12,7 @@ import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.world.data.OrdealData;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -77,9 +78,9 @@ public class VioletNoonEvent {
         data.startVioletMidday(spawned);
 
         showVioletNoonTitle(server,
-                "紫罗兰的正午",
-                "请给我们爱！！！",
-                "我们听见了弱者的挣扎与悲鸣，向它们乞求爱与慈悲吧。");
+                "ordeal.lobotocraft.violet_midday.name",
+                "ordeal.lobotocraft.violet_midday.title",
+                "ordeal.lobotocraft.violet_midday.start_subtitle");
         playGlobalSound(server, ModSounds.VIOLET_NOON_START.get());
         EscapeTracker.getInstance().onOrdealStart(level, OrdealTier.NOON);
         return true;
@@ -98,9 +99,9 @@ public class VioletNoonEvent {
         MinecraftServer server = level.getServer();
         OrdealRewardService.complete(server, OrdealTier.NOON);
         showVioletNoonTitle(server,
-                "紫罗兰的正午",
-                "请给我们爱！！！",
-                "我们不能理解它们，它们更不会理解我们。");
+                "ordeal.lobotocraft.violet_midday.name",
+                "ordeal.lobotocraft.violet_midday.title",
+                "ordeal.lobotocraft.violet_midday.end_subtitle");
         playGlobalSound(server, ModSounds.VIOLET_NOON_END.get());
     }
 
@@ -189,7 +190,8 @@ public class VioletNoonEvent {
     }
 
     private static void showVioletNoonTitle(MinecraftServer server, String top, String middle, String bottom) {
-        sendOrdealTitle(server, top, middle, bottom, VIOLET_MIDDAY_COLOR);
+        sendOrdealTitle(server, Component.translatable(top), Component.translatable(middle),
+                Component.translatable(bottom), VIOLET_MIDDAY_COLOR);
     }
 
     private static void playGlobalSound(MinecraftServer server, SoundEvent sound) {

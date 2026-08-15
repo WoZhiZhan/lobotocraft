@@ -114,8 +114,14 @@ public class TeleportToEntityCommand implements ICommand {
                     .filter(name -> name.toLowerCase().contains(actualName.substring(0, Math.min(3, actualName.length()))))
                     .limit(5)
                     .toList();
-            String hint = suggestions.isEmpty() ? "" : " 你是否想要: " + String.join(", ", suggestions);
-            player.sendSystemMessage(Component.literal("§c找不到实体类型: " + entityTypeName + hint));
+            Component message = Component.translatable(
+                    "command.lobotocraft.teleport_entity.unknown_type", entityTypeName);
+            if (!suggestions.isEmpty()) {
+                message = message.copy().append(Component.translatable(
+                        "command.lobotocraft.teleport_entity.suggestions",
+                        String.join(", ", suggestions)));
+            }
+            player.sendSystemMessage(message);
             return 0;
         }
 
@@ -135,7 +141,8 @@ public class TeleportToEntityCommand implements ICommand {
         }
 
         if (nearest == null) {
-            player.sendSystemMessage(Component.literal("§c在附近600格内找不到 " + entityTypeName + " 类型的实体"));
+            player.sendSystemMessage(Component.translatable(
+                    "command.lobotocraft.teleport_entity.not_nearby", entityTypeName, 600));
             return 0;
         }
 
@@ -144,8 +151,9 @@ public class TeleportToEntityCommand implements ICommand {
         double distance = Math.sqrt(player.distanceToSqr(nearest));
 
         player.teleportTo(safePos.getX() + 0.5, safePos.getY(), safePos.getZ() + 0.5);
-        player.sendSystemMessage(Component.literal(
-                String.format("§a已传送到最近的 %s 旁边 (距离: %.1f格)", entityTypeName, distance)));
+        player.sendSystemMessage(Component.translatable(
+                "command.lobotocraft.teleport_entity.completed", entityTypeName,
+                String.format(java.util.Locale.ROOT, "%.1f", distance)));
         return 1;
     }
 

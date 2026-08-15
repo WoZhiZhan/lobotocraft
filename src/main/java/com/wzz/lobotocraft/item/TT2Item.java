@@ -21,13 +21,13 @@ public class TT2Item extends ProhibitDiscardingItem {
     @Override
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
-        p_41423_.add(Component.literal("§7旧版 TT2 物品。请在设施监控面板开启全局协议。"));
+        p_41423_.add(Component.translatable("tooltip.lobotocraft.tt2.legacy"));
     }
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         if (!level.isClientSide) {
-            player.sendSystemMessage(Component.literal("§7TT2协议已改为设施监控面板中的全局开关。"));
+            player.sendSystemMessage(Component.translatable("message.lobotocraft.tt2.moved"));
         }
         return super.use(level, player, hand);
     }

@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.item.ego.nothing_there;
 
 import com.wzz.lobotocraft.item.AttributeEntry;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.util.EgoArmorHelper;
 import net.minecraft.ChatFormatting;
@@ -185,16 +186,17 @@ public class NothingThereCurio extends BaseEgoCurio {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("  • 最大生命值 + 10").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 使用任意EGO造成伤害时恢复等同于伤害值 5% 的生命值").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 玩家使用近战EGO攻速 + 10%").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("套装效果（装备+武器+饰品）：").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("  • 玩家使用“拟态”特殊攻击冷却从10秒更改为5秒，并且特殊攻击对吸血效果修改为100%。特殊攻击每次造成伤害都有50%概率立刻刷新CD。").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 玩家身着拟态护甲时，受到白色和黑色伤害将不再降低精神值。").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 玩家锁定后血量高于100时，每额外获得1点生命值，则手持拟态时额外提高1%移速、攻速和伤害，最多50%，奔跑期间饱食度消耗减少80%。").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 玩家根据当前血量百分比额外获得攻速加成，每降低5%生命值则额外获得1%攻击速度。").withStyle(ChatFormatting.LIGHT_PURPLE));
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.effects", ChatFormatting.YELLOW);
+        for (int index = 1; index <= 3; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.nothing_there_curio.effect." + index,
+                    ChatFormatting.GREEN);
+        }
+        EgoTooltipUtil.blank(tooltip);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.full_set_effect", ChatFormatting.AQUA);
+        for (int index = 1; index <= 4; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.nothing_there_curio.set." + index,
+                    ChatFormatting.LIGHT_PURPLE);
+        }
         super.appendHoverText(stack, level, tooltip, flag);
     }
 

@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.item.ego.redhat_mercenary;
 
 import com.wzz.lobotocraft.item.AttributeEntry;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
@@ -32,16 +33,17 @@ public class RedhatMercenaryCurio extends BaseEgoCurio {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("  • 最大生命值 + 2").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 移动速度 + 4").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 攻击速度 + 4").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 玩家手持任意EGO造成的伤害 + 2").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("套装效果（装备+武器+饰品）：").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("  • 玩家使用“猩红创痕”的火铳造成伤害时，减少对方10%的移动速度，持续10秒。").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 玩家使用“猩红创痕”的切肉刀造成伤害时，使对方每秒受到2点红色dot伤害，持续15秒。").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 玩家每损失25%血量，造成的伤害+10%。").withStyle(ChatFormatting.LIGHT_PURPLE));
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.effects", ChatFormatting.YELLOW);
+        for (int index = 1; index <= 4; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.red_hood_curio.effect." + index,
+                    ChatFormatting.GREEN);
+        }
+        EgoTooltipUtil.blank(tooltip);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.full_set_effect", ChatFormatting.AQUA);
+        for (int index = 1; index <= 3; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.red_hood_curio.set." + index,
+                    ChatFormatting.LIGHT_PURPLE);
+        }
         super.appendHoverText(stack, level, tooltip, flag);
     }
 

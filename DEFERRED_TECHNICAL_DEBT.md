@@ -56,3 +56,24 @@ gameplay, security, and crash fixes.
   missing texture or fail to load data.
 - Planned direction: add typed namespace-specific helpers and asset existence
   tests before any migration. Existing valid resource keys remain unchanged.
+
+## LOC-01: remaining localization and legacy-save runtime verification
+
+- Current state: normal player-facing screens, facility monitoring, Carmen
+  messages, abnormality broadcasts, exhibition controls, client performance
+  output, and structure test output use translation keys. The remaining fixed
+  Chinese text is concentrated in the large developer debug command, debug
+  items, retired GUI/config code, and the LLM's explicitly Chinese prompts and
+  generated replies.
+- Compatibility state: newly added localization identity fields are optional.
+  Old room markers, room snapshots, employee data, and PE-BOX items retain
+  their original string fields as fallbacks. Unit tests cover missing room-name
+  keys and old PE-BOX name fallback behaviour.
+- Remaining verification: boot a copied pre-localization world with the current
+  jar, inspect room bindings, employee records, PE-BOX stacks, work screens, and
+  save/reload once. Never use the only copy of a player world for this test.
+- Network constraint: save compatibility does not imply mixed-jar network
+  compatibility. Main protocol 26 and facility protocol 6 require client and
+  server to use the same build, deliberately rejecting older packet layouts.
+- Planned direction: localize developer tooling in small batches; design an
+  explicit per-player language policy before changing LLM prompts or history.

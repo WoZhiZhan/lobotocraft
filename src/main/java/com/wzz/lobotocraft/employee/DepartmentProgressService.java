@@ -48,7 +48,7 @@ public final class DepartmentProgressService {
             server.getPlayerList().broadcastSystemMessage(
                     Component.translatable("message.lobotocraft.department_expansion.success",
                                     sender.getGameProfile().getName(),
-                                    Component.translatable("department.lobotocraft." + department.id()),
+                                    Component.translatable(department.translationKey()),
                                     progress.level(department))
                             .withStyle(ChatFormatting.GOLD), false);
             progress.prepareForDay(pendingDay < currentDay ? pendingDay + 1 : currentDay);

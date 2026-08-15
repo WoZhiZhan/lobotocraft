@@ -614,6 +614,11 @@ public interface IAbnormality {
         return List.of();
     }
 
+    /** Optional explicit keys for state-dependent work-log lists. */
+    default List<String> getWorkLogTranslationKeys() {
+        return List.of();
+    }
+
     default SoundEvent getAttackSound() {
         return null;
     }

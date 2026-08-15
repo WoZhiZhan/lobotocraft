@@ -6,6 +6,7 @@ import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.item.ego.base.AiSpecialEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
@@ -87,8 +88,9 @@ public class HelperWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapon {
             return InteractionResultHolder.pass(stack);
         }
         if (isOnCooldown(player, stack)) {
-            player.displayClientMessage(
-                    Component.literal("§a冷却中,还剩:" + getRemainingCooldown(player, stack) + " tick"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.ego.cooldown_ticks",
+                    getRemainingCooldown(player, stack)), true);
             return InteractionResultHolder.pass(stack);
         }
         startCooldown(player, stack);
@@ -128,20 +130,13 @@ public class HelperWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapon {
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         if (!ClientInputUtil.isShiftPressed()) {
-            p_41423_.add(Component.literal("§7锋利的刀刃能将它的目标干净利落地锯开。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7虽然很容易操作，但如果想把它当成武器使用可一点儿都不容易。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7机械的眼中没有价值观，所以善与恶并不存在明确的界限，"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7也正因为如此，这台圆锯相当值得信赖。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7很久以前人们害怕机械，害怕它们某一天会造反继而取代人类。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7然而机械的叛乱早已不再是现代社会的威胁。"));
-            p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
+            for (int index = 1; index <= 6; index++) {
+                EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.helper_weapon.story." + index);
+                if (index < 6) EgoTooltipUtil.blank(p_41423_);
+            }
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.common.shift_details");
         } else {
-            p_41423_.add(Component.literal("§6※这把武器右键特殊攻击会造成6次伤害。"));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.helper_weapon.detail");
         }
     }
 

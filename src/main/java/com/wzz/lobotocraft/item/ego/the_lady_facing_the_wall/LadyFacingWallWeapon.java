@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.the_lady_facing_the_wall;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.item.ego.base.AiRangedEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.core.particles.ParticleTypes;
@@ -55,8 +56,9 @@ public class LadyFacingWallWeapon extends BaseEgoWeapon implements AiRangedEgoWe
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (isOnCooldown(player, stack)) {
-            player.displayClientMessage(
-                    Component.literal("§a冷却中,还剩:" + getRemainingCooldown(player, stack) + " tick"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.ego.cooldown_ticks",
+                    getRemainingCooldown(player, stack)), true);
             return InteractionResultHolder.pass(stack);
         }
         startCooldown(player, stack);
@@ -76,8 +78,8 @@ public class LadyFacingWallWeapon extends BaseEgoWeapon implements AiRangedEgoWe
     @Override
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
-        p_41423_.add(Component.literal("§7即便该异想体的核心已经变成了E.G.O的形式，那种强烈的孤独感也仍旧存在于这把武器上。"));
-        p_41423_.add(Component.literal("§7它射出的子弹并不会穿透敌人的骨头，反而会留下永久的，孤独的空白。"));
-        p_41423_.add(Component.literal("§7这把手枪在被制造出来时便已锈迹斑斑了。"));
+        for (int index = 1; index <= 3; index++) {
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.lady_facing_wall_weapon.story." + index);
+        }
     }
 }

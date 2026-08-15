@@ -43,7 +43,8 @@ public class SpecialRecordItem extends Item {
         List<EntityIsharmla> isharmlas = serverLevel.getEntitiesOfClass(EntityIsharmla.class,
                 player.getBoundingBox().inflate(16), e -> e.isAlive());
         if (isharmlas.isEmpty()) {
-            player.displayClientMessage(Component.literal("§7附近没有可以镇压的伊莎玛拉……"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.special_record.no_isharmla"), true);
             return InteractionResultHolder.fail(stack);
         }
 
@@ -89,8 +90,8 @@ public class SpecialRecordItem extends Item {
         // 斯卡蒂回归后不再标记为 banished,使其可继续正常运作
         banishData.setBanished(false);
 
-        player.displayClientMessage(Component.literal(
-                "§9伊莎玛拉归于沉寂,浊心斯卡蒂回到了她原本的位置。"), false);
+        player.displayClientMessage(Component.translatable(
+                "message.lobotocraft.special_record.success"), false);
 
         if (!player.isCreative()) {
             stack.shrink(1);
@@ -100,8 +101,10 @@ public class SpecialRecordItem extends Item {
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("§7在伊莎玛拉附近使用,").withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.literal("§7浊心斯卡蒂将牺牲自己使其永远沉寂。").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable("tooltip.lobotocraft.special_record.description.1")
+                .withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable("tooltip.lobotocraft.special_record.description.2")
+                .withStyle(ChatFormatting.GRAY));
         super.appendHoverText(stack, level, tooltip, flag);
     }
 }

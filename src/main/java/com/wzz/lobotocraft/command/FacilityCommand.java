@@ -40,16 +40,19 @@ public final class FacilityCommand {
     private static int setLevel(CommandSourceStack source, String id, int level) {
         EmployeeDepartment department = EmployeeDepartment.byId(id);
         if (department == EmployeeDepartment.UNASSIGNED) {
-            source.sendFailure(net.minecraft.network.chat.Component.literal("未知部门：" + id));
+            source.sendFailure(net.minecraft.network.chat.Component.translatable(
+                    "command.lobotocraft.employee.unknown_department", id));
             return 0;
         }
         if (!DepartmentProgressData.get(source.getServer()).setLevel(department, level)) {
-            source.sendFailure(net.minecraft.network.chat.Component.literal(
-                    "等级无效；控制部不能设为 0。"));
+            source.sendFailure(net.minecraft.network.chat.Component.translatable(
+                    "command.lobotocraft.facility.invalid_level"));
             return 0;
         }
-        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(
-                "已将 " + department.displayName() + " 设置为 LEVEL " + level), true);
+        source.sendSuccess(() -> net.minecraft.network.chat.Component.translatable(
+                "command.lobotocraft.facility.level_set",
+                net.minecraft.network.chat.Component.translatable(
+                        department.translationKey()), level), true);
         return 1;
     }
 }

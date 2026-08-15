@@ -399,7 +399,6 @@ public class WorkManager {
         WorkSession session = new WorkSession(
                 player, entity, requestedWorkType, workType, continuousMode);
         if (activeWorks.putIfAbsent(player.getUUID(), session) != null) return false;
-        CoreSuppressionManager.resolveMeltdownOnWorkStart(entity, player);
         if (!validateAfterCallback(session)) return false;
 
         // 显示自律加成信息
@@ -455,7 +454,7 @@ public class WorkManager {
 
         player.sendSystemMessage(Component.translatable("message.lobotocraft.work.started",
                 malkuthScramble ? Component.literal("???")
-                        : Component.translatable("work_type.lobotocraft." + workType.getName())));
+                        : Component.translatable(workType.getTranslationKey())));
 
         if (continuousMode) {
             player.sendSystemMessage(Component.translatable(
@@ -845,11 +844,11 @@ public class WorkManager {
                 )
         );
         Component resultText = switch (result) {
-            case GOOD -> Component.translatable("work_result.lobotocraft.good")
+            case GOOD -> Component.translatable(result.getTranslationKey())
                     .withStyle(ChatFormatting.GREEN);
-            case NORMAL -> Component.translatable("work_result.lobotocraft.normal")
+            case NORMAL -> Component.translatable(result.getTranslationKey())
                     .withStyle(ChatFormatting.YELLOW);
-            case BAD -> Component.translatable("work_result.lobotocraft.bad")
+            case BAD -> Component.translatable(result.getTranslationKey())
                     .withStyle(ChatFormatting.RED);
         };
         if (session.forcedEnd) {
@@ -969,7 +968,8 @@ public class WorkManager {
         if (amount <= 0) return;
         ItemStack peBox = PEBoxItem.create(
                 abnormality.getAbnormalityCode(),
-                abnormality.getAbnormalityName()
+                abnormality.getAbnormalityName(),
+                abnormality instanceof Entity entity ? entity.getType().getDescriptionId() : ""
         );
         peBox.setCount(amount);
         if (!player.addItem(peBox)) {
@@ -1009,7 +1009,7 @@ public class WorkManager {
         ItemStack giftStack = com.wzz.lobotocraft.entity.data.EGOEquipmentData.stack(gift.itemId());
         if (giftStack.isEmpty()) return;
         if (!player.addItem(giftStack)) player.drop(giftStack, false);
-        player.sendSystemMessage(Component.translatable("message.lobotocraft.work.gift_obtained",
+        player.sendSystemMessage(Component.translatable("message.lobotocraft.work.gift_obtained_simple",
                 giftStack.getHoverName()));
     }
 

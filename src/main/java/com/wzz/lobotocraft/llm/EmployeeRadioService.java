@@ -518,7 +518,8 @@ public final class EmployeeRadioService {
                                   EmployeeDepartment department, String reply) {
         int rgb = department.textColorRgb();
         Style style = Style.EMPTY.withColor(TextColor.fromRgb(rgb));
-        Component message = Component.literal(cleanInput(employeeName, 64) + "：" + reply)
+        Component message = Component.translatable("message.lobotocraft.radio.employee_reply",
+                        cleanInput(employeeName, 64), reply)
                 .withStyle(style);
         server.getPlayerList().broadcastSystemMessage(message, false);
     }
@@ -527,14 +528,15 @@ public final class EmployeeRadioService {
                                                EmployeeDepartment department, String reply) {
         Style radioStyle = Style.EMPTY.withColor(TextColor.fromRgb(RADIO_COLOR));
         Style employeeStyle = Style.EMPTY.withColor(TextColor.fromRgb(department.textColorRgb()));
-        Component message = Component.literal("[对讲机] ").withStyle(radioStyle)
-                .append(Component.literal(cleanInput(employeeName, 64) + "：" + reply)
+        Component message = Component.translatable("message.lobotocraft.radio.prefix").withStyle(radioStyle)
+                .append(Component.translatable("message.lobotocraft.radio.employee_reply",
+                                cleanInput(employeeName, 64), reply)
                         .withStyle(employeeStyle));
         server.getPlayerList().broadcastSystemMessage(message, false);
     }
 
     private static Component radioMessage(String content, ChatFormatting color) {
-        return Component.literal("[对讲机] ")
+        return Component.translatable("message.lobotocraft.radio.prefix")
                 .withStyle(Style.EMPTY.withColor(TextColor.fromRgb(RADIO_COLOR)))
                 .append(Component.literal(content).withStyle(color));
     }

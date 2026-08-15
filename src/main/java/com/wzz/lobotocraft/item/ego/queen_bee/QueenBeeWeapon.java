@@ -6,6 +6,7 @@ import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.item.ego.base.AiRangedEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.core.particles.ParticleTypes;
@@ -87,8 +88,9 @@ public class QueenBeeWeapon extends BaseEgoWeapon implements AiRangedEgoWeapon {
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (isOnCooldown(player, stack)) {
-            player.displayClientMessage(
-                    Component.literal("§a冷却中,还剩:" + getRemainingCooldown(player, stack) + " tick"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.ego.cooldown_ticks",
+                    getRemainingCooldown(player, stack)), true);
             return InteractionResultHolder.pass(stack);
         }
         startCooldown(player, stack);
@@ -118,16 +120,13 @@ public class QueenBeeWeapon extends BaseEgoWeapon implements AiRangedEgoWeapon {
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         if (!ClientInputUtil.isShiftPressed()) {
-            p_41423_.add(Component.literal("§7蜂之王国需要有更多的工蜂才能发展壮大，成就自己的江山。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7尽管王国会在历史上备受瞩目，可又有谁会记得为它做出奉献与牺牲的工蜂呢?"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7这杆枪不需要瞄准就可以击中它的目标，唯一需要的就是持有者的意念。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7它射出的子弹可以击中目不所及的敌人，甚至连历史都能够跨越。"));
-            p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
+            for (int index = 1; index <= 4; index++) {
+                EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.queen_bee_weapon.story." + index);
+                if (index < 4) EgoTooltipUtil.blank(p_41423_);
+            }
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.common.shift_details");
         } else {
-            p_41423_.add(Component.literal("§6※攻击命中目标时，为其施加”威胁“效果，一个维度内最多存在一个“威胁”。其他玩家对“威胁”造成伤害提高10%。“威胁”受到dot造成的伤害提高500%"));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.queen_bee_weapon.detail");
         }
     }
 }

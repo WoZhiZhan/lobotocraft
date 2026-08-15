@@ -420,7 +420,8 @@ public class EntityRedShoes extends AbstractAbnormality {
                 JUDGEMENT_DURATION, 0, false, false, true));
 
         if (target instanceof ServerPlayer player) {
-            player.sendSystemMessage(Component.literal("§5“红舞鞋”的目光锁定了你。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.red_shoes.judgement_started"));
         }
         if (target instanceof Mob mob) {
             mob.setTarget(null);
@@ -431,7 +432,8 @@ public class EntityRedShoes extends AbstractAbnormality {
     private static void clearJudgement(LivingEntity target, EntityRedShoes source) {
         clearJudgementData(target);
         if (target instanceof ServerPlayer player) {
-            player.sendSystemMessage(Component.literal("§a你挣脱了“红舞鞋”的诱惑。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.red_shoes.judgement_cleared"));
         }
         if (source != null && source.isAlive()) {
             source.setQliphothCounter(source.getMaxQliphothCounter());
@@ -481,7 +483,8 @@ public class EntityRedShoes extends AbstractAbnormality {
         data.putInt(CHARM_LEFT_CLICK_TAG, 0);
         data.putInt(CHARM_HURT_COUNT_TAG, 0);
         if (target instanceof Player player) {
-            player.sendSystemMessage(Component.literal("§5“红舞鞋”的低语缠住了你。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.red_shoes.charmed"));
             PlayerControlLock.lock(player, source, CHARM_PLAYER_SPEED, CHARM_PLAYER_STOP_RANGE);
         }
         if (target instanceof Mob mob) {
@@ -524,7 +527,8 @@ public class EntityRedShoes extends AbstractAbnormality {
         restoreBloodlustHealthIfReady(target);
 
         if (target instanceof ServerPlayer player) {
-            player.sendSystemMessage(Component.literal("§4你穿上了“红舞鞋”，血之渴望吞没了理智！"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.red_shoes.bloodlust"));
             unlockArmor(player);
             giveBloodlustWeapon(player);
         }
@@ -566,7 +570,7 @@ public class EntityRedShoes extends AbstractAbnormality {
         }
 
         ItemStack weapon = new ItemStack(Items.IRON_AXE);
-        weapon.setHoverName(Component.literal("§4血之渴望"));
+        weapon.setHoverName(Component.translatable("item.lobotocraft.bloodlust_weapon"));
         weapon.getOrCreateTag().putBoolean(BLOODLUST_WEAPON_ITEM_TAG, true);
         player.getInventory().setItem(selectedSlot, weapon);
         player.getInventory().selected = selectedSlot;
@@ -783,6 +787,10 @@ public class EntityRedShoes extends AbstractAbnormality {
 
     private static void tickBloodlust(LivingEntity entity) {
         EntityRedShoes source = findSource(entity);
+        if (source == null) {
+            cleanupBloodlust(entity);
+            return;
+        }
         CompoundTag data = entity.getPersistentData();
 
         entity.addEffect(new MobEffectInstance(ModMobEffects.RED_SHOES_BLOODLUST.get(),

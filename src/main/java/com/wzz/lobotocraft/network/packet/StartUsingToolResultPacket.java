@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.network.packet;
 
 import com.wzz.lobotocraft.client.screen.ToolUsageProgressScreen;
+import com.wzz.lobotocraft.client.AbnormalityNameResolver;
 import com.wzz.lobotocraft.network.IMessage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
@@ -14,12 +15,15 @@ public class StartUsingToolResultPacket implements IMessage {
     private String message;
     private int abnormalityId;
     private String abnormalityName;
+    private String abnormalityNameKey;
 
-    public StartUsingToolResultPacket(boolean success, String message, int abnormalityId, String abnormalityName) {
+    public StartUsingToolResultPacket(boolean success, String message, int abnormalityId,
+                                      String abnormalityName, String abnormalityNameKey) {
         this.success = success;
         this.message = message;
         this.abnormalityId = abnormalityId;
         this.abnormalityName = abnormalityName;
+        this.abnormalityNameKey = abnormalityNameKey;
     }
 
     public StartUsingToolResultPacket() {}
@@ -35,6 +39,7 @@ public class StartUsingToolResultPacket implements IMessage {
         message = buf.readUtf(32767);
         abnormalityId = buf.readInt();
         abnormalityName = buf.readUtf();
+        abnormalityNameKey = buf.readUtf(128);
     }
 
     @Override
@@ -43,6 +48,7 @@ public class StartUsingToolResultPacket implements IMessage {
         buf.writeUtf(message);
         buf.writeInt(abnormalityId);
         buf.writeUtf(abnormalityName);
+        buf.writeUtf(abnormalityNameKey == null ? "" : abnormalityNameKey, 128);
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -56,7 +62,8 @@ public class StartUsingToolResultPacket implements IMessage {
             Minecraft.getInstance().setScreen(null);
         } else {
             Minecraft.getInstance().setScreen(new ToolUsageProgressScreen(
-                    abnormalityId, abnormalityName
+                    abnormalityId, AbnormalityNameResolver.resolve(
+                            abnormalityId, abnormalityNameKey, abnormalityName)
             ));
         }
     }

@@ -5,6 +5,7 @@ import com.google.common.collect.Multimap;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -90,20 +91,14 @@ public class RedShoesWeapon extends BaseEgoWeapon {
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         if (!ClientInputUtil.isShiftPressed()) {
-            p_41423_.add(Component.literal("§6※如果持有者的自律等级低于3级，每次攻击都会丧失等同于最大精神值4%的精神值。自律等级越高伤害越高。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7甚至在女孩的双脚被砍断后，舞鞋依旧凭借着难以置信的执念，带着残肢进入了森林。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7大多数员工都熟悉这双舞鞋曾引发的悲惨往事。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7持有者应当牢记，即便是这把质地轻盈的红斧头，也曾因错误的抉择而害死了很多人。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7持有者的信念越是坚定，红斧头就越是强大。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7然而，若被贪婪蒙蔽了双眼，就再也无法从虚妄中醒来。"));
-            p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.red_shoes_weapon.detail.1");
+            for (int index = 1; index <= 5; index++) {
+                EgoTooltipUtil.blank(p_41423_);
+                EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.red_shoes_weapon.story." + index);
+            }
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.common.shift_details");
         } else {
-            p_41423_.add(Component.literal("§6※玩家自律等级每高1级就提高1点伤害，低于3级时，每次攻击会扣除自身4%的精神值。"));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.red_shoes_weapon.detail.2");
         }
     }
 }

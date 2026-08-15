@@ -8,9 +8,9 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.network.NetworkEvent;
 
 public final class MessageCreater {
-    // Room and employee snapshots are bounded well below this size. Keeping
-    // the envelope small limits malformed-packet allocation before dispatch.
-    private static final int MAX_PAYLOAD_BYTES = 128 * 1024;
+    // Facility and optional YSM catalog snapshots can legitimately exceed 128 KiB.
+    // Keep a hard allocation bound while allowing the configured catalog maxima.
+    private static final int MAX_PAYLOAD_BYTES = 4 * 1024 * 1024;
 
     final IMessage message;
     private final int deferredPacketId;

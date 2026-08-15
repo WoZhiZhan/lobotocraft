@@ -1,9 +1,11 @@
 package com.wzz.lobotocraft.item.ego.must_open_path;
 
 import com.wzz.lobotocraft.client.renderer.item.MustOpenPathArmorItemRenderer;
+import com.wzz.lobotocraft.util.ClientInputUtil;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModArmorMaterial;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoArmor;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
@@ -55,23 +57,29 @@ public final class MustOpenPathArmor extends BaseEgoArmor {
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
         super.appendHoverText(stack, level, tooltip, flag);
-        tooltip.add(Component.translatable("tooltip.lobotocraft.must_open_path_armor.info")
-                .withStyle(ChatFormatting.GOLD));
-        tooltip.add(Component.empty());
-        tooltip.add(Component.translatable("tooltip.lobotocraft.must_open_path_armor.story_1")
-                .withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("tooltip.lobotocraft.must_open_path_armor.story_2")
-                .withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("tooltip.lobotocraft.must_open_path_armor.story_3")
-                .withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("tooltip.lobotocraft.must_open_path_armor.red")
-                .withStyle(ChatFormatting.RED));
-        tooltip.add(Component.translatable("tooltip.lobotocraft.must_open_path_armor.white")
-                .withStyle(ChatFormatting.WHITE));
-        tooltip.add(Component.translatable("tooltip.lobotocraft.must_open_path_armor.black")
-                .withStyle(ChatFormatting.DARK_PURPLE));
-        tooltip.add(Component.translatable("tooltip.lobotocraft.must_open_path_armor.pale")
-                .withStyle(ChatFormatting.AQUA));
+        EgoTooltipUtil.appendStandardDescription(
+                tooltip,
+                ClientInputUtil.isShiftPressed(),
+                "tooltip.lobotocraft.must_open_path_armor.info",
+                new String[]{
+                        "tooltip.lobotocraft.must_open_path_armor.story_1",
+                        "tooltip.lobotocraft.must_open_path_armor.story_2",
+                        "tooltip.lobotocraft.must_open_path_armor.story_3"
+                },
+                new String[]{
+                        "tooltip.lobotocraft.must_open_path_armor.red",
+                        "tooltip.lobotocraft.must_open_path_armor.white",
+                        "tooltip.lobotocraft.must_open_path_armor.black",
+                        "tooltip.lobotocraft.must_open_path_armor.pale"
+                },
+                new String[0],
+                new ChatFormatting[]{
+                        ChatFormatting.RED,
+                        ChatFormatting.WHITE,
+                        ChatFormatting.DARK_PURPLE,
+                        ChatFormatting.AQUA
+                }
+        );
     }
 
     @Override

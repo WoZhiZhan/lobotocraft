@@ -9,6 +9,7 @@ import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
 import com.wzz.lobotocraft.item.ego.butterfly_funeral.ButterflyFuneralWeapon;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundUpdateAttributesPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -306,6 +307,23 @@ public final class EgoLoadoutService {
             }
         }
         return List.copyOf(missing);
+    }
+
+    public static List<Component> missingRequirementComponents(ServerPlayer player,
+                                                                List<String> itemIds) {
+        LinkedHashMap<String, IEgoLevelItem.MissingLevel> missing = new LinkedHashMap<>();
+        for (String itemId : itemIds) {
+            ItemStack stack = stack(itemId);
+            if (stack.getItem() instanceof IEgoLevelItem levelItem) {
+                for (IEgoLevelItem.MissingLevel entry : levelItem.getMissingLevelEntries(player)) {
+                    missing.merge(entry.attributeKey(), entry,
+                            (left, right) -> right.required() > left.required() ? right : left);
+                }
+            }
+        }
+        return missing.values().stream()
+                .map(IEgoLevelItem.MissingLevel::description)
+                .toList();
     }
 
     public static List<String> missingRequirementsForSpecs(ServerPlayer player, List<EgoItemSpec> itemSpecs) {

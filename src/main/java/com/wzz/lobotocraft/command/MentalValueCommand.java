@@ -49,10 +49,9 @@ public class MentalValueCommand implements ICommand {
     private int setMentalValue(CommandContext<CommandSourceStack> context, ServerPlayer player, float value) {
         player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
             mental.setMentalValue(value);
-            MessageLoader.getLoader().sendToPlayer(player,
-                    new MentalValueSyncPacket(mental.getMentalValue(), mental.getMaxMentalValue()));
-            context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("设置 %s 的精神值为 %.1f", player.getName().getString(), value)), true);
+            syncToClient(player, mental.getMentalValue(), mental.getMaxMentalValue());
+            context.getSource().sendSuccess(() -> Component.translatable(
+                    "command.lobotocraft.mental_value.set", player.getDisplayName(), value), true);
         });
         return 1;
     }
@@ -60,38 +59,36 @@ public class MentalValueCommand implements ICommand {
     private int addMentalValue(CommandContext<CommandSourceStack> context, ServerPlayer player, float amount) {
         player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
             mental.addMentalValue(amount);
-            MessageLoader.getLoader().sendToPlayer(player,
-                    new MentalValueSyncPacket(mental.getMentalValue(), mental.getMaxMentalValue()));
-            context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("为 %s %s %.1f 精神值，当前: %.1f/%.1f",
-                            player.getName().getString(),
-                            amount > 0 ? "增加" : "减少",
-                            Math.abs(amount),
-                            mental.getMentalValue(),
-                            mental.getEffectiveMaxMentalValue())), true);
+            syncToClient(player, mental.getMentalValue(), mental.getMaxMentalValue());
+            context.getSource().sendSuccess(() -> Component.translatable(
+                    "command.lobotocraft.mental_value.add", player.getDisplayName(),
+                    Component.translatable(amount > 0
+                            ? "command.lobotocraft.action.increase"
+                            : "command.lobotocraft.action.decrease"),
+                    Math.abs(amount), mental.getMentalValue(), mental.getEffectiveMaxMentalValue()), true);
         });
         return 1;
     }
 
     private int getMentalValue(CommandContext<CommandSourceStack> context, ServerPlayer player) {
-        player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
-            context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("%s 的精神值: %.1f/%.1f",
-                            player.getName().getString(),
-                            mental.getMentalValue(),
-                            mental.getEffectiveMaxMentalValue())), false);
-        });
+        player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental ->
+                context.getSource().sendSuccess(() -> Component.translatable(
+                        "command.lobotocraft.mental_value.get", player.getDisplayName(),
+                        mental.getMentalValue(), mental.getEffectiveMaxMentalValue()), false));
         return 1;
     }
 
     private int setMaxMentalValue(CommandContext<CommandSourceStack> context, ServerPlayer player, float value) {
         player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
             mental.setMaxMentalValue(value);
-            MessageLoader.getLoader().sendToPlayer(player,
-                    new MentalValueSyncPacket(mental.getMentalValue(), mental.getMaxMentalValue()));
-            context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("设置 %s 的最大精神值为 %.1f", player.getName().getString(), value)), true);
+            syncToClient(player, mental.getMentalValue(), mental.getMaxMentalValue());
+            context.getSource().sendSuccess(() -> Component.translatable(
+                    "command.lobotocraft.mental_value.set_max", player.getDisplayName(), value), true);
         });
         return 1;
+    }
+
+    private void syncToClient(ServerPlayer player, float value, float maxValue) {
+        MessageLoader.getLoader().sendToPlayer(player, new MentalValueSyncPacket(value, maxValue));
     }
 }

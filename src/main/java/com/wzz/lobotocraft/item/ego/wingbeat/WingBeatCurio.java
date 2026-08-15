@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.item.ego.wingbeat;
 
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -35,13 +36,17 @@ public class WingBeatCurio extends BaseEgoCurio {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("  • 工作成功率 + 2").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 工作速度 + 2").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("套装效果（装备+武器+饰品）：").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("  • 攻击目标时，恢复等同于造成伤害的生命值").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 免疫摔落伤害").withStyle(ChatFormatting.LIGHT_PURPLE));
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.effects", ChatFormatting.YELLOW);
+        for (int index = 1; index <= 2; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.wingbeat_curio.effect." + index,
+                    ChatFormatting.GREEN);
+        }
+        EgoTooltipUtil.blank(tooltip);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.full_set_effect", ChatFormatting.AQUA);
+        for (int index = 1; index <= 2; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.wingbeat_curio.set." + index,
+                    ChatFormatting.LIGHT_PURPLE);
+        }
         super.appendHoverText(stack, level, tooltip, flag);
     }
 

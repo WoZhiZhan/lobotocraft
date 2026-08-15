@@ -11,6 +11,7 @@ import com.wzz.lobotocraft.client.key.ClientKeyHandler;
 import com.wzz.lobotocraft.client.key.ModKeyMappings;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraftforge.api.distmarker.Dist;
@@ -47,7 +48,7 @@ public final class FacilityHud {
 
     // ===== 渲染热路径字符串缓存（避免每帧拼接分配） =====
     private static int dayCache = Integer.MIN_VALUE;
-    private static String dayText = "";
+    private static Component dayText = Component.empty();
     private static int energyCache = Integer.MIN_VALUE;
     private static int quotaCache = Integer.MIN_VALUE;
     private static String energyText = "";
@@ -58,7 +59,7 @@ public final class FacilityHud {
     private static String meltdownTimerText = "";
     private static int warningTypeCache = Integer.MIN_VALUE;
     private static int warningLevelCache = Integer.MIN_VALUE;
-    private static String warningSubtitleText = "";
+    private static Component warningSubtitleText = Component.empty();
 
     private FacilityHud() {
     }
@@ -129,7 +130,9 @@ public final class FacilityHud {
             LobotomyUiRenderer.blitScaled(graphics, REACTOR_ICON, x + 18, y + 3, 16, 16, 16, 16);
         }
 
-        String status = failed ? "设备故障" : "再生反应堆";
+        Component status = Component.translatable(failed
+                ? "hud.lobotocraft.facility.reactor.failed"
+                : "hud.lobotocraft.facility.reactor.active");
         graphics.drawCenteredString(minecraft.font, status, x + 126, y + 4,
             LobotomyUiRenderer.withAlpha(failed ? ALERT_TEXT_BRIGHT : LobotomyUiTheme.TEXT_TITLE, visibility));
         int seconds = failed ? -1 : (int) Math.ceil((1.0F - progress) * 10.0F);
@@ -154,7 +157,7 @@ public final class FacilityHud {
         LobotomyUiRenderer.blitScaled(graphics, ENERGY_FRAME, x, y, width, 43, 521, 87);
         if (state.day() != dayCache) {
             dayCache = state.day();
-            dayText = "DAY " + dayCache;
+            dayText = Component.translatable("hud.lobotocraft.facility.day", dayCache);
         }
         graphics.drawString(minecraft.font, dayText, x + 12, y + 4, LobotomyUiTheme.GOLD, true);
         if (state.energy() != energyCache || state.quota() != quotaCache) {
@@ -181,8 +184,8 @@ public final class FacilityHud {
         graphics.fill(x + width - 1, y, x + width, y + height, border);
 
         if (!state.voteActive()) {
-            String key = ModKeyMappings.END_DAY.getTranslatedKeyMessage().getString();
-            String label = "长按 " + key + " 结束今天";
+            Component label = Component.translatable("hud.lobotocraft.facility.end_day_hold",
+                    ModKeyMappings.END_DAY.getTranslatedKeyMessage());
             graphics.drawCenteredString(minecraft.font, label, x + width / 2, y + 7, 0xFFEAF8FF);
             int progress = Math.round((width - 4) * ClientKeyHandler.endDayHoldProgress());
             if (progress > 0) graphics.fill(x + 2, y + height - 4, x + 2 + progress,
@@ -191,12 +194,12 @@ public final class FacilityHud {
         }
 
         int seconds = (state.voteRemainingTicks() + 19) / 20;
-        String title = "结束日投票  " + seconds + "s";
+        Component title = Component.translatable("hud.lobotocraft.facility.end_day_vote", seconds);
         graphics.drawCenteredString(minecraft.font, title, x + width / 2, y + 5, 0xFFEAF8FF);
-        String approveKey = ModKeyMappings.END_DAY.getTranslatedKeyMessage().getString();
-        String rejectKey = ModKeyMappings.REJECT_DAY_VOTE.getTranslatedKeyMessage().getString();
-        String detail = approveKey + "  ✓ " + state.voteApprovals() + "   "
-                + rejectKey + "  × " + state.voteRejects() + "   需要 " + state.voteRequired();
+        Component detail = Component.translatable("hud.lobotocraft.facility.end_day_vote_detail",
+                ModKeyMappings.END_DAY.getTranslatedKeyMessage(), state.voteApprovals(),
+                ModKeyMappings.REJECT_DAY_VOTE.getTranslatedKeyMessage(), state.voteRejects(),
+                state.voteRequired());
         int detailColor = state.ownVote() > 0 ? 0xFF84E7B0
                 : state.ownVote() < 0 ? 0xFFFF8E8E : 0xFFBFD3DF;
         graphics.drawCenteredString(minecraft.font, detail, x + width / 2, y + 18, detailColor);
@@ -273,15 +276,16 @@ public final class FacilityHud {
             default -> 56;
         };
         LobotomyUiRenderer.blitScaled(graphics, icon, x + 8, y + 7, 20, 20, sourceWidth, sourceHeight);
-        String name = switch (tier) {
-            case DAWN -> "黎明考验";
-            case NOON -> "正午考验";
-            case DUSK -> "黄昏考验";
-            case MIDNIGHT -> "午夜考验";
-            default -> "";
+        Component name = switch (tier) {
+            case DAWN -> Component.translatable("hud.lobotocraft.facility.ordeal.dawn");
+            case NOON -> Component.translatable("hud.lobotocraft.facility.ordeal.noon");
+            case DUSK -> Component.translatable("hud.lobotocraft.facility.ordeal.dusk");
+            case MIDNIGHT -> Component.translatable("hud.lobotocraft.facility.ordeal.midnight");
+            default -> Component.empty();
         };
         graphics.drawString(minecraft.font, name, x + 40, y + 8, 0xFFF0E5D0, true);
-        String timing = "将于第 " + roman(scheduledStage) + " 级逆流时发生";
+        Component timing = Component.translatable("hud.lobotocraft.facility.ordeal.timing",
+                roman(scheduledStage));
         graphics.drawString(minecraft.font, timing, x + 40, y + 20,
                 LobotomyUiTheme.TEXT_MUTED, true);
     }
@@ -309,13 +313,18 @@ public final class FacilityHud {
         LobotomyUiRenderer.drawCorners(graphics, left, y, 360, 64, LobotomyUiTheme.CORNER_LEN, LobotomyUiTheme.ALERT_RED);
         LobotomyUiRenderer.blitScaled(graphics, WARNING, left + 4, y, 20, 64, 40, 127);
         LobotomyUiRenderer.blitScaled(graphics, WARNING, right - 24, y, 20, 64, 40, 127);
-        String title = state.notificationType() == 1 ? "考验开始" : state.notificationType() == 3 ? "熔毁失败" : "逆卡巴拉警报";
+        Component title = Component.translatable(state.notificationType() == 1
+                ? "hud.lobotocraft.facility.warning.ordeal"
+                : state.notificationType() == 3
+                ? "hud.lobotocraft.facility.warning.meltdown_failed"
+                : "hud.lobotocraft.facility.warning.qliphoth");
         if (state.notificationType() != warningTypeCache || state.meltdownLevel() != warningLevelCache) {
             warningTypeCache = state.notificationType();
             warningLevelCache = state.meltdownLevel();
             warningSubtitleText = warningTypeCache == 3
-                ? "计数器归零，设施能源受损"
-                : "第 " + roman(Math.max(1, warningLevelCache - 1)) + " 级";
+                ? Component.translatable("hud.lobotocraft.facility.warning.energy_damaged")
+                : Component.translatable("hud.lobotocraft.facility.warning.level",
+                        roman(Math.max(1, warningLevelCache - 1)));
         }
         graphics.drawCenteredString(minecraft.font, title, center, y + 17, ALERT_TEXT_BRIGHT);
         graphics.drawCenteredString(minecraft.font, warningSubtitleText, center, y + 35, LobotomyUiTheme.TEXT_TITLE);

@@ -6,6 +6,7 @@ import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.item.ego.base.AiSpecialEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -27,6 +28,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 
 public class BigBadwolfWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapon {
+    private static final String MOVEMENT_LOCK = "big_bad_wolf_weapon";
     private static final double ATTACK_RANGE = 3.1;
     @Override public double aiSpecialAttackRange() { return ATTACK_RANGE; }
     public BigBadwolfWeapon() {
@@ -93,8 +95,9 @@ public class BigBadwolfWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapo
             return InteractionResultHolder.pass(stack);
         }
         if (isOnCooldown(player, stack)) {
-            player.displayClientMessage(
-                    Component.literal("§a冷却中,还剩:" + getRemainingCooldown(player, stack) + " tick"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.ego.big_bad_wolf.cooldown",
+                    getRemainingCooldown(player, stack)), true);
             return InteractionResultHolder.pass(stack);
         }
         startCooldown(player, stack);
@@ -149,23 +152,22 @@ public class BigBadwolfWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapo
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         if (ClientInputUtil.isShiftPressed()) {
-            p_41423_.add(Component.literal("※持有者攻击时会在一定时间持续造成红色伤害。如果持有者的生命值小于或等于50%，武器的伤害会额外增加。但是，持有者在该状态下攻击时会对其他玩家造成无差别伤害。")
-                    .withStyle(ExtendedColor.ORANGE.toStyle()));
-            p_41423_.add(Component.literal("※持有者攻击到目标时会为其附加一个每秒受到3点物理红色伤害的dot，持续5秒，不可叠加，每次造成伤害刷新持续时间。")
-                    .withStyle(ExtendedColor.PINK.toStyle()));
-            p_41423_.add(Component.literal("※该武器右键可以发起一次特殊攻击，造成3x3范围的30点红色伤害。")
-                    .withStyle(ExtendedColor.PINK.toStyle()));
-            p_41423_.add(Component.literal("※在持有者的生命值低于50%时，玩家周围会有深蓝色渲染特效环绕，武器造成的红色伤害提高100%，普通攻击命中会造成4x4的范围伤害，此时这把武器造成伤害将不分敌我。")
-                    .withStyle(ExtendedColor.PINK.toStyle()));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.big_bad_wolf_weapon.special.1",
+                    ExtendedColor.ORANGE.toStyle());
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.big_bad_wolf_weapon.special.2",
+                    ExtendedColor.PINK.toStyle());
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.big_bad_wolf_weapon.special.3",
+                    ExtendedColor.PINK.toStyle());
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.big_bad_wolf_weapon.special.4",
+                    ExtendedColor.PINK.toStyle());
             return;
         }
-        p_41423_.add(Component.literal(""));
-        p_41423_.add(Component.literal("§7这件武器看起来就像那只邪恶巨狼的爪子。"));
-        p_41423_.add(Component.literal(""));
-        p_41423_.add(Component.literal("§7这些爪子曾经撕裂，割破了无数生物的内脏。"));
-        p_41423_.add(Component.literal(""));
-        p_41423_.add(Component.literal("§7爪子能够削开目标的血肉，让血液喷涌而出。"));
-        p_41423_.add(Component.literal("§c红色伤害：12-17"));
+        EgoTooltipUtil.blank(p_41423_);
+        for (int index = 1; index <= 3; index++) {
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.big_bad_wolf_weapon.story." + index);
+            EgoTooltipUtil.blank(p_41423_);
+        }
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.big_bad_wolf_weapon.damage");
     }
 
     public static class DamageTimer extends TimerEntry<LivingEntity> {
@@ -186,7 +188,7 @@ public class BigBadwolfWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapo
 
         @Override
         public void onStart(@NotNull LivingEntity entity) {
-            entity.getPersistentData().putBoolean("NotMove", true);
+            MovementLockUtil.acquire(entity, MOVEMENT_LOCK);
         }
 
         @Override
@@ -201,8 +203,13 @@ public class BigBadwolfWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapo
 
         @Override
         public void onEnd(@NotNull LivingEntity entity) {
-            entity.getPersistentData().putBoolean("NotMove", false);
+            MovementLockUtil.release(entity, MOVEMENT_LOCK);
             DotHelper.applyDot("big_badwolf", player, entity, 3f, "red", 20, 100, 1);
+        }
+
+        @Override
+        public void onCancelled(@NotNull LivingEntity entity, @NotNull CancellationReason reason) {
+            MovementLockUtil.release(entity, MOVEMENT_LOCK);
         }
     }
 
@@ -221,6 +228,11 @@ public class BigBadwolfWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapo
 
         @Override
         public void onEnd(@NotNull LivingEntity entity) {
+            applySlow(entity, false);
+        }
+
+        @Override
+        public void onCancelled(@NotNull LivingEntity entity, @NotNull CancellationReason reason) {
             applySlow(entity, false);
         }
 

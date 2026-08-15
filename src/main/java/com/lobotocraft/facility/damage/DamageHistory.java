@@ -155,13 +155,14 @@ public final class DamageHistory {
     }
 
     private static Component buildHover(ServerPlayer player) {
-        MutableComponent hover = Component.literal("最近 5 条受伤记录")
+        MutableComponent hover = Component.translatable("tooltip.lobotocraft.damage_history.title")
             .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
         List<DamageRecord> records = new ArrayList<>(
             HISTORY.getOrDefault(player.getUUID(), new ArrayDeque<>()));
         int missing = HISTORY_SIZE - records.size();
         for (int i = 0; i < missing; i++) {
-            hover.append(Component.literal("\n-- 暂无记录 --").withStyle(ChatFormatting.DARK_GRAY));
+            hover.append("\n").append(Component.translatable("tooltip.lobotocraft.damage_history.empty")
+                    .withStyle(ChatFormatting.DARK_GRAY));
         }
         for (DamageRecord record : records) hover.append("\n").append(record.asComponent());
         return hover;
@@ -212,13 +213,15 @@ public final class DamageHistory {
         return EgoArmorHelper.applyRiskLevelSuppression(1.0F, armor, abnormality.getRiskLevel());
     }
 
-    private static String sourceName(DamageSource source) {
+    private static Component sourceName(DamageSource source) {
         Entity attacker = source.getEntity();
-        if (attacker instanceof IAbnormality abnormality) return abnormality.getAbnormalityName();
-        if (attacker != null) return attacker.getDisplayName().getString();
+        if (attacker instanceof IAbnormality) {
+            return Component.translatable(attacker.getType().getDescriptionId());
+        }
+        if (attacker != null) return attacker.getDisplayName().copy();
         Entity direct = source.getDirectEntity();
-        if (direct != null) return direct.getDisplayName().getString();
-        return source.getMsgId();
+        if (direct != null) return direct.getDisplayName().copy();
+        return Component.literal(source.getMsgId());
     }
 
     private static String number(float value) {
@@ -244,7 +247,7 @@ public final class DamageHistory {
 
     private record PendingDamage(DamageKind type, float rawDamage, double resistance,
                                  float riskMultiplier, float healthBefore, float mentalBefore,
-                                 String source, long gameTime) {
+                                 Component source, long gameTime) {
         DamageRecord toRecord(float finalDamage, float before, float after, boolean mental) {
             return new DamageRecord(type, rawDamage, resistance, riskMultiplier,
                 finalDamage, before, after, mental, after <= 0.0F, source, gameTime);
@@ -254,15 +257,15 @@ public final class DamageHistory {
     private record DamageRecord(DamageKind type, float rawDamage, double resistance,
                                 float riskMultiplier, float finalDamage, float before,
                                 float after, boolean mental, boolean lethal,
-                                String source, long gameTime) {
+                                Component source, long gameTime) {
         Component asComponent() {
             MutableComponent line = Component.literal(type.name() + " ")
                 .withStyle(style -> style.withColor(type.color));
-            line.append(Component.literal(number(rawDamage) + " × "
-                + String.format(Locale.ROOT, "%.1f", resistance) + "（抗性）"));
+            line.append(Component.translatable("tooltip.lobotocraft.damage_history.resistance",
+                    number(rawDamage), String.format(Locale.ROOT, "%.1f", resistance)));
             if (Math.abs(riskMultiplier - 1.0F) > 0.001F) {
-                line.append(Component.literal(" × " + String.format(Locale.ROOT, "%.1f", riskMultiplier)
-                    + "（等级压制）"));
+                line.append(Component.translatable("tooltip.lobotocraft.damage_history.risk_multiplier",
+                        String.format(Locale.ROOT, "%.1f", riskMultiplier)));
             }
             String resource = mental ? "  SP " : "  ";
             line.append(Component.literal(resource + number(before) + " → "));
@@ -273,7 +276,7 @@ public final class DamageHistory {
             } else {
                 line.append(Component.literal(number(after)));
             }
-            line.append(Component.literal("  " + source));
+            line.append("  ").append(source.copy());
             return line;
         }
     }

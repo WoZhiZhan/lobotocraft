@@ -74,7 +74,8 @@ public class BlackForestEvent {
             boolean hasArmor = false;
             for (ServerPlayer player : EntityUtil.findAllPlayer(abnormality)) {
                 if (EgoArmorHelper.isWearingFullSet(player, "end_bird")) {
-                    player.displayClientMessage(Component.literal("§e黑森林事件被阻止了..."), false);
+                    player.displayClientMessage(Component.translatable(
+                            "message.lobotocraft.black_forest.prevented"), false);
                     hasArmor = true;
                     break;
                 }

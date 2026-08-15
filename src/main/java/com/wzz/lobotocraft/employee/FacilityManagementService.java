@@ -64,8 +64,8 @@ public final class FacilityManagementService {
     private static void open(ServerPlayer viewer, boolean openEgoAssignment,
                              boolean openDepartmentAssignment, java.util.UUID selectedEmployee) {
         if (!com.wzz.lobotocraft.util.AbnormalitySpawnHelper.isCompany(viewer.level())) {
-            viewer.sendSystemMessage(net.minecraft.network.chat.Component.literal(
-                    "请回到公司后再使用设施管理。"));
+            viewer.sendSystemMessage(net.minecraft.network.chat.Component.translatable(
+                    "message.lobotocraft.facility_management.return_to_company"));
             return;
         }
         CompoundTag snapshot = new CompoundTag();
@@ -120,7 +120,7 @@ public final class FacilityManagementService {
             });
             player.getCapability(PlayerAbnormalityDataProvider.PLAYER_ABNORMALITY_DATA).ifPresent(data ->
                     putPersonalEgoNames(entry, data, abnormalities));
-            entry.putString("Status", isControlled(player) ? "CONTROLLED" : "在线");
+            entry.putString("Status", isControlled(player) ? "CONTROLLED" : "ONLINE");
             employees.add(entry);
         }
         for (EmployeeRecord record : FacilityPersonnelData.get(viewer.server).employees()) {
@@ -180,10 +180,12 @@ public final class FacilityManagementService {
                     repository, abnormalities, weaponCode, "weapon"));
             entry.putString("ArmorEgoName", assignedEgoName(
                     repository, abnormalities, armorCode, "armor"));
+            entry.putString("WeaponEgoNameKey", assignedEgoNameKey(repository, weaponCode, "weapon"));
+            entry.putString("ArmorEgoNameKey", assignedEgoNameKey(repository, armorCode, "armor"));
             employees.add(entry);
         }
         snapshot.put("Employees", employees);
-        putDepartmentAbnormalities(viewer, snapshot);
+        putDepartmentAbnormalities(viewer, snapshot, abnormalities);
 
         viewer.getCapability(PlayerAbnormalityDataProvider.PLAYER_ABNORMALITY_DATA).ifPresent(data -> {
             ListTag personal = new ListTag();
@@ -195,6 +197,7 @@ public final class FacilityManagementService {
                     entry.putString("Type", typeEntry.getKey());
                     entry.putString("DisplayName", egoDisplayName(codeEntry.getKey(),
                             typeEntry.getKey(), typeEntry.getValue(), abnormalities));
+                    entry.putString("DisplayNameKey", egoDisplayNameKey(typeEntry.getValue()));
                     entry.putBoolean("Equipped", codeEntry.getKey().equals(
                             data.getEquippedPersonalEgo(typeEntry.getKey())));
                     ListTag items = new ListTag();
@@ -232,7 +235,8 @@ public final class FacilityManagementService {
         MessageLoader.getLoader().sendToPlayer(viewer, new OpenFacilityManagementPacket(snapshot));
     }
 
-    private static void putDepartmentAbnormalities(ServerPlayer viewer, CompoundTag snapshot) {
+    private static void putDepartmentAbnormalities(ServerPlayer viewer, CompoundTag snapshot,
+                                                   Map<String, IAbnormality> abnormalities) {
         ResourceLocation companyDimension = ModDimensions.LOBOTO_KEY.location();
         CompanyRoomData roomData = CompanyRoomData.get(viewer.serverLevel());
         java.util.List<FacilityAreaEntry> areas = roomData.getAreas(companyDimension);
@@ -248,6 +252,10 @@ public final class FacilityManagementService {
             CompoundTag entry = new CompoundTag();
             entry.putString("Code", room.abnormalityCode);
             entry.putString("Name", room.abnormalityName == null ? "" : room.abnormalityName);
+            IAbnormality abnormality = abnormalities.get(room.abnormalityCode);
+            if (abnormality instanceof Entity entity) {
+                entry.putString("NameKey", entity.getType().getDescriptionId());
+            }
             entry.putString("Risk", room.riskName == null ? "" : room.riskName);
             entry.putInt("RiskColor", room.riskColor);
             entry.putString("DepartmentId", room.departmentId);
@@ -287,6 +295,7 @@ public final class FacilityManagementService {
                                           IAbnormality abnormality) {
         entry.putString("DisplayName", egoDisplayName(stock.abnormalityCode(),
                 stock.equipmentType(), stock.itemIds(), abnormality));
+        entry.putString("DisplayNameKey", egoDisplayNameKey(stock.itemIds()));
         ItemStack icon = firstStack(stock.itemIds());
         if (!icon.isEmpty()) {
             ResourceLocation iconId = ForgeRegistries.ITEMS.getKey(icon.getItem());
@@ -358,15 +367,26 @@ public final class FacilityManagementService {
                 data.getPersonalEgoItems(weaponCode, "weapon"), abnormalities));
         entry.putString("ArmorEgoName", egoDisplayName(armorCode, "armor",
                 data.getPersonalEgoItems(armorCode, "armor"), abnormalities));
+        entry.putString("WeaponEgoNameKey", egoDisplayNameKey(
+                data.getPersonalEgoItems(weaponCode, "weapon")));
+        entry.putString("ArmorEgoNameKey", egoDisplayNameKey(
+                data.getPersonalEgoItems(armorCode, "armor")));
     }
 
     private static String assignedEgoName(AiEgoRepositoryData repository,
                                           Map<String, IAbnormality> abnormalities,
                                           String code, String type) {
-        if (code == null || code.isBlank()) return "无";
+        if (code == null || code.isBlank()) return "";
         AiEgoRepositoryData.Stock stock = repository.stock(code, type);
         return egoDisplayName(code, type,
                 stock == null ? java.util.List.of() : stock.itemIds(), abnormalities);
+    }
+
+    private static String assignedEgoNameKey(AiEgoRepositoryData repository,
+                                             String code, String type) {
+        if (code == null || code.isBlank()) return "";
+        AiEgoRepositoryData.Stock stock = repository.stock(code, type);
+        return stock == null ? "" : egoDisplayNameKey(stock.itemIds());
     }
 
     private static String egoDisplayName(String code, String type,
@@ -378,7 +398,7 @@ public final class FacilityManagementService {
     private static String egoDisplayName(String code, String type,
                                          java.util.List<String> itemIds,
                                          IAbnormality abnormality) {
-        if (code == null || code.isBlank()) return "无";
+        if (code == null || code.isBlank()) return "";
         if (abnormality != null) {
             if ("weapon".equals(type)) {
                 EGOEquipmentData.WeaponData data = abnormality.getEGOWeaponData();
@@ -389,7 +409,12 @@ public final class FacilityManagementService {
             }
         }
         ItemStack stack = firstStack(itemIds);
-        return stack.isEmpty() ? "无" : stack.getHoverName().getString();
+        return stack.isEmpty() ? "" : stack.getHoverName().getString();
+    }
+
+    private static String egoDisplayNameKey(java.util.List<String> itemIds) {
+        ItemStack stack = firstStack(itemIds);
+        return stack.isEmpty() ? "" : stack.getDescriptionId();
     }
 
     private static ItemStack firstStack(java.util.List<String> itemIds) {

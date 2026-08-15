@@ -1325,7 +1325,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
         graphics.disableScissor();
 
-        graphics.drawCenteredString(this.font, "3D预览",
+        graphics.drawCenteredString(this.font, tr("screen.lobotocraft.encyclopedia.preview_3d"),
                 centerX, boxTop + boxHeight + 20, EncyclopediaGUIConfig.Colors.TEXT_GRAY);
     }
 
@@ -1507,7 +1507,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         graphics.fill(x + 1, y + 1, x + width - 1, y + height - 1, 0xFF1A0808);
 
         // 标题
-        graphics.drawCenteredString(this.font, "E.G.O武器", x + width/2, y + 8,
+        graphics.drawCenteredString(this.font, tr("equipment.lobotocraft.ego_weapon"), x + width/2, y + 8,
                 EncyclopediaGUIConfig.Colors.THEME_ORANGE);
 
         // 渲染武器图标（居中，80x80）
@@ -1567,7 +1567,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
             }
 
             // 绘制"全属性"文字
-            graphics.drawString(this.font, "全属性",
+            graphics.drawString(this.font, tr("screen.lobotocraft.encyclopedia.all_damage_types"),
                     attrX + 30 + offset * 3 + 5, attrY,
                     EncyclopediaGUIConfig.Colors.getDamageTypeColor("WHITE"));
         } else {
@@ -1580,21 +1580,21 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
         // 攻击力
         attrY += 15;
-        graphics.drawString(this.font, "攻击力",
+        graphics.drawString(this.font, tr("screen.lobotocraft.encyclopedia.attack_power"),
                 attrX, attrY, EncyclopediaGUIConfig.Colors.TEXT_GRAY);
         graphics.drawString(this.font, weaponData.attackPower(),
                 attrX + 60, attrY, EncyclopediaGUIConfig.Colors.TEXT_WHITE);
 
         // 攻击速度
         attrY += 15;
-        graphics.drawString(this.font, "攻击速度",
+        graphics.drawString(this.font, tr("screen.lobotocraft.encyclopedia.attack_speed"),
                 attrX, attrY, EncyclopediaGUIConfig.Colors.TEXT_GRAY);
         graphics.drawString(this.font, weaponData.attackSpeed(),
                 attrX + 60, attrY, EncyclopediaGUIConfig.Colors.TEXT_WHITE);
 
         // 攻击距离
         attrY += 15;
-        graphics.drawString(this.font, "攻击距离",
+        graphics.drawString(this.font, tr("screen.lobotocraft.encyclopedia.attack_range"),
                 attrX, attrY, EncyclopediaGUIConfig.Colors.TEXT_GRAY);
         graphics.drawString(this.font, weaponData.attackRange(),
                 attrX + 60, attrY, EncyclopediaGUIConfig.Colors.TEXT_WHITE);
@@ -1606,7 +1606,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                 x + 10, y + height - 16,
                 developmentWeaponCount >= weaponData.developmentMaxCount() ?
                         0xFFFFAA00 : EncyclopediaGUIConfig.Colors.TEXT_GRAY);
-        graphics.drawString(this.font, "研发",
+        graphics.drawString(this.font, tr("screen.lobotocraft.encyclopedia.development"),
                 x + width - 30, y + height - 16, 0xFFFFAA00);
     }
 
@@ -1626,7 +1626,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         graphics.fill(x + 1, y + 1, x + width - 1, y + height - 1, 0xFF081A1A);
 
         // 标题
-        graphics.drawCenteredString(this.font, "E.G.O护甲", x + width/2, y + 8,
+        graphics.drawCenteredString(this.font, tr("equipment.lobotocraft.ego_armor"), x + width/2, y + 8,
                 EncyclopediaGUIConfig.Colors.THEME_ORANGE);
 
         // 渲染护甲图标（居中，80x80）
@@ -1708,7 +1708,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                 x + 10, y + height - 16,
                 developmentArmorCount >= armorData.developmentMaxCount() ?
                         0xFFFFAA00 : EncyclopediaGUIConfig.Colors.TEXT_GRAY);
-        graphics.drawString(this.font, "研发",
+        graphics.drawString(this.font, tr("screen.lobotocraft.encyclopedia.development"),
                 x + width - 30, y + height - 16, 0xFFFFAA00);
     }
 
@@ -1716,13 +1716,13 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
      * 获取抗性等级文本（简化版）
      */
     private String getResistanceLevel(float value) {
-        if (value >= 2.0f) return "抗性极低";
-        if (value >= 1.5f) return "抗性很低";
-        if (value > 1.0f) return "抗性较低";
-        if (value == 1.0f) return "抗性普通";
-        if (value >= 0.8f) return "抗性较高";
-        if (value >= 0.5f) return "抗性很高";
-        return "抗性极高";
+        if (value >= 2.0f) return tr("screen.lobotocraft.encyclopedia.resistance.extremely_low");
+        if (value >= 1.5f) return tr("screen.lobotocraft.encyclopedia.resistance.very_low");
+        if (value > 1.0f) return tr("screen.lobotocraft.encyclopedia.resistance.low");
+        if (value == 1.0f) return tr("screen.lobotocraft.encyclopedia.resistance.normal");
+        if (value >= 0.8f) return tr("screen.lobotocraft.encyclopedia.resistance.high");
+        if (value >= 0.5f) return tr("screen.lobotocraft.encyclopedia.resistance.very_high");
+        return tr("screen.lobotocraft.encyclopedia.resistance.extremely_high");
     }
 
     private ResourceLocation getDamageTypeIcon() {
@@ -1857,15 +1857,16 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         int y = startY + EncyclopediaGUIConfig.Layout.RightColumn.START_Y_OFFSET;
 
         // ========== 管理须知 ==========
-        graphics.drawString(this.font, "管理须知",
+        graphics.drawString(this.font, tr("screen.lobotocraft.encyclopedia.management_guidelines"),
                 x, y,
                 EncyclopediaGUIConfig.Colors.TEXT_GRAY);
         y += EncyclopediaGUIConfig.Layout.CenterColumn.TITLE_SPACING;
 
         // 动态渲染所有管理须知
         for (int i = 0; i < manualsUnlocked.length; i++) {
-            String manualTitle = "管理须知 " + toRoman(i + 1);
-            String manualContent = i < manualTexts.length ? manualTexts[i] : "未知";
+            String manualTitle = tr("screen.lobotocraft.encyclopedia.management_entry", toRoman(i + 1));
+            String manualContent = i < manualTexts.length ? manualTexts[i]
+                    : tr("screen.lobotocraft.encyclopedia.no_data");
             renderTextOnlyEntry(graphics, x, y, manualTitle,
                     manualContent,
                     manualsUnlocked[i],
@@ -1879,13 +1880,13 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         if (isToolType) return;
 
         // ========== 敏感信息 ==========
-        graphics.drawString(this.font, "异想体的敏感信息",
+        graphics.drawString(this.font, tr("screen.lobotocraft.encyclopedia.sensitive_information"),
                 x, y,
                 EncyclopediaGUIConfig.Colors.TEXT_GRAY);
         y += EncyclopediaGUIConfig.Layout.CenterColumn.TITLE_SPACING;
 
         // 逆卡巴拉计数极值
-        renderTextOnlyEntry(graphics, x, y, "逆卡巴拉计数极值",
+        renderTextOnlyEntry(graphics, x, y, tr("screen.lobotocraft.encyclopedia.qliphoth_counter_limit"),
                 sensitiveInfoText,
                 sensitiveInfoUnlocked,
                 EncyclopediaGUIConfig.UnlockCosts.SENSITIVE_INFO_LEVEL,
@@ -1897,7 +1898,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         // 获取异想体实体
         IAbnormality abnormality = this.abnormality;
         if (abnormality == null) {
-            showErrorMessage("严重错误：找不到异想体！", 40);
+            showErrorMessage(tr("screen.lobotocraft.encyclopedia.error.missing_abnormality"), 40);
             return;
         }
 
@@ -1911,12 +1912,15 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                 float giftProb = abnormality.getGiftProbability() * 100;
                 if (giftProb != -1f) {
                     graphics.drawString(this.font,
-                            String.format("E.G.O饰品（获得率%.1f%%）", giftProb),
+                            tr("screen.lobotocraft.encyclopedia.gift_title",
+                                    tr("screen.lobotocraft.encyclopedia.gift_rate",
+                                            String.format(java.util.Locale.ROOT, "%.1f", giftProb))),
                             x, y,
                             EncyclopediaGUIConfig.Colors.THEME_ORANGE);
                 } else {
                     graphics.drawString(this.font,
-                            String.format("E.G.O饰品（获得率未知）", giftProb),
+                            tr("screen.lobotocraft.encyclopedia.gift_title",
+                                    tr("screen.lobotocraft.encyclopedia.gift_rate_unknown")),
                             x, y,
                             EncyclopediaGUIConfig.Colors.THEME_ORANGE);
                 }
@@ -1926,13 +1930,15 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
             } else {
                 // 未解锁：显示需要的等级
                 graphics.drawString(this.font,
-                        String.format("E.G.O饰品（观察等级%d解锁）", giftRequiredLevel),
+                        tr("screen.lobotocraft.encyclopedia.gift_title",
+                                tr("screen.lobotocraft.encyclopedia.unlock_at_observation", giftRequiredLevel)),
                         x, y, 0xFF888888);
                 y += EncyclopediaGUIConfig.Layout.CenterColumn.TITLE_SPACING;
 
                 // 绘制锁定框
                 graphics.fill(x, y, x + 70, y + 70, 0xFF1A1A1A);
-                graphics.drawCenteredString(this.font, "未解锁", x + 35, y + 30, 0xFF666666);
+                graphics.drawCenteredString(this.font, tr("screen.lobotocraft.encyclopedia.locked"),
+                        x + 35, y + 30, 0xFF666666);
                 y += 85;
             }
         }
@@ -1950,10 +1956,10 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                 renderEGOArmor(graphics, armorX, y, abnormality);
             } else {
                 // 未解锁提示
-                graphics.drawCenteredString(this.font, "E.G.O护甲",
+                graphics.drawCenteredString(this.font, tr("equipment.lobotocraft.ego_armor"),
                         armorX + 75, y + 8, 0xFF888888);
                 graphics.drawCenteredString(this.font,
-                        String.format("观察等级%d解锁", armorRequiredLevel),
+                        tr("screen.lobotocraft.encyclopedia.unlock_at_observation", armorRequiredLevel),
                         armorX + 75, y + 70, 0xFF666666);
                 graphics.fill(armorX, y + 20, armorX + 150, y + 60, 0xFF1A1A1A);
             }
@@ -1966,10 +1972,10 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                 renderEGOWeapon(graphics, weaponX, y, abnormality);
             } else {
                 // 未解锁提示
-                graphics.drawCenteredString(this.font, "E.G.O武器",
+                graphics.drawCenteredString(this.font, tr("equipment.lobotocraft.ego_weapon"),
                         weaponX + 75, y + 8, 0xFF888888);
                 graphics.drawCenteredString(this.font,
-                        String.format("观察等级%d解锁", weaponRequiredLevel),
+                        tr("screen.lobotocraft.encyclopedia.unlock_at_observation", weaponRequiredLevel),
                         weaponX + 75, y + 70, 0xFF666666);
                 graphics.fill(weaponX, y + 20, weaponX + 150, y + 60, 0xFF1A1A1A);
             }
@@ -2526,13 +2532,13 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
     private boolean tryUnlock(int entryIndex, int cost, int requiredLevel) {
         if (requiredLevel > 0 && observationLevel < requiredLevel) {
-            showErrorMessage("§c需要观察等级 " + requiredLevel
-                    + "，当前等级 " + observationLevel, 40);
+            showErrorMessage(tr("screen.lobotocraft.encyclopedia.error.observation_level",
+                    requiredLevel, observationLevel), 40);
             return true;
         }
         if (playerEnergy < cost) {
-            showErrorMessage("§cPE-BOX不足！需要 " + cost
-                    + " 个，当前只有 " + playerEnergy + " 个", 30);
+            showErrorMessage(tr("screen.lobotocraft.encyclopedia.error.pe_box",
+                    cost, playerEnergy), 30);
             return true;
         }
         unlockEntry(entryIndex, cost);
@@ -2547,11 +2553,12 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
     private void onWeaponDevelopmentClicked(IAbnormality abnormality) {
         if (abnormality.getWeaponDevelopmentCost() == -1) {
-            showErrorMessage("§c研发武器失败，无法研究！", 30);
+            showErrorMessage(tr("screen.lobotocraft.encyclopedia.error.weapon_unavailable"), 30);
             return;
         }
         if (playerEnergy < abnormality.getWeaponDevelopmentCost()) {
-            showErrorMessage("§c研发武器失败，PE-BOX不足，需要 " + abnormality.getWeaponDevelopmentCost() + " 个PE-BOX！", 30);
+            showErrorMessage(tr("screen.lobotocraft.encyclopedia.error.weapon_cost",
+                    abnormality.getWeaponDevelopmentCost()), 30);
             return;
         }
 
@@ -2571,11 +2578,12 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
     private void onArmorDevelopmentClicked(IAbnormality abnormality) {
         if (abnormality.getArmorDevelopmentCost() == -1) {
-            showErrorMessage("§c研发装备失败，无法研究！", 30);
+            showErrorMessage(tr("screen.lobotocraft.encyclopedia.error.armor_unavailable"), 30);
             return;
         }
         if (playerEnergy < abnormality.getArmorDevelopmentCost()) {
-            showErrorMessage("§c研发装备失败，PE-BOX不足，需要 " + abnormality.getArmorDevelopmentCost() + " 个PE-BOX！", 30);
+            showErrorMessage(tr("screen.lobotocraft.encyclopedia.error.armor_cost",
+                    abnormality.getArmorDevelopmentCost()), 30);
             return;
         }
 

@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.ClientInputUtil;
 import com.wzz.lobotocraft.util.MathUtil;
@@ -179,25 +180,21 @@ public final class MustOpenPathWeapon extends BaseEgoWeapon {
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
         super.appendHoverText(stack, level, tooltip, flag);
-        if (!ClientInputUtil.isShiftPressed()) {
-            tooltip.add(Component.translatable("tooltip.lobotocraft.must_open_path_weapon.info")
-                    .withStyle(ChatFormatting.GOLD));
-            tooltip.add(Component.empty());
-            tooltip.add(Component.translatable("tooltip.lobotocraft.must_open_path_weapon.story_1")
-                    .withStyle(ChatFormatting.GRAY));
-            tooltip.add(Component.translatable("tooltip.lobotocraft.must_open_path_weapon.story_2")
-                    .withStyle(ChatFormatting.GRAY));
-            tooltip.add(Component.translatable("tooltip.lobotocraft.must_open_path_weapon.story_3")
-                    .withStyle(ChatFormatting.GRAY));
-            tooltip.add(Component.translatable("tooltip.lobotocraft.must_open_path_weapon.shift")
-                    .withStyle(ChatFormatting.GRAY));
-        } else {
-            tooltip.add(Component.translatable("tooltip.lobotocraft.must_open_path_weapon.special_1")
-                    .withStyle(ChatFormatting.GOLD));
-            tooltip.add(Component.translatable("tooltip.lobotocraft.must_open_path_weapon.special_2")
-                    .withStyle(ChatFormatting.GOLD));
-        }
-        tooltip.add(Component.translatable("tooltip.lobotocraft.must_open_path_weapon.damage")
-                .withStyle(ChatFormatting.RED));
+        EgoTooltipUtil.appendStandardDescription(
+                tooltip,
+                ClientInputUtil.isShiftPressed(),
+                "tooltip.lobotocraft.must_open_path_weapon.info",
+                new String[]{
+                        "tooltip.lobotocraft.must_open_path_weapon.story_1",
+                        "tooltip.lobotocraft.must_open_path_weapon.story_2",
+                        "tooltip.lobotocraft.must_open_path_weapon.story_3"
+                },
+                new String[]{"tooltip.lobotocraft.must_open_path_weapon.damage"},
+                new String[]{
+                        "tooltip.lobotocraft.must_open_path_weapon.special_1",
+                        "tooltip.lobotocraft.must_open_path_weapon.special_2"
+                },
+                new ChatFormatting[]{ChatFormatting.RED}
+        );
     }
 }

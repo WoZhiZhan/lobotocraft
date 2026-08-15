@@ -61,12 +61,20 @@ public final class AbnormalitySummonGameTests {
         }
         moveTo(helper, firstDoor, new BlockPos(14, 2, 2));
         moveTo(helper, secondDoor, new BlockPos(18, 2, 2));
-        if (!level.addFreshEntity(firstDoor) || level.addFreshEntity(secondDoor)) {
+        if (!level.addFreshEntity(firstDoor)) {
             largeBird.discard();
             endBird.discard();
             firstDoor.discard();
             secondDoor.discard();
-            helper.fail("black forest door duplicate protection changed unexpectedly");
+            helper.fail("black forest door duplicate protection rejected the first door");
+            return;
+        }
+        if (level.addFreshEntity(secondDoor)) {
+            largeBird.discard();
+            endBird.discard();
+            firstDoor.discard();
+            secondDoor.discard();
+            helper.fail("black forest door duplicate protection accepted the second door");
             return;
         }
 

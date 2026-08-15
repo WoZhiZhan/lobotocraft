@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.wingbeat;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
@@ -58,7 +59,7 @@ public class WingBeatWeapon extends BaseEgoWeapon {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> components, TooltipFlag flag) {
         super.appendHoverText(stack, level, components, flag);
-        components.add(Component.literal("§7这把武器闪耀着和精灵们身上相同的，苍白的光。"));
-        components.add(Component.literal("§7这把武器并不像精灵的羽翼那样轻薄，而要沉重许多。"));
+        EgoTooltipUtil.add(components, "tooltip.lobotocraft.wingbeat_weapon.story.1");
+        EgoTooltipUtil.add(components, "tooltip.lobotocraft.wingbeat_weapon.story.2");
     }
 }

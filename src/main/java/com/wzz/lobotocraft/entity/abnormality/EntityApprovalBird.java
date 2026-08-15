@@ -237,7 +237,7 @@ public class EntityApprovalBird extends AbstractAbnormality {
         // 在目标脚下位置生成
         gallows.moveTo(victim.getX(), victim.getY(), victim.getZ(), 0f, 0f);
         // 绑定被处决者（用于动画同步）
-        gallows.setVictimId(victim.getId());
+        gallows.setVictim(victim);
         serverLevel.addFreshEntity(gallows);
     }
 
@@ -279,11 +279,13 @@ public class EntityApprovalBird extends AbstractAbnormality {
         float f = random.nextFloat();
         if (result == WorkResult.NORMAL && f <= 0.3f) {
             decreaseQliphothCounter(1);
-            player.displayClientMessage(Component.literal("§c因你的工作失误，审判鸟的计数器减少了..."), false);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.judgement_bird.counter_reduced"), false);
         }
         if (result == WorkResult.BAD && f <= 0.6f) {
             decreaseQliphothCounter(1);
-            player.displayClientMessage(Component.literal("§c因你的工作失误，审判鸟的计数器减少了..."), false);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.judgement_bird.counter_reduced"), false);
         }
     }
 
@@ -295,7 +297,7 @@ public class EntityApprovalBird extends AbstractAbnormality {
 
     @Override
     public void onBadWork(ServerPlayer player) {
-        decreaseQliphothCounter(1);
+        super.onBadWork(player);
     }
 
     @Override

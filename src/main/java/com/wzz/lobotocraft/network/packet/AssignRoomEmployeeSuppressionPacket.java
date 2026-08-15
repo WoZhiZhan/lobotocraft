@@ -60,43 +60,51 @@ public final class AssignRoomEmployeeSuppressionPacket implements IMessage {
                 "room_suppression_assignment_" + employeeId, 100L)) return;
         String failure = validateAndAssign(sender);
         MessageLoader.getLoader().sendToPlayer(sender, new RoomSuppressionAssignmentResultPacket(
-                employeeId, failure == null, failure == null ? "镇压任务已下达" : failure));
+                employeeId, failure == null, failure == null
+                ? "message.lobotocraft.monitor.dispatch.suppression_sent" : failure));
     }
 
     private String validateAndAssign(ServerPlayer sender) {
         if (!AbnormalitySpawnHelper.isCompany(sender.level())
                 || !sender.serverLevel().dimension().location().equals(dimension)) {
-            return "请回到公司后再下达镇压任务";
+            return "message.lobotocraft.monitor.dispatch.company_only";
         }
         EmployeeRecord record = FacilityPersonnelData.get(sender.server).get(employeeId);
-        if (record == null || record.retired()) return "员工不存在";
+        if (record == null || record.retired()) return "message.lobotocraft.monitor.dispatch.employee_missing";
         if (!com.wzz.lobotocraft.employee.DepartmentProgressService.isSectionOpen(
                 sender.server, record.department(), record.centralSection())) {
-            return "该员工所属部门区域尚未开放";
+            return "message.lobotocraft.monitor.dispatch.department_closed";
         }
         if (!LlmDepartmentAccessData.get(sender.server).canManage(sender, record.department())) {
-            return "你无权调度该部门";
+            return "message.lobotocraft.monitor.dispatch.unauthorized";
         }
         EmployeeServerPlayer employee = EmployeeRuntimeManager.activePlayer(employeeId);
-        if (employee == null || employee.isRemoved() || !employee.isAlive()) return "员工未部署";
-        if (WorkManager.isPlayerWorking(employee)) {
-            return "员工正在工作";
+        if (employee == null || employee.isRemoved() || !employee.isAlive()) {
+            return "message.lobotocraft.monitor.dispatch.employee_not_deployed";
         }
-        if (MentalValueUtil.isPanic(employee)) return "员工处于精神崩溃状态";
+        if (WorkManager.isPlayerWorking(employee)) {
+            return "message.lobotocraft.monitor.dispatch.employee_working";
+        }
+        if (MentalValueUtil.isPanic(employee)) {
+            return "message.lobotocraft.monitor.dispatch.employee_panicking";
+        }
         if (!EgoLoadoutService.hasValidAssignedAiWeapon(employee,
                 AiEgoRepositoryData.get(sender.server))) {
-            return "员工未分配可用且满足等级要求的 E.G.O 武器";
+            return "message.lobotocraft.monitor.dispatch.no_valid_weapon";
         }
         ServerLevel level = sender.server.getLevel(ResourceKey.create(Registries.DIMENSION, dimension));
         if (level == null || employee.level() != level
                 || FacilityAccessService.containmentAccess(sender.server, dimension, roomPos)
                 != FacilityAccessService.ContainmentAccess.OPEN
                 || !(level.getBlockEntity(roomPos) instanceof RoomMarkerBlockEntity marker)) {
-            return "收容单元当前不可用";
+            return "message.lobotocraft.monitor.dispatch.room_unavailable";
         }
         Entity entity = marker.getBoundAbnormality() == null ? null : level.getEntity(marker.getBoundAbnormality());
         if (!(entity instanceof AbstractAbnormality abnormality) || !abnormality.isAlive()
-                || !abnormality.hasEscape()) return "异想体当前未处于出逃状态";
-        return EmployeeRuntimeManager.assignSuppress(record, abnormality) ? null : "无法下达镇压任务";
+                || !abnormality.hasEscape()) {
+            return "message.lobotocraft.monitor.dispatch.abnormality_not_escaped";
+        }
+        return EmployeeRuntimeManager.assignSuppress(record, abnormality)
+                ? null : "message.lobotocraft.monitor.dispatch.suppression_failed";
     }
 }

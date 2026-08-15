@@ -80,7 +80,9 @@ public class MixinInventoryScreen {
         // 如果悬停，显示提示文字
         if (isHovered) {
             graphics.renderTooltip(screen.getMinecraft().font,
-                    net.minecraft.network.chat.Component.literal("§6员工属性"),
+                    net.minecraft.network.chat.Component.translatable(
+                            "screen.lobotocraft.employee_stats.title")
+                            .withStyle(net.minecraft.ChatFormatting.GOLD),
                     mouseX, mouseY);
         }
     }

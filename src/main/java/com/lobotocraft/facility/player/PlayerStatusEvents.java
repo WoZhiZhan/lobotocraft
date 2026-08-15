@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.UUID;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -113,7 +114,7 @@ public final class PlayerStatusEvents {
         List<PlayerStatusPacket.Entry> entries = new ArrayList<>();
         for (ServerPlayer player : visiblePlayers.values()) {
             int state = IDLE;
-            String target = "";
+            Component target = Component.empty();
             if (isControlled(player)) {
                 state = CONTROLLED;
             } else if (MentalValueUtil.getMentalValue(player) <= 0.0F
@@ -125,12 +126,14 @@ public final class PlayerStatusEvents {
                     && EmployeeRuntimeManager.navigationPurpose(player.getUUID()).isEmpty()) {
                 state = WORKING;
                 IAbnormality abnormality = WorkManager.getWorkingAbnormality(player);
-                if (abnormality != null) target = abnormality.getAbnormalityName();
+                if (abnormality instanceof Entity entity) {
+                    target = Component.translatable(entity.getType().getDescriptionId());
+                }
             } else if (player instanceof EmployeeServerPlayer) {
                 String purpose = EmployeeRuntimeManager.navigationPurpose(player.getUUID());
                 if (!purpose.isEmpty()) {
                     state = NAVIGATING;
-                    target = purpose;
+                    target = EmployeeRuntimeManager.navigationPurposeComponent(player.getUUID());
                 } else if (COMBAT_UNTIL.getOrDefault(player.getUUID(), 0) >= now) {
                     state = COMBAT;
                 }

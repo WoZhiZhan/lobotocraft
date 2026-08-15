@@ -30,10 +30,12 @@ import com.wzz.lobotocraft.world.data.FloorEntry;
 import com.wzz.lobotocraft.world.data.RoomEntry;
 import com.wzz.lobotocraft.world.data.RoomEmployeeSnapshot;
 import com.wzz.lobotocraft.work.WorkType;
+import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.resources.language.I18n;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -775,6 +777,7 @@ public class RoomMapScreen extends Screen {
         target.departmentId = source.departmentId;
         target.abnormalityCode = source.abnormalityCode;
         target.abnormalityName = source.abnormalityName;
+        target.abnormalityNameKey = source.abnormalityNameKey;
         target.riskName = source.riskName;
         target.riskColor = source.riskColor;
         target.toolType = source.toolType;
@@ -888,7 +891,7 @@ public class RoomMapScreen extends Screen {
         workCandidates = List.copyOf(ordered);
         rebuildCandidatePages(preferredDepartment);
         candidatesLoading = false;
-        candidateError = error == null ? "" : error;
+        candidateError = localizedNetworkText(error);
     }
 
     public void showSuppressionCandidates(BlockPos roomPos,
@@ -905,12 +908,12 @@ public class RoomMapScreen extends Screen {
         workCandidates = List.copyOf(ordered);
         rebuildCandidatePages(preferredDepartment);
         candidatesLoading = false;
-        candidateError = error == null ? "" : error;
+        candidateError = localizedNetworkText(error);
     }
 
     public void onWorkAssignmentResult(UUID employeeId, boolean success, String message) {
         assignmentSucceeded = success;
-        assignmentMessage = message == null ? "" : message;
+        assignmentMessage = localizedNetworkText(message);
         assignmentMessageAt = Util.getMillis();
         if (success) {
             selectedRoom = null;
@@ -928,7 +931,7 @@ public class RoomMapScreen extends Screen {
 
     public void onSuppressionAssignmentResult(UUID employeeId, boolean success, String message) {
         assignmentSucceeded = success;
-        assignmentMessage = message == null ? "" : message;
+        assignmentMessage = localizedNetworkText(message);
         assignmentMessageAt = Util.getMillis();
         playUiSound(success ? 1.25F : 0.55F);
         if (!success && this.minecraft != null && this.minecraft.player != null && !assignmentMessage.isEmpty()) {
@@ -1383,7 +1386,7 @@ public class RoomMapScreen extends Screen {
 
         int textX = portraitX + portraitSize + 6;
         int textW = Math.max(24, right - textX - 8);
-        drawFittedString(graphics, selectedRoom.resolveTitle(), textX, portraitY,
+        drawFittedString(graphics, roomTitle(selectedRoom), textX, portraitY,
                 textW, withAlpha(COLOR_TEXT, alpha));
         drawFittedString(graphics, selectedRoom.abnormalityCode, textX,
                 portraitY + 12, textW, withAlpha(COLOR_TEXT_DIM, alpha));
@@ -1588,7 +1591,7 @@ public class RoomMapScreen extends Screen {
                     ? isSuppressionSelection() ? tr("screen.lobotocraft.monitor.dispatch.available")
                     : candidate.successRate() < 0.0F ? "???"
                     : Math.round(candidate.successRate() * 100.0F) + "%  " + candidate.estimatedSeconds() + "s"
-                    : candidate.unavailableReason();
+                    : unavailableReasonText(candidate);
             drawFittedString(graphics, preview, barRight + 8, y + 18,
                     rowRight - barRight - 13,
                     withAlpha(candidate.eligible() ? COLOR_TEXT_DIM : LobotomyUiTheme.ALERT_RED, alpha));
@@ -1789,7 +1792,7 @@ public class RoomMapScreen extends Screen {
         // 标题
         graphics.fill(left, top, left + PICKER_W, top + PICKER_HEADER_H, 0xFF16324A);
         String title = tr("screen.lobotocraft.monitor.picker.title",
-                this.font.plainSubstrByWidth(pickerRoom.resolveTitle(), 180));
+                this.font.plainSubstrByWidth(roomTitle(pickerRoom), 180));
         graphics.drawString(this.font, title, left + 10, top + 9, COLOR_TEXT, false);
 
         int rowsTop = top + PICKER_HEADER_H;
@@ -1824,7 +1827,9 @@ public class RoomMapScreen extends Screen {
                 graphics.blit(resolvePortrait(candidate.code), px, py, 0, 0, 22, 22, 22, 22);
             }
 
-            String name = this.font.plainSubstrByWidth(candidate.name, PICKER_W - 50);
+            String candidateName = candidate.nameKey == null || candidate.nameKey.isBlank()
+                    ? candidate.name : tr(candidate.nameKey);
+            String name = this.font.plainSubstrByWidth(candidateName, PICKER_W - 50);
             graphics.drawString(this.font, name, left + 33, rowTop + 4, COLOR_TEXT, false);
 
             int subX = left + 33;
@@ -2097,7 +2102,7 @@ public class RoomMapScreen extends Screen {
 
         int textX = left + 40;
         int textWidth = CARD_W - 44;
-        String title = this.font.plainSubstrByWidth(entry.resolveTitle(), textWidth);
+        String title = this.font.plainSubstrByWidth(roomTitle(entry), textWidth);
         graphics.drawString(this.font, title, textX, top + 6, withAlpha(COLOR_TEXT, alpha), false);
         String code = entry.abnormalityCode.isEmpty()
                 ? entry.pos.getX() + "," + entry.pos.getZ()
@@ -2356,7 +2361,7 @@ public class RoomMapScreen extends Screen {
         if (textWidth < 18) return;
 
         int lineY = top;
-        drawFittedString(graphics, entry.resolveTitle(), textX, lineY,
+        drawFittedString(graphics, roomTitle(entry), textX, lineY,
                 textWidth, withAlpha(COLOR_TEXT, alpha));
         lineY += this.font.lineHeight + 1;
 
@@ -2461,7 +2466,7 @@ public class RoomMapScreen extends Screen {
         }
 
         // 房间名
-        String title = this.font.plainSubstrByWidth(entry.resolveTitle(), CARD_W - 10);
+        String title = this.font.plainSubstrByWidth(roomTitle(entry), CARD_W - 10);
         drawCentered(graphics, title, cx, top + 75, withAlpha(COLOR_TEXT, alpha));
 
         // 代码（灰） + 风险等级（按 RiskLevel 的颜色）
@@ -2673,7 +2678,7 @@ public class RoomMapScreen extends Screen {
 
     private List<Component> buildTooltip(RoomEntry entry) {
         List<Component> lines = new ArrayList<>();
-        lines.add(Component.literal("§f" + entry.resolveTitle()));
+        lines.add(entry.resolveTitleComponent().copy().withStyle(ChatFormatting.WHITE));
         if (entry.floorName != null && !entry.floorName.isEmpty()) {
             lines.add(Component.translatable("screen.lobotocraft.monitor.tooltip.floor", entry.floorName));
         }
@@ -2740,8 +2745,10 @@ public class RoomMapScreen extends Screen {
                 + "/" + Math.round(employee.maxMental())));
         lines.add(Component.translatable("screen.lobotocraft.monitor.employee.stats",
                 employee.fortitude(), employee.prudence(), employee.temperance(), employee.justice()));
-        lines.add(Component.translatable("screen.lobotocraft.monitor.employee.weapon", employee.weaponName()));
-        lines.add(Component.translatable("screen.lobotocraft.monitor.employee.armor", employee.armorName()));
+        lines.add(Component.translatable("screen.lobotocraft.monitor.employee.weapon",
+                localizedItemName(employee.weaponName(), employee.weaponNameKey())));
+        lines.add(Component.translatable("screen.lobotocraft.monitor.employee.armor",
+                localizedItemName(employee.armorName(), employee.armorNameKey())));
         if (employee.eligible() && employee.successRate() >= 0.0F) {
             lines.add(Component.translatable("screen.lobotocraft.monitor.employee.work_preview",
                     Math.round(employee.successRate() * 100.0F), employee.estimatedSeconds()));
@@ -2749,13 +2756,43 @@ public class RoomMapScreen extends Screen {
                 && selectedRoom != null && selectedWork >= 0 && !isSuppressionSelection()) {
             lines.add(Component.translatable("screen.lobotocraft.monitor.employee.work_preview_unknown"));
         } else if (!employee.eligible()) {
-            lines.add(Component.literal("§c" + employee.unavailableReason()));
+            lines.add(Component.literal("§c" + unavailableReasonText(employee)));
         }
         return lines;
     }
 
+    private static String unavailableReasonText(RoomEmployeeSnapshot employee) {
+        if (employee.unavailableReasonKey() != null && !employee.unavailableReasonKey().isBlank()) {
+            return tr(employee.unavailableReasonKey());
+        }
+        return employee.unavailableReason();
+    }
+
+    private static String localizedNetworkText(String value) {
+        if (value == null || value.isBlank()) return "";
+        return I18n.exists(value) ? I18n.get(value) : value;
+    }
+
+    private static String localizedItemName(String fallback, String translationKey) {
+        if (translationKey != null && !translationKey.isBlank() && I18n.exists(translationKey)) {
+            return I18n.get(translationKey);
+        }
+        return fallback == null || fallback.isBlank()
+                ? tr("screen.lobotocraft.common.none") : fallback;
+    }
+
     private static String employeeStatusText(String status) {
-        return "CONTROLLED".equals(status) ? tr("status.lobotocraft.controlled") : status;
+        return switch (status) {
+            case "CONTROLLED" -> tr("status.lobotocraft.controlled");
+            case "IDLE" -> tr("status.lobotocraft.idle");
+            case "MOVE", "FOLLOW", "RETURN_TO_DEPARTMENT" -> tr("status.lobotocraft.moving");
+            case "WORK" -> tr("status.lobotocraft.working");
+            case "TOOL_USE" -> tr("status.lobotocraft.tool_use");
+            case "SEARCH_AND_SUPPRESS" -> tr("status.lobotocraft.suppressing");
+            case "HOLD" -> tr("status.lobotocraft.hold");
+            case "PLAYER" -> tr("status.lobotocraft.player");
+            default -> status;
+        };
     }
 
     private List<Component> buildAreaTooltip(FacilityLayoutTemplate.Area area) {
@@ -3044,7 +3081,8 @@ public class RoomMapScreen extends Screen {
                 dispatchAreaMove(containmentArea);
                 if (this.minecraft != null && this.minecraft.player != null) {
                     this.minecraft.player.displayClientMessage(Component.translatable(
-                            "message.lobotocraft.monitor.move_to_containment", room.abnormalityName), true);
+                            "message.lobotocraft.monitor.move_to_containment",
+                            room.resolveTitleComponent()), true);
                 }
                 return true;
             }
@@ -3345,5 +3383,9 @@ public class RoomMapScreen extends Screen {
 
     private static String tr(String key, Object... arguments) {
         return Component.translatable(key, arguments).getString();
+    }
+
+    private static String roomTitle(RoomEntry entry) {
+        return entry.resolveTitleComponent().getString();
     }
 }

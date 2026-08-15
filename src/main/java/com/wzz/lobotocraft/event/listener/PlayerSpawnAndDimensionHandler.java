@@ -139,7 +139,8 @@ public class PlayerSpawnAndDimensionHandler {
                             if (!player.getInventory().add(otto)) {
                                 player.drop(otto, false);
                             }
-                            player.sendSystemMessage(Component.literal("§6欢迎来到脑叶公司！"));
+                            player.sendSystemMessage(Component.translatable(
+                                    "message.lobotocraft.facility.welcome"));
                             Objects.requireNonNull(player.getServer()).tell(new net.minecraft.server.TickTask(
                                     player.getServer().getTickCount() + 40,
                                     () -> {

@@ -13,6 +13,7 @@ import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.world.data.OrdealData;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -126,9 +127,9 @@ public class BlueMiddayEvent {
         trialActive = true;
 
         showBlueMiddayTitle(server,
-                "深蓝色的正午",
-                "大群的意志",
-                "自由的进化和退化，是前文明留给它们的礼物。");
+                "ordeal.lobotocraft.indigo_midday.name",
+                "ordeal.lobotocraft.indigo_midday.title",
+                "ordeal.lobotocraft.indigo_midday.start_subtitle");
         applyStartRegeneration(server);
         EscapeTracker.getInstance().onOrdealStart(level, OrdealTier.NOON);
         return true;
@@ -166,9 +167,9 @@ public class BlueMiddayEvent {
         OrdealRewardService.complete(server, OrdealTier.NOON);
         awardCompletionWorkCount(server);
         showBlueMiddayTitle(server,
-                "深蓝色的正午",
-                "大群的意志",
-                "它们无法理解情感与音乐，是前文明留给它们的缺陷。");
+                "ordeal.lobotocraft.indigo_midday.name",
+                "ordeal.lobotocraft.indigo_midday.title",
+                "ordeal.lobotocraft.indigo_midday.end_subtitle");
     }
 
     private static List<ServerPlayer> getEligiblePlayers(ServerLevel level) {
@@ -322,7 +323,8 @@ public class BlueMiddayEvent {
     }
 
     private static void showBlueMiddayTitle(MinecraftServer server, String top, String middle, String bottom) {
-        sendOrdealTitle(server, top, middle, bottom, BLUE_MIDDAY_COLOR);
+        sendOrdealTitle(server, Component.translatable(top), Component.translatable(middle),
+                Component.translatable(bottom), BLUE_MIDDAY_COLOR);
     }
 
     private BlueMiddayEvent() {

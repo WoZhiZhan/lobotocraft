@@ -77,7 +77,8 @@ public final class ResolutionShaderHandler {
             if (remainingTicks == 0) {
                 apply(ShaderQuality.NATIVE);
                 if (minecraft.player != null) {
-                    minecraft.player.displayClientMessage(Component.literal("画质已恢复"), true);
+                    minecraft.player.displayClientMessage(Component.translatable(
+                            "message.lobotocraft.graphics.restored"), true);
                 }
                 return;
             }

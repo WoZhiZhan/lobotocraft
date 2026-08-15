@@ -183,9 +183,9 @@ public class CrimsonDawnEvent {
         data.startBloodDawn(spawned.size());
 
         showBloodDawnTitle(server,
-                "血色的黎明",
-                "开始欢呼吧！",
-                "让我们在这宛如风中残烛的生命里，纵情放一把大火吧！");
+                Component.translatable("ordeal.lobotocraft.crimson_dawn.name"),
+                Component.translatable("ordeal.lobotocraft.crimson_dawn.title"),
+                Component.translatable("ordeal.lobotocraft.crimson_dawn.start_subtitle"));
         playGlobalSound(server, ModSounds.BLOODY_DAWN_START.get());
         EscapeTracker.getInstance().onOrdealStart(level, OrdealTier.DAWN);
         return true;
@@ -200,9 +200,9 @@ public class CrimsonDawnEvent {
         MinecraftServer server = level.getServer();
         OrdealRewardService.complete(server, OrdealTier.DAWN);
         showBloodDawnTitle(server,
-                "血色的黎明",
-                "开始欢呼吧！",
-                "活着，就是为了满足肉欲。");
+                Component.translatable("ordeal.lobotocraft.crimson_dawn.name"),
+                Component.translatable("ordeal.lobotocraft.crimson_dawn.title"),
+                Component.translatable("ordeal.lobotocraft.crimson_dawn.end_subtitle"));
         playGlobalSound(server, ModSounds.BLOODY_DAWN_END.get());
     }
 
@@ -214,8 +214,8 @@ public class CrimsonDawnEvent {
             return;
         }
         lastLocationNoticeGameTime = gameTime;
-        Component message = Component.literal("§4开始欢呼吧！§7出现在 §c"
-                + abnormality.getAbnormalityName() + " §7附近。");
+        Component message = Component.translatable("message.lobotocraft.crimson_dawn.location",
+                abnormality.getLocalizedAbnormalityName());
         for (ServerPlayer player : level.getServer().getPlayerList().getPlayers()) {
             player.sendSystemMessage(message);
         }
@@ -318,11 +318,13 @@ public class CrimsonDawnEvent {
         if (server == null) return;
         ChatFormatting labelColor = getDawnLabelColor(dawnType);
         ChatFormatting chanceColor = getDawnChanceColor(dawnType);
-        Component message = Component.literal(getDawnLabel(dawnType) + "：")
+        Component message = Component.translatable(getDawnLabelKey(dawnType))
                 .withStyle(labelColor)
-                .append(Component.literal(chance + "%").withStyle(chanceColor));
+                .append(Component.translatable("message.lobotocraft.ordeal.chance_suffix", chance)
+                        .withStyle(chanceColor));
         if (capped) {
-            message = message.copy().append(Component.literal(" (今日黎明已达上限)").withStyle(ChatFormatting.GRAY));
+            message = message.copy().append(Component.translatable(
+                    "message.lobotocraft.ordeal.dawn_capped").withStyle(ChatFormatting.GRAY));
         }
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             player.connection.send(new ClientboundSetActionBarTextPacket(message));
@@ -331,32 +333,34 @@ public class CrimsonDawnEvent {
 
     private static void broadcastMiddayChance(MinecraftServer server, int chance, int middayType, boolean capped) {
         if (server == null) return;
-        Component message = Component.literal(getMiddayLabel(middayType) + "：")
+        Component message = Component.translatable(getMiddayLabelKey(middayType))
                 .withStyle(getMiddayLabelColor(middayType))
-                .append(Component.literal(chance + "%").withStyle(getMiddayChanceColor(middayType)));
+                .append(Component.translatable("message.lobotocraft.ordeal.chance_suffix", chance)
+                        .withStyle(getMiddayChanceColor(middayType)));
         if (capped) {
-            message = message.copy().append(Component.literal(" (今日正午已达上限)").withStyle(ChatFormatting.GRAY));
+            message = message.copy().append(Component.translatable(
+                    "message.lobotocraft.ordeal.midday_capped").withStyle(ChatFormatting.GRAY));
         }
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             player.connection.send(new ClientboundSetActionBarTextPacket(message));
         }
     }
 
-    public static String getDawnLabel(int dawnType) {
+    private static String getDawnLabelKey(int dawnType) {
         return switch (dawnType) {
-            case OrdealData.GREEN_DAWN_TYPE -> "绿色的黎明";
-            case OrdealData.VIOLET_DAWN_TYPE -> "紫罗兰的黎明";
-            case OrdealData.AMBER_DAWN_TYPE -> "琥珀色的黎明";
-            default -> "血色的黎明";
+            case OrdealData.GREEN_DAWN_TYPE -> "ordeal.lobotocraft.green_dawn.name";
+            case OrdealData.VIOLET_DAWN_TYPE -> "ordeal.lobotocraft.violet_dawn.name";
+            case OrdealData.AMBER_DAWN_TYPE -> "ordeal.lobotocraft.amber_dawn.name";
+            default -> "ordeal.lobotocraft.crimson_dawn.name";
         };
     }
 
-    public static String getMiddayLabel(int middayType) {
+    private static String getMiddayLabelKey(int middayType) {
         return switch (middayType) {
-            case OrdealData.CRIMSON_MIDDAY_TYPE -> "血色的正午";
-            case OrdealData.VIOLET_MIDDAY_TYPE -> "紫罗兰的正午";
-            case OrdealData.GREEN_MIDDAY_TYPE -> "绿色的正午";
-            default -> "深蓝色的正午";
+            case OrdealData.CRIMSON_MIDDAY_TYPE -> "ordeal.lobotocraft.crimson_midday.name";
+            case OrdealData.VIOLET_MIDDAY_TYPE -> "ordeal.lobotocraft.violet_midday.name";
+            case OrdealData.GREEN_MIDDAY_TYPE -> "ordeal.lobotocraft.green_midday.name";
+            default -> "ordeal.lobotocraft.indigo_midday.name";
         };
     }
 
@@ -396,7 +400,8 @@ public class CrimsonDawnEvent {
         };
     }
 
-    private static void showBloodDawnTitle(MinecraftServer server, String top, String middle, String bottom) {
+    private static void showBloodDawnTitle(MinecraftServer server, Component top,
+                                           Component middle, Component bottom) {
         sendOrdealTitle(server, top, middle, bottom, BLOOD_DAWN_COLOR);
     }
 
@@ -410,6 +415,15 @@ public class CrimsonDawnEvent {
      */
     public static void sendOrdealTitle(MinecraftServer server, String top, String title, String subtitle,
                                        int themeColor) {
+        sendOrdealTitle(server,
+                Component.literal(top == null ? "" : top),
+                Component.literal(title == null ? "" : title),
+                Component.literal(subtitle == null ? "" : subtitle),
+                themeColor);
+    }
+
+    public static void sendOrdealTitle(MinecraftServer server, Component top, Component title,
+                                       Component subtitle, int themeColor) {
         if (server == null) return;
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             MessageLoader.getLoader().sendToPlayer(player,

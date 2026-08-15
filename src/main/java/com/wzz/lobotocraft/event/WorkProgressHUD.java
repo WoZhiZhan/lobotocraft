@@ -7,6 +7,7 @@ import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.api.distmarker.Dist;
@@ -55,12 +56,15 @@ public class WorkProgressHUD {
             int y = HUD_Y;
 
             // 始终显示天数（在最上方）
-            String dayText = "§6第 " + data.getCurrentDay() + " 天";
+            Component dayText = Component.translatable("hud.lobotocraft.facility.day",
+                    data.getCurrentDay());
 
             // 绘制天数文字
             guiGraphics.drawString(mc.font, dayText, x, y, 0xFFFFFF);
 
-            guiGraphics.drawString(mc.font, "§6工作次数：" + data.getTodayWorkCount(), x, y + 10, 0xFFFFFF);
+            guiGraphics.drawString(mc.font, Component.translatable(
+                    "hud.lobotocraft.facility.work_count", data.getTodayWorkCount()),
+                    x, y + 10, 0xFFFFFF);
 
             // 如果装备已锁定，显示装备锁定图标
             if (data.isArmorLocked()) {

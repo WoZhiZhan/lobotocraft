@@ -31,9 +31,8 @@ public class ArmorLockItem extends Item {
                 if (data.isArmorLocked()) {
                     // 解除锁定(生存与创造均可)
                     data.unlockArmor();
-                    player.sendSystemMessage(Component.literal(
-                            "§e已解除装备锁定"
-                    ).withStyle(ChatFormatting.YELLOW));
+                    player.sendSystemMessage(Component.translatable(
+                            "message.lobotocraft.armor_lock.unlocked").withStyle(ChatFormatting.YELLOW));
                     player.playSound(
                             net.minecraft.sounds.SoundEvents.ANVIL_USE,
                             1.0F,
@@ -50,9 +49,8 @@ public class ArmorLockItem extends Item {
                 } else {
                     // 执行锁定
                     data.lockArmor();
-                    player.sendSystemMessage(Component.literal(
-                            "§a装备已锁定！"
-                    ).withStyle(ChatFormatting.GREEN));
+                    player.sendSystemMessage(Component.translatable(
+                            "message.lobotocraft.armor_lock.locked").withStyle(ChatFormatting.GREEN));
                     // 播放音效
                     player.playSound(
                             net.minecraft.sounds.SoundEvents.ANVIL_USE,

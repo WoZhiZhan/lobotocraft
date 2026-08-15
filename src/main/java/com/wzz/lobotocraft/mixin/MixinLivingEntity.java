@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.mixin;
 
 import com.wzz.lobotocraft.event.definition.living.LivingSwingEvent;
 import com.wzz.lobotocraft.init.ModMobEffects;
+import com.wzz.lobotocraft.util.MovementLockUtil;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
@@ -17,7 +18,7 @@ public class MixinLivingEntity {
     @Inject(method = "aiStep", at = @At("HEAD"), cancellable = true)
     private void aiStep(CallbackInfo ci) {
         LivingEntity self = (LivingEntity) (Object) this;
-        if (self.getPersistentData().getBoolean("NotMove")
+        if (MovementLockUtil.isLocked(self)
                 || self.getPersistentData().getBoolean("isSnowQueen"))
             ci.cancel();
         if (!(self instanceof Player)) {
@@ -34,7 +35,7 @@ public class MixinLivingEntity {
     @Inject(method = "travel", at = @At("HEAD"), cancellable = true)
     private void travel(CallbackInfo ci) {
         LivingEntity self = (LivingEntity) (Object) this;
-        if (self.getPersistentData().getBoolean("NotMove")
+        if (MovementLockUtil.isLocked(self)
                 || self.getPersistentData().getBoolean("isSnowQueen"))
             ci.cancel();
     }

@@ -43,6 +43,7 @@ import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -210,14 +211,16 @@ public class EntityIronMaiden extends AbstractAbnormality {
     public boolean canPlayerUse(ServerPlayer player) {
         // 创造模式玩家无法使用
         if (player.isCreative()) {
-            player.sendSystemMessage(Component.literal("§c创造模式下无法使用此工具！"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.iron_maiden.creative_forbidden"));
             return false;
         }
 
         // 检查红色伤害抗性
         AttributeInstance redResistance = player.getAttribute(ModAttributes.RED_DAMAGE_RESISTANCE.get());
         if (redResistance != null && redResistance.getValue() <= 0) {
-            player.sendSystemMessage(Component.literal("§c你的红色伤害抗性过低，无法使用此工具！"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.iron_maiden.red_resistance_low"));
             return false;
         }
 
@@ -327,7 +330,8 @@ public class EntityIronMaiden extends AbstractAbnormality {
      */
     public boolean startUsing(ServerPlayer player) {
         if (usingPlayerUUID != null) {
-            player.sendSystemMessage(Component.literal("§c已有员工正在使用此工具！"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.iron_maiden.in_use"));
             return false;
         }
 
@@ -362,29 +366,25 @@ public class EntityIronMaiden extends AbstractAbnormality {
                 mob.setNoAi(true);
             }
 
-            player.sendSystemMessage(Component.literal(
-                    "§e牺牲目标被放入了'我们可以改变一切'..."
-            ));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.iron_maiden.sacrifice_inserted"));
         } else {
             // 没有村民，玩家自己进去
             // 传送玩家到机器内部
             player.teleportTo(this.getX(), this.getY() + 1, this.getZ());
             player.setDeltaMovement(0, 0, 0);
 
-            player.sendSystemMessage(Component.literal(
-                    "§e你进入了'我们可以改变一切'..."
-            ));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.iron_maiden.entered"));
         }
 
         // 播放闭合音效
         playSound("closing");
 
-        player.sendSystemMessage(Component.literal(
-                "§4§l警告：机器开始运转！"
-        ));
-        player.sendSystemMessage(Component.literal(
-                "§c现在，一切都会好起来哒！"
-        ));
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.abnormality.iron_maiden.started"));
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.abnormality.iron_maiden.promise"));
 
         return true;
     }
@@ -441,9 +441,8 @@ public class EntityIronMaiden extends AbstractAbnormality {
             if (player == null || !player.isAlive()) {
                 // 员工离线或死亡，触发结束动画
                 if (player != null && !player.isAlive()) {
-                    player.sendSystemMessage(Component.literal(
-                            "§c你已死亡，机器停止运转..."
-                    ));
+                    player.sendSystemMessage(Component.translatable(
+                            "message.lobotocraft.abnormality.iron_maiden.operator_died"));
                 }
                 triggerEndAnimation();
                 return;
@@ -458,9 +457,8 @@ public class EntityIronMaiden extends AbstractAbnormality {
                 }
                 if (sacrifice == null || !sacrifice.isAlive()) {
                     // 牺牲目标死亡，触发结束动画
-                    player.sendSystemMessage(Component.literal(
-                            "§c牺牲目标已经死亡，机器停止运转..."
-                    ));
+                    player.sendSystemMessage(Component.translatable(
+                            "message.lobotocraft.abnormality.iron_maiden.sacrifice_died"));
                     triggerEndAnimation();
                     return;
                 }
@@ -487,9 +485,8 @@ public class EntityIronMaiden extends AbstractAbnormality {
             if (isPlayerPanicking(player)) {
                 // 恐慌状态下无法使用工具，但不会中断
                 if (usageTimer % 100 == 0) {
-                    player.sendSystemMessage(Component.literal(
-                            "§c§l你陷入恐慌状态，但机器仍在继续运转..."
-                    ));
+                    player.sendSystemMessage(Component.translatable(
+                            "message.lobotocraft.abnormality.iron_maiden.panicking"));
                 }
             }
 
@@ -550,10 +547,9 @@ public class EntityIronMaiden extends AbstractAbnormality {
         if (usingPlayerUUID != null) {
             ServerPlayer player = resolveUsingPlayer();
             if (player != null) {
-                player.sendSystemMessage(Component.literal(
-                        String.format("§a机器运转结束，共向当日能源池提供 %.2f 点能源",
-                                totalEnergyProduced)
-                ));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.abnormality.iron_maiden.completed",
+                        String.format(Locale.ROOT, "%.2f", totalEnergyProduced)));
             }
             usingPlayerUUID = null;
             usingPlayerEntityId = -1;
@@ -625,7 +621,8 @@ public class EntityIronMaiden extends AbstractAbnormality {
 
     @Override
     public void stopUsing(ServerPlayer player) {
-        player.sendSystemMessage(Component.literal("§c取消失败..."));
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.abnormality.iron_maiden.cancel_failed"));
     }
 
     /**

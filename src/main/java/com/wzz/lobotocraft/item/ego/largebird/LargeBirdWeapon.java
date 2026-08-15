@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.ClientInputUtil;
 import com.wzz.lobotocraft.util.CuriosUtil;
 import com.wzz.lobotocraft.util.DamageHelper;
@@ -96,11 +97,11 @@ public class LargeBirdWeapon extends BaseEgoWeapon {
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         if (ClientInputUtil.isShiftPressed()) {
-            p_41423_.add(Component.literal("§7每当有一只黑森林里的动物被它“拯救”时，它的身上就会多出一颗令人毛骨悚然的眼睛。"));
-            p_41423_.add(Component.literal("§7等级：§dWAW"));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.large_bird_weapon.story");
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.large_bird_weapon.risk");
         } else {
-            p_41423_.add(Component.literal("§6※攻击时有25%的概率给目标添加一个易伤效果，使其受到的侵蚀伤害加深50%，持续10秒。"));
-            p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.large_bird_weapon.detail");
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.common.shift_details");
         }
     }
 }

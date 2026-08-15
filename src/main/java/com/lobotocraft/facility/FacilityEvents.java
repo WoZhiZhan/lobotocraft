@@ -36,7 +36,7 @@ public final class FacilityEvents {
         if (!(player instanceof ServerPlayer serverPlayer)
                 || player.level().dimension() != ModDimensions.LOBOTO_KEY) return;
         event.setResult(Player.BedSleepingProblem.OTHER_PROBLEM);
-        serverPlayer.displayClientMessage(Component.literal("请通过能源栏上方的结束日按钮结束今天。")
+        serverPlayer.displayClientMessage(Component.translatable("message.lobotocraft.day.use_end_button")
                 .withStyle(ChatFormatting.AQUA), false);
     }
 

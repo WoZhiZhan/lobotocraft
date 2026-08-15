@@ -118,9 +118,9 @@ public final class StructureUpdater {
         running = true;
         StructureUpdateContext.beginIncremental(level);
 
-        player.displayClientMessage(Component.literal(
-                "§b[公司] §7检测到设施结构有更新（v" + fromVersion + " -> v" + StructureVersions.LOBOTO
-                        + "），正在增量施工，你放的东西不会被动。").withStyle(ChatFormatting.RESET), false);
+        player.displayClientMessage(Component.translatable(
+                "message.lobotocraft.structure_update.started", fromVersion, StructureVersions.LOBOTO)
+                .withStyle(ChatFormatting.RESET), false);
 
         ModLogger.getLogger().info("开始增量更新结构 {}：v{} -> v{}",
                 name, fromVersion, StructureVersions.LOBOTO);
@@ -133,8 +133,8 @@ public final class StructureUpdater {
                     versionData.setVersion(name, StructureVersions.LOBOTO);
                     running = false;
 
-                    player.displayClientMessage(Component.literal(
-                            "§b[公司] §a设施更新完成。§7" + summary), false);
+                    player.displayClientMessage(Component.translatable(
+                            "message.lobotocraft.structure_update.completed", summary), false);
                     ModLogger.getLogger().info("增量更新完成：{}", summary);
                     // 注意：这里刻意不传送玩家、不重设出生点、不清理任何实体
                 }));
@@ -142,7 +142,8 @@ public final class StructureUpdater {
         if (!started) {
             StructureUpdateContext.end(level);
             running = false;
-            player.displayClientMessage(Component.literal("§c[公司] 设施更新启动失败，详见日志。"), false);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.structure_update.failed"), false);
         }
     }
 }

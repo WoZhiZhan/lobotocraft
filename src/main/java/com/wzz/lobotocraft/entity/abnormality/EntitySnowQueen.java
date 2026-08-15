@@ -161,14 +161,16 @@ public class EntitySnowQueen extends AbstractAbnormality {
         for (Player p : EntityUtil.findPlayersAround(player, 4, 8)) {
             if (p == player) continue;
             if (com.wzz.lobotocraft.util.BuffUtil.hasKiss(p) && p.getPersistentData().getBoolean("isSnowQueen")) {
-                player.displayClientMessage(Component.literal("你将要和冰雪女皇决斗！"), false);
+                player.displayClientMessage(Component.translatable(
+                        "message.lobotocraft.abnormality.snow_queen.duel_start"), false);
                 player.getPersistentData().putBoolean("isSnowQueenDuel", true);
                 SoundUtil.playSound(player.level, player, ModSounds.SNOW_QUEEN_DUEL.get());
                 return true;
             }
         }
         if (com.wzz.lobotocraft.util.BuffUtil.hasKiss(player) && player.getPersistentData().getBoolean("isSnowQueen")) {
-            player.displayClientMessage(Component.literal("你将要和冰雪女皇决斗！"), false);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.snow_queen.duel_start"), false);
             player.getPersistentData().putBoolean("isSnowQueenDuel", true);
             SoundUtil.playSound(player.level, player, ModSounds.SNOW_QUEEN_DUEL.get());
             return true;
@@ -245,13 +247,15 @@ public class EntitySnowQueen extends AbstractAbnormality {
         if (player.getPersistentData().getBoolean("isSnowQueenDuel")) {
             if (result != WorkResult.BAD) {
                 player.getPersistentData().remove("isSnowQueenDuel");
-                player.displayClientMessage(Component.literal("§a你在与冰雪女皇的决斗中获得了胜利！"), false);
+                player.displayClientMessage(Component.translatable(
+                        "message.lobotocraft.abnormality.snow_queen.duel_won"), false);
                 SoundUtil.playSound(player.level, player, ModSounds.SNOW_QUEEN_DUEL_SUCCESS.get());
                 for (Player p : EntityUtil.findPlayersAround(player, 4, 8)) {
                     if (p.getPersistentData().getBoolean("isSnowQueen")) {
                         p.getPersistentData().remove("isSnowQueen");
                         com.wzz.lobotocraft.util.BuffUtil.removeKiss(p);
-                        p.displayClientMessage(Component.literal("§a你的队友在与冰雪女皇的决斗中获得了胜利！"), false);
+                        p.displayClientMessage(Component.translatable(
+                                "message.lobotocraft.abnormality.snow_queen.teammate_won"), false);
                         p.setTicksFrozen(0);
                         SoundUtil.playSound(p.level, p, ModSounds.SNOW_QUEEN_DUEL_SUCCESS.get());
                         ItemUtil.addItem(p, new ItemStack(ModItems.SNOWQUEEN_CURIO.get()));
@@ -260,7 +264,8 @@ public class EntitySnowQueen extends AbstractAbnormality {
                 }
                 ItemUtil.addItem(player, new ItemStack(ModItems.SNOWQUEEN_CURIO.get()));
             } else {
-                player.displayClientMessage(Component.literal("§c很遗憾，你在与冰雪女皇的决斗中失败了"), false);
+                player.displayClientMessage(Component.translatable(
+                        "message.lobotocraft.abnormality.snow_queen.duel_lost"), false);
                 for (Player p : EntityUtil.findPlayersAround(player, 4, 8)) {
                     if (p.getPersistentData().getBoolean("isSnowQueen")) {
                         killPlayer(p);
@@ -421,11 +426,13 @@ public class EntitySnowQueen extends AbstractAbnormality {
                 for (Entity entity : EntityUtil.findAllEntities(living, 4)) {
                     if (entity instanceof Villager villager) {
                         villager.getPersistentData().putBoolean("isSnowQueen", true);
-                        living.displayClientMessage(Component.literal("§c有人被冰雪女皇困住了！"), false);
+                        living.displayClientMessage(Component.translatable(
+                                "message.lobotocraft.abnormality.snow_queen.other_frozen"), false);
                         return;
                     }
                 }
-                living.displayClientMessage(Component.literal("§c你被冰雪女皇困住了！"), false);
+                living.displayClientMessage(Component.translatable(
+                        "message.lobotocraft.abnormality.snow_queen.frozen"), false);
                 living.getPersistentData().putBoolean("isSnowQueen", true);
                 boolean hasPlayer = false;
                 for (ServerPlayer player : EntityUtil.findAllPlayer(living)) {
@@ -435,7 +442,8 @@ public class EntitySnowQueen extends AbstractAbnormality {
                     }
                 }
                 if (!hasPlayer) {
-                    living.displayClientMessage(Component.literal("§c你所在的存档没有其他玩家存在，你被彻底冰封了"), false);
+                    living.displayClientMessage(Component.translatable(
+                            "message.lobotocraft.abnormality.snow_queen.solo_frozen"), false);
                     // 移除冰封标记,否则 kill() 的伤害会被 isSnowQueen 判定拦截,导致单人玩家不会死亡
                     living.getPersistentData().remove("isSnowQueen");
                     living.kill();

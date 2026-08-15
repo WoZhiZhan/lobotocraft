@@ -224,7 +224,8 @@ public class EntityLadyFacingTheWall extends AbstractAbnormality {
         if (this.qliphothCounter <= 0) {
             startPunishment(player);
             this.qliphothCounter = this.maxQliphothCounter;
-            player.sendSystemMessage(Component.literal("§8老妇人没有回头，只留下令人窒息的沉默。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.lady_facing_wall.punishment_started"));
             return false;
         }
         return super.onWorkStart(player, workType);
@@ -387,7 +388,8 @@ public class EntityLadyFacingTheWall extends AbstractAbnormality {
 
         if (data.remainingTicks <= 0) {
             PUNISHED_PLAYERS.remove(player.getUUID());
-            player.sendSystemMessage(Component.literal("§7沉默终于散去，你重新取回了行动能力。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.lady_facing_wall.punishment_ended"));
         }
     }
 

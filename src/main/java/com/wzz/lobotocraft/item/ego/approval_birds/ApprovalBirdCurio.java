@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.item.ego.approval_birds;
 
 import com.wzz.lobotocraft.item.AttributeEntry;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -35,14 +36,18 @@ public class ApprovalBirdCurio extends BaseEgoCurio {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("  • 移动速度 + 6").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 攻击速度 + 6").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 压迫工作的成功率提高6%").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("套装效果（装备锁定+装备+饰品）：").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("  • 玩家使用正义裁决者武器攻击，获得10%攻速和移速加成，持续10秒，不可叠加，每次攻击重置持续时间").withStyle(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("  • 玩家进行压迫工作失误时，将不会受到伤害惩罚").withStyle(ChatFormatting.LIGHT_PURPLE));
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.effects", ChatFormatting.YELLOW);
+        for (int index = 1; index <= 3; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.approval_bird_curio.effect." + index,
+                    ChatFormatting.GREEN);
+        }
+        EgoTooltipUtil.blank(tooltip);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.approval_bird_curio.set_header",
+                ChatFormatting.AQUA);
+        for (int index = 1; index <= 2; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.approval_bird_curio.set." + index,
+                    ChatFormatting.LIGHT_PURPLE);
+        }
         super.appendHoverText(stack, level, tooltip, flag);
     }
 

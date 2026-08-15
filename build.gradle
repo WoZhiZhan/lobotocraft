@@ -8,14 +8,14 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'org.spongepowered:mixingradle:0.7-SNAPSHOT'
+        classpath 'org.spongepowered:mixingradle:0.7.38'
     }
 }
 
 plugins {
     id 'eclipse'
     id 'idea'
-    id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
+    id 'net.minecraftforge.gradle' version '6.0.54'
 }
 
 apply plugin: 'org.spongepowered.mixin'
@@ -74,10 +74,10 @@ minecraft {
         // By default, the server will crash when no gametests are provided.
         // The gametest system is also enabled by default for other run configs under the /test command.
         gameTestServer {
-            workingDirectory project.file(System.getenv('LOBOTOCRAFT_GAMETEST_DIR') ?: 'run')
+            workingDirectory project.file(System.getenv('LOBOTOCRAFT_GAMETEST_DIR') ?: 'run-gametest')
             property 'forge.enabledGameTestNamespaces',
                     System.getenv('LOBOTOCRAFT_GAMETEST_NAMESPACES')
-                            ?: "${mod_id},${mod_id}_navigation,${mod_id}_recent_fixes"
+                            ?: "${mod_id},${mod_id}_navigation,${mod_id}_recent_fixes,${mod_id}_lumberjack,${mod_id}_must_open_path,${mod_id}_review_flows,${mod_id}_meltdown"
         }
 
         data {
@@ -137,7 +137,7 @@ tasks.configureEach {
         doLast {
             copy {
                 from file('src/main/resources/gameteststructures')
-                into file((System.getenv('LOBOTOCRAFT_GAMETEST_DIR') ?: 'run')
+                into file((System.getenv('LOBOTOCRAFT_GAMETEST_DIR') ?: 'run-gametest')
                         + '/gameteststructures')
             }
         }
@@ -167,15 +167,24 @@ tasks.named('jar', Jar).configure {
                     "Specification-Version"   : "1",
                     "Implementation-Title"    : project.name,
                     "Implementation-Version"  : project.jar.archiveVersion,
-                    "Implementation-Vendor"   : mod_authors,
-                    "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")])
+                    "Implementation-Vendor"   : mod_authors])
     }
+
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
 
     finalizedBy 'reobfJar'
 }
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+}
+
+tasks.matching { it.name == 'runGameTestServer' }.configureEach {
+    doFirst {
+        def gameTestDirectory = file(System.getenv('LOBOTOCRAFT_GAMETEST_DIR') ?: 'run-gametest')
+        delete new File(gameTestDirectory, 'world')
+    }
 }
 
 tasks.register('verifyReleaseJar') {

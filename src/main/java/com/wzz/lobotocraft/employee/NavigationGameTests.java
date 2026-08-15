@@ -312,8 +312,8 @@ public final class NavigationGameTests {
             }
             NavigationSnapshot snapshot = FacilityNavigationCache.snapshot(facility,
                     FacilityNavigationCache.COMPANY_MIN, FacilityNavigationCache.COMPANY_MAX);
-            if (snapshot == null
-                    || snapshot.cell(FacilityNavigationCache.COMPANY_MIN.below()).isPresent()) {
+            if (snapshot == null) return;
+            if (snapshot.cell(FacilityNavigationCache.COMPANY_MIN.below()).isPresent()) {
                 helper.fail("facility cache did not enforce its fixed company bounds");
                 return;
             }

@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.item.ego.base.AiRangedEgoWeapon;
 import com.wzz.lobotocraft.item.ego.base.AiSpecialEgoWeapon;
 import com.wzz.lobotocraft.network.MessageLoader;
@@ -127,8 +128,9 @@ public class BlueStarWeapon extends BaseEgoWeapon implements AiRangedEgoWeapon, 
             int scd = stack.getOrCreateTag().getInt(KEY_SPECIAL_CD);
             if (scd > 0) {
                 if (!level.isClientSide) {
-                    player.displayClientMessage(Component.literal(
-                            "§b特殊攻击冷却中：" + (scd / 20) + " 秒"), true);
+                    player.displayClientMessage(Component.translatable(
+                            "message.lobotocraft.ego.blue_star.special_cooldown",
+                            scd / 20), true);
                 }
                 return InteractionResultHolder.pass(stack);
             }
@@ -369,7 +371,8 @@ public class BlueStarWeapon extends BaseEgoWeapon implements AiRangedEgoWeapon, 
             }
         }
 
-        player.displayClientMessage(Component.literal("§b新星之声"), true);
+        player.displayClientMessage(Component.translatable(
+                "message.lobotocraft.ego.blue_star.voice"), true);
     }
 
     private boolean isSpecialAttackEnemy(LivingEntity target) {
@@ -438,20 +441,16 @@ public class BlueStarWeapon extends BaseEgoWeapon implements AiRangedEgoWeapon, 
         super.appendHoverText(stack, level, components, flag);
         int scd = stack.getOrCreateTag().getInt(KEY_SPECIAL_CD);
         if (scd > 0) {
-            components.add(Component.literal("§b特殊攻击冷却：" + (scd / 20) + " 秒"));
+            EgoTooltipUtil.add(components, "tooltip.lobotocraft.blue_star_weapon.cooldown", scd / 20);
         }
         if (ClientInputUtil.isShiftPressed()) {
-            components.add(Component.literal("§6※右键攻击会根据持有者当前精神值生成“新星之声”光束。"));
-            components.add(Component.literal("§7右键从身旁射出最多三段白色光束(射程25格)。"));
-            components.add(Component.literal("§7精神<30%：1段，每段12白伤。"));
-            components.add(Component.literal("§7精神30%~60%：2段，每段18白伤。"));
-            components.add(Component.literal("§7精神>60%：3段，每段24白伤。"));
-            components.add(Component.literal("§7Shift右键(120秒)：对全图敌对生物造成等同精神值的白伤，"));
-            components.add(Component.literal("§7为该维度恐慌员工恢复10%精神，未出逃异想体计数器+1。"));
+            for (int index = 1; index <= 7; index++) {
+                EgoTooltipUtil.add(components, "tooltip.lobotocraft.blue_star_weapon.detail." + index);
+            }
             return;
         }
-        components.add(Component.literal("§7新星自我们的绝望中闪耀。在它的光芒之下，众生皆为平等。"));
-        components.add(Component.literal("§7按住<Shift>查看详情"));
-        components.add(Component.literal("§f白色伤害：8-12"));
+        EgoTooltipUtil.add(components, "tooltip.lobotocraft.blue_star_weapon.story");
+        EgoTooltipUtil.add(components, "tooltip.lobotocraft.common.shift_details");
+        EgoTooltipUtil.add(components, "tooltip.lobotocraft.blue_star_weapon.damage");
     }
 }

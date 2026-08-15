@@ -21,7 +21,7 @@ public class TrackingNameSync {
                 .orElse(false);
 
         Component show = unlocked
-                ? Component.literal(ent.getAbnormalityName())
+                ? ent.getLocalizedAbnormalityName()
                 : Component.literal(ent.getAbnormalityCode());
 
         ent.sendPerPlayerName(sp, show);

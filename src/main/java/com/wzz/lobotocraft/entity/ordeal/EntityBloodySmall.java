@@ -178,7 +178,7 @@ public class EntityBloodySmall extends BaseGeoEntity implements OrdealEntity {
     }
 
     private void notifySkadiCounterProtected(ServerLevel level) {
-        Component message = Component.literal("被祝福的玩家没有死亡，斯卡蒂感到安心，计数器并未降低")
+        Component message = Component.translatable("message.lobotocraft.skadi.counter_protected")
                 .withStyle(ChatFormatting.BLUE);
         for (ServerPlayer player : level.players()) {
             player.sendSystemMessage(message);

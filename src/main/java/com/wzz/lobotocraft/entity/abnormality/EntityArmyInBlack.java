@@ -298,7 +298,8 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         if (workType == WorkType.ATTACHMENT) {
             protectEmployee(player);
             decreaseQliphothCounter(1);
-            player.displayClientMessage(Component.literal("§d深黯“军团”正在守护你。"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.army_in_black.protection_started"), true);
         }
         if (workType == WorkType.REPRESSION) {
             decreaseQliphothCounter(1);
@@ -428,7 +429,8 @@ public class EntityArmyInBlack extends AbstractAbnormality {
                 if (ownsProtectionTag) {
                     player.getPersistentData().remove(PROTECTION_UNTIL_TAG);
                     player.removeEffect(MobEffects.GLOWING);
-                    player.displayClientMessage(Component.literal("§d深谙军团对玩家的保护结束了"), true);
+                    player.displayClientMessage(Component.translatable(
+                            "message.lobotocraft.abnormality.army_in_black.protection_ended"), true);
                     serverLevel.playSound(null, player.blockPosition(), ModSounds.ARMY_IN_BLACK_PROTECT_END.get(),
                             SoundSource.NEUTRAL, 1.2F, 1.0F);
                 }

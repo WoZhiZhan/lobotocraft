@@ -76,8 +76,10 @@ public class EntityBlueStar extends AbstractAbnormality {
     public void onWorkTick(ServerPlayer player, WorkManager.WorkSession session, WorkType workType) {
         if ((session.workDuration / 20) >= 70 && !session.forcedEnd) {
             session.forcedEnd = true;
-            player.displayClientMessage(Component.literal("§c你因工作太久被碧蓝新星吞噬了！"), false);
-            player.displayClientMessage(Component.literal("§c碧蓝新星的逆卡巴拉计数器 -1"), false);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.blue_star.work_devoured"), false);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.blue_star.counter_minus_one"), false);
             decreaseQliphothCounter(1);
             killMob(player, false);
         }
@@ -93,7 +95,8 @@ public class EntityBlueStar extends AbstractAbnormality {
         });
         if (shouldDec.get()) {
             decreaseQliphothCounter(1);
-            player.displayClientMessage(Component.literal("§c你的大意让碧蓝新星的逆卡巴拉计数器减少了"), false);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.blue_star.careless_counter"), false);
         }
         return super.onWorkStart(player, workType);
     }
@@ -172,7 +175,8 @@ public class EntityBlueStar extends AbstractAbnormality {
     public void onWorkComplete(ServerPlayer player, WorkType workType, WorkResult result) {
         if (MentalValueUtil.isPanic(player)) {
             decreaseQliphothCounter(1);
-            player.sendSystemMessage(Component.literal("§c你陷入了恐慌，碧蓝新星的计数器-1..."));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.blue_star.panic_counter"));
         }
     }
 
@@ -238,7 +242,8 @@ public class EntityBlueStar extends AbstractAbnormality {
                     living.kill();
                 else living.discard();
                 if (living instanceof Player player) {
-                    player.displayClientMessage(Component.literal("§c你被碧蓝新星杀死了！"), false);
+                    player.displayClientMessage(Component.translatable(
+                            "message.lobotocraft.blue_star.killed"), false);
                     boolean hasPlayer = false;
                     for (Player p : EntityUtil.findPlayersAround(player, 10, 32)) {
                         if (p != getTarget()) {

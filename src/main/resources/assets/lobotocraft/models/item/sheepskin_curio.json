@@ -1,6 +1,6 @@
 {
   "parent": "item/generated",
   "textures": {
-    "layer0": "lobotocraft:sheepskin_curio"
+    "layer0": "lobotocraft:item/sheepskin_curio"
   }
 }

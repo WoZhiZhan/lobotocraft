@@ -88,7 +88,8 @@ public class BindRoomAbnormalityPacket implements IMessage {
                     "message.lobotocraft.room.binding_cleared"), true);
         } else if (be.bindByUuid(target, uuid)) {
             player.displayClientMessage(Component.translatable(
-                    "message.lobotocraft.room.binding_changed", be.getBoundName()), true);
+                    "message.lobotocraft.room.binding_changed",
+                    be.getBoundNameComponent()), true);
         } else {
             player.displayClientMessage(Component.translatable(
                     "message.lobotocraft.room.abnormality_missing"), true);

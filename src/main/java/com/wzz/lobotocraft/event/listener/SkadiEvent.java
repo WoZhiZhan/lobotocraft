@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.event.definition.company.CompanyDayAdvanceEvent;
+import com.wzz.lobotocraft.util.DamageHelper;
 import com.lobotocraft.facility.day.FacilityDayCommittedEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -44,6 +45,7 @@ public class SkadiEvent {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         if (!player.hasEffect(ModMobEffects.WISH_WITHOUT_LIGHT.get())) return;
         if (!SkadiBlessingManager.isValid(player)) return;
+        if (!isColoredDamage(event)) return;
 
         float damage = event.getAmount();
 
@@ -100,7 +102,15 @@ public class SkadiEvent {
         player.level().playSound(null, player.blockPosition(),
                 ModSounds.SKADI_AMBIENT.get(),
                 net.minecraft.sounds.SoundSource.NEUTRAL, 1.0f, 1.0f);
-        player.sendSystemMessage(Component.literal("§9「同葬无光之愿」庇护了你,你免于死亡。"));
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.skadi.protected_from_death"));
 
+    }
+
+    private static boolean isColoredDamage(LivingDamageEvent event) {
+        return DamageHelper.isRedDamage(event.getSource())
+                || DamageHelper.isWhiteDamage(event.getSource())
+                || DamageHelper.isBlackDamage(event.getSource())
+                || DamageHelper.isBlueDamage(event.getSource());
     }
 }

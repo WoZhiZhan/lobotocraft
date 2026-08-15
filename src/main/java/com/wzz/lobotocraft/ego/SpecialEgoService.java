@@ -121,8 +121,8 @@ public final class SpecialEgoService {
         if (!missingRequirements(player, assigned, equipmentType).isEmpty()) {
             registry.release(assigned.id(), equipmentType, player.getUUID());
             EgoLoadoutService.unequipSpecial(player, equipmentType);
-            player.sendSystemMessage(Component.literal("§c属性等级已不满足要求，特殊 E.G.O "
-                    + typeName(equipmentType) + "已自动卸下。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.special_ego.requirements_lost", typeName(equipmentType)));
             return;
         }
         if (!EgoLoadoutService.hasCompleteSpecialProjectionSet(player, assigned, equipmentType)) {
@@ -195,8 +195,8 @@ public final class SpecialEgoService {
                             || !missingRequirements(player, definition, type).isEmpty()) continue;
                     EquipResult result = setEquipped(player, definition.id(), type, true);
                     if (result == EquipResult.IN_USE_BY_OTHER) {
-                        player.sendSystemMessage(Component.literal("§7该特殊 E.G.O 的"
-                                + typeName(type) + "席位正由其他玩家使用，旧版复制品已回收。"));
+                        player.sendSystemMessage(Component.translatable(
+                                "message.lobotocraft.special_ego.legacy_reclaimed", typeName(type)));
                     }
                 }
             }
@@ -236,8 +236,9 @@ public final class SpecialEgoService {
         return key == null ? "" : key.toString();
     }
 
-    private static String typeName(String equipmentType) {
-        return "weapon".equals(equipmentType) ? "武器" : "护甲";
+    private static Component typeName(String equipmentType) {
+        return Component.translatable("weapon".equals(equipmentType)
+                ? "equipment.lobotocraft.ego_weapon" : "equipment.lobotocraft.ego_armor");
     }
 
     private static boolean isHuman(ServerPlayer player) {

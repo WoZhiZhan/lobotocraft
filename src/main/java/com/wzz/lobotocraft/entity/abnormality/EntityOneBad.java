@@ -55,9 +55,8 @@ public class EntityOneBad extends AbstractAbnormality {
         if (MentalValueUtil.isPanic(player)) {
             player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
                 mental.setMentalValue(mental.getEffectiveMaxMentalValue());
-                player.sendSystemMessage(Component.literal(
-                        "§6一罪与百善察觉到你的疯狂，为你祈祷，你的精神完全恢复了！§r"
-                ));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.one_sin.panic_prayer"));
             });
             return false;
         }
@@ -135,9 +134,8 @@ public class EntityOneBad extends AbstractAbnormality {
         MentalValueUtil.addMentalValue(player, 10);
 
         // 发送消息
-        player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
-                "§a一罪与百善对你的工作非常满意，你感到精神振奋！§r(+10精神值)"
-        ));
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.one_sin.good_work", 10));
     }
 
     @Override
@@ -146,9 +144,8 @@ public class EntityOneBad extends AbstractAbnormality {
         MentalValueUtil.addMentalValue(player, 5);
 
         // 发送消息
-        player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
-                "§e一罪与百善接受了你的工作。§r(+5精神值)"
-        ));
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.one_sin.normal_work", 5));
     }
 
     @Override
@@ -170,9 +167,8 @@ public class EntityOneBad extends AbstractAbnormality {
                                         .orElse(100f)
                         );
 
-                        player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
-                                "§6一罪与百善祈祷后，你的精神完全恢复了！§r"
-                        ));
+                        player.sendSystemMessage(Component.translatable(
+                                "message.lobotocraft.one_sin.prayer_recovered"));
                     }
             ));
         }
@@ -182,7 +178,8 @@ public class EntityOneBad extends AbstractAbnormality {
     public boolean onOpenManualScreen(ServerPlayer player) {
         if (MentalValueUtil.isPanic(player)) {
             MentalValueUtil.setMentalValue(player, 100f);
-            player.sendSystemMessage(Component.literal("§6一罪与百善回应了你的祈祷，你的精神完全恢复了！§r"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.one_sin.manual_prayer"));
             return false;
         }
         return super.onOpenManualScreen(player);

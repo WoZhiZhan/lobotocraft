@@ -18,6 +18,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 @OnlyIn(Dist.CLIENT)
 public class VNDialogueScreen extends Screen {
+    private static final String NEXT_KEY = "screen.lobotocraft.vn_dialogue.next";
+    private static final String CLOSE_KEY = "screen.lobotocraft.vn_dialogue.close";
+
     private String npcName;
     private List<String> fullLines;
     private String soundBaseName;
@@ -67,7 +70,7 @@ public class VNDialogueScreen extends Screen {
                 hasNext.set(true);
             }
         });
-        this.nextString = hasNext.get() ? "下一步" : "关闭";
+        this.nextString = hasNext.get() ? NEXT_KEY : CLOSE_KEY;
         this.tag = tag;
         this.minecraft = Minecraft.getInstance();
         this.font = minecraft.font;
@@ -99,7 +102,7 @@ public class VNDialogueScreen extends Screen {
                 hasNext.set(true);
             }
         });
-        this.nextString = hasNext.get() ? "下一步" : "关闭";
+        this.nextString = hasNext.get() ? NEXT_KEY : CLOSE_KEY;
         this.tag = tag;
         this.init();
     }
@@ -116,7 +119,8 @@ public class VNDialogueScreen extends Screen {
     @Override
     public void init() {
         super.init();
-        skipButton = new Button(width - 80, height - 40, 70, 20, Component.literal(this.nextString), btn -> {
+        skipButton = new Button(width - 80, height - 40, 70, 20,
+                Component.translatable(this.nextString), btn -> {
             if (currentCharIndex < fullLines.get(currentLineIndex).length()) {
                 currentCharIndex = fullLines.get(currentLineIndex).length();
                 currentLine = fullLines.get(currentLineIndex);
@@ -132,8 +136,8 @@ public class VNDialogueScreen extends Screen {
                 }
 
                 if (currentLineIndex + 1 >= fullLines.size()) {
-                    this.nextString = "关闭";
-                    this.skipButton.setMessage(Component.literal(this.nextString));
+                    this.nextString = CLOSE_KEY;
+                    this.skipButton.setMessage(Component.translatable(this.nextString));
                 }
                 if (currentLineIndex >= fullLines.size()) {
                     onClose();
@@ -160,7 +164,7 @@ public class VNDialogueScreen extends Screen {
 
     @Override
     public void onClose() {
-        if (this.nextString.equals("下一步"))
+        if (this.nextString.equals(NEXT_KEY))
             return;
         super.onClose();
     }

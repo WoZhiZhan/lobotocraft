@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.client;
 
+import net.minecraft.client.resources.language.I18n;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
@@ -15,7 +16,7 @@ import java.util.Random;
 @OnlyIn(Dist.CLIENT)
 public class StrangeBadgeTooltipHandler {
 
-    private static final String TARGET_TEXT = "你明明记得我，不是吗？";
+    private static final String TARGET_TEXT_KEY = "tooltip.lobotocraft.strange_badge.panic";
     private static final Random RANDOM = new Random();
 
     // 乱码字符池
@@ -50,16 +51,17 @@ public class StrangeBadgeTooltipHandler {
      * @param progress 0.0-1.0
      */
     private static String getDisplayText(float progress) {
+        String targetText = I18n.get(TARGET_TEXT_KEY);
         if (progress >= 1.0f) {
             // 完全显示
-            return TARGET_TEXT;
+            return targetText;
         } else if (progress >= 0.8f) {
             // 80%-100%: 逐字显示
-            int revealCount = (int) ((progress - 0.8f) / 0.2f * TARGET_TEXT.length());
+            int revealCount = (int) ((progress - 0.8f) / 0.2f * targetText.length());
             StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < TARGET_TEXT.length(); i++) {
+            for (int i = 0; i < targetText.length(); i++) {
                 if (i < revealCount) {
-                    sb.append(TARGET_TEXT.charAt(i));
+                    sb.append(targetText.charAt(i));
                 } else {
                     sb.append(getGarbledChar());
                 }
@@ -67,7 +69,7 @@ public class StrangeBadgeTooltipHandler {
             return sb.toString();
         } else {
             // 0%-80%: 完全乱码，但长度逐渐接近目标
-            int length = Math.max(5, (int) (progress / 0.8f * TARGET_TEXT.length()));
+            int length = Math.max(5, (int) (progress / 0.8f * targetText.length()));
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < length; i++) {
                 sb.append(getGarbledChar());

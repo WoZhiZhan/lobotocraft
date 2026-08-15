@@ -2,7 +2,6 @@ package com.wzz.lobotocraft.network.packet;
 
 import com.wzz.lobotocraft.block.entity.RoomMarkerBlockEntity;
 import com.wzz.lobotocraft.client.room.RoomViewClient;
-import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
 import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.network.IMessage;
@@ -104,13 +103,8 @@ public class OpenRoomMapPacket implements IMessage {
             }
         }
 
-        boolean suppressionActive = CoreSuppressionManager.isSuppressionActive(player.server.overworld());
         for (RoomEntry room : candidateRooms) {
             FacilityWorldLayout.applyRoomBinding(room);
-            if (!suppressionActive) {
-                room.meltdownActive = false;
-                room.meltdownRemainingTicks = 0;
-            }
         }
         final ResourceLocation visibleDimension = dim;
         List<RoomEntry> rooms = candidateRooms.stream()

@@ -2,7 +2,6 @@ package com.wzz.lobotocraft.block.entity;
 
 import com.lobotocraft.facility.data.FacilityDayData;
 import com.lobotocraft.facility.FacilityManager;
-import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.employee.FacilityAccessService;
@@ -14,6 +13,7 @@ import com.wzz.lobotocraft.world.data.RoomEntry;
 import com.wzz.lobotocraft.world.data.RoomMonitorStatusPolicy;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
@@ -73,6 +73,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
     /** 当前实例的 UUID，只是快查用，复活后会变 */
     private UUID boundUuid = null;
     private String boundName = "";
+    private String boundNameKey = "";
     private String boundRisk = "";
     private int boundRiskColor = 0xFFAAAAAA;
 
@@ -197,6 +198,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
 
             entry.abnormalityCode = boundCode;
             entry.abnormalityName = boundName;
+            entry.abnormalityNameKey = boundNameKey;
             entry.riskName = boundRisk;
             entry.riskColor = boundRiskColor;
             entry.toolType = target.isToolType();
@@ -209,11 +211,10 @@ public class RoomMarkerBlockEntity extends BlockEntity {
             FacilityDayData facilityDay = FacilityDayData.get(level);
             FacilityDayData.ActiveMeltdown facilityMeltdown =
                     facilityDay.getActiveMeltdowns().get(target.getUUID());
-            boolean suppressionActive = CoreSuppressionManager.isSuppressionActive(level);
             int facilityRemaining = facilityMeltdown == null ? 0 : (int) Math.max(0L,
-                    Math.min(Integer.MAX_VALUE, facilityMeltdown.deadline()
-                            - level.getServer().overworld().getGameTime()));
-            entry.meltdownActive = suppressionActive && facilityMeltdown != null;
+                    Math.min(Integer.MAX_VALUE, facilityMeltdown.projectedRemainingTicks(
+                            level.getServer().overworld().getGameTime())));
+            entry.meltdownActive = facilityMeltdown != null;
             entry.meltdownRemainingTicks = entry.meltdownActive ? facilityRemaining : 0;
             entry.repeatedWorkPenaltyPercent = FacilityManager.repeatedWorkPenaltyPercent(level, target);
 
@@ -224,6 +225,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
                 clearBindingQuiet();
                 entry.abnormalityCode = "";
                 entry.abnormalityName = "";
+                entry.abnormalityNameKey = "";
                 entry.riskName = "";
                 entry.status = RoomEntry.STATUS_EMPTY;
                 entry.qliphoth = -1;
@@ -234,6 +236,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
             } else {
                 entry.abnormalityCode = boundCode;
                 entry.abnormalityName = boundName;
+                entry.abnormalityNameKey = boundNameKey;
                 entry.riskName = boundRisk;
                 entry.riskColor = boundRiskColor;
                 entry.status = RoomMonitorStatusPolicy.missingBoundStatus();
@@ -244,6 +247,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
         } else {
             entry.abnormalityCode = "";
             entry.abnormalityName = "";
+            entry.abnormalityNameKey = "";
             entry.riskName = "";
             entry.status = RoomEntry.STATUS_EMPTY;
             entry.qliphoth = -1;
@@ -263,6 +267,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
         entry.departmentId = departmentId;
         entry.abnormalityCode = "";
         entry.abnormalityName = "";
+        entry.abnormalityNameKey = "";
         entry.riskName = "";
         entry.status = RoomEntry.STATUS_UNEXPANDED;
         entry.qliphoth = -1;
@@ -296,11 +301,14 @@ public class RoomMarkerBlockEntity extends BlockEntity {
     private void adopt(AbstractAbnormality abnormality) {
         UUID uuid = abnormality.getUUID();
         String code = safe(abnormality.getAbnormalityCode());
-        boolean changed = !uuid.equals(boundUuid) || !code.equals(boundCode);
+        String nameKey = abnormality.getType().getDescriptionId();
+        boolean changed = !uuid.equals(boundUuid) || !code.equals(boundCode)
+                || !nameKey.equals(boundNameKey);
 
         this.boundUuid = uuid;
         this.boundCode = code;
         this.boundName = safe(abnormality.getAbnormalityName());
+        this.boundNameKey = nameKey;
         RiskLevel risk = abnormality.getRiskLevel();
         if (risk != null) {
             this.boundRisk = risk.name();
@@ -349,6 +357,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
         this.boundUuid = null;
         this.boundCode = "";
         this.boundName = "";
+        this.boundNameKey = "";
         this.boundRisk = "";
         this.missingScans = 0;
         setChanged();
@@ -364,6 +373,11 @@ public class RoomMarkerBlockEntity extends BlockEntity {
 
     public String getBoundName() {
         return boundName;
+    }
+
+    public Component getBoundNameComponent() {
+        return boundNameKey.isEmpty() ? Component.literal(boundName)
+                : Component.translatable(boundNameKey);
     }
 
     private static String safe(String value) {
@@ -489,6 +503,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
         tag.putString("DepartmentId", departmentId);
         tag.putString("BoundCode", boundCode);
         tag.putString("BoundName", boundName);
+        tag.putString("BoundNameKey", boundNameKey);
         tag.putString("BoundRisk", boundRisk);
         tag.putInt("BoundRiskColor", boundRiskColor);
         if (boundUuid != null) {
@@ -504,6 +519,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
         this.departmentId = tag.getString("DepartmentId");
         this.boundCode = tag.getString("BoundCode");
         this.boundName = tag.getString("BoundName");
+        this.boundNameKey = tag.getString("BoundNameKey");
         this.boundRisk = tag.getString("BoundRisk");
         if (tag.contains("BoundRiskColor")) this.boundRiskColor = tag.getInt("BoundRiskColor");
         this.boundUuid = tag.hasUUID("BoundAbnormality") ? tag.getUUID("BoundAbnormality") : null;

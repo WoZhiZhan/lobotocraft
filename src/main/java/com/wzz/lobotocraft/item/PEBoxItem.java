@@ -32,11 +32,19 @@ public class PEBoxItem extends Item {
      * @param abnormalityName 异想体名称（如 "一罪与百善"）
      */
     public static ItemStack create(String abnormalityCode, String abnormalityName) {
+        return create(abnormalityCode, abnormalityName, "");
+    }
+
+    public static ItemStack create(String abnormalityCode, String abnormalityName,
+                                   String abnormalityNameKey) {
         ItemStack stack = new ItemStack(ModItems.PE_BOX.get());
         CompoundTag tag = stack.getOrCreateTag();
 
         tag.putString("AbnormalityCode", abnormalityCode);
         tag.putString("AbnormalityName", abnormalityName);
+        if (abnormalityNameKey != null && !abnormalityNameKey.isBlank()) {
+            tag.putString("AbnormalityNameKey", abnormalityNameKey);
+        }
 
         return stack;
     }
@@ -73,6 +81,11 @@ public class PEBoxItem extends Item {
             return tag.getString("AbnormalityName");
         }
         return "";
+    }
+
+    public static String getAbnormalityNameKey(ItemStack stack) {
+        CompoundTag tag = stack.getTag();
+        return tag != null ? tag.getString("AbnormalityNameKey") : "";
     }
 
     /**
@@ -142,33 +155,31 @@ public class PEBoxItem extends Item {
             return;
         }
         if (tag != null) {
-            String displayName = "";
+            Component displayName = Component.empty();
+            boolean hasAbnormalityName = false;
 
-            // 优先显示真实名字
-            if (tag.contains("AbnormalityName") && !tag.getString("AbnormalityName").isEmpty()) {
+            String nameKey = getAbnormalityNameKey(stack);
+            if (!nameKey.isBlank()) {
+                displayName = PEBoxNameResolver.resolve(nameKey, "");
+                hasAbnormalityName = true;
+            } else if (tag.contains("AbnormalityName") && !tag.getString("AbnormalityName").isEmpty()) {
                 String name = tag.getString("AbnormalityName");
-                // 检查是否是编号格式（如T-01-54、O-03-03等）
-                // 格式: 字母-数字数字-数字数字
                 if (!name.matches("[A-Z]-\\d{2}-\\d{2}")) {
-                    displayName = name;
+                    displayName = PEBoxNameResolver.resolve("", name);
+                    hasAbnormalityName = true;
                 }
             }
 
-            // 如果没有真实名字（或名字是编号格式），尝试使用编号
-            if (displayName.isEmpty() && tag.contains("AbnormalityCode")) {
-                displayName = tag.getString("AbnormalityCode");
+            if (displayName.getString().isEmpty() && tag.contains("AbnormalityCode")) {
+                displayName = Component.literal(tag.getString("AbnormalityCode"));
             }
 
-            // 显示"来自"信息
-            if (!displayName.isEmpty()) {
+            if (!displayName.getString().isEmpty()) {
                 tooltip.add(Component.translatable("tooltip.lobotocraft.pe_box.source", displayName)
                         .withStyle(ChatFormatting.GOLD));
             }
 
-            // 如果显示的是真实名字，则同时显示编号作为副标题
-            if (tag.contains("AbnormalityCode") &&
-                    tag.contains("AbnormalityName") &&
-                    !displayName.equals(tag.getString("AbnormalityCode"))) {
+            if (tag.contains("AbnormalityCode") && hasAbnormalityName) {
                 tooltip.add(Component.translatable("tooltip.lobotocraft.pe_box.code",
                                 tag.getString("AbnormalityCode"))
                         .withStyle(ChatFormatting.GRAY));
@@ -187,10 +198,16 @@ public class PEBoxItem extends Item {
             return Component.translatable("item.lobotocraft.pe_box.universal")
                     .withStyle(ChatFormatting.YELLOW);
         }
+        String nameKey = getAbnormalityNameKey(stack);
+        if (!nameKey.isBlank()) {
+            return Component.translatable("item.lobotocraft.pe_box.named",
+                    PEBoxNameResolver.resolve(nameKey, getAbnormalityName(stack)))
+                    .withStyle(ChatFormatting.YELLOW);
+        }
         String abnormalityName = getAbnormalityName(stack);
         if (!abnormalityName.isEmpty()) {
-            return Component.translatable("item.lobotocraft.pe_box.named", abnormalityName)
-                    .withStyle(ChatFormatting.YELLOW);
+            return Component.translatable("item.lobotocraft.pe_box.named",
+                    PEBoxNameResolver.resolve("", abnormalityName)).withStyle(ChatFormatting.YELLOW);
         }
         return super.getName(stack).copy().withStyle(ChatFormatting.YELLOW);
     }

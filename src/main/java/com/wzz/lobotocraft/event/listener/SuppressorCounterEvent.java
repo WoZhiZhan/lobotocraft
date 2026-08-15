@@ -98,14 +98,15 @@ public class SuppressorCounterEvent {
             if (player instanceof net.minecraft.server.level.ServerPlayer sp) {
                 com.wzz.lobotocraft.network.MessageLoader.getLoader().sendToPlayer(sp,
                         new com.wzz.lobotocraft.network.packet.SuppressorCountSyncPacket(0, capacity));
-                sp.sendSystemMessage(net.minecraft.network.chat.Component.literal("§b捕捉单元制作完成,抑制计数已耗尽。"));
+                sp.sendSystemMessage(net.minecraft.network.chat.Component.translatable(
+                        "message.lobotocraft.suppressor_counter.capture_crafted"));
             }
         } else {
             // Defensive fallback only. ResultSlot pickup should have rejected this craft already.
             event.getCrafting().setCount(0);
             if (player instanceof net.minecraft.server.level.ServerPlayer sp) {
-                sp.sendSystemMessage(net.minecraft.network.chat.Component.literal(
-                        "§c抑制计数未满(需" + capacity + "),无法制作捕捉单元。"));
+                sp.sendSystemMessage(net.minecraft.network.chat.Component.translatable(
+                        "message.lobotocraft.suppressor_counter.insufficient", capacity));
             }
         }
     }

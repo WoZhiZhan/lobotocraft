@@ -12,8 +12,10 @@ public record RoomEmployeeSnapshot(
         UUID id, String name, String departmentId, ResourceLocation dimension, BlockPos position,
         float health, float maxHealth, float mental, float maxMental,
         int fortitude, int prudence, int temperance, int justice, int employeeLevel,
-        String weaponName, String armorName, String status, boolean commandable,
-        boolean eligible, String unavailableReason, float successRate, int estimatedSeconds,
+        String weaponName, String weaponNameKey, String armorName, String armorNameKey,
+        String status, boolean commandable,
+        boolean eligible, String unavailableReason, String unavailableReasonKey,
+        float successRate, int estimatedSeconds,
         ResourceLocation workRoomDimension, BlockPos workRoomPosition,
         WorkType currentWorkType, int workSuccessBoxes, int workFailureBoxes, int workBoxCapacity) {
 
@@ -36,11 +38,14 @@ public record RoomEmployeeSnapshot(
         buffer.writeVarInt(justice);
         buffer.writeVarInt(employeeLevel);
         buffer.writeUtf(weaponName, MAX_TEXT);
+        buffer.writeUtf(weaponNameKey, MAX_TEXT);
         buffer.writeUtf(armorName, MAX_TEXT);
+        buffer.writeUtf(armorNameKey, MAX_TEXT);
         buffer.writeUtf(status, MAX_TEXT);
         buffer.writeBoolean(commandable);
         buffer.writeBoolean(eligible);
         buffer.writeUtf(unavailableReason, MAX_TEXT);
+        buffer.writeUtf(unavailableReasonKey, MAX_TEXT);
         buffer.writeFloat(successRate);
         buffer.writeVarInt(estimatedSeconds);
         boolean hasWorkRoom = workRoomDimension != null && workRoomPosition != null;
@@ -72,11 +77,14 @@ public record RoomEmployeeSnapshot(
         int justice = buffer.readVarInt();
         int employeeLevel = buffer.readVarInt();
         String weaponName = buffer.readUtf(MAX_TEXT);
+        String weaponNameKey = buffer.readUtf(MAX_TEXT);
         String armorName = buffer.readUtf(MAX_TEXT);
+        String armorNameKey = buffer.readUtf(MAX_TEXT);
         String status = buffer.readUtf(MAX_TEXT);
         boolean commandable = buffer.readBoolean();
         boolean eligible = buffer.readBoolean();
         String unavailableReason = buffer.readUtf(MAX_TEXT);
+        String unavailableReasonKey = buffer.readUtf(MAX_TEXT);
         float successRate = buffer.readFloat();
         int estimatedSeconds = buffer.readVarInt();
         ResourceLocation workRoomDimension = null;
@@ -89,8 +97,10 @@ public record RoomEmployeeSnapshot(
         return new RoomEmployeeSnapshot(id, name,
                 departmentId, dimension, position, health, maxHealth, mental, maxMental,
                 fortitude, prudence, temperance, justice, employeeLevel,
-                weaponName, armorName, status, commandable, eligible, unavailableReason,
-                successRate, estimatedSeconds, workRoomDimension, workRoomPosition,
+                weaponName, weaponNameKey, armorName, armorNameKey,
+                status, commandable, eligible, unavailableReason,
+                unavailableReasonKey, successRate, estimatedSeconds,
+                workRoomDimension, workRoomPosition,
                 currentWorkType, buffer.readVarInt(), buffer.readVarInt(), buffer.readVarInt());
     }
 

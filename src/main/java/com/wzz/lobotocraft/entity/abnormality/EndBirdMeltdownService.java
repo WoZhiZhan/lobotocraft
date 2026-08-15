@@ -33,7 +33,7 @@ final class EndBirdMeltdownService {
         }
         if (now < next) return;
 
-        FacilityManager.activateEndBirdMeltdowns(level, 4);
+        FacilityManager.activateEndBirdMeltdowns(level, 4, egg.getUUID(), eggType);
         data.putLong(NEXT_MELTDOWN_TICK, now + nextDelayTicks(level.getRandom()));
     }
 

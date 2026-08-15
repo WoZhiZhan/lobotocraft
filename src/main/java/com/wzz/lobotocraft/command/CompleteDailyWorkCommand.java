@@ -29,7 +29,7 @@ public class CompleteDailyWorkCommand implements ICommand {
     private int completeDailyWork(CommandContext<CommandSourceStack> context) {
         ServerPlayer player = context.getSource().getPlayer();
         if (player == null) {
-            context.getSource().sendFailure(Component.literal("§c该指令只能由玩家执行"));
+            context.getSource().sendFailure(Component.translatable("command.lobotocraft.player_only"));
             return 0;
         }
 
@@ -52,9 +52,9 @@ public class CompleteDailyWorkCommand implements ICommand {
                             data.isHasSleep()
                     ));
 
-            context.getSource().sendSuccess(() -> Component.literal(
-                    String.format("§a今日工作已完成 §7(%d/%d)", data.getTodayWorkCount(), required)
-            ), true);
+            context.getSource().sendSuccess(() -> Component.translatable(
+                    "command.lobotocraft.daily_work.completed",
+                    data.getTodayWorkCount(), required), true);
         });
 
         return 1;

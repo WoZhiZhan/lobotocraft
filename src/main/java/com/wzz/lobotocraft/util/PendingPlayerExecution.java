@@ -33,7 +33,8 @@ public final class PendingPlayerExecution {
                 | player.getPersistentData().getBoolean(PENDING_TAG);
         player.getPersistentData().remove(PENDING_TAG);
         if (!pending || !player.isAlive()) return;
-        player.sendSystemMessage(Component.literal("Delayed abnormality execution resolved after reconnect."));
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.pending_execution.resolved"));
         player.kill();
     }
 

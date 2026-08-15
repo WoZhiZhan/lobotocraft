@@ -7,6 +7,7 @@ import com.wzz.lobotocraft.util.AbnormalitySpawnHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.world.data.LobotomySpawnSavedData;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffects;
@@ -45,7 +46,8 @@ public class SpecialKillSpawnEvent {
                 && victim instanceof Vindicator
                 && victim.hasEffect(MobEffects.WEAKNESS)) {        // 虚弱
             if (spawnNear(level, player, ModEntities.nothing_there.get())) {
-                EntityUtil.broadcastMessage(level, "§c§l这里一无所有");
+                EntityUtil.broadcastMessage(level, Component.translatable(
+                    "message.lobotocraft.special_spawn.nothing_there"));
                 data.nothingThereSpawned = true;
                 data.setDirty();
             }
@@ -59,7 +61,8 @@ public class SpecialKillSpawnEvent {
             data.setDirty();
             if (data.hungerKillCount >= HUNGER_KILL_REQUIRED) {
                 if (spawnNear(level, player, ModEntities.smiling_corpse_mountain.get())) {
-                    EntityUtil.broadcastMessage(level, "§c§l那些尸体上弥漫着死亡的哀伤");
+                    EntityUtil.broadcastMessage(level, Component.translatable(
+                        "message.lobotocraft.special_spawn.smiling_corpse_mountain"));
                     data.smilingSpawned = true;
                     data.setDirty();
                 }

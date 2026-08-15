@@ -13,6 +13,7 @@ import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.world.RoomChunkTickets;
 import com.wzz.lobotocraft.world.data.OrdealData;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -90,9 +91,9 @@ public class AmberDawnEvent {
 
         MinecraftServer server = level.getServer();
         showAmberDawnTitle(server,
-                "琥珀色的黎明",
-                "新鲜的食物",
-                "食物-新鲜。替代品-很好。");
+                "ordeal.lobotocraft.amber_dawn.name",
+                "ordeal.lobotocraft.amber_dawn.title",
+                "ordeal.lobotocraft.amber_dawn.start_subtitle");
         playGlobalSound(server, ModSounds.AMBER_DAWN_START.get());
         EscapeTracker.getInstance().onOrdealStart(level, OrdealTier.DAWN);
         return true;
@@ -248,9 +249,9 @@ public class AmberDawnEvent {
         data.finishAmberDawn();
         OrdealRewardService.complete(server, OrdealTier.DAWN);
         showAmberDawnTitle(server,
-                "琥珀色的黎明",
-                "新鲜的食物",
-                "我们-生存。我们-吃。我们-腐烂。成为-食物...");
+                "ordeal.lobotocraft.amber_dawn.name",
+                "ordeal.lobotocraft.amber_dawn.title",
+                "ordeal.lobotocraft.amber_dawn.end_subtitle");
         playGlobalSound(server, ModSounds.AMBER_DAWN_END.get());
     }
 
@@ -403,7 +404,8 @@ public class AmberDawnEvent {
     }
 
     private static void showAmberDawnTitle(MinecraftServer server, String top, String middle, String bottom) {
-        sendOrdealTitle(server, top, middle, bottom, AMBER_DAWN_COLOR);
+        sendOrdealTitle(server, Component.translatable(top), Component.translatable(middle),
+                Component.translatable(bottom), AMBER_DAWN_COLOR);
     }
 
     private static void playGlobalSound(MinecraftServer server, SoundEvent sound) {

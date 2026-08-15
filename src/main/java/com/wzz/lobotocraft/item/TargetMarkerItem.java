@@ -55,15 +55,15 @@ public class TargetMarkerItem extends Item {
         // 拾取玩家视线前方 24 格内最近的"出逃状态异想体"
         AbstractAbnormality target = pickEscapedAbnormality(serverLevel, player, 24);
         if (target == null) {
-            player.displayClientMessage(Component.literal("§7前方没有可以委托镇压的出逃异想体……"), true);
+            player.displayClientMessage(Component.translatable("message.lobotocraft.target_marker.no_target"), true);
             return InteractionResultHolder.fail(stack);
         }
         if (target instanceof EntityRedHoodMercenary) {
-            player.displayClientMessage(Component.literal("§c她可不接以自己为目标的委托。"), true);
+            player.displayClientMessage(Component.translatable("message.lobotocraft.target_marker.self_target"), true);
             return InteractionResultHolder.fail(stack);
         }
         if (target instanceof EntityIsharmla) {
-            player.displayClientMessage(Component.literal("§c伊莎玛拉不是她会接下的委托目标。"), true);
+            player.displayClientMessage(Component.translatable("message.lobotocraft.target_marker.isharmla"), true);
             return InteractionResultHolder.fail(stack);
         }
 
@@ -80,9 +80,9 @@ public class TargetMarkerItem extends Item {
         }
 
         if (availableRedHoods.isEmpty()) {
-            player.sendSystemMessage(Component.literal(hasEscapedRedHood
-                    ? "§c小红帽雇佣兵正在出逃，无法接受委托。"
-                    : "§7附近没有可受雇的小红帽雇佣兵。"));
+            player.sendSystemMessage(Component.translatable(hasEscapedRedHood
+                    ? "message.lobotocraft.target_marker.mercenary_escaped"
+                    : "message.lobotocraft.target_marker.no_mercenary"));
             return InteractionResultHolder.fail(stack);
         }
 
@@ -93,7 +93,7 @@ public class TargetMarkerItem extends Item {
         for (EntityRedHoodMercenary redhat : availableRedHoods) {
             redhat.startCommission(target);
         }
-        player.sendSystemMessage(Component.literal("§c[小红帽雇佣兵] §7成交。让我看看这次的猎物……"));
+        player.sendSystemMessage(Component.translatable("message.lobotocraft.target_marker.accepted"));
 
         if (!player.isCreative()) {
             stack.shrink(1);
@@ -123,8 +123,10 @@ public class TargetMarkerItem extends Item {
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("§7对准出逃的异想体使用，向小红帽雇佣兵发出委托。").withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.literal("§7“想雇佣我的话，希望你付得起代价。”").withStyle(ChatFormatting.DARK_RED));
+        tooltip.add(Component.translatable("tooltip.lobotocraft.target_marker.description")
+                .withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable("tooltip.lobotocraft.target_marker.quote")
+                .withStyle(ChatFormatting.DARK_RED));
         super.appendHoverText(stack, level, tooltip, flag);
     }
 }

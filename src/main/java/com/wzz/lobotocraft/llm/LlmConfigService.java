@@ -13,7 +13,8 @@ public final class LlmConfigService {
 
     public static void open(ServerPlayer player) {
         if (!player.hasPermissions(CONFIG_PERMISSION_LEVEL)) {
-            player.sendSystemMessage(Component.literal("§c没有 LLM 配置权限。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.llm.config_denied"));
             return;
         }
         LlmConfig.State state = LlmConfig.state();

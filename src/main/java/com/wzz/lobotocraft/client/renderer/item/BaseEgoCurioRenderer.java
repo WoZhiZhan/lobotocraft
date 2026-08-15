@@ -41,11 +41,7 @@ public class BaseEgoCurioRenderer extends GeoItemRenderer<BaseEgoCurio> implemen
         LivingEntity wearer = slotContext.entity();
         if (wearer == null) return;
 
-        if (wearer.level.isClientSide) {
-            boolean isMoving = Math.abs(wearer.zza) > 0.01 || Math.abs(wearer.xxa) > 0.01;
-            BaseEgoCurio.WEARER_MOVING.put(wearer.getId(), isMoving);
-            BaseEgoCurio.currentRenderEntityId = wearer.getId();
-        }
+        boolean moving = Math.abs(wearer.zza) > 0.01 || Math.abs(wearer.xxa) > 0.01;
 
         // 取 json 里的 display（被替换过的模型要拿原始的那份）
         BakedModel model = Minecraft.getInstance().getItemRenderer().getModel(stack, null, null, 0);
@@ -63,11 +59,15 @@ public class BaseEgoCurioRenderer extends GeoItemRenderer<BaseEgoCurio> implemen
         transforms.getTransform(ctx).apply(false, poseStack);
         poseStack.translate(-0.5F, -0.5F, -0.5F);
 
+        boolean previousRendering = BaseEgoCurio.isRenderingAsCurio;
+        boolean previousMoving = BaseEgoCurio.currentRenderMoving;
         BaseEgoCurio.isRenderingAsCurio = true;
+        BaseEgoCurio.currentRenderMoving = moving;
         try {
             super.renderByItem(stack, ctx, poseStack, buffer, light, OverlayTexture.NO_OVERLAY);
         } finally {
-            BaseEgoCurio.isRenderingAsCurio = false;
+            BaseEgoCurio.currentRenderMoving = previousMoving;
+            BaseEgoCurio.isRenderingAsCurio = previousRendering;
         }
         poseStack.popPose();
     }

@@ -100,30 +100,36 @@ public final class LlmDispatchService {
 
     public static void submit(ServerPlayer issuer, String command) {
         if (!com.wzz.lobotocraft.util.AbnormalitySpawnHelper.isCompany(issuer.level())) {
-            issuer.sendSystemMessage(radioMessage("请回到公司后再调度员工。", ChatFormatting.RED));
+            issuer.sendSystemMessage(radioMessage(Component.translatable(
+                    "message.lobotocraft.llm.return_to_company"), ChatFormatting.RED));
             return;
         }
         LlmDepartmentAccessData access = LlmDepartmentAccessData.get(issuer.server);
         if (access.effectiveDepartments(issuer).isEmpty()) {
-            issuer.sendSystemMessage(radioMessage("你没有任何部门的员工调度权限。", ChatFormatting.RED));
+            issuer.sendSystemMessage(radioMessage(Component.translatable(
+                    "message.lobotocraft.llm.no_department_access"), ChatFormatting.RED));
             return;
         }
         LlmConfig.State config = LlmConfig.state();
         if (!config.enabled()) {
-            issuer.sendSystemMessage(radioMessage("LLM 调度尚未在服务器配置中启用。", ChatFormatting.RED));
+            issuer.sendSystemMessage(radioMessage(Component.translatable(
+                    "message.lobotocraft.llm.disabled"), ChatFormatting.RED));
             return;
         }
         if (config.model().isBlank()) {
-            issuer.sendSystemMessage(radioMessage("未配置 LLM 模型。", ChatFormatting.RED));
+            issuer.sendSystemMessage(radioMessage(Component.translatable(
+                    "message.lobotocraft.llm.model_missing"), ChatFormatting.RED));
             return;
         }
         long now = System.currentTimeMillis();
         if (PENDING.containsKey(issuer.getUUID())) {
-            issuer.sendSystemMessage(radioMessage("你已有一条调度命令正在解析。", ChatFormatting.YELLOW));
+            issuer.sendSystemMessage(radioMessage(Component.translatable(
+                    "message.lobotocraft.llm.pending"), ChatFormatting.YELLOW));
             return;
         }
         if (now - LAST_REQUEST.getOrDefault(issuer.getUUID(), 0L) < 2500L) {
-            issuer.sendSystemMessage(radioMessage("调度请求过于频繁。", ChatFormatting.YELLOW));
+            issuer.sendSystemMessage(radioMessage(Component.translatable(
+                    "message.lobotocraft.llm.rate_limited"), ChatFormatting.YELLOW));
             return;
         }
 
@@ -134,7 +140,8 @@ public final class LlmDispatchService {
         UUID issuerId = issuer.getUUID();
         String snapshot = buildSnapshot(issuer, command, requestId).toString();
         List<LlmHistoryData.DispatchTurn> history = copyHistory(server, issuerId);
-        issuer.sendSystemMessage(radioMessage("正在解析通讯内容...", ChatFormatting.GRAY));
+        issuer.sendSystemMessage(radioMessage(Component.translatable(
+                "message.lobotocraft.llm.parsing"), ChatFormatting.GRAY));
 
         Future<?> task;
         try {
@@ -146,12 +153,13 @@ public final class LlmDispatchService {
                     if (exception instanceof InterruptedException) return;
                     ModLogger.LOGGER.error("LLM dispatch request failed", exception);
                     server.execute(() -> fail(server, issuerId, requestId,
-                            "通讯信号不稳定，请再说一次。"));
+                            "message.lobotocraft.llm.signal_unstable"));
                 }
             });
         } catch (RejectedExecutionException exception) {
             PENDING.remove(issuerId);
-            issuer.sendSystemMessage(radioMessage("当前通讯请求过多，请稍后重试。", ChatFormatting.YELLOW));
+            issuer.sendSystemMessage(radioMessage(Component.translatable(
+                    "message.lobotocraft.llm.overloaded"), ChatFormatting.YELLOW));
             return;
         }
         TASKS.put(issuerId, task);
@@ -414,9 +422,13 @@ public final class LlmDispatchService {
     }
 
     private static Component radioMessage(String content, ChatFormatting color) {
-        return Component.literal("[对讲机] ")
+        return radioMessage(Component.literal(content), color);
+    }
+
+    private static Component radioMessage(Component content, ChatFormatting color) {
+        return Component.translatable("message.lobotocraft.radio.prefix")
                 .withStyle(Style.EMPTY.withColor(TextColor.fromRgb(RADIO_COLOR)))
-                .append(Component.literal(content).withStyle(color));
+                .append(content.copy().withStyle(color));
     }
 
     private static String responseError(String body) {
@@ -454,9 +466,10 @@ public final class LlmDispatchService {
             }
             if (!"EXECUTE".equals(mode)) {
                 appendHistory(server, issuerId, command, clean);
-                issuer.sendSystemMessage(radioMessage(
-                        reply.isBlank() ? "命令需要进一步说明。" : reply,
-                        ChatFormatting.YELLOW));
+                Component response = reply.isBlank()
+                        ? Component.translatable("message.lobotocraft.llm.clarification_needed")
+                        : Component.literal(reply);
+                issuer.sendSystemMessage(radioMessage(response, ChatFormatting.YELLOW));
                 return;
             }
             JsonArray orders = plan.has("orders") && plan.get("orders").isJsonArray()
@@ -471,15 +484,15 @@ public final class LlmDispatchService {
                 }
             }
             appendHistory(server, issuerId, command, clean);
-            issuer.sendSystemMessage(radioMessage("已向 " + accepted + " 名员工发送任务。",
-                    ChatFormatting.GREEN));
+            issuer.sendSystemMessage(radioMessage(Component.translatable(
+                    "message.lobotocraft.llm.accepted", accepted), ChatFormatting.GREEN));
             radioResponders.forEach(responder -> broadcastAssignment(server,
                     responder.name(), responder.assignmentSummary()));
             EmployeeRadioService.submitAccepted(issuer, command, radioResponders);
         } catch (Exception exception) {
             ModLogger.LOGGER.error("Invalid LLM dispatch plan: {}", content, exception);
-            issuer.sendSystemMessage(radioMessage(
-                    "通讯内容无法识别，请再说一次。", ChatFormatting.RED));
+            issuer.sendSystemMessage(radioMessage(Component.translatable(
+                    "message.lobotocraft.llm.unrecognized"), ChatFormatting.RED));
         }
     }
 
@@ -644,7 +657,8 @@ public final class LlmDispatchService {
 
     private static void broadcastAssignment(MinecraftServer server, String employeeName,
                                             String assignment) {
-        Component message = Component.literal("* " + employeeName + " 正在" + assignment)
+        Component message = Component.translatable("message.lobotocraft.llm.assignment",
+                        employeeName, assignment)
                 .withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC);
         server.getPlayerList().broadcastSystemMessage(message, false);
     }
@@ -731,7 +745,8 @@ public final class LlmDispatchService {
         PENDING.remove(issuerId);
         TASKS.remove(issuerId);
         ServerPlayer issuer = server.getPlayerList().getPlayer(issuerId);
-        if (issuer != null) issuer.sendSystemMessage(radioMessage(message, ChatFormatting.RED));
+        if (issuer != null) issuer.sendSystemMessage(radioMessage(
+                Component.translatable(message), ChatFormatting.RED));
     }
 
     private static List<LlmHistoryData.DispatchTurn> copyHistory(MinecraftServer server, UUID playerId) {

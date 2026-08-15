@@ -46,7 +46,7 @@ public class SetFloorNamePacket implements IMessage {
     @Override
     public void run(NetworkEvent.Context ctx) {
         ServerPlayer player = ctx.getSender();
-        if (player == null) return;
+        if (player == null || !player.hasPermissions(2)) return;
         if (!RequestThrottle.allow(player, "rename-floor", 250L)) return;
 
         String trimmed = name == null ? "" : name.trim();

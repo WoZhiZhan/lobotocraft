@@ -165,7 +165,7 @@ public class ForgeModEvent {
 				target.removeEffect(effect.getEffect());
 			}
 		}
-		if (!isDot && src.getEntity() instanceof Player attacker) {
+		if (!isDot && src.getEntity() instanceof Player attacker && attacker != target) {
 			// 补充4第2条:正义裁决者武器命中刷新攻速移速buff
 			WeaponBuffEvent.triggerJusticeBuff(attacker);
 			// 悔恨武器命中刷新减速buff,且buff期间造成的红色伤害+10%
@@ -181,15 +181,6 @@ public class ForgeModEvent {
 			}
 			if (EgoArmorHelper.isFullEGO(attacker, "fourth_match_flame") && target.isOnFire()) {
 				event.setAmount(event.getAmount() * 1.2f);
-			}
-			if (EgoArmorHelper.isFullEGO(attacker, "wingbeat") && EgoArmorHelper.isHoldingWeapon(attacker, "wingbeat")) {
-				attacker.heal(event.getAmount());
-			}
-			if (EgoArmorHelper.isFullEGO(attacker, "end_bird")
-					&& EgoArmorHelper.isHoldingWeapon(attacker, "end_bird")
-					&& CuriosUtil.hasCurios(attacker, ModItems.PUNISHING_BIRD_CURIO.get())
-					&& !com.wzz.lobotocraft.item.ego.end_bird.EndBirdWeapon.isThinDuskSpecialDamage(attacker)) {
-				attacker.heal(event.getAmount() * 0.1f);
 			}
 			WeaponBuffEvent.triggerThinDuskApprovalBuff(attacker);
 			if ((EgoArmorHelper.isFullEGO(attacker, "end_bird") && EgoArmorHelper.isHoldingWeapon(attacker, "end_bird")) ||
@@ -262,9 +253,6 @@ public class ForgeModEvent {
 			}
 			if (CuriosUtil.hasCurios(attacker, ModItems.SMILING_CORPSE_MOUNTAIN_CURIO.get()) && isBlackDamage) {
 				event.setAmount(event.getAmount() * 1.2f);
-			}
-			if (CuriosUtil.hasCurios(attacker, ModItems.NOTHING_THERE_CURIO.get())) {
-				attacker.heal(event.getAmount() * 0.05f);
 			}
 		}
 		if (!isDot && target instanceof ServerPlayer player) {
@@ -601,7 +589,8 @@ public class ForgeModEvent {
 					for (Entity entity : EntityUtil.findAllEntities(event.getEntity(), 400)) {
 						if (entity instanceof EntityChildrenGalaxy childrenGalaxy) {
 							childrenGalaxy.decreaseQliphothCounter(999);
-							player.displayClientMessage(Component.literal("§c银河之子的计时器归零了"), false);
+							player.displayClientMessage(Component.translatable(
+									"message.lobotocraft.children_galaxy.timer_depleted"), false);
 							break;
 						}
 					}
@@ -628,7 +617,9 @@ public class ForgeModEvent {
 					if (corpseMountain.getClerkDieCount() == 10) {
 						corpseMountain.triggerClerkDieCount();
 						if (event.getSource().getEntity() instanceof ServerPlayer player) {
-							player.displayClientMessage(Component.literal("§c因你的失误，"+corpseMountain.getAbnormalityJadeName()+"的计数器-1"), false);
+							player.displayClientMessage(Component.translatable(
+									"message.lobotocraft.smiling_corpse_mountain.mistake_counter",
+									corpseMountain.getLocalizedAbnormalityName()), false);
 						}
 					}
 				}
@@ -771,9 +762,8 @@ public class ForgeModEvent {
 					}
 				}
 				if (birdsAffected > 0 && event.getEntity().level.isClientSide) {
-					event.getEntity().displayClientMessage(Component.literal(
-							String.format("§c惩戒鸟感到被忽视，%d只惩戒鸟的计数器减少了！", birdsAffected)
-					), false);
+					event.getEntity().displayClientMessage(Component.translatable(
+							"message.lobotocraft.punishing_bird.ignored_counter", birdsAffected), false);
 					event.getEntity().playSound(
 							SoundEvents.ANVIL_DESTROY,
 							0.5f,
@@ -798,9 +788,8 @@ public class ForgeModEvent {
 					childrenAffected++;
 				}
 				if (childrenAffected > 0) {
-					event.getEntity().sendSystemMessage(Component.literal(
-							String.format("§c%d只银河之子的计数器减少了！", childrenAffected)
-					));
+					event.getEntity().sendSystemMessage(Component.translatable(
+							"message.lobotocraft.children_galaxy.counter_reduced", childrenAffected));
 					event.getEntity().playNotifySound(
 							SoundEvents.ANVIL_DESTROY,
 							SoundSource.PLAYERS,
@@ -837,9 +826,8 @@ public class ForgeModEvent {
 			}
 		}
 		if (birdsAffected > 0 && event.getEntity().level.isClientSide) {
-			event.getEntity().displayClientMessage(Component.literal(
-					String.format("§c你感受到了恐惧，%d只惩戒鸟的计数器减少了！", birdsAffected)
-			), false);
+			event.getEntity().displayClientMessage(Component.translatable(
+					"message.lobotocraft.punishing_bird.fear_counter", birdsAffected), false);
 			event.getEntity().playSound(
 					SoundEvents.ANVIL_DESTROY,
 					0.5f,
@@ -960,17 +948,20 @@ public class ForgeModEvent {
 			return;
 		}
 		if (!(event.getTarget() instanceof AbstractAbnormality abnormality)) {
-			player.displayClientMessage(Component.literal("§c目标实体不是异想体，无法捕获！"), true);
+			player.displayClientMessage(Component.translatable(
+					"message.lobotocraft.capture_unit.not_abnormality"), true);
 			event.setCanceled(true);
 			return;
 		}
 		if (stack.getOrCreateTag().contains(CaptureUnitItem.ENTITY_UUID)) {
-			player.displayClientMessage(Component.literal("§c捕获失败，当前已有捕获的异想体"), true);
+			player.displayClientMessage(Component.translatable(
+					"message.lobotocraft.capture_unit.occupied"), true);
 			event.setCanceled(true);
 			return;
 		}
 		if (abnormality.hasEscape()) {
-			player.displayClientMessage(Component.literal("§c捕获失败！异想体正在出逃无法收容"), true);
+			player.displayClientMessage(Component.translatable(
+					"message.lobotocraft.capture_unit.escaped"), true);
 			event.setCanceled(true);
 			return;
 		}
@@ -993,7 +984,7 @@ public class ForgeModEvent {
 		tag.putString(CaptureUnitItem.ENTITY_CODE, abnormality.getAbnormalityCode());
 		tag.putString(CaptureUnitItem.ENTITY_TYPE, entityTypeKey);
 		tag.put(CaptureUnitItem.ENTITY_NBT, entityNbt);
-		player.displayClientMessage(Component.literal("§a捕获成功！"), true);
+		player.displayClientMessage(Component.translatable("message.lobotocraft.capture_unit.success"), true);
 		player.playSound(SoundEvents.BOTTLE_FILL, 1.0f, 1.0f);
 		abnormality.discard();
 		player.getCooldowns().addCooldown(stack.getItem(), 20);
@@ -1015,6 +1006,25 @@ public class ForgeModEvent {
 					player.removeEffect(ModMobEffects.LETICIA_GIFT.get());
 				}
 			}
+		}
+		if (event.isCanceled() || event.getAmount() <= 0.0F) return;
+		LivingEntity target = event.getEntity();
+		if (!(event.getSource().getEntity() instanceof Player attacker) || attacker == target) return;
+		float actualDamage = com.wzz.lobotocraft.item.ego.base.EgoDamageRecoveryPolicy
+				.finalDamageToHealth(target.getHealth(), event.getAmount());
+		if (actualDamage <= 0.0F) return;
+		if (CuriosUtil.hasCurios(attacker, ModItems.NOTHING_THERE_CURIO.get())) {
+			attacker.heal(actualDamage * 0.05F);
+		}
+		if (EgoArmorHelper.isFullEGO(attacker, "wingbeat")
+				&& EgoArmorHelper.isHoldingWeapon(attacker, "wingbeat")) {
+			attacker.heal(actualDamage);
+		}
+		if (EgoArmorHelper.isFullEGO(attacker, "end_bird")
+				&& EgoArmorHelper.isHoldingWeapon(attacker, "end_bird")
+				&& CuriosUtil.hasCurios(attacker, ModItems.PUNISHING_BIRD_CURIO.get())
+				&& !com.wzz.lobotocraft.item.ego.end_bird.EndBirdWeapon.isThinDuskSpecialDamage(attacker)) {
+			attacker.heal(actualDamage * 0.1F);
 		}
 	}
 
@@ -1047,7 +1057,8 @@ public class ForgeModEvent {
 		}
 		if (!(event.getAbnormality() instanceof EntityWingBeat) && !event.getEntity().level.isClientSide
 				&& event.getEntity().getPersistentData().getBoolean("isInWingBeat") && event.isOpeningWorkScreen()) {
-			event.getEntity().sendSystemMessage(Component.literal("§c你因尝试在精灵盛宴的祝福下对其他异想体工作被精灵盛宴啃噬了..."));
+			event.getEntity().sendSystemMessage(Component.translatable(
+					"message.lobotocraft.wingbeat.other_work_killed"));
 			event.getEntity().hurt(event.getEntity().damageSources().fellOutOfWorld(), event.getEntity().getMaxHealth());
 			event.getEntity().playSound(ModSounds.WINGBEAT_KILL_PLAYER.get());
 			event.setCanceled(true);
@@ -1074,7 +1085,8 @@ public class ForgeModEvent {
 		}
 		if (event.getNewDay() == 5 && !ItemUtil.hasItem(event.getPlayer(), ModItems.ROOM_TERMINAL.get())) {
 			ItemUtil.addItem(event.getPlayer(), new ItemStack(ModItems.ROOM_TERMINAL.get()));
-			event.getPlayer().displayClientMessage(Component.literal("§a你获得了一个公司终端！"), false);
+			event.getPlayer().displayClientMessage(Component.translatable(
+					"message.lobotocraft.room_terminal.obtained"), false);
 		}
 	}
 
@@ -1088,21 +1100,8 @@ public class ForgeModEvent {
 	@SubscribeEvent
 	public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
 		Player player = event.getEntity();
-		// Timers are intentionally cancelled on logout. Do not let their transient
-		// movement marker become a permanent save-state lock after reconnecting.
-		player.getPersistentData().remove("NotMove");
-		player.getPersistentData().remove("isSuperWolf");
-		player.getPersistentData().remove("notLargeBirdCharm");
-		player.getPersistentData().remove("isAddRedHat");
-		player.getPersistentData().remove("isAddBigBadwolf");
-		if (player.getPersistentData().getBoolean("isSnowQueen")
-				|| player.getPersistentData().getBoolean("isSnowQueenDuel")) {
-			player.getPersistentData().remove("isSnowQueen");
-			player.getPersistentData().remove("isSnowQueenDuel");
-			player.setTicksFrozen(0);
-			BuffUtil.removeKiss(player);
-		}
 		if (player instanceof ServerPlayer serverPlayer) {
+			com.wzz.lobotocraft.util.ControlStateRecoveryService.clearTransientControls(serverPlayer);
 			CompoundTag root = player.getPersistentData();
 			CompoundTag persisted = root.getCompound(Player.PERSISTED_NBT_TAG);
 			boolean noticeSeen = persisted.getBoolean(AcknowledgeWelcomeNoticePacket.SEEN_TAG);

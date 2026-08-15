@@ -464,6 +464,38 @@ public final class EmployeeRuntimeManager {
         return summary == null ? "" : summary;
     }
 
+    public static Component navigationPurposeComponent(UUID employeeId) {
+        RuntimeEmployee runtime = ACTIVE.get(employeeId);
+        if (runtime == null || runtime.order == null || runtime.navigator.target() == null
+                || runtime.navigator.isComplete()) return Component.empty();
+        EmployeeOrder order = runtime.order;
+        if (order.type == EmployeeTaskType.MOVE && order.targetPos != null) {
+            return Component.translatable("status.lobotocraft.navigation.move",
+                order.targetPos.getX(), order.targetPos.getY(), order.targetPos.getZ());
+        }
+        Entity target = findEntity(runtime.player.server, order.targetEntity);
+        Component targetName = target == null
+            ? Component.translatable("status.lobotocraft.navigation.unknown_target")
+            : target.getDisplayName();
+        if (target instanceof AbstractAbnormality abnormality) {
+            targetName = abnormality.getLocalizedAbnormalityName();
+        }
+        return switch (order.type) {
+            case WORK -> Component.translatable("status.lobotocraft.navigation.work",
+                CoreSuppressionManager.isMalkuthWorkScrambled(runtime.player.level())
+                    ? Component.literal("???")
+                    : Component.translatable(order.workType.getTranslationKey()),
+                targetName);
+            case TOOL_USE -> Component.translatable(
+                "status.lobotocraft.navigation.tool_use", targetName);
+            case SEARCH_AND_SUPPRESS -> Component.translatable(
+                "status.lobotocraft.navigation.suppress", targetName);
+            case FOLLOW -> Component.translatable(
+                "status.lobotocraft.navigation.follow", targetName);
+            default -> Component.literal(visibleTaskSummary(runtime.player.employeeRecord()));
+        };
+    }
+
     public static String visibleTaskSummary(EmployeeRecord record) {
         if (record == null) return "";
         RuntimeEmployee runtime = ACTIVE.get(record.id());

@@ -277,9 +277,9 @@ public class EntityHappyTeddy extends AbstractAbnormality {
         setCurrentAnimation("model.1"); // 开始拥抱动画
 
         // 发送消息
-        player.sendSystemMessage(Component.literal(
-                "§4§l" + player.getName().getString() + " 不由自主地走向快乐泰迪..."
-        ));
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.abnormality.happy_teddy.approaching",
+                player.getDisplayName()));
 
         // 限制玩家移动并让玩家坐下
         player.setNoGravity(true);
@@ -394,9 +394,8 @@ public class EntityHappyTeddy extends AbstractAbnormality {
                     hugAnimationPhase = 1;
                     hugAnimationTimer = 0;
                     setCurrentAnimation("model.2");
-                    player.sendSystemMessage(Component.literal(
-                            "§4§l快乐泰迪紧紧地抱住了你的脖子！"
-                    ));
+                    player.sendSystemMessage(Component.translatable(
+                            "message.lobotocraft.abnormality.happy_teddy.hugging"));
                 } else if (hugAnimationPhase == 1 && hugAnimationTimer >= 60) {
                     // 阶段1：拥抱中 → 处决（3秒）
                     hugAnimationPhase = 2;
@@ -415,9 +414,9 @@ public class EntityHappyTeddy extends AbstractAbnormality {
                     }
                     releaseHuggedPlayer(player);
 
-                    player.sendSystemMessage(Component.literal(
-                            "§c§l" + player.getName().getString() + " 被快乐泰迪勒死了..."
-                    ));
+                    player.sendSystemMessage(Component.translatable(
+                            "message.lobotocraft.abnormality.happy_teddy.strangled",
+                            player.getDisplayName()));
 
                     // 重置状态
                     huggedPlayerUUID = null;
@@ -495,27 +494,24 @@ public class EntityHappyTeddy extends AbstractAbnormality {
     public void onGoodWork(ServerPlayer player) {
         // 优秀工作：恢复3点精神值
         MentalValueUtil.addMentalValue(player, 3);
-        player.sendSystemMessage(Component.literal(
-                "§a快乐泰迪看起来很开心。§r(+3精神值)"
-        ));
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.abnormality.happy_teddy.good_work"));
     }
 
     @Override
     public void onNormalWork(ServerPlayer player) {
         // 良好工作：恢复1点精神值
         MentalValueUtil.addMentalValue(player, 1);
-        player.sendSystemMessage(Component.literal(
-                "§e快乐泰迪接受了你的工作。§r(+1精神值)"
-        ));
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.abnormality.happy_teddy.normal_work"));
     }
 
     @Override
     public void onBadWork(ServerPlayer player) {
         // 差的工作：降低1点精神值
         MentalValueUtil.addMentalValue(player, -1);
-        player.sendSystemMessage(Component.literal(
-                "§c快乐泰迪看起来不太高兴。§r(-1精神值)"
-        ));
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.abnormality.happy_teddy.bad_work"));
     }
 
     @Override
@@ -526,9 +522,8 @@ public class EntityHappyTeddy extends AbstractAbnormality {
         if (isSecondAttachmentWork(player, workType)) {
             // 触发拥抱死亡机制
             triggerHugDeath(player);
-            player.sendSystemMessage(Component.literal(
-                    "§4§l快乐泰迪发现了你连续两次来沟通工作..."
-            ));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.happy_teddy.repeated_attachment"));
         }
 
         // 记录这次工作

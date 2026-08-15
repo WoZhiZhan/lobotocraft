@@ -70,59 +70,66 @@ public class AssignRoomEmployeeWorkPacket implements IMessage {
         boolean success = failure == null;
         MessageLoader.getLoader().sendToPlayer(sender,
                 new RoomWorkAssignmentResultPacket(employeeId, success,
-                        success ? "任务已发送" : failure));
+                        success ? "message.lobotocraft.monitor.dispatch.work_sent" : failure));
     }
 
     private String validateAndAssign(ServerPlayer sender) {
         EmployeeRecord record = FacilityPersonnelData.get(sender.server).get(employeeId);
-        if (record == null || record.retired()) return "员工不存在";
+        if (record == null || record.retired()) return "message.lobotocraft.monitor.dispatch.employee_missing";
         if (!com.wzz.lobotocraft.employee.DepartmentProgressService.isSectionOpen(
                 sender.server, record.department(), record.centralSection())) {
-            return "该员工所属部门区域尚未开放";
+            return "message.lobotocraft.monitor.dispatch.department_closed";
         }
         if (!LlmDepartmentAccessData.get(sender.server).canManage(sender, record.department())) {
-            return "你无权调度该部门";
+            return "message.lobotocraft.monitor.dispatch.unauthorized";
         }
         EmployeeServerPlayer employee = EmployeeRuntimeManager.activePlayer(employeeId);
-        if (employee == null || !employee.isAlive() || employee.isRemoved()) return "员工未部署";
+        if (employee == null || !employee.isAlive() || employee.isRemoved()) {
+            return "message.lobotocraft.monitor.dispatch.employee_not_deployed";
+        }
 
         ServerLevel level = sender.server.getLevel(ResourceKey.create(Registries.DIMENSION, dimension));
         if (level == null) {
-            return "收容单元已失效";
+            return "message.lobotocraft.monitor.dispatch.room_invalid";
         }
         FacilityAccessService.ContainmentAccess access = FacilityAccessService.containmentAccess(
                 sender.server, dimension, roomPos);
         if (access != FacilityAccessService.ContainmentAccess.OPEN) {
             return access == FacilityAccessService.ContainmentAccess.UNEXPANDED
-                    ? "收容单元尚未扩建" : "收容单元当前不可用";
+                    ? "message.lobotocraft.monitor.dispatch.room_unexpanded"
+                    : "message.lobotocraft.monitor.dispatch.room_unavailable";
         }
         if (!(level.getBlockEntity(roomPos) instanceof RoomMarkerBlockEntity marker)) {
-            return "收容单元已失效";
+            return "message.lobotocraft.monitor.dispatch.room_invalid";
         }
         Entity entity = marker.getBoundAbnormality() == null
                 ? null : level.getEntity(marker.getBoundAbnormality());
         if (!(entity instanceof AbstractAbnormality abnormality) || !abnormality.isAlive()) {
-            return "异想体当前不可用";
+            return "message.lobotocraft.monitor.dispatch.abnormality_unavailable";
         }
         if (abnormality.isToolType()) {
             return EmployeeRuntimeManager.assignToolUse(record, abnormality)
-                    ? null : "Unable to dispatch employee to tool";
+                    ? null : "message.lobotocraft.monitor.dispatch.tool_failed";
         }
-        if (employee.level() != abnormality.level()) return "员工不在目标设施";
+        if (employee.level() != abnormality.level()) {
+            return "message.lobotocraft.monitor.dispatch.wrong_facility";
+        }
         if (EmployeeRuntimeManager.isWorkTargetReserved(abnormality, employeeId)) {
-            return "异想体正在接受工作或已有员工前往";
+            return "message.lobotocraft.monitor.dispatch.work_reserved";
         }
         if (WorkManager.isPlayerWorking(employee)) {
-            return "员工正在工作";
+            return "message.lobotocraft.monitor.dispatch.employee_working";
         }
 
         boolean mentalBroken = MentalValueUtil.isPanic(employee);
-        if (mentalBroken) return "员工处于精神崩溃状态";
+        if (mentalBroken) return "message.lobotocraft.monitor.dispatch.employee_panicking";
         int employeeLevel = employee.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS)
                 .map(value -> value.getEmployeeLevel()).orElse(1);
-        if (employeeLevel < abnormality.getRequiredEmployeeLevel()) return "员工等级不足";
+        if (employeeLevel < abnormality.getRequiredEmployeeLevel()) {
+            return "message.lobotocraft.monitor.dispatch.employee_level";
+        }
         return EmployeeRuntimeManager.assignMonitorWork(record, abnormality, workType)
-                ? null : "无法发送工作任务";
+                ? null : "message.lobotocraft.monitor.dispatch.work_failed";
     }
 
     @Override

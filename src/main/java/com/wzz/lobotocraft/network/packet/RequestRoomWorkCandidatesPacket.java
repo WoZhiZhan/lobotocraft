@@ -58,28 +58,29 @@ public class RequestRoomWorkCandidatesPacket implements IMessage {
         if (!RequestThrottle.allow(sender, "room_work_candidates", 150L)) return;
         ServerLevel level = sender.server.getLevel(ResourceKey.create(Registries.DIMENSION, dimension));
         if (level == null) {
-            reply(sender, List.of(), "收容单元已失效");
+            reply(sender, List.of(), "message.lobotocraft.monitor.dispatch.room_invalid");
             return;
         }
         FacilityAccessService.ContainmentAccess access = FacilityAccessService.containmentAccess(
                 sender.server, dimension, roomPos);
         if (access != FacilityAccessService.ContainmentAccess.OPEN) {
             reply(sender, List.of(), access == FacilityAccessService.ContainmentAccess.UNEXPANDED
-                    ? "收容单元尚未扩建" : "收容单元当前不可用");
+                    ? "message.lobotocraft.monitor.dispatch.room_unexpanded"
+                    : "message.lobotocraft.monitor.dispatch.room_unavailable");
             return;
         }
         if (!(level.getBlockEntity(roomPos) instanceof RoomMarkerBlockEntity marker)) {
-            reply(sender, List.of(), "收容单元已失效");
+            reply(sender, List.of(), "message.lobotocraft.monitor.dispatch.room_invalid");
             return;
         }
         UUID bound = marker.getBoundAbnormality();
         Entity entity = bound == null ? null : level.getEntity(bound);
         if (!(entity instanceof AbstractAbnormality abnormality) || !abnormality.isAlive()) {
-            reply(sender, List.of(), "异想体当前不可用");
+            reply(sender, List.of(), "message.lobotocraft.monitor.dispatch.abnormality_unavailable");
             return;
         }
         if (false && abnormality.isToolType()) {
-            reply(sender, List.of(), "工具类异想体不能派遣工作");
+            reply(sender, List.of(), "message.lobotocraft.monitor.dispatch.tool_not_workable");
             return;
         }
         reply(sender, RoomEmployeeSnapshotService.collect(sender, abnormality, workType), "");

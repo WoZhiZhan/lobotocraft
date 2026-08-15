@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -26,6 +27,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 
 public class HappyTeddyWeapon extends BaseEgoWeapon {
+    private static final String MOVEMENT_LOCK = "happy_teddy_weapon";
     private static final UUID REACH_UUID = UUID.fromString("627cac40-6b38-49c2-96ec-5ce700c979e9");
     public HappyTeddyWeapon() {
         super(
@@ -77,9 +79,9 @@ public class HappyTeddyWeapon extends BaseEgoWeapon {
                                     TimerEntry<LivingEntity> timerEntry = new TimerEntry<>() {
                                         @Override
                                         public void onStart(@NotNull LivingEntity entity) {
-                                            entity.getPersistentData().putBoolean("NotMove", true);
+                                            MovementLockUtil.acquire(entity, MOVEMENT_LOCK);
                                             if (entity instanceof Mob mob) {
-                                                mob.setNoAi(true);
+                                                MobAiLockUtil.acquire(mob, MOVEMENT_LOCK);
                                             }
                                         }
 
@@ -91,9 +93,19 @@ public class HappyTeddyWeapon extends BaseEgoWeapon {
 
                                         @Override
                                         public void onEnd(@NotNull LivingEntity entity) {
-                                            entity.getPersistentData().remove("NotMove");
+                                            clearStun(entity);
+                                        }
+
+                                        @Override
+                                        public void onCancelled(@NotNull LivingEntity entity,
+                                                @NotNull CancellationReason reason) {
+                                            clearStun(entity);
+                                        }
+
+                                        private void clearStun(LivingEntity entity) {
+                                            MovementLockUtil.release(entity, MOVEMENT_LOCK);
                                             if (entity instanceof Mob mob) {
-                                                mob.setNoAi(false);
+                                                MobAiLockUtil.release(mob, MOVEMENT_LOCK);
                                             }
                                         }
                                     };
@@ -135,22 +147,13 @@ public class HappyTeddyWeapon extends BaseEgoWeapon {
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         if (!ClientInputUtil.isShiftPressed()) {
-            p_41423_.add(Component.literal("§7柔软的棉花填充着这只可爱的泰迪熊。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7它的身体因为岁月而变得破烂不堪，就如同人们早已丢失的童真一样。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7可它还是很可爱！如果把它作为礼物送给孩子们的话，他们一定会兴奋地抱住它。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7它的身体十分脆弱，很容易被撕开，所以对待它需格外小心。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7一些富有同情心的员工对此感到十分痛心，并建议修复它。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7但是对一个异想体的修理结果是无法预测的，因此这些建议都被回绝了。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7不要被它毛茸茸的可爱外表所迷惑，它的力量远超我们的想象。"));
-            p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
+            for (int index = 1; index <= 7; index++) {
+                EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.happy_teddy_weapon.story." + index);
+                if (index < 7) EgoTooltipUtil.blank(p_41423_);
+            }
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.common.shift_details");
         } else {
-            p_41423_.add(Component.literal("§6※每次攻击会造成2段伤害。"));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.happy_teddy_weapon.detail");
         }
     }
 }

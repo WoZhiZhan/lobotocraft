@@ -72,6 +72,60 @@ public final class RecentAbnormalityFixGameTests {
     }
 
     @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 40, required = true, batch = "recent_big_bad_wolf_animation")
+    public static void bigBadWolfAttackAnimationRecoversAfterTargetIsLost(GameTestHelper helper) {
+        EntityBigBadWolf wolf = ModEntities.bigbadwolf.get().create(helper.getLevel());
+        Zombie target = EntityType.ZOMBIE.create(helper.getLevel());
+        if (wolf == null || target == null) {
+            helper.fail("could not create big bad wolf attack fixtures");
+            return;
+        }
+
+        wolf.beginBasicAttack(0, target);
+        target.discard();
+        for (int tick = 0; tick < EntityBigBadWolf.CLAW_ANIMATION_TICKS - 1; tick++) {
+            wolf.tickBasicAttack();
+        }
+        helper.assertTrue("attack1".equals(wolf.getAnimation()),
+                "claw animation ended before its declared duration");
+        wolf.tickBasicAttack();
+        helper.assertTrue("idle".equals(wolf.getAnimation()),
+                "lost claw target left the wolf stuck in its attack animation");
+
+        wolf.beginBasicAttack(1, target);
+        for (int tick = 0; tick < EntityBigBadWolf.BITE_ANIMATION_TICKS; tick++) {
+            wolf.tickBasicAttack();
+        }
+        helper.assertTrue("idle".equals(wolf.getAnimation()),
+                "lost bite target left the wolf stuck in its attack animation");
+
+        Zombie liveTarget = EntityType.ZOMBIE.create(helper.getLevel());
+        if (liveTarget == null) {
+            helper.fail("could not create live big bad wolf attack target");
+            return;
+        }
+        float healthBeforeHit = liveTarget.getHealth();
+        wolf.beginBasicAttack(0, liveTarget);
+        for (int tick = 0; tick < 7; tick++) {
+            wolf.tickBasicAttack();
+        }
+        helper.assertTrue(liveTarget.getHealth() == healthBeforeHit,
+                "claw damage was applied before its configured hit frame");
+        wolf.tickBasicAttack();
+        helper.assertTrue(liveTarget.getHealth() < healthBeforeHit,
+                "claw damage was not applied on its configured hit frame");
+        helper.assertTrue("attack1".equals(wolf.getAnimation()),
+                "claw animation stopped on the hit frame instead of completing");
+        for (int tick = 8; tick < EntityBigBadWolf.CLAW_ANIMATION_TICKS; tick++) {
+            wolf.tickBasicAttack();
+        }
+        helper.assertTrue("idle".equals(wolf.getAnimation()),
+                "successful claw attack did not return to idle after the full animation");
+        liveTarget.discard();
+        helper.succeed();
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
             timeoutTicks = 40, required = true, batch = "recent_fragment")
     public static void fragmentCounterDropsWhenPanicCancelsWork(GameTestHelper helper) {
         EntityFragmentOfUniverse fragment = ModEntities.fragment_of_the_universe.get()

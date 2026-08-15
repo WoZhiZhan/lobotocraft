@@ -33,7 +33,7 @@ public final class DayTransitionService {
 
     public static void requestStart(ServerPlayer player) {
         if (!isEligibleRealPlayer(player)) {
-            reject(player, "只能由公司内的真实主管结束当天。", "ineligible player");
+            reject(player, "message.lobotocraft.day.end.ineligible", "ineligible player");
             return;
         }
         FacilityDayData data = FacilityDayData.get(player.serverLevel());
@@ -45,7 +45,7 @@ public final class DayTransitionService {
         MinecraftServer server = player.server;
         DayVoteState current = ACTIVE.get(server);
         if (current != null && current.day() == data.getDay()) {
-            player.displayClientMessage(Component.literal("结束日投票已经进行中。")
+            player.displayClientMessage(Component.translatable("message.lobotocraft.day.end.vote_active")
                     .withStyle(ChatFormatting.YELLOW), false);
             FacilityManager.syncAll(server, data);
             return;
@@ -63,7 +63,8 @@ public final class DayTransitionService {
                 FacilityServerConfig.DAY_VOTE_APPROVAL_RATIO.get(), eligible);
         vote.cast(player.getUUID(), DayVoteState.Vote.APPROVE);
         ACTIVE.put(server, vote);
-        broadcast(server, Component.literal("结束今日工作的投票已开始").withStyle(ChatFormatting.AQUA));
+        broadcast(server, Component.translatable("message.lobotocraft.day.end.vote_started")
+                .withStyle(ChatFormatting.AQUA));
         FacilityManager.syncAll(server, data);
     }
 
@@ -79,7 +80,7 @@ public final class DayTransitionService {
         DayVoteState vote = ACTIVE.get(server);
         if (vote == null) return;
         if (vote.day() != data.getDay() || data.getEnergy() < data.getEnergyQuota()) {
-            cancel(server, "结束日条件已变化，投票已取消");
+            cancel(server, "message.lobotocraft.day.end.conditions_changed");
             FacilityManager.syncAll(server, data);
             return;
         }
@@ -92,14 +93,15 @@ public final class DayTransitionService {
         if (outcome == DayVoteState.Outcome.PENDING) return;
         ACTIVE.remove(server);
         if (outcome == DayVoteState.Outcome.FAILED) {
-            broadcast(server, Component.literal("结束今日工作的投票未通过").withStyle(ChatFormatting.RED));
+            broadcast(server, Component.translatable("message.lobotocraft.day.end.vote_failed")
+                    .withStyle(ChatFormatting.RED));
             return;
         }
         ServerPlayer actor = realCompanyPlayers(server).stream()
                 .filter(player -> vote.eligible().contains(player.getUUID()))
                 .findFirst().orElse(null);
         if (actor == null) {
-            broadcast(server, Component.literal("公司内没有可执行结束日的主管，投票已取消")
+            broadcast(server, Component.translatable("message.lobotocraft.day.end.no_actor")
                     .withStyle(ChatFormatting.RED));
             return;
         }
@@ -109,7 +111,7 @@ public final class DayTransitionService {
     private static boolean commit(MinecraftServer server, ServerPlayer actor, int expectedDay) {
         FacilityDayData facility = FacilityDayData.get(server.overworld());
         if (facility.getDay() != expectedDay) {
-            reject(actor, "结束当天失败：设施天数已经变化，请松开按键后重试。",
+            reject(actor, "message.lobotocraft.day.end.day_changed",
                     "expected DAY " + expectedDay + " but facility is DAY " + facility.getDay());
             return false;
         }
@@ -122,14 +124,14 @@ public final class DayTransitionService {
         }
         ACTIVE.remove(server);
         if (!advanceActorDay(actor, expectedDay)) {
-            reject(actor, "结束当天失败：天数推进被其他流程取消，请检查聊天提示后重试。",
+            reject(actor, "message.lobotocraft.day.end.advance_cancelled",
                     "player capability missing or CompanyDayAdvanceEvent cancelled");
             return false;
         }
         if (!completeFacilityDay(server, actor, expectedDay)) {
             actor.getCapability(CompanyDailyDataProvider.COMPANY_DAILY_DATA)
                     .ifPresent(daily -> daily.setCurrentDay(expectedDay));
-            reject(actor, "结束当天失败：设施状态未能推进，玩家天数已回滚，请重试。",
+            reject(actor, "message.lobotocraft.day.end.facility_failed",
                     "facility remained on DAY " + facility.getDay());
             return false;
         }
@@ -188,7 +190,8 @@ public final class DayTransitionService {
             }
             MinecraftForge.EVENT_BUS.post(new PlayerEnteredFacilityDayEvent(player, expectedDay, nextDay));
         }
-        broadcast(server, Component.literal("DAY " + nextDay).withStyle(ChatFormatting.GOLD));
+        broadcast(server, Component.translatable("message.lobotocraft.day.started", nextDay)
+                .withStyle(ChatFormatting.GOLD));
         FacilityManager.syncAll(server, facility);
         return true;
     }
@@ -210,9 +213,9 @@ public final class DayTransitionService {
         ACTIVE.remove(server);
     }
 
-    private static void cancel(MinecraftServer server, String message) {
+    private static void cancel(MinecraftServer server, String messageKey) {
         ACTIVE.remove(server);
-        broadcast(server, Component.literal(message).withStyle(ChatFormatting.RED));
+        broadcast(server, Component.translatable(messageKey).withStyle(ChatFormatting.RED));
     }
 
     private static ArrayList<ServerPlayer> realCompanyPlayers(MinecraftServer server) {
@@ -233,8 +236,8 @@ public final class DayTransitionService {
         for (ServerPlayer player : realCompanyPlayers(server)) player.displayClientMessage(message, false);
     }
 
-    private static void reject(ServerPlayer player, String playerMessage, String logReason) {
-        player.displayClientMessage(Component.literal(playerMessage).withStyle(ChatFormatting.RED), false);
+    private static void reject(ServerPlayer player, String playerMessageKey, String logReason) {
+        player.displayClientMessage(Component.translatable(playerMessageKey).withStyle(ChatFormatting.RED), false);
         FacilityPatch.LOGGER.warn("Rejected end-day request from {}: {}",
                 player.getGameProfile().getName(), logReason);
     }

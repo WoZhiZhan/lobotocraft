@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.world.data;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
 /**
@@ -42,6 +43,8 @@ public class RoomEntry {
     public String abnormalityCode = "";
     /** 异想体名称 */
     public String abnormalityName = "";
+    /** Client translation key for the abnormality name; legacy snapshots may leave it empty. */
+    public String abnormalityNameKey = "";
     /** 风险等级名（ZAYIN / TETH / HE / WAW / ALEPH …） */
     public String riskName = "";
     /** 风险等级颜色，直接取自 RiskLevel#getColor */
@@ -100,6 +103,19 @@ public class RoomEntry {
         return "空置收容间";
     }
 
+    public Component resolveTitleComponent() {
+        if (status == STATUS_UNEXPANDED) {
+            return Component.translatable("status.lobotocraft.unexpanded");
+        }
+        if (abnormalityNameKey != null && !abnormalityNameKey.isEmpty()) {
+            return Component.translatable(abnormalityNameKey);
+        }
+        if (abnormalityName != null && !abnormalityName.isEmpty()) {
+            return Component.literal(abnormalityName);
+        }
+        return Component.translatable("status.lobotocraft.empty");
+    }
+
     // ------------------------------------------------------------------ NBT
 
     public CompoundTag save() {
@@ -109,6 +125,7 @@ public class RoomEntry {
         tag.putString("Department", departmentId);
         tag.putString("Code", abnormalityCode);
         tag.putString("AbName", abnormalityName);
+        tag.putString("AbNameKey", abnormalityNameKey);
         tag.putString("Risk", riskName);
         tag.putInt("RiskColor", riskColor);
         tag.putBoolean("ToolType", toolType);
@@ -132,6 +149,7 @@ public class RoomEntry {
         entry.departmentId = tag.getString("Department");
         entry.abnormalityCode = tag.getString("Code");
         entry.abnormalityName = tag.getString("AbName");
+        entry.abnormalityNameKey = tag.getString("AbNameKey");
         entry.riskName = tag.getString("Risk");
         entry.riskColor = tag.getInt("RiskColor");
         entry.toolType = tag.getBoolean("ToolType");
@@ -156,6 +174,7 @@ public class RoomEntry {
         buf.writeUtf(departmentId, FacilityAreaEntry.MAX_DEPARTMENT_LENGTH);
         buf.writeUtf(abnormalityCode, 32);
         buf.writeUtf(abnormalityName, 64);
+        buf.writeUtf(abnormalityNameKey, 128);
         buf.writeUtf(riskName, 32);
         buf.writeInt(riskColor);
         buf.writeBoolean(toolType);
@@ -181,6 +200,7 @@ public class RoomEntry {
         entry.departmentId = buf.readUtf(FacilityAreaEntry.MAX_DEPARTMENT_LENGTH);
         entry.abnormalityCode = buf.readUtf(32);
         entry.abnormalityName = buf.readUtf(64);
+        entry.abnormalityNameKey = buf.readUtf(128);
         entry.riskName = buf.readUtf(32);
         entry.riskColor = buf.readInt();
         entry.toolType = buf.readBoolean();

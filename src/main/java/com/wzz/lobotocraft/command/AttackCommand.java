@@ -42,7 +42,8 @@ public class AttackCommand implements ICommand{
 
         String damageKey = DAMAGE_MAP.get(type.toLowerCase());
         if (damageKey == null) {
-            source.sendFailure(Component.literal("未知伤害类型: " + type));
+            source.sendFailure(Component.translatable(
+                    "command.lobotocraft.attack.unknown_type", type));
             return 0;
         }
         Entity attacker = getAttacker(source);
@@ -55,8 +56,8 @@ public class AttackCommand implements ICommand{
             }
         }
         int finalCount = count;
-        source.sendSuccess(() ->
-                        Component.literal("已对 " + finalCount + " 个生物造成 " + amount + " 点 " + type + " 伤害"),
+        source.sendSuccess(() -> Component.translatable("command.lobotocraft.attack.completed",
+                        amount, type, finalCount),
                 true);
         return count;
     }

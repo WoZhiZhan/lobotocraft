@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.item.ego.base.AiRangedEgoWeapon;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.core.particles.ParticleTypes;
@@ -50,8 +51,9 @@ public class LeticiaWeapon extends BaseEgoWeapon implements AiRangedEgoWeapon {
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (isOnCooldown(player, stack)) {
-            player.displayClientMessage(
-                    Component.literal("§a冷却中,还剩:" + getRemainingCooldown(player, stack) + " tick"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.ego.cooldown_ticks",
+                    getRemainingCooldown(player, stack)), true);
             return InteractionResultHolder.pass(stack);
         }
         startCooldown(player, stack);
@@ -103,16 +105,14 @@ public class LeticiaWeapon extends BaseEgoWeapon implements AiRangedEgoWeapon {
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         if (!ClientInputUtil.isShiftPressed()) {
-            p_41423_.add(Component.literal("§7※这把武器会对高抗性的目标造成更高的伤害。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7掌握并使用这杆步枪需要时间的磨合，"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7粗糙的结构设计令它的外表有些老旧，可它仍有不可忽视的威力。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7枪上那些小巧的配件就如同少女心中对幸福的憧憬。"));
-            p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.leticia_weapon.summary");
+            for (int index = 1; index <= 3; index++) {
+                EgoTooltipUtil.blank(p_41423_);
+                EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.leticia_weapon.story." + index);
+            }
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.common.shift_details");
         } else {
-            p_41423_.add(Component.literal("§6※玩家对黑色伤害抗性低于1.0的目标造成双倍伤害。"));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.leticia_weapon.detail");
         }
     }
 

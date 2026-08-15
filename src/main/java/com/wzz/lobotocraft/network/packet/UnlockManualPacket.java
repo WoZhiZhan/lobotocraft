@@ -67,25 +67,22 @@ public class UnlockManualPacket implements IMessage {
                                 List<AbstractAbnormality> list = player.level().getEntitiesOfClass(AbstractAbnormality.class, box);
                                 for (AbstractAbnormality ent : list) {
                                     if (Objects.equals(ent.getAbnormalityCode(), this.abnormalityCode)) {
-                                        ent.sendPerPlayerName(player, Component.literal(ent.getAbnormalityName()));
+                                        ent.sendPerPlayerName(player, ent.getLocalizedAbnormalityName());
                                     }
                                 }
                                 // 获取当前观察等级（等于解锁数量）
                                 int currentLevel = data.getObservationLevel(abnormalityCode);
 
                                 // 发送成功消息
-                                player.sendSystemMessage(Component.literal(
-                                        "§a成功解锁！消耗了 " + peBoxCost + " 个PE-BOX"
-                                ));
-                                player.sendSystemMessage(Component.literal(
-                                        "§b观察等级: " + currentLevel
-                                ));
+                                player.sendSystemMessage(Component.translatable(
+                                        "message.lobotocraft.manual.unlocked_cost", peBoxCost));
+                                player.sendSystemMessage(Component.translatable(
+                                        "message.lobotocraft.manual.observation_level", currentLevel));
                             });
                 } else {
                     // PE-BOX不足
-                    player.sendSystemMessage(Component.literal(
-                            "§cPE-BOX不足！需要 " + peBoxCost + " 个"
-                    ));
+                    player.sendSystemMessage(Component.translatable(
+                            "message.lobotocraft.manual.insufficient", peBoxCost));
                 }
             }
             }
@@ -104,12 +101,14 @@ public class UnlockManualPacket implements IMessage {
         player.getCapability(PlayerAbnormalityDataProvider.PLAYER_ABNORMALITY_DATA).ifPresent(data -> {
             if (data.isManualUnlocked(abnormalityCode, entryIndex)) return;
             if (!PEBoxItem.consumePEBoxes(player.getInventory(), abnormalityCode, cost)) {
-                player.sendSystemMessage(Component.literal("Insufficient PE-BOX"));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.manual.insufficient", cost));
                 return;
             }
             data.unlockManual(abnormalityCode, entryIndex);
-            abnormality.sendPerPlayerName(player, Component.literal(abnormality.getAbnormalityName()));
-            player.sendSystemMessage(Component.literal("Manual entry unlocked"));
+            abnormality.sendPerPlayerName(player, abnormality.getLocalizedAbnormalityName());
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.manual.entry_unlocked"));
         });
     }
 

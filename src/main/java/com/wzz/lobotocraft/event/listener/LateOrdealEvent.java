@@ -15,6 +15,7 @@ import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.world.data.OrdealData;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -52,9 +53,9 @@ public final class LateOrdealEvent {
 
     private static boolean showUnfinished(ServerLevel level, OrdealTier tier, int color) {
         if (level == null) return false;
-        String tierName = tier == OrdealTier.DUSK ? "黄昏" : "午夜";
-        sendOrdealTitle(level.getServer(), familyName(color) + "的" + tierName,
-                "未完工", "该考验尚未实现，不会生成实体。", themeColor(color));
+        sendOrdealTitle(level.getServer(), ordealName(color, tier == OrdealTier.DUSK ? 1 : 2),
+                Component.translatable("ordeal.lobotocraft.unfinished.title"),
+                Component.translatable("ordeal.lobotocraft.late.unfinished_subtitle"), themeColor(color));
         return true;
     }
 
@@ -176,18 +177,25 @@ public final class LateOrdealEvent {
     }
 
     private static void showEnd(MinecraftServer server, int tierId, int color) {
-        String tier = tierId == 1 ? "黄昏" : "午夜";
-        sendOrdealTitle(server, familyName(color) + "的" + tier,
-                "考验终结", "公司暂时恢复了平静。", themeColor(color));
+        sendOrdealTitle(server, ordealName(color, tierId),
+                Component.translatable("ordeal.lobotocraft.late.completed_title"),
+                Component.translatable("ordeal.lobotocraft.late.completed_subtitle"), themeColor(color));
         playGlobalSound(server, endSound(color));
     }
 
-    private static String familyName(int color) {
+    private static Component ordealName(int color, int tierId) {
+        return Component.translatable("ordeal.lobotocraft.late.name",
+                Component.translatable(familyNameKey(color)),
+                Component.translatable(tierId == 1
+                        ? "ordeal.lobotocraft.tier.dusk" : "ordeal.lobotocraft.tier.midnight"));
+    }
+
+    private static String familyNameKey(int color) {
         return switch (color) {
-            case OrdealColorPool.CRIMSON -> "血红";
-            case OrdealColorPool.GREEN -> "绿色";
-            case OrdealColorPool.VIOLET -> "紫罗兰";
-            default -> "琥珀";
+            case OrdealColorPool.CRIMSON -> "ordeal.lobotocraft.family.crimson";
+            case OrdealColorPool.GREEN -> "ordeal.lobotocraft.family.green";
+            case OrdealColorPool.VIOLET -> "ordeal.lobotocraft.family.violet";
+            default -> "ordeal.lobotocraft.family.amber";
         };
     }
 

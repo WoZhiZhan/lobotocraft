@@ -53,7 +53,8 @@ public class ConveyerItem extends Item {
             return InteractionResultHolder.success(stack);
         }
         if (CoreSuppressionManager.isDeviceRestricted(player)) {
-            player.sendSystemMessage(Component.literal("§c核心抑制期间无法使用传送装置。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.conveyer.restricted"));
             return InteractionResultHolder.fail(stack);
         }
         if (serverPlayer.isChangingDimension() || player.getCooldowns().isOnCooldown(this)) {

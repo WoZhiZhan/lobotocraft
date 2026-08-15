@@ -71,7 +71,8 @@ public final class EmployeeWarehouseMenu extends AbstractContainerMenu {
         else if (buttonId == BUTTON_COLLECT_ALL) {
             if (!(player instanceof ServerPlayer serverPlayer) || !serverPlayer.hasPermissions(2)) return false;
             int moved = EmployeeWarehouseService.collectAllActive(serverPlayer.server);
-            serverPlayer.sendSystemMessage(Component.literal("已上交 " + moved + " 件员工物品。"));
+            serverPlayer.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.employee_warehouse.collected", moved));
             pageCount.set(warehouse.pageCount());
             broadcastChanges();
             return true;

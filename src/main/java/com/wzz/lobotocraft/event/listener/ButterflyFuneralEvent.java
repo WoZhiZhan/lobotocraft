@@ -40,7 +40,8 @@ public class ButterflyFuneralEvent {
         // 死亡提示:xxx被亡蝶葬仪"救赎"了
         if (player.level() instanceof ServerLevel level) {
             level.getServer().getPlayerList().broadcastSystemMessage(
-                    Component.literal("§f" + player.getName().getString() + " 被亡蝶葬仪“救赎”了"), false);
+                    Component.translatable("message.lobotocraft.butterfly_funeral.redeemed",
+                            player.getDisplayName()), false);
         }
     }
 

@@ -120,7 +120,7 @@ public class RoomTeleportRequestPacket implements IMessage {
             target.playSound(null, landing, TELEPORT_SOUND, SoundSource.PLAYERS, 1.0F, 1.0F);
         }
         player.displayClientMessage(Component.translatable(
-                "message.lobotocraft.room.arrived", entry.resolveTitle()), true);
+                "message.lobotocraft.room.arrived", entry.resolveTitleComponent()), true);
     }
 
     private static boolean hasTerminal(ServerPlayer player) {

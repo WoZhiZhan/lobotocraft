@@ -33,7 +33,8 @@ public final class LlmDepartmentAccessService {
 
     private static void send(ServerPlayer operator, boolean forceOpen) {
         if (!operator.hasPermissions(LlmConfigService.CONFIG_PERMISSION_LEVEL)) {
-            operator.sendSystemMessage(Component.literal("§c没有部门调度权限配置权限。"));
+            operator.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.llm.department_access_denied"));
             return;
         }
         MessageLoader.getLoader().sendToPlayer(operator,

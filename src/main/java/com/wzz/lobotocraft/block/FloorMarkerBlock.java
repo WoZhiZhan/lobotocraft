@@ -77,10 +77,8 @@ public class FloorMarkerBlock extends BaseEntityBlock {
             return InteractionResult.SUCCESS;
         }
         if (level.getBlockEntity(pos) instanceof FloorMarkerBlockEntity be) {
-            player.displayClientMessage(Component.literal(
-                    "§d[楼层标记] §f" + be.getFloorName()
-                            + " §7| Y = §f" + pos.getY()
-                            + " §8(在监控界面里右键楼层条可以改名)"), false);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.floor_marker.status", be.getFloorName(), pos.getY()), false);
         }
         return InteractionResult.CONSUME;
     }

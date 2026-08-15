@@ -28,7 +28,8 @@ public final class DayCompletionRequirements {
 
             @Override
             public Component unmetMessage(ServerPlayer player, FacilityDayData data) {
-                return Component.literal("设施能源尚未集满：" + data.getEnergy() + "/" + data.getEnergyQuota());
+                return Component.translatable("message.lobotocraft.day.requirement.energy",
+                        data.getEnergy(), data.getEnergyQuota());
             }
         });
         register(new DayCompletionRequirement() {
@@ -44,7 +45,7 @@ public final class DayCompletionRequirements {
 
             @Override
             public Component unmetMessage(ServerPlayer player, FacilityDayData data) {
-                return Component.literal("本日部门扩建尚未确认；管理员可使用 /facility expansion 打开界面。");
+                return Component.translatable("message.lobotocraft.day.requirement.expansion");
             }
         });
         register(new DayCompletionRequirement() {
@@ -64,9 +65,8 @@ public final class DayCompletionRequirements {
             public Component unmetMessage(ServerPlayer player, FacilityDayData data) {
                 CoreSuppressionType type = CoreSuppressionData.get(player.serverLevel()).getActiveType();
                 int requiredLevel = type == null ? 0 : type.getRequiredMeltdownLevel();
-                return Component.literal("核心抑制目标尚未完成：能源 "
-                        + data.getEnergy() + "/" + data.getEnergyQuota()
-                        + "，逆卡巴拉熔毁等级 " + data.getMeltdownLevel() + "/" + requiredLevel);
+                return Component.translatable("message.lobotocraft.day.requirement.core_suppression",
+                        data.getEnergy(), data.getEnergyQuota(), data.getMeltdownLevel(), requiredLevel);
             }
         });
     }

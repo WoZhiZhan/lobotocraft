@@ -80,7 +80,8 @@ public class AbnormalitySpawnEvent {
                 BlockPos pos = vindicator.blockPosition();
                 if (AbnormalitySpawnHelper.existsNearby(serverLevel, pos,
                         AbnormalitySpawnHelper.DEFAULT_DEDUP_RADIUS, EntityAbandonedMurderer.class)) {
-                    player.displayClientMessage(Component.literal("§c附近已经存在「被遗弃的杀人魔」"), true);
+                    player.displayClientMessage(Component.translatable(
+                            "message.lobotocraft.spawn.abandoned_murderer.exists"), true);
                     event.setCanceled(true);
                     return;
                 }
@@ -88,7 +89,8 @@ public class AbnormalitySpawnEvent {
                     vindicator.discard();
                     AbnormalitySpawnHelper.spawnPersistent(serverLevel,
                             ModEntities.abandoned_murderer.get(), pos);
-                    player.displayClientMessage(Component.literal("§5「被遗弃的杀人魔」出现了……"), false);
+                    player.displayClientMessage(Component.translatable(
+                            "message.lobotocraft.spawn.abandoned_murderer.spawned"), false);
                     event.setCanceled(true);
                 }
             }
@@ -101,7 +103,8 @@ public class AbnormalitySpawnEvent {
                 BlockPos pos = wolf.blockPosition();
                 if (AbnormalitySpawnHelper.existsNearby(serverLevel, pos,
                         AbnormalitySpawnHelper.DEFAULT_DEDUP_RADIUS, EntityPpodae.class)) {
-                    player.displayClientMessage(Component.literal("§c附近已经存在「波迪」"), true);
+                    player.displayClientMessage(Component.translatable(
+                            "message.lobotocraft.spawn.ppodae.exists"), true);
                     event.setCanceled(true);
                     return;
                 }
@@ -109,7 +112,8 @@ public class AbnormalitySpawnEvent {
                     wolf.discard();
                     AbnormalitySpawnHelper.spawnPersistent(serverLevel,
                             ModEntities.ppodae.get(), pos);
-                    player.displayClientMessage(Component.literal("§5「波迪」兴奋地跑了出来……"), false);
+                    player.displayClientMessage(Component.translatable(
+                            "message.lobotocraft.spawn.ppodae.spawned"), false);
                     event.setCanceled(true);
                 }
             }
@@ -150,7 +154,8 @@ public class AbnormalitySpawnEvent {
                 BlockPos pos = villager.blockPosition();
                 if (AbnormalitySpawnHelper.existsNearby(serverLevel, pos,
                         AbnormalitySpawnHelper.DEFAULT_DEDUP_RADIUS, EntityThornBus.class)) {
-                    player.displayClientMessage(Component.literal("§c附近已经存在「棘刺公交」"), true);
+                    player.displayClientMessage(Component.translatable(
+                            "message.lobotocraft.spawn.thorn_bus.exists"), true);
                     event.setCanceled(true);
                     return;
                 }
@@ -158,7 +163,8 @@ public class AbnormalitySpawnEvent {
                     villager.discard();
                     AbnormalitySpawnHelper.spawnPersistent(serverLevel,
                             ModEntities.thorn_bus.get(), pos);
-                    player.displayClientMessage(Component.literal("§5「棘刺公交」出现了……"), false);
+                    player.displayClientMessage(Component.translatable(
+                            "message.lobotocraft.spawn.thorn_bus.spawned"), false);
                     event.setCanceled(true);
                 }
             }
@@ -168,14 +174,14 @@ public class AbnormalitySpawnEvent {
     private static boolean trySpawnArmyInBlack(ServerLevel level, Player player) {
         EntityArmyInBlack army = spawnNearbyIfAbsent(level, player, player.blockPosition(),
                 ModEntities.army_in_black.get(), EntityArmyInBlack.class, 2,
-                "§d粉色能融入人们的心");
+                "message.lobotocraft.spawn.army_in_black");
         return army != null;
     }
 
     private static boolean trySpawnLeticia(ServerLevel level, Player player) {
         EntityLeticia leticia = spawnNearbyIfAbsent(level, player, player.blockPosition(),
                 ModEntities.leticia.get(), EntityLeticia.class, 2,
-                "§5她会与你分享她的朋友，还有她的礼物");
+                "message.lobotocraft.spawn.leticia");
         return leticia != null;
     }
 
@@ -183,7 +189,7 @@ public class AbnormalitySpawnEvent {
         BlockPos pos = villager.blockPosition();
         EntityLadyFacingTheWall lady = spawnNearbyIfAbsent(level, player, pos,
                 ModEntities.the_lady_facing_the_wall.get(), EntityLadyFacingTheWall.class, 1,
-                "§f她只能不断地诉说着自己的孤独");
+                "message.lobotocraft.spawn.lady_facing_wall");
         if (lady == null) {
             return false;
         }
@@ -286,7 +292,7 @@ public class AbnormalitySpawnEvent {
         if (level.random.nextFloat() >= 0.05f) return;
         EntityBlueStar blueStar = spawnNearbyIfAbsent(level, player, noteBlockPos,
                 ModEntities.blue_star.get(), EntityBlueStar.class, 3,
-                "§1许多人对它有近乎狂热的崇拜，没人知道为什么。");
+                "message.lobotocraft.spawn.blue_star");
         if (blueStar == null) {
             return;
         }
@@ -304,7 +310,8 @@ public class AbnormalitySpawnEvent {
         }
         if (AbnormalitySpawnHelper.existsNearby(level, hivePos,
                 AbnormalitySpawnHelper.DEFAULT_DEDUP_RADIUS, EntityQueenBee.class)) {
-            player.displayClientMessage(Component.literal("§c附近已经存在「蜂后」"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.spawn.queen_bee.exists"), true);
             return true;
         }
         if (!AbnormalitySpawnHelper.consumeAnyPEBox(player)) {
@@ -313,21 +320,22 @@ public class AbnormalitySpawnEvent {
 
         level.destroyBlock(hivePos, true, player);
         AbnormalitySpawnHelper.spawnPersistent(level, ModEntities.queen_bee.get(), hivePos);
-        player.displayClientMessage(Component.literal("蜂巢破裂，女王矗立在此处，身躯破碎不堪..."), false);
+        player.displayClientMessage(Component.translatable(
+                "message.lobotocraft.spawn.queen_bee.spawned"), false);
         return true;
     }
 
     private static boolean trySpawnButterflyFuneral(ServerLevel level, Player player, BlockPos tombstonePos) {
         EntityButterflyFuneral butterfly = spawnNearbyIfAbsent(level, player, tombstonePos,
                 ModEntities.butterfly_funeral.get(), EntityButterflyFuneral.class, 3,
-                "亡蝶葬仪来为员工送上救赎", 16);
+                "message.lobotocraft.spawn.butterfly_funeral", 16);
         return butterfly != null;
     }
 
     private static boolean trySpawnHelper(ServerLevel level, Player player, BlockPos tombstonePos) {
         EntityHelper helper = spawnNearbyIfAbsent(level, player, tombstonePos,
                 ModEntities.helper.get(), EntityHelper.class, 3,
-                "小帮手凝视着你，似乎希望能够提供帮助");
+                "message.lobotocraft.spawn.helper");
         return helper != null;
     }
 
@@ -335,7 +343,7 @@ public class AbnormalitySpawnEvent {
         if (level.random.nextFloat() >= 0.10f) return;
         spawnNearbyIfAbsent(level, player, noteBlockPos,
                 ModEntities.fragment_of_the_universe.get(), EntityFragmentOfUniverse.class, 3,
-                "夜晚的歌声，引来了宇宙碎片的注意");
+                "message.lobotocraft.spawn.fragment_universe");
     }
 
     private static boolean isMusicDisc(ItemStack stack) {
@@ -372,7 +380,7 @@ public class AbnormalitySpawnEvent {
 
         spawnNearbyIfAbsent(level, player, jukeboxPos,
                 ModEntities.skadi_corrupted.get(), EntityDarkSkadi.class, 3,
-                "悠扬的歌声，让她想起了身体过往的记忆");
+                "message.lobotocraft.spawn.skadi");
     }
 
     private static void clearSkadiSongTimer(CompoundTag data) {
@@ -416,7 +424,7 @@ public class AbnormalitySpawnEvent {
                     && AbnormalitySpawnHelper.isDarkForestBiome(level, pos)) {
                 spawnNearbyIfAbsent(serverLevel, responsiblePlayer, pos,
                         ModEntities.punishing_bird.get(), EntityPunishingBird.class, 3,
-                        "惩戒鸟会来惩罚破坏了森林的家伙");
+                        "message.lobotocraft.spawn.punishing_bird");
             }
         }
 
@@ -429,7 +437,7 @@ public class AbnormalitySpawnEvent {
                 && player.getMainHandItem().getItem() instanceof AxeItem) {
             spawnNearbyIfAbsent(serverLevel, player, pos,
                     ModEntities.red_shoes.get(), EntityRedShoes.class, 1,
-                    "§c你砍下了她的脚，取下了那双邪恶的红舞鞋");
+                    "message.lobotocraft.spawn.red_shoes");
             return;
         }
 
@@ -440,7 +448,7 @@ public class AbnormalitySpawnEvent {
                     AbnormalitySpawnHelper.DEFAULT_DEDUP_RADIUS, EntitySnowQueen.class)) {
                 AbnormalitySpawnHelper.spawnPersistent(serverLevel,
                         ModEntities.snowqueen.get(), pos);
-                announce(killer, "§b「冰雪女皇」在严寒中苏醒了……");
+                announce(killer, "message.lobotocraft.spawn.snow_queen");
             }
             return;
         }
@@ -451,7 +459,7 @@ public class AbnormalitySpawnEvent {
                     AbnormalitySpawnHelper.DEFAULT_DEDUP_RADIUS, EntityFourthMatchFlame.class)) {
                 AbnormalitySpawnHelper.spawnPersistent(serverLevel,
                         ModEntities.fourth_match_flame.get(), pos);
-                announce(killer, "§6「焦化少女」从灰烬中诞生……");
+                announce(killer, "message.lobotocraft.spawn.scorched_girl");
             }
             return;
         }
@@ -462,7 +470,7 @@ public class AbnormalitySpawnEvent {
                     AbnormalitySpawnHelper.DEFAULT_DEDUP_RADIUS, EntityMeatIdol.class)) {
                 AbnormalitySpawnHelper.spawnPersistent(serverLevel,
                         ModEntities.meat_idol.get(), pos);
-                announce(killer, "§4「血肉偶像」在祭坛旁显现……");
+                announce(killer, "message.lobotocraft.spawn.meat_idol");
             }
         }
     }
@@ -477,15 +485,16 @@ public class AbnormalitySpawnEvent {
         int kills = data.getInt(CRUMBLING_ARMOR_KILLS_TAG) + 1;
         if (kills < CRUMBLING_ARMOR_REQUIRED_KILLS) {
             data.putInt(CRUMBLING_ARMOR_KILLS_TAG, kills);
-            player.displayClientMessage(Component.literal("§c不惧死亡的勇气正在凝结... (" + kills + "/"
-                    + CRUMBLING_ARMOR_REQUIRED_KILLS + ")"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.spawn.crumbling_armor.progress",
+                    kills, CRUMBLING_ARMOR_REQUIRED_KILLS), true);
             return;
         }
 
         data.remove(CRUMBLING_ARMOR_KILLS_TAG);
         spawnNearbyIfAbsent(level, player, killPos,
                 ModEntities.crumbling_armor.get(), EntityCrumblingArmor.class, 3,
-                "§c不惧死亡的勇气将会得到它的祝福");
+                "message.lobotocraft.spawn.crumbling_armor");
     }
 
     private static boolean hasEmptyArmorSlots(Player player) {
@@ -543,9 +552,9 @@ public class AbnormalitySpawnEvent {
         return false;
     }
 
-    private static void announce(Entity killer, String msg) {
+    private static void announce(Entity killer, String messageKey) {
         if (killer instanceof Player player) {
-            player.displayClientMessage(Component.literal(msg), false);
+            player.displayClientMessage(Component.translatable(messageKey), false);
         }
     }
 
@@ -574,19 +583,20 @@ public class AbnormalitySpawnEvent {
         data.putInt(WOLF_PIG_KILLS_TAG, kills);
 
         if (kills < 3) {
-            player.displayClientMessage(Component.literal("§7干草旁的气味变得更浓了... §c(" + kills + "/3)"), true);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.spawn.big_bad_wolf.progress", kills, 3), true);
             return;
         }
         clearWolfPigKillCounter(data);
 
         EntityBigBadWolf wolf = spawnNearbyIfAbsent(level, player, hayPos,
                 ModEntities.bigbadwolf.get(), EntityBigBadWolf.class, 2,
-                "正如童话中的一样，来了一只又大又可能很坏的狼");
+                "message.lobotocraft.spawn.big_bad_wolf");
         if (wolf == null) return;
 
         EntityRedHoodMercenary redhat = spawnNearbyIfAbsent(level, player, wolf.blockPosition(),
                 ModEntities.redhat_mercenary.get(), EntityRedHoodMercenary.class, 2,
-                "在这只狼在的地方，就会有她的身影");
+                "message.lobotocraft.spawn.red_hood");
     }
 
     private static boolean isSameWolfHayArea(CompoundTag data, BlockPos hayPos) {
@@ -636,7 +646,7 @@ public class AbnormalitySpawnEvent {
                 player.getY(), player.getZ() - look.z * 3.0D);
         spawnNearbyIfAbsent(level, player, behind,
                 ModEntities.approval_bird.get(), EntityApprovalBird.class, 2,
-                "肆意破坏森林的人，将会招来正义的裁决");
+                "message.lobotocraft.spawn.judgement_bird");
     }
 
     // ============================================================
@@ -699,7 +709,8 @@ public class AbnormalitySpawnEvent {
                     BlockPos spawnPos = findGroundNear(level, pos);
                     AbnormalitySpawnHelper.spawnPersistent(level,
                             ModEntities.children_galaxy.get(), spawnPos);
-                    player.displayClientMessage(Component.literal("§9你凝视的星空中,「银河之子」回望了你……"), false);
+                    player.displayClientMessage(Component.translatable(
+                            "message.lobotocraft.spawn.children_galaxy"), false);
                 }
             }
         } else {
@@ -751,7 +762,7 @@ public class AbnormalitySpawnEvent {
         level.removeBlock(lanternPos, false);
         spawnNearbyIfAbsent(level, player, lanternPos,
                 ModEntities.large_bird.get(), EntityLargeBird.class, 3,
-                "在黑暗的森林里渴求光明的人得到了回应");
+                "message.lobotocraft.spawn.large_bird");
     }
 
     private static BlockPos getLookedAtLantern(Player player, double range) {
@@ -815,14 +826,14 @@ public class AbnormalitySpawnEvent {
     private static <T extends AbstractAbnormality> T spawnNearbyIfAbsent(ServerLevel level, Player player,
                                                                          BlockPos origin, EntityType<T> type,
                                                                          Class<T> clazz, int radius,
-                                                                         String successMessage) {
-        return spawnNearbyIfAbsent(level, player, origin, type, clazz, radius, successMessage, 0);
+                                                                         String successMessageKey) {
+        return spawnNearbyIfAbsent(level, player, origin, type, clazz, radius, successMessageKey, 0);
     }
 
     private static <T extends AbstractAbnormality> T spawnNearbyIfAbsent(ServerLevel level, Player player,
                                                                          BlockPos origin, EntityType<T> type,
                                                                          Class<T> clazz, int radius,
-                                                                         String successMessage,
+                                                                         String successMessageKey,
                                                                          int horizontalSearchRadius) {
         if (AbnormalitySpawnHelper.existsNearby(level, origin,
                 AbnormalitySpawnHelper.DEFAULT_DEDUP_RADIUS, clazz)) {
@@ -834,7 +845,7 @@ public class AbnormalitySpawnEvent {
                 : AbnormalitySpawnHelper.spawnPersistent(level, type,
                         findGroundNear(level, origin, radius), MobSpawnType.EVENT);
         if (entity != null) {
-            player.displayClientMessage(Component.literal(successMessage), false);
+            player.displayClientMessage(Component.translatable(successMessageKey), false);
         }
         return entity;
     }

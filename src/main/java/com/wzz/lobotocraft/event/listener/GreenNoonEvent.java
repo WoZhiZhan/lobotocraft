@@ -12,6 +12,7 @@ import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.world.data.OrdealData;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -67,9 +68,9 @@ public class GreenNoonEvent {
 
         MinecraftServer server = level.getServer();
         showGreenNoonTitle(server,
-                "绿色的正午",
-                "理解的过程",
-                "他们，终究是被生命束缚着的存在。而我们，将倾泻绝望与怒火！");
+                "ordeal.lobotocraft.green_midday.name",
+                "ordeal.lobotocraft.green_midday.title",
+                "ordeal.lobotocraft.green_midday.start_subtitle");
         playGlobalSound(server, ModSounds.GREEN_NOON_START.get());
         EscapeTracker.getInstance().onOrdealStart(level, OrdealTier.NOON);
         return true;
@@ -88,9 +89,9 @@ public class GreenNoonEvent {
         MinecraftServer server = level.getServer();
         OrdealRewardService.complete(server, OrdealTier.NOON);
         showGreenNoonTitle(server,
-                "绿色的正午",
-                "理解的过程",
-                "生命，充满了痛苦。");
+                "ordeal.lobotocraft.green_midday.name",
+                "ordeal.lobotocraft.green_midday.title",
+                "ordeal.lobotocraft.green_midday.end_subtitle");
         playGlobalSound(server, ModSounds.GREEN_NOON_END.get());
     }
 
@@ -187,7 +188,8 @@ public class GreenNoonEvent {
     }
 
     private static void showGreenNoonTitle(MinecraftServer server, String top, String middle, String bottom) {
-        sendOrdealTitle(server, top, middle, bottom, GREEN_MIDDAY_COLOR);
+        sendOrdealTitle(server, Component.translatable(top), Component.translatable(middle),
+                Component.translatable(bottom), GREEN_MIDDAY_COLOR);
     }
 
     private static void playGlobalSound(MinecraftServer server, SoundEvent sound) {

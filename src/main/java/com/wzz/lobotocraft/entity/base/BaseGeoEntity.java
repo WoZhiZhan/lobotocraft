@@ -25,6 +25,12 @@ public abstract class BaseGeoEntity extends TamableAnimal implements GeoEntity {
         super(p_21368_, p_21369_);
     }
 
+    @Override
+    protected boolean shouldDespawnInPeaceful() {
+        // Encounter actors must finish through their suppression or explicit abort lifecycle.
+        return false;
+    }
+
     /** 异想体/自定义实体不可繁殖 */
     @Override
     public @Nullable AgeableMob getBreedOffspring(ServerLevel serverLevel, AgeableMob ageableMob) {

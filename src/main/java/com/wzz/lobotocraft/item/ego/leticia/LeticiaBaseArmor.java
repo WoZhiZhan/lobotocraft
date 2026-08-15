@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.item.ego.leticia;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModArmorMaterial;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoArmor;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -69,13 +70,13 @@ public abstract class LeticiaBaseArmor extends BaseEgoArmor {
     @Override
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
-        p_41423_.add(Component.literal("§6※玩家受到的伤害增加30%，造成的伤害减少30%，拥有“蕾蒂希娅的礼物”“破碎的礼物”效果或者EGO饰品“蕾蒂希娅”时，此效果反转"));
-        p_41423_.add(Component.literal(""));
-        p_41423_.add(Component.literal("§7外套上精美的丝带和蝴蝶结寄托着少女对幸福的向往，"));
-        p_41423_.add(Component.literal("§7那个小孩不愿撇下她的朋友，所以，她想出了这个绝妙的主意！"));
-        p_41423_.add(Component.literal("§c红色伤害：0.7"));
-        p_41423_.add(Component.literal("§f白色伤害：0.7"));
-        p_41423_.add(Component.literal("§5黑色伤害：0.7"));
-        p_41423_.add(Component.literal("§b蓝色伤害：1.5"));
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.leticia_armor.detail");
+        EgoTooltipUtil.blank(p_41423_);
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.leticia_armor.story.1");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.leticia_armor.story.2");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.leticia_armor.resistance.red");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.leticia_armor.resistance.white");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.leticia_armor.resistance.black");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.leticia_armor.resistance.pale");
     }
 }

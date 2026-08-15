@@ -3,19 +3,18 @@ package com.lobotocraft.facility.network;
 import com.lobotocraft.facility.client.CarmenConversationOverlay;
 import java.util.function.Supplier;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 
-public record CarmenConversationPacket(String message) {
-    private static final int MAX_MESSAGE_LENGTH = 512;
-
+public record CarmenConversationPacket(Component message) {
     public static void encode(CarmenConversationPacket packet, FriendlyByteBuf buffer) {
-        buffer.writeUtf(packet.message, MAX_MESSAGE_LENGTH);
+        buffer.writeComponent(packet.message);
     }
 
     public static CarmenConversationPacket decode(FriendlyByteBuf buffer) {
-        return new CarmenConversationPacket(buffer.readUtf(MAX_MESSAGE_LENGTH));
+        return new CarmenConversationPacket(buffer.readComponent());
     }
 
     public static void handle(CarmenConversationPacket packet,

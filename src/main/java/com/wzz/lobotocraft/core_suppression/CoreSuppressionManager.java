@@ -32,7 +32,6 @@ import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.world.data.OrdealData;
 import com.wzz.lobotocraft.world.structure.Structures;
-import com.wzz.lobotocraft.work.WorkManager;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -52,10 +51,8 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
-import net.minecraft.world.scores.Team;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerSleepInBedEvent;
@@ -85,8 +82,6 @@ public final class CoreSuppressionManager {
     /** Legacy ordeal telemetry used by debug tooling; no longer a completion requirement. */
     @Deprecated public static final int REQUIRED_MIDDAYS = 1;
     public static final int MELTDOWN_WORK_INTERVAL = 10;
-    public static final int MELTDOWN_DURATION_TICKS = 60 * 20;
-    public static final int MELTDOWN_WORK_PENALTY = 5;
     public static final float MALKUTH_COMPLETION_SUCCESS_BONUS = 0.10F;
     public static final int VISUAL_WARNING_DURATION_TICKS = 60 * 20;
     private static final String STOP_SUPPRESSION_COMMAND = "/lobotocraft debug suppression end false";
@@ -104,7 +99,6 @@ public final class CoreSuppressionManager {
     private static final UUID NETZACH_HEALTH_BONUS_UUID =
             UUID.fromString("5772de32-b59d-4dbf-a0b4-a2f5f4f485f5");
     private static final double NETZACH_HEALTH_BONUS = 5.0D;
-    private static final int WORLD_SEARCH_LIMIT = 30_000_000;
     private static final Map<MinecraftServer, PendingChallenge> PENDING_CHALLENGES =
             Collections.synchronizedMap(new WeakHashMap<>());
 
@@ -431,97 +425,9 @@ public final class CoreSuppressionManager {
         return hasReward(player, CoreSuppressionType.NETZACH);
     }
 
-    public static void resolveMeltdownOnWorkStart(AbstractAbnormality abnormality, ServerPlayer player) {
-        if (!isSuppressionActive(player.level()) || !isMeltdownActive(abnormality)) return;
-        String name = abnormality.getAbnormalityName();
-        clearMeltdownVisualAndData(abnormality);
-        player.getServer().getPlayerList().broadcastSystemMessage(Component.literal(
-                "§a[融毁解除] §f" + name + " §a已开始工作，融毁倒计时解除。"), false);
-    }
-
-    public static void tickMeltdown(AbstractAbnormality abnormality) {
-        // Migrate saves from the retired per-player meltdown implementation.
-        // FacilityDayData is now the only authority for core-suppression meltdowns.
-        clearMeltdownVisualAndData(abnormality);
-    }
-
     /** Removes retired per-entity meltdown tags from pre-migration saves. */
     public static void retireLegacyMeltdown(AbstractAbnormality abnormality) {
         clearMeltdownVisualAndData(abnormality);
-    }
-
-    /** Server-authoritative state used by work validation and monitoring snapshots. */
-    public static boolean isMeltdownActive(AbstractAbnormality abnormality) {
-        return abnormality.getPersistentData().getBoolean(MELTDOWN_ACTIVE);
-    }
-
-    /** Remaining core-suppression meltdown time, or zero when inactive/expired. */
-    public static int getMeltdownRemainingTicks(AbstractAbnormality abnormality) {
-        if (!isMeltdownActive(abnormality) || !(abnormality.level() instanceof ServerLevel level)) return 0;
-        long now = level.getServer().overworld().getGameTime();
-        long remaining = abnormality.getPersistentData().getLong(MELTDOWN_DEADLINE) - now;
-        return (int) Math.max(0L, Math.min(Integer.MAX_VALUE, remaining));
-    }
-
-    private static void triggerRandomMeltdown(ServerPlayer player, AbstractAbnormality completedAbnormality) {
-        if (!(player.level() instanceof ServerLevel level)) return;
-        AABB wholeLevel = new AABB(-WORLD_SEARCH_LIMIT, level.getMinBuildHeight(), -WORLD_SEARCH_LIMIT,
-                WORLD_SEARCH_LIMIT, level.getMaxBuildHeight(), WORLD_SEARCH_LIMIT);
-        List<AbstractAbnormality> candidates = level.getEntitiesOfClass(AbstractAbnormality.class, wholeLevel,
-                abnormality -> abnormality.isAlive()
-                        && !abnormality.isRemoved()
-                        && !abnormality.hasEscape()
-                        && !abnormality.isToolType()
-                        && abnormality.getQliphothCounter() > 0
-                        && !isMeltdownActive(abnormality)
-                        && EntityUtil.isInCompany(level, abnormality.blockPosition())
-                        && (abnormality.getUUID().equals(completedAbnormality.getUUID())
-                        || !WorkManager.isAbnormalityBeingWorked(abnormality)));
-        if (candidates.isEmpty()) {
-            player.sendSystemMessage(Component.translatable(
-                    "message.lobotocraft.core_suppression.no_meltdown_target"));
-            return;
-        }
-
-        AbstractAbnormality target = candidates.get(level.getRandom().nextInt(candidates.size()));
-        if (target instanceof EntityDarkSkadi) {
-            return;
-        }
-        startMeltdown(target, player);
-    }
-
-    private static void startMeltdown(AbstractAbnormality abnormality, ServerPlayer triggeringPlayer) {
-        CompoundTag tag = abnormality.getPersistentData();
-        tag.putBoolean(MELTDOWN_ACTIVE, true);
-        tag.putLong(MELTDOWN_DEADLINE,
-                triggeringPlayer.getServer().overworld().getGameTime() + MELTDOWN_DURATION_TICKS);
-        tag.putUUID(MELTDOWN_PLAYER, triggeringPlayer.getUUID());
-        tag.putBoolean(MELTDOWN_PREVIOUS_GLOW, abnormality.isCurrentlyGlowing());
-        Team previousTeam = abnormality.getTeam();
-        tag.putString(MELTDOWN_PREVIOUS_TEAM,
-                previousTeam == null || MELTDOWN_TEAM.equals(previousTeam.getName()) ? "" : previousTeam.getName());
-        applyMeltdownVisual(abnormality);
-
-        MinecraftServer server = triggeringPlayer.getServer();
-        server.getPlayerList().broadcastSystemMessage(Component.literal(
-                "§4[融毁警报] §c" + abnormality.getAbnormalityName()
-                        + " 进入融毁！请在60秒内对其开始工作。"), false);
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (player.level().dimension() == ModDimensions.LOBOTO_KEY) {
-                player.playNotifySound(ModSounds.CORE_MELTDOWN_ALARM.get(), SoundSource.RECORDS, 1.0F, 1.0F);
-            }
-        }
-    }
-
-    private static void applyMeltdownVisual(AbstractAbnormality abnormality) {
-        Scoreboard scoreboard = abnormality.level().getScoreboard();
-        PlayerTeam team = scoreboard.getPlayerTeam(MELTDOWN_TEAM);
-        if (team == null) team = scoreboard.addPlayerTeam(MELTDOWN_TEAM);
-        team.setColor(ChatFormatting.RED);
-        if (abnormality.getTeam() != team) {
-            scoreboard.addPlayerToTeam(abnormality.getScoreboardName(), team);
-        }
-        abnormality.setGlowingTag(true);
     }
 
     private static void clearMeltdownVisualAndData(AbstractAbnormality abnormality) {
@@ -549,17 +455,6 @@ public final class CoreSuppressionManager {
         tag.remove(MELTDOWN_PREVIOUS_GLOW);
     }
 
-    private static int applyMeltdownPenalty(MinecraftServer server, CoreSuppressionData state,
-                                            UUID playerUuid, int challengeDay) {
-        if (playerUuid == null) return 0;
-        ServerPlayer player = server.getPlayerList().getPlayer(playerUuid);
-        if (player == null) {
-            state.queueMeltdownPenalty(playerUuid, challengeDay, MELTDOWN_WORK_PENALTY);
-            return -1;
-        }
-        return deductDailyWork(player, MELTDOWN_WORK_PENALTY);
-    }
-
     private static int deductDailyWork(ServerPlayer player, int amount) {
         CompanyDailyData daily = getDailyData(player);
         if (daily == null || amount <= 0) return 0;
@@ -580,8 +475,8 @@ public final class CoreSuppressionManager {
         CompanyDailyData daily = getDailyData(player);
         if (daily == null || daily.getCurrentDay() != pending[0]) return;
         int deducted = deductDailyWork(player, pending[1]);
-        player.sendSystemMessage(Component.literal(
-                "§c[融毁惩罚] 离线期间积累的当日工作次数惩罚已结算：-" + deducted + "。"));
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.core_suppression.offline_penalty", deducted));
     }
 
     public static boolean requirementsMet(MinecraftServer server, CoreSuppressionData state) {
@@ -792,8 +687,8 @@ public final class CoreSuppressionManager {
 
         if (!requirementsMet(server, state)) {
             event.setCanceled(true);
-            event.getPlayer().sendSystemMessage(Component.literal(
-                    "§c核心抑制结束前无法进入下一天。需要完成当天能源配额并到达逆卡巴拉熔毁等级 VI。"));
+            event.getPlayer().sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.core_suppression.cannot_end_day"));
             return;
         }
         finishChallenge(server, true, "考验完成");
@@ -806,8 +701,8 @@ public final class CoreSuppressionManager {
         if (!state.isActive()) return;
 
         event.setResult(Player.BedSleepingProblem.OTHER_PROBLEM);
-        player.sendSystemMessage(Component.literal(
-                "§c核心抑制期间不能通过睡觉结束当天，请使用设施的结束日操作。"));
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.core_suppression.cannot_sleep"));
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)

@@ -78,10 +78,14 @@ public class EntityBigBadWolf extends AbstractAbnormality {
     private static final EntityDimensions CONTAINED_SIZE = EntityDimensions.scalable(1.6F, 4.1F);
     private static final EntityDimensions ESCAPED_SIZE = EntityDimensions.scalable(2.75F, 3.2F);
     private static final int DIMENSION_RETRY_INTERVAL = 10;
+    static final int CLAW_ANIMATION_TICKS = 15;
+    static final int BITE_ANIMATION_TICKS = 12;
+    private static final int BASIC_ATTACK_HIT_TICKS = 8;
 
     private final List<UUID> swallowedPlayers = new ArrayList<>();
     private int attackCooldown = 0;
     private int pendingHit = 0;
+    private int attackAnimationTicks = 0;
     private int pendingType = -1; // 0爪 1咬
     private LivingEntity pendingTarget = null;
     private int howlTimer = 0;    // 嚎叫阶段计时
@@ -270,7 +274,8 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         if (this.level() instanceof ServerLevel sl) {
             sl.playSound(null, blockPosition(), SoundEvents.PLAYER_BURP, SoundSource.HOSTILE, 1.4f, 0.8f);
         }
-        player.sendSystemMessage(Component.literal("§c你被“又大又可能很坏的狼”吞入了腹中……"));
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.abnormality.big_bad_wolf.swallowed"));
         checkAllSwallowed();
     }
 
@@ -310,7 +315,8 @@ public class EntityBigBadWolf extends AbstractAbnormality {
                 if (cur > half) {
                     MentalValueUtil.reduceMentalValue(p, cur - half);
                 }
-                p.sendSystemMessage(Component.literal("§6狼把你吐了出来……你失去了一半的生命与精神。"));
+                p.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.abnormality.big_bad_wolf.released"));
             } else {
                 p.invulnerableTime = 0;
                 p.hurt(DamageHelper.getDamage(this, "red"), Float.MAX_VALUE);
@@ -388,6 +394,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
     private void resetEscapeState() {
         attackCooldown = 0;
         pendingHit = 0;
+        attackAnimationTicks = 0;
         pendingType = -1;
         pendingTarget = null;
         howlTimer = 0;
@@ -444,6 +451,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
     }
 
     private void enterFog() {
+        clearBasicAttackState(true);
         inFog = true;
         fogTimer = 8 * 20;
         lastFogHealth = this.getHealth();
@@ -621,17 +629,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
 
         if (attackCooldown > 0) attackCooldown--;
 
-        // 普攻出伤帧
-        if (pendingHit > 0) {
-            pendingHit--;
-            if (pendingHit == 0 && pendingTarget != null && pendingTarget.isAlive()
-                    && this.distanceToSqr(pendingTarget) <= 25) {
-                float dmg = pendingType == 0 ? (7 + random.nextInt(10)) : (10 + random.nextInt(5));
-                pendingTarget.hurt(DamageHelper.getDamage(this, "red"), dmg);
-                pendingTarget = null;
-                setAnimation("idle");
-            }
-        }
+        tickBasicAttack();
 
         // 嚎叫阶段机
         if (howlPhase > 0) {
@@ -654,19 +652,52 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         if (dist <= 4.5 && attackCooldown <= 0) {
             float roll = random.nextFloat();
             if (roll < 0.40f) {
-                setAnimation("attack1");
+                beginBasicAttack(0, target);
                 level.playSound(null, blockPosition(), ModSounds.WOLF_CLAW.get(), SoundSource.HOSTILE, 1.3f, 1.0f);
-                pendingType = 0; pendingHit = 8; pendingTarget = target;
             } else if (roll < 0.80f) {
-                setAnimation("attack2");
+                beginBasicAttack(1, target);
                 level.playSound(null, blockPosition(), ModSounds.WOLF_CLAW.get(), SoundSource.HOSTILE, 1.3f, 0.8f);
-                pendingType = 1; pendingHit = 8; pendingTarget = target;
             } else {
                 beginHowl(level);
             }
             attackCooldown = 35;
         } else if (dist > 4.5) {
             this.getNavigation().moveTo(target, CHASE_SPEED_MODIFIER);
+        }
+    }
+
+    void beginBasicAttack(int attackType, LivingEntity target) {
+        pendingType = attackType;
+        pendingHit = BASIC_ATTACK_HIT_TICKS;
+        pendingTarget = target;
+        attackAnimationTicks = attackType == 0 ? CLAW_ANIMATION_TICKS : BITE_ANIMATION_TICKS;
+        setAnimation(attackType == 0 ? "attack1" : "attack2");
+    }
+
+    void tickBasicAttack() {
+        if (pendingHit > 0 && --pendingHit == 0) {
+            LivingEntity target = pendingTarget;
+            if (target != null && target.isAlive() && this.distanceToSqr(target) <= 25) {
+                float damage = pendingType == 0
+                        ? 7 + random.nextInt(10)
+                        : 10 + random.nextInt(5);
+                target.hurt(DamageHelper.getDamage(this, "red"), damage);
+            }
+            pendingTarget = null;
+        }
+
+        if (attackAnimationTicks > 0 && --attackAnimationTicks == 0) {
+            clearBasicAttackState(true);
+        }
+    }
+
+    private void clearBasicAttackState(boolean resetAnimation) {
+        pendingHit = 0;
+        attackAnimationTicks = 0;
+        pendingType = -1;
+        pendingTarget = null;
+        if (resetAnimation && ("attack1".equals(getAnimation()) || "attack2".equals(getAnimation()))) {
+            setAnimation("idle");
         }
     }
 

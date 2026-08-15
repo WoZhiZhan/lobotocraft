@@ -33,6 +33,7 @@ import software.bernie.geckolib.core.animation.AnimationController;
 import software.bernie.geckolib.core.object.PlayState;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -159,12 +160,14 @@ public class EntityMeatIdol extends AbstractAbnormality {
     @Override
     public boolean startUsing(ServerPlayer player) {
         if (prayingPlayerUUID != null) {
-            player.sendSystemMessage(Component.literal("§c已有员工正在向血肉偶像祷告！"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.meat_idol.in_use"));
             return false;
         }
         EntityMeatIdol other = ACTIVE_USERS.get(player.getUUID());
         if (other != null && other != this && !other.isRemoved() && other.isInUse()) {
-            player.sendSystemMessage(Component.literal("§c你已经在使用另一个血肉偶像。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.meat_idol.using_another"));
             return false;
         }
 
@@ -178,12 +181,11 @@ public class EntityMeatIdol extends AbstractAbnormality {
         player.setNoGravity(true);
         ACTIVE_USERS.put(player.getUUID(), this);
 
-        player.sendSystemMessage(Component.literal(
-                "§e" + player.getName().getString() + " 开始向血肉偶像祷告..."
-        ));
-        player.sendSystemMessage(Component.literal(
-                "§c§l警告：祷告时间不足20秒就结束将会立刻死亡！"
-        ));
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.abnormality.meat_idol.prayer_started",
+                player.getDisplayName()));
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.abnormality.meat_idol.warning"));
 
         return true;
     }
@@ -225,23 +227,21 @@ public class EntityMeatIdol extends AbstractAbnormality {
         if (canSafelyCancelUsing(player)) {
             // 安全取消
             onSafeCancel(player);
-            player.sendSystemMessage(Component.literal(
-                    "§a祷告结束，共持续 " + seconds + " 秒"
-            ));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.meat_idol.prayer_completed", seconds));
         } else {
             // 强制取消 - 不满20秒就取消：立刻死亡
             onForceCancel(player);
-            player.sendSystemMessage(Component.literal(
-                    "§4§l你违背了血肉偶像的意志！"
-            ));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.meat_idol.defied"));
 
             // 使用虚空伤害必杀
             DamageSource killDamage = player.damageSources().fellOutOfWorld();
             player.hurt(killDamage, Float.MAX_VALUE);
 
-            player.sendSystemMessage(Component.literal(
-                    "§c" + player.getName().getString() + " 因祷告不足而死..."
-            ));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.abnormality.meat_idol.short_prayer_death",
+                    player.getDisplayName()));
         }
 
         resetPraying();
@@ -294,23 +294,23 @@ public class EntityMeatIdol extends AbstractAbnormality {
 
             // 工作时间超过90秒：祷告者死亡 + 所有异想体计数器归零
             if (seconds > 90) {
-                player.sendSystemMessage(Component.literal(
-                        "§4§l血肉偶像的力量失控了！"
-                ));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.abnormality.meat_idol.out_of_control"));
 
                 // 祷告者立刻死亡
                 DamageSource killDamage = player.damageSources().fellOutOfWorld();
                 player.hurt(killDamage, Float.MAX_VALUE);
 
-                player.sendSystemMessage(Component.literal(
-                        "§c" + player.getName().getString() + " 被血肉偶像吞噬..."
-                ));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.abnormality.meat_idol.consumed",
+                        player.getDisplayName()));
 
                 // 所有异想体计数器归零
                 resetAllAbnormalityCounters();
 
                 // 广播消息
-                broadcastMessage("§4§l警告：所有异想体的逆卡巴拉计数器已归零！");
+                broadcastMessage(Component.translatable(
+                    "message.lobotocraft.meat_idol.all_counters_depleted"));
 
                 restoreOwnedNoGravity(player);
                 resetPraying();
@@ -319,14 +319,12 @@ public class EntityMeatIdol extends AbstractAbnormality {
 
             // 每10秒发送状态更新
             if (prayingTimer % 200 == 0) {
-                player.sendSystemMessage(Component.literal(
-                        String.format("§6祷告时间：%d秒", seconds)
-                ));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.abnormality.meat_idol.prayer_time", seconds));
 
                 if (seconds >= 21 && seconds <= 90) {
-                    player.sendSystemMessage(Component.literal(
-                            "§a其他员工正在恢复生命值和精神值..."
-                    ));
+                    player.sendSystemMessage(Component.translatable(
+                            "message.lobotocraft.abnormality.meat_idol.healing_others"));
                 }
             }
 
@@ -357,17 +355,18 @@ public class EntityMeatIdol extends AbstractAbnormality {
         player.hurt(damageSource, damage);
 
         // 发送消息
-        String damageTypeName = switch(damageType) {
-            case "red" -> "§c红色";
-            case "white" -> "§f白色";
-            case "black" -> "§8黑色";
-            case "blue" -> "§9蓝色";
-            default -> "未知";
+        String damageTypeKey = switch(damageType) {
+            case "red" -> "damage_type.lobotocraft.red";
+            case "white" -> "damage_type.lobotocraft.white";
+            case "black" -> "damage_type.lobotocraft.black";
+            case "blue" -> "damage_type.lobotocraft.pale";
+            default -> "damage_type.lobotocraft.unknown";
         };
 
-        player.sendSystemMessage(Component.literal(
-                String.format("§c血肉偶像对你造成了 %.1f 点%s§c伤害！", damage, damageTypeName)
-        ));
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.abnormality.meat_idol.damage",
+                String.format(Locale.ROOT, "%.1f", damage),
+                Component.translatable(damageTypeKey)));
     }
 
     /**

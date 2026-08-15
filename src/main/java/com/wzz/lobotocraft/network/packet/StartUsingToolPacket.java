@@ -93,7 +93,8 @@ public class StartUsingToolPacket implements IMessage {
                             success,
                             success ? "" : "message.lobotocraft.tool.cannot_use",
                             abnormalityId,
-                            abnormalityName
+                            abnormality.getAbnormalityName(),
+                            entity.getType().getDescriptionId()
                     )
             );
         });

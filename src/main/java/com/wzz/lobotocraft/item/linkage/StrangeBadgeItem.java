@@ -47,9 +47,9 @@ public class StrangeBadgeItem extends Item {
             if (MentalValueUtil.isPanic(mc.player)) {
                 StrangeBadgeTooltipHandler.addPanicTooltip(tooltip);
             } else {
-                tooltip.add(Component.literal("一块奇怪的工牌，上面的字迹已经模糊")
+                tooltip.add(Component.translatable("tooltip.lobotocraft.strange_badge.description.1")
                         .withStyle(ChatFormatting.GRAY));
-                tooltip.add(Component.literal("但似乎来自一位不能忘记的人。")
+                tooltip.add(Component.translatable("tooltip.lobotocraft.strange_badge.description.2")
                         .withStyle(ChatFormatting.GRAY));
             }
         }
@@ -67,7 +67,7 @@ public class StrangeBadgeItem extends Item {
                 MessageLoader.getLoader().sendToPlayer((ServerPlayer) player, new StrangeBadgeEffectPacket());
                 SoundUtil.playModSound(player.level, ModSounds.TOUCH_OFF.get(), player);
             } else {
-                player.sendSystemMessage(Component.literal("什么也没有发生...")
+                player.sendSystemMessage(Component.translatable("message.lobotocraft.strange_badge.nothing")
                         .withStyle(ChatFormatting.GRAY));
             }
         }

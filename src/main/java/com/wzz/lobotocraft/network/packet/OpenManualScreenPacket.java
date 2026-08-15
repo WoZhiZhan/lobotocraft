@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.network.packet;
 import com.wzz.lobotocraft.client.screen.AbnormalityEncyclopediaScreen;
 import com.wzz.lobotocraft.client.screen.DepartmentAssignmentScreen;
 import com.wzz.lobotocraft.client.screen.EquipmentCraftingScreen;
+import com.wzz.lobotocraft.client.AbnormalityNameResolver;
 import com.wzz.lobotocraft.entity.data.AbnormalityEncyclopediaData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.network.IMessage;
@@ -23,6 +24,7 @@ public class OpenManualScreenPacket implements IMessage {
     private int abnormalityId;
     private String abnormalityCode;      // 编号 如 O-03-03
     private String abnormalityName;      // 名称
+    private String abnormalityNameKey;
     private RiskLevel riskLevel;            // 风险等级
     private String damageType;           // 伤害类型 WHITE/RED/BLACK/PALE
     private int maxPEOutput;             // 最大PE-BOX产量
@@ -47,6 +49,7 @@ public class OpenManualScreenPacket implements IMessage {
     private double scrollOffset;
 
     public OpenManualScreenPacket(int abnormalityId, String code, String name,
+                                  String nameKey,
                                   RiskLevel riskLevel, String damageType, int maxPEOutput,
                                   float[][] workPreferences, int observationLevel,
                                   boolean basicInfo, boolean[] workPref, boolean sensitiveInfo,
@@ -56,6 +59,7 @@ public class OpenManualScreenPacket implements IMessage {
         this.abnormalityId = abnormalityId;
         this.abnormalityCode = code;
         this.abnormalityName = name;
+        this.abnormalityNameKey = nameKey;
         this.riskLevel = riskLevel;
         this.damageType = damageType;
         this.maxPEOutput = maxPEOutput;
@@ -85,6 +89,7 @@ public class OpenManualScreenPacket implements IMessage {
         this.abnormalityId = buf.readInt();
         this.abnormalityCode = buf.readUtf();
         this.abnormalityName = buf.readUtf();
+        this.abnormalityNameKey = buf.readUtf(128);
         this.riskLevel = buf.readEnum(RiskLevel.class);
         this.damageType = buf.readUtf();
         this.maxPEOutput = buf.readInt();
@@ -126,6 +131,7 @@ public class OpenManualScreenPacket implements IMessage {
         buf.writeInt(abnormalityId);
         buf.writeUtf(abnormalityCode);
         buf.writeUtf(abnormalityName);
+        buf.writeUtf(abnormalityNameKey == null ? "" : abnormalityNameKey, 128);
         buf.writeEnum(riskLevel);
         buf.writeUtf(damageType);
         buf.writeInt(maxPEOutput);
@@ -192,7 +198,9 @@ public class OpenManualScreenPacket implements IMessage {
         }
 
         Minecraft.getInstance().setScreen(new AbnormalityEncyclopediaScreen(
-                abnormalityId, abnormalityCode, abnormalityName, riskLevel,
+                abnormalityId, abnormalityCode,
+                AbnormalityNameResolver.resolve(
+                        abnormalityId, abnormalityNameKey, abnormalityName), riskLevel,
                 damageType, maxPEOutput, workPreferences, observationLevel,
                 manualTexts,
                 AbnormalityEncyclopediaData.getStories(

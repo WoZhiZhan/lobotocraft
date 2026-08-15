@@ -1014,7 +1014,8 @@ public class EntityNothingThere extends AbstractAbnormality {
             this.entityData.set(DATA_ESCAPED_DISGUISED, false);
             return;
         }
-        broadcastMessage("§c§l警告！一无所有伪装成文职出逃了！你有10秒时间找到并处决它！");
+        broadcastMessage(Component.translatable(
+            "message.lobotocraft.nothing_there.disguised_escape"));
         giveExecutionItems();
     }
 
@@ -1213,7 +1214,8 @@ public class EntityNothingThere extends AbstractAbnormality {
             if (!player.getInventory().contains(new net.minecraft.world.item.ItemStack(ModItems.STOP_ESCAPE.get()))) {
                 player.addItem(new net.minecraft.world.item.ItemStack(ModItems.STOP_ESCAPE.get()));
             }
-            player.sendSystemMessage(Component.literal("§c你获得了处决道具！找到并攻击伪装的文职来阻止出逃！"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.nothing_there.execution_item"));
         }
     }
 
@@ -1240,7 +1242,8 @@ public class EntityNothingThere extends AbstractAbnormality {
             this.entityData.set(DATA_COUNTDOWN, 0);
             this.entityData.set(DATA_ESCAPED_DISGUISED, false);
             removeExecutionItems();
-            broadcastMessage("§a一无所有的伪装出逃已被阻止！");
+            broadcastMessage(Component.translatable(
+                "message.lobotocraft.nothing_there.disguised_stopped"));
         }
     }
     @Override

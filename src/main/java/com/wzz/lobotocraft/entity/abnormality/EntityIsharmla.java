@@ -21,6 +21,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.ResourceKey;
@@ -845,7 +846,9 @@ public class EntityIsharmla extends AbstractAbnormality {
         }
         protectedForcedEscapeId = chosen.getUUID();
         chosen.decreaseQliphothCounter(chosen.getQliphothCounter());
-        this.broadcastMessage("§5伊莎玛拉的巨兽咆哮撕裂了收容，" + chosen.getAbnormalityName() + " 的计数器归零。");
+        this.broadcastMessage(Component.translatable(
+            "message.lobotocraft.isharmla.counter_depleted",
+            chosen.getLocalizedAbnormalityName()));
     }
 
     // 旧的逐帧命中倒计时(保留字段以兼容,但命中改由 tickAttackHitDetection 处理)

@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.item.ego.the_lady_facing_the_wall;
 
 import com.wzz.lobotocraft.item.ego.base.BaseEgoCurio;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -30,12 +31,15 @@ public class LadyFacingWallCurio extends BaseEgoCurio {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("效果：").withStyle(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("  • 工作速度 + 3").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("  • 成功率 + 3").withStyle(ChatFormatting.GREEN));
-        tooltip.add(Component.literal(""));
-        tooltip.add(Component.literal("套装效果（装备+武器+饰品）：").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("  • 玩家每次造成伤害为对方施加一层孤独效果，每层减少5%的移动速度，最多10层").withStyle(ChatFormatting.LIGHT_PURPLE));
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.effects", ChatFormatting.YELLOW);
+        for (int index = 1; index <= 2; index++) {
+            EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.lady_facing_wall_curio.effect." + index,
+                    ChatFormatting.GREEN);
+        }
+        EgoTooltipUtil.blank(tooltip);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.common.full_set_effect", ChatFormatting.AQUA);
+        EgoTooltipUtil.add(tooltip, "tooltip.lobotocraft.lady_facing_wall_curio.set.1",
+                ChatFormatting.LIGHT_PURPLE);
         super.appendHoverText(stack, level, tooltip, flag);
     }
 

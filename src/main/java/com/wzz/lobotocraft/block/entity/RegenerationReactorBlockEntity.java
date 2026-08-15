@@ -130,13 +130,9 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
             // 构建消息
             Component message;
 
-//            if (isBlocked) {
-//                // 被遮挡：显示红色警告
-//                message = Component.literal("§c处于再生反应堆治疗范围中 §7(" + countdown + "秒)");
-//            } else {
-                // 正常状态：显示绿色信息
-                String progressBar = getProgressBar(this.getHealProgress());
-                message = Component.literal("§a处于再生反应堆治疗范围中 " + progressBar + " §7(§e" + countdown + "§7秒)");
+            String progressBar = getProgressBar(this.getHealProgress());
+            message = Component.translatable("message.lobotocraft.regeneration_reactor.healing",
+                    progressBar, countdown);
 
             player.displayClientMessage(message, true);
         }
@@ -146,7 +142,8 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
         AABB range = createEffectRange(level, pos);
         for (Player player : level.getEntitiesOfClass(Player.class, range)) {
             if (!player.isDeadOrDying()) {
-                player.displayClientMessage(Component.literal("§c故障，无法使用"), true);
+                player.displayClientMessage(Component.translatable(
+                        "message.lobotocraft.regeneration_reactor.failure"), true);
             }
         }
     }

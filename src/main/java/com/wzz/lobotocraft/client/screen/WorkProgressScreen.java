@@ -15,6 +15,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.resources.language.I18n;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
@@ -176,9 +178,24 @@ public class WorkProgressScreen extends Screen {
             this.workLogs = List.of();
             return;
         }
-        this.workLogs = logs.stream()
-                .map(log -> log.replace("<员工名称>", employeeName))
-                .toList();
+        ResourceLocation entityTypeId = abnormality instanceof Entity entity
+                ? BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()) : null;
+        List<String> explicitKeys = abnormality.getWorkLogTranslationKeys();
+        boolean useExplicitKeys = explicitKeys != null && explicitKeys.size() == logs.size();
+        List<String> localizedLogs = new ArrayList<>(logs.size());
+        for (int index = 0; index < logs.size(); index++) {
+            String key = useExplicitKeys ? explicitKeys.get(index)
+                    : entityTypeId == null ? ""
+                    : "work_log.lobotocraft." + entityTypeId.getPath() + "." + index;
+            if (!key.isEmpty() && I18n.exists(key)) {
+                localizedLogs.add(I18n.get(key, employeeName));
+            } else {
+                localizedLogs.add(logs.get(index)
+                        .replace("<员工名称>", employeeName)
+                        .replace("<employee_name>", employeeName));
+            }
+        }
+        this.workLogs = List.copyOf(localizedLogs);
         startWorkLogs();
     }
 

@@ -65,18 +65,21 @@ public final class EmployeeCommand implements ICommand {
         try {
             owner = source.getPlayerOrException();
         } catch (Exception exception) {
-            source.sendFailure(Component.literal("该命令只能由玩家执行。"));
+            source.sendFailure(Component.translatable("command.lobotocraft.player_only"));
             return 0;
         }
         EmployeeDepartment department = EmployeeDepartment.byId(departmentId);
         if (department == EmployeeDepartment.UNASSIGNED
                 && !EmployeeDepartment.UNASSIGNED.id().equals(departmentId)) {
-            source.sendFailure(Component.literal("未知部门：" + departmentId));
+            source.sendFailure(Component.translatable(
+                    "command.lobotocraft.employee.unknown_department", departmentId));
             return 0;
         }
         if (department != EmployeeDepartment.UNASSIGNED) {
             if (!DepartmentProgressService.isOpen(source.getServer(), department)) {
-                source.sendFailure(Component.literal("该部门尚未开放：" + department.displayName()));
+                source.sendFailure(Component.translatable(
+                        "command.lobotocraft.employee.department_closed",
+                        Component.translatable(department.translationKey())));
                 return 0;
             }
             long assigned = FacilityPersonnelData.get(source.getServer()).employees().stream()
@@ -87,9 +90,12 @@ public final class EmployeeCommand implements ICommand {
             int capacity = DepartmentProgressService.employeeCapacity(
                     source.getServer(), department, 0);
             if (assigned >= capacity) {
-                source.sendFailure(Component.literal(department.displayName()
-                        + (department == EmployeeDepartment.CENTRAL ? "上部" : "")
-                        + "人数已满（" + capacity + "人）。"));
+                Component departmentName = Component.translatable(department.translationKey());
+                source.sendFailure(Component.translatable(
+                        department == EmployeeDepartment.CENTRAL
+                                ? "command.lobotocraft.employee.department_full.central_upper"
+                                : "command.lobotocraft.employee.department_full",
+                        departmentName, capacity));
                 return 0;
             }
         }
@@ -102,8 +108,8 @@ public final class EmployeeCommand implements ICommand {
         EmployeeRecord record = result.employee();
         record.setDepartment(department);
         FacilityPersonnelData.get(source.getServer()).changed();
-        source.sendSuccess(() -> Component.literal("已部署AI员工 " + record.name()
-                + " / " + record.department().displayName()), true);
+        source.sendSuccess(() -> Component.translatable("command.lobotocraft.employee.deployed",
+                record.name(), Component.translatable(record.department().translationKey())), true);
         return 1;
     }
 
@@ -111,10 +117,11 @@ public final class EmployeeCommand implements ICommand {
         EmployeeRecord record = find(source, name);
         if (record == null) return 0;
         if (!EmployeeRuntimeManager.assignMove(record, net.minecraft.core.BlockPos.containing(target))) {
-            source.sendFailure(Component.literal("员工当前未部署。"));
+            source.sendFailure(Component.translatable("command.lobotocraft.employee.not_deployed"));
             return 0;
         }
-        source.sendSuccess(() -> Component.literal("已下达移动命令。"), false);
+        source.sendSuccess(() -> Component.translatable(
+                "command.lobotocraft.employee.move_assigned"), false);
         return 1;
     }
 
@@ -122,15 +129,18 @@ public final class EmployeeCommand implements ICommand {
         EmployeeRecord record = find(source, name);
         if (record == null) return 0;
         if (!(target instanceof AbstractAbnormality abnormality)) {
-            source.sendFailure(Component.literal("工作目标必须是异想体。"));
+            source.sendFailure(Component.translatable(
+                    "command.lobotocraft.employee.work_target_invalid"));
             return 0;
         }
         WorkType type = parseWorkType(typeId);
         if (type == null || !EmployeeRuntimeManager.assignWork(record, abnormality, type)) {
-            source.sendFailure(Component.literal("无法下达工作命令。"));
+            source.sendFailure(Component.translatable(
+                    "command.lobotocraft.employee.work_failed"));
             return 0;
         }
-        source.sendSuccess(() -> Component.literal("已下达" + type.getDisplayName() + "工作命令。"), false);
+        source.sendSuccess(() -> Component.translatable("command.lobotocraft.employee.work_assigned",
+                Component.translatable(type.getTranslationKey())), false);
         return 1;
     }
 
@@ -139,10 +149,12 @@ public final class EmployeeCommand implements ICommand {
         if (record == null) return 0;
         if (!(target instanceof LivingEntity living)
                 || !EmployeeRuntimeManager.assignSuppress(record, living)) {
-            source.sendFailure(Component.literal("无法下达镇压命令。"));
+            source.sendFailure(Component.translatable(
+                    "command.lobotocraft.employee.suppress_failed"));
             return 0;
         }
-        source.sendSuccess(() -> Component.literal("已下达镇压命令。"), false);
+        source.sendSuccess(() -> Component.translatable(
+                "command.lobotocraft.employee.suppress_assigned"), false);
         return 1;
     }
 
@@ -150,13 +162,15 @@ public final class EmployeeCommand implements ICommand {
         EmployeeRecord record = find(source, name);
         if (record == null) return 0;
         EmployeeRuntimeManager.remove(source.getServer(), record);
-        source.sendSuccess(() -> Component.literal("已移除AI员工 " + name), true);
+        source.sendSuccess(() -> Component.translatable(
+                "command.lobotocraft.employee.removed", name), true);
         return 1;
     }
 
     private EmployeeRecord find(CommandSourceStack source, String name) {
         EmployeeRecord record = FacilityPersonnelData.get(source.getServer()).findByName(name);
-        if (record == null) source.sendFailure(Component.literal("找不到AI员工：" + name));
+        if (record == null) source.sendFailure(Component.translatable(
+                "command.lobotocraft.employee.not_found", name));
         return record;
     }
 

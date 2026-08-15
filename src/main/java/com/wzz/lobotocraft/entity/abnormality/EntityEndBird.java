@@ -106,6 +106,8 @@ public class EntityEndBird extends AbstractAbnormality {
     private Map<String, Pair<String, BlockPos>> birdReturnInfo = new HashMap<>();
     private Map<String, CompoundTag> capturedBirds = new HashMap<>();
     private UUID thinDuskRewardPlayer = null;
+    private static final int DEATH_SEQUENCE_DURATION_TICKS = 60;
+    private int deathSequenceTicks = 0;
 
     // ══════════════════════════════════════════════════════════════
     //  构造 & 初始化
@@ -162,6 +164,12 @@ public class EntityEndBird extends AbstractAbnormality {
     @Override
     public void tick() {
         super.tick();
+        if (deathSequenceTicks > 0) {
+            setNoAi(true);
+            setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+            if (--deathSequenceTicks == 0 && !level().isClientSide) discard();
+            return;
+        }
         if (level() instanceof ServerLevel serverLevel
                 && (replayPendingAbort(serverLevel) || replayPendingCompletion(serverLevel))) return;
         setNoAi(!hasEscape());
@@ -687,6 +695,7 @@ public class EntityEndBird extends AbstractAbnormality {
             return;
         }
         if (f <= 0f && this.isAlive()) {
+            if (deathSequenceTicks > 0) return;
             setAnimation("die");
             level().playSound(null, getX(), getY(), getZ(),
                     ModSounds.END_BIRD_DIE.get(), SoundSource.HOSTILE, 1.0f, 1.0f);
@@ -707,18 +716,10 @@ public class EntityEndBird extends AbstractAbnormality {
                     grantThinDuskEquipment(rewardPlayer);
                 }
 
-                // hurt() 被全部拦截导致原版 die() 永远不触发，必须手动 discard
-                TimerEntry dieTimer = new TimerEntry() {
-                    @Override
-                    public void onRunning(@NotNull LivingEntity living) {
-                        if (getExecutions() >= 60) { // 约 3 秒后消失
-                            discard();
-                            removeTimer(EntityEndBird.this.getUUID());
-                        }
-                    }
-                };
-                dieTimer.addSkillTimer(this, 0, 80, 1);
+                deathSequenceTicks = DEATH_SEQUENCE_DURATION_TICKS;
             }
+            super.setHealth(1.0F);
+            return;
         }
         super.setHealth(f);
     }
@@ -855,10 +856,11 @@ public class EntityEndBird extends AbstractAbnormality {
 
     private void grantThinDuskEquipment(ServerPlayer player) {
         if (SpecialEgoService.unlock(player.server, SpecialEgoCatalog.THIN_DUSK_ID)) {
-            player.sendSystemMessage(Component.literal(
-                    "§d全服已解锁特殊 E.G.O「薄暝」。武器与护甲席位可在设施管理中分别申请。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.end_bird.thin_dusk_unlocked"));
         } else {
-            player.sendSystemMessage(Component.literal("§5特殊 E.G.O「薄暝」已处于解锁状态。"));
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.end_bird.thin_dusk_already_unlocked"));
         }
     }
 
@@ -1187,6 +1189,7 @@ public class EntityEndBird extends AbstractAbnormality {
         CompoundTag capturedTag = new CompoundTag();
         capturedBirds.forEach((code, record) -> capturedTag.put(code, record.copy()));
         tag.put("CapturedBirds", capturedTag);
+        tag.putInt("DeathSequenceTicks", deathSequenceTicks);
     }
 
     @Override
@@ -1196,6 +1199,7 @@ public class EntityEndBird extends AbstractAbnormality {
         attackCycleTimer    = tag.getInt("AttackCycleTimer");
         justTeleported      = tag.getBoolean("JustTeleported");
         pendingTeleport     = tag.getBoolean("PendingTeleport");
+        deathSequenceTicks  = Math.max(0, tag.getInt("DeathSequenceTicks"));
         ListTag charmedList = tag.getList("CharmedPlayers", 8);
         for (int i = 0; i < charmedList.size(); i++) {
             try { charmedPlayers.add(UUID.fromString(charmedList.getString(i))); }
@@ -1307,7 +1311,7 @@ public class EntityEndBird extends AbstractAbnormality {
     @Override
     public EGOEquipmentData.ArmorData getEGOArmorData() {
         return new EGOEquipmentData.ArmorData(
-                ResourceUtil.createInstance("textures/gui/ego/end_bird_armor.png"),
+                ResourceUtil.createInstance("textures/gui/ego/end_bird_weapon.png"),
                 "薄暝", RiskLevel.ALEPH,
                 0.3f, 0.3f, 0.3f, 0.5f,
                 getArmorDevelopmentMaxCount(), "end_bird");

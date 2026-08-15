@@ -102,11 +102,10 @@ public class TestCommand implements ICommand {
         ServerLevel level = source.getLevel();
         Player player     = source.getPlayer();
 
-        source.sendSuccess(() -> Component.literal(
-                "§b正在加载结构 §f" + name +
-                        " §b坐标 §f" + pos.toShortString() +
-                        " §b旋转 §f" + rotation.name() +
-                        (autoSelect ? " §d[自动圈选]" : "")), true);
+        source.sendSuccess(() -> Component.translatable(autoSelect
+                        ? "command.lobotocraft.test.loading.auto_select"
+                        : "command.lobotocraft.test.loading",
+                name, pos.toShortString(), rotation.name()), true);
 
         // 提前读取元数据，用于计算结构范围
         CompoundTag meta = StructureLoader.loadMetadata(name + "_main");
@@ -117,7 +116,8 @@ public class TestCommand implements ICommand {
         );
 
         if (!started) {
-            source.sendFailure(Component.literal("§c结构 " + name + " 启动失败，请检查文件是否存在。"));
+            source.sendFailure(Component.translatable(
+                    "command.lobotocraft.test.start_failed", name));
             return 0;
         }
         return 1;
@@ -129,7 +129,8 @@ public class TestCommand implements ICommand {
     private static void onLoadFinished(CommandSourceStack source, Player player,
                                        String name, BlockPos origin, Rotation rotation,
                                        CompoundTag meta, boolean autoSelect) {
-        source.sendSuccess(() -> Component.literal("§a结构 §f" + name + " §a加载完毕!"), true);
+        source.sendSuccess(() -> Component.translatable(
+                "command.lobotocraft.test.loaded", name), true);
 
         if (autoSelect && player != null && meta != null && !meta.isEmpty()) {
             BlockPos endPos = calcEndPos(origin, rotation, meta);
@@ -167,7 +168,7 @@ public class TestCommand implements ICommand {
         ItemStack stack = findSaveTool(player);
         if (stack == null) {
             player.displayClientMessage(
-                    Component.literal("§e提示: 手持结构保存工具才能自动圈选"), false);
+                    Component.translatable("command.lobotocraft.test.auto_select.no_tool"), false);
             return;
         }
 
@@ -177,8 +178,8 @@ public class TestCommand implements ICommand {
         tag.putBoolean(READY_TO_SAVE_KEY, true);
 
         player.displayClientMessage(
-                Component.literal("§d已自动圈选结构: §f" +
-                        first.toShortString() + " §d→ §f" + second.toShortString()), false);
+                Component.translatable("command.lobotocraft.test.auto_select.done",
+                        first.toShortString(), second.toShortString()), false);
     }
 
     private static ItemStack findSaveTool(Player player) {
@@ -197,9 +198,8 @@ public class TestCommand implements ICommand {
     private static Rotation parseRotation(CommandSourceStack source, String raw) {
         for (Rotation r : Rotation.values())
             if (r.name().equalsIgnoreCase(raw)) return r;
-        source.sendFailure(Component.literal(
-                "§c未知旋转: " + raw +
-                        " §7(none/clockwise_90/clockwise_180/counterclockwise_90)"));
+        source.sendFailure(Component.translatable(
+                "command.lobotocraft.test.unknown_rotation", raw));
         return null;
     }
 }

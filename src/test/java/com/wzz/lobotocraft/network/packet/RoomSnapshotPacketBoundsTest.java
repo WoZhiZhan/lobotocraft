@@ -118,8 +118,8 @@ final class RoomSnapshotPacketBoundsTest {
                     new UUID(0L, index + 1L), "employee-" + index, "control",
                     dimension, BlockPos.ZERO,
                     20.0F, 20.0F, 20.0F, 20.0F,
-                    1, 1, 1, 1, 1, "无", "无", "IDLE", true,
-                    true, "", -1.0F, 0, null, null, null, 0, 0, 0));
+                    1, 1, 1, 1, 1, "无", "", "无", "", "IDLE", true,
+                    true, "", "", -1.0F, 0, null, null, null, 0, 0, 0));
         }
         return result;
     }

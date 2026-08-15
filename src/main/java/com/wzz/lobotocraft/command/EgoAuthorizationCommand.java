@@ -47,9 +47,9 @@ public final class EgoAuthorizationCommand implements ICommand {
                 }
             }
         });
-        source.sendSuccess(() -> Component.literal("已为 " + target.getGameProfile().getName()
-                + " 授予全部普通 E.G.O 使用权限（新增 " + counter.added
-                + "，总计 " + counter.total + " 类）。"), true);
+        source.sendSuccess(() -> Component.translatable(
+                "command.lobotocraft.ego_authorization.player_granted",
+                target.getGameProfile().getName(), counter.added, counter.total), true);
         return counter.total;
     }
 
@@ -72,8 +72,8 @@ public final class EgoAuthorizationCommand implements ICommand {
         }
         int finalTypes = types;
         int finalAdded = added;
-        source.sendSuccess(() -> Component.literal("全部普通 E.G.O 已获得 AI 许可并达到研发上限（"
-                + finalTypes + " 类，新增库存 " + finalAdded + "）。"), true);
+        source.sendSuccess(() -> Component.translatable(
+                "command.lobotocraft.ego_authorization.ai_granted", finalTypes, finalAdded), true);
         return types;
     }
 

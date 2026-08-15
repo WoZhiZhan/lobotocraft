@@ -314,6 +314,7 @@ public class EntityGreenDawn extends BaseGeoEntity implements OrdealEntity {
         deathAnimationTick = 0;
         deathFinalized = false;
         delayedDeathSource = source;
+        setHealth(1.0F);
         normalAttackTarget = null;
         normalAttackTick = 0;
         specialAttackTick = 0;
@@ -333,6 +334,7 @@ public class EntityGreenDawn extends BaseGeoEntity implements OrdealEntity {
             return;
         }
         deathFinalized = true;
+        setHealth(0.0F);
         super.die(delayedDeathSource == null ? damageSources().generic() : delayedDeathSource);
     }
 

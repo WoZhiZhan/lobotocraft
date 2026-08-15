@@ -27,9 +27,9 @@ public final class ToggleGlobalTT2Packet implements IMessage {
         if (player == null || !RequestThrottle.allow(player, "toggle-global-tt2", 10L)) return;
 
         boolean enabled = FacilityDayData.get(player.server.overworld()).toggleTt2Protocol();
-        player.displayClientMessage(Component.literal(enabled
-                ? "§aTT2协议已对全公司启用。"
-                : "§7TT2协议已对全公司关闭。"), true);
+        player.displayClientMessage(Component.translatable(enabled
+                ? "message.lobotocraft.tt2.enabled"
+                : "message.lobotocraft.tt2.disabled"), true);
         OpenRoomMapPacket.sendTo(player, true);
     }
 

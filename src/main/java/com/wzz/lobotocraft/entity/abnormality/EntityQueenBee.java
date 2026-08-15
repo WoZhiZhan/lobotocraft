@@ -180,7 +180,8 @@ public class EntityQueenBee extends AbstractAbnormality {
                     SPORE_DURATION, 0, false, true, true));
             ParticleUtil.spawnParticles(target, ParticleUtil.getDustParticle(1.0f, 0.78f, 0.08f, 1.4f), 18, 0.03D);
             if (target instanceof ServerPlayer player) {
-                player.sendSystemMessage(Component.literal("§e蜂后的孢子附着在了你的身上。"));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.abnormality.queen_bee.spore_applied"));
             }
         }
     }

@@ -246,7 +246,8 @@ public class EntityPpodae extends AbstractAbnormality {
             Player lockedPlayer = level().getPlayerByUUID(lockedTarget);
             if (lockedPlayer == null) {
                 dimensionChanged = true;
-                broadcastMessage("§e波迪的锁定目标离开了维度，开始寻找新目标...");
+                broadcastMessage(Component.translatable(
+                    "message.lobotocraft.ppodae.target_dimension_changed"));
             }
         }
         if (!isPlayingAttack && !isReturning()) {
@@ -328,10 +329,8 @@ public class EntityPpodae extends AbstractAbnormality {
     }
 
     private void onKillTarget(LivingEntity killed) {
-        String targetName = killed instanceof Player ?
-                killed.getName().getString() : "村民";
-
-        broadcastMessage("§c波迪击杀了" + targetName + "，正在返回收容室...");
+        broadcastMessage(Component.translatable(
+            "message.lobotocraft.ppodae.killed_target", killed.getDisplayName()));
         startReturningToNest();
     }
 
@@ -375,9 +374,11 @@ public class EntityPpodae extends AbstractAbnormality {
             dimensionChanged = false;
 
             if (player.getServer() != null) {
-                player.getServer().sendSystemMessage(Component.literal("§c波迪已出逃！它锁定了" + player.getName().getString() + "！"));
+                player.getServer().sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.abnormality.ppodae.escaped_target", player.getDisplayName()));
             } else {
-                player.sendSystemMessage(Component.literal("§c波迪已出逃！它锁定了你！"));
+                player.sendSystemMessage(Component.translatable(
+                        "message.lobotocraft.abnormality.ppodae.escaped_you"));
             }
 
             this.setTarget(player);

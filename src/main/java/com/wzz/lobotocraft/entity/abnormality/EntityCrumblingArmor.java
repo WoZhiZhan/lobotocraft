@@ -318,7 +318,8 @@ public class EntityCrumblingArmor extends AbstractAbnormality {
         }
         player.getPersistentData().putInt(REPRESSION_COUNT_TAG, 0);
         giveItemOrDrop(player, new ItemStack(ModItems.INNER_COURAGE_CURIO.get()));
-        player.displayClientMessage(Component.literal("§7你获得了「内在的勇气」。"), true);
+        player.displayClientMessage(Component.translatable(
+                "message.lobotocraft.crumbling_armor.inner_courage"), true);
     }
 
     public static void recordRepressionWork(ServerPlayer player) {
@@ -344,7 +345,8 @@ public class EntityCrumblingArmor extends AbstractAbnormality {
         if (!hasFoolhardyCourage(player)) {
             giveItemOrDrop(player, new ItemStack(ModItems.FOOLHARDY_COURAGE_CURIO.get()));
         }
-        player.displayClientMessage(Component.literal("§4「内在的勇气」转化为「匹夫之勇」。"), true);
+        player.displayClientMessage(Component.translatable(
+                "message.lobotocraft.crumbling_armor.foolhardy_courage"), true);
     }
 
     private static void giveItemOrDrop(ServerPlayer player, ItemStack stack) {

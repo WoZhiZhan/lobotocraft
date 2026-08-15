@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
 import com.wzz.lobotocraft.init.ModTier;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.base.EgoTooltipUtil;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
@@ -85,16 +86,13 @@ public class PpodaeWeapon extends BaseEgoWeapon {
     public void appendHoverText(ItemStack p_41421_, @Nullable Level p_41422_, List<Component> p_41423_, TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         if (!ClientInputUtil.isShiftPressed()) {
-            p_41423_.add(Component.literal("§7我想，从有着可爱外表的异想体中提取出来的武器应该不会很厉害吧？"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7好吧，我错了，这只爪子不仅结实耐用，还很可爱！！！"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7咳咳，如果你过度依赖这把武器，你会意识到寄托其中的残暴野性正在你的体内慢慢苏醒。"));
-            p_41423_.add(Component.literal(""));
-            p_41423_.add(Component.literal("§7但是但是...这些果冻状的爪爪垫摸起来真是让人欲罢不能啊，简直爽到~"));
-            p_41423_.add(Component.literal("§7<按Shift查看详细信息>"));
+            for (int index = 1; index <= 4; index++) {
+                EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.ppodae_weapon.story." + index);
+                if (index < 4) EgoTooltipUtil.blank(p_41423_);
+            }
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.common.shift_details");
         } else {
-            p_41423_.add(Component.literal("§6※这把武器在攻击时会造成两段伤害。"));
+            EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.ppodae_weapon.detail");
         }
     }
 }

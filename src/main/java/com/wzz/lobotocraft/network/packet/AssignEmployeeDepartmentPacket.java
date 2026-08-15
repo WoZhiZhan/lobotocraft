@@ -96,7 +96,7 @@ public final class AssignEmployeeDepartmentPacket implements IMessage {
             Component departmentName = Component.translatable(department == EmployeeDepartment.CENTRAL
                     ? targetSection == 0 ? "department.lobotocraft.central.upper"
                     : "department.lobotocraft.central.lower"
-                    : "department.lobotocraft." + department.id());
+                    : department.translationKey());
             sender.sendSystemMessage(Component.translatable(
                     "message.lobotocraft.employee_department.full", departmentName, capacity));
             if (reopenDeployment) {
@@ -113,7 +113,7 @@ public final class AssignEmployeeDepartmentPacket implements IMessage {
         } else {
             sender.sendSystemMessage(Component.translatable(
                     "message.lobotocraft.employee_department.assigned", record.name(),
-                    Component.translatable("department.lobotocraft." + department.id())));
+                    Component.translatable(department.translationKey())));
             FacilityManagementService.open(sender);
         }
     }

@@ -22,8 +22,8 @@ public final class PlayerProfileService {
     public static void open(ServerPlayer player, View view) {
         if (player == null || view == null) return;
         if (!com.wzz.lobotocraft.util.AbnormalitySpawnHelper.isCompany(player.level())) {
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
-                    "请回到公司后再使用玩家档案。"));
+            player.sendSystemMessage(net.minecraft.network.chat.Component.translatable(
+                    "message.lobotocraft.player_profile.return_to_company"));
             return;
         }
         CompoundTag snapshot = view == View.DEPARTMENT

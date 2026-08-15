@@ -37,6 +37,9 @@ public enum AbnormalityDataProvider implements IServerDataProvider<EntityAccesso
             data.putString("AbnormalityCode", abnormality.getAbnormalityCode());
             data.putString("AbnormalityName", abnormality.getAbnormalityName());
             data.putString("AbnormalityJadeName", abnormality.getAbnormalityJadeName());
+            data.putString("AbnormalityNameKey", abnormality.getType().getDescriptionId());
+            data.putBoolean("AbnormalityNameKnown",
+                    abnormality.getAbnormalityName().equals(abnormality.getAbnormalityJadeName()));
             data.putString("RiskLevel", abnormality.getRiskLevel().toString());
             data.putInt("RiskLevelColor", abnormality.getRiskLevel().getColor());
 

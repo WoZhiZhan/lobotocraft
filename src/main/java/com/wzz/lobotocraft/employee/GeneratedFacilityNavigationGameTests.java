@@ -29,6 +29,7 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.gametest.GameTestHolder;
 import org.slf4j.Logger;
@@ -107,7 +108,14 @@ public final class GeneratedFacilityNavigationGameTests {
         private RouteRun active;
 
         private void start(GameTestHelper helper) {
-            helper.onEachTick(() -> tick(helper));
+            helper.onEachTick(() -> {
+                try {
+                    tick(helper);
+                } catch (RuntimeException exception) {
+                    LOGGER.error("Generated facility navigation crashed", exception);
+                    helper.fail(exception.getClass().getSimpleName() + ": " + exception.getMessage());
+                }
+            });
         }
 
         private void tick(GameTestHelper helper) {
@@ -372,9 +380,11 @@ public final class GeneratedFacilityNavigationGameTests {
                 .mapToDouble(area -> (area.minPos().getY() + area.maxPos().getY()) * 0.5D)
                 .average().orElse(0.0D);
         return sampled.stream()
-                .sorted(java.util.Comparator.comparingDouble(position ->
-                        Math.abs(position.getY() - preferredY)))
-                .map(NavigationNode::new).toList();
+                .map(NavigationNode::new)
+                .filter(node -> isLiveStandingPoint(facility, node))
+                .sorted(java.util.Comparator.comparingDouble(node ->
+                        Math.abs(node.standingY() - preferredY)))
+                .toList();
     }
 
     private static NodePair sampledConnectedPair(ServerLevel facility,
@@ -420,6 +430,19 @@ public final class GeneratedFacilityNavigationGameTests {
                 && NavigationCandidatePolicy.hasLocalMobility(node, transitions::generate);
     }
 
+    private static boolean isLiveStandingPoint(ServerLevel facility, NavigationNode node) {
+        Vec3 standing = node.standingPosition();
+        double halfWidth = 0.3D;
+        AABB body = new AABB(standing.x - halfWidth, standing.y,
+                standing.z - halfWidth, standing.x + halfWidth,
+                standing.y + 1.8D, standing.z + halfWidth);
+        if (facility.getBlockCollisions(null, body).iterator().hasNext()) return false;
+        AABB support = new AABB(standing.x - halfWidth, standing.y - 0.0625D,
+                standing.z - halfWidth, standing.x + halfWidth,
+                standing.y + 1.0E-6D, standing.z + halfWidth);
+        return facility.getBlockCollisions(null, support).iterator().hasNext();
+    }
+
     private static NavigationNode nearestStandingPoint(NodeEvaluator evaluator, Bounds bounds,
                                                         Vec3 hint) {
         NavigationNode best = null;
@@ -457,12 +480,14 @@ public final class GeneratedFacilityNavigationGameTests {
     }
 
     private static int discardStaleClerks(ServerLevel facility) {
-        int discarded = 0;
+        List<EntityClerk> staleClerks = new ArrayList<>();
         for (var entity : facility.getAllEntities()) {
-            if (entity instanceof EntityClerk) {
-                entity.discard();
-                discarded++;
-            }
+            if (entity instanceof EntityClerk clerk) staleClerks.add(clerk);
+        }
+        int discarded = 0;
+        for (EntityClerk clerk : staleClerks) {
+            clerk.discard();
+            discarded++;
         }
         return discarded;
     }

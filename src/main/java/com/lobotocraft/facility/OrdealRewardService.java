@@ -38,9 +38,9 @@ public final class OrdealRewardService {
             int counterAfter = SuppressorCounterUtil.get(player);
             MessageLoader.getLoader().sendToPlayer(player,
                     new SuppressorCountSyncPacket(counterAfter, capacity));
-            player.displayClientMessage(Component.literal(
-                    "考验镇压奖励（" + percent + "%）：能源 +" + energyAdded
-                            + "，外出计数 +" + (counterAfter - counterBefore))
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.ordeal.reward", percent, energyAdded,
+                    counterAfter - counterBefore)
                     .withStyle(ChatFormatting.GOLD), false);
         }
 

@@ -18,6 +18,7 @@ import com.wzz.lobotocraft.util.MentalValueUtil;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
@@ -112,6 +113,7 @@ public class AbnormalityWorkHandler {
 								new OpenToolUseScreenPacket(
 										abnormality.getEntityId(),
 										abnormality.getAbnormalityName(),
+										event.getTarget().getType().getDescriptionId(),
 										abnormality.isContinuousUseTool() ? "continuous" : "normal",
 										abnormality.getToolWarningTitle(),
 										abnormality.getToolWarningMessages()
@@ -172,6 +174,8 @@ public class AbnormalityWorkHandler {
 						abnormality.getEntityId(),
 						abnormality.getAbnormalityCode(),
 						abnormality.getAbnormalityName(),
+						abnormality instanceof Entity entity
+								? entity.getType().getDescriptionId() : "",
 						abnormality.getRiskLevel(),
 						abnormality.getDamageType(),
 						abnormality.getMaxPEOutput(),
