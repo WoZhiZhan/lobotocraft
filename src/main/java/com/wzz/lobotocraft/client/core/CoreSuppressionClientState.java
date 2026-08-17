@@ -14,6 +14,7 @@ public final class CoreSuppressionClientState {
     private static int meltdownLevel;
     private static int requiredMeltdownLevel;
     private static int visualStage;
+    private static int mechanicState;
     private static int completedMask;
     private static boolean fullVisualEffects;
     private static int transitionTicks = TRANSITION_DURATION_TICKS;
@@ -26,7 +27,7 @@ public final class CoreSuppressionClientState {
     public static void update(boolean active, int typeOrdinal, String ownerName,
                               int energy, int energyQuota,
                               int meltdownLevel, int requiredMeltdownLevel,
-                              int visualStage, int completedMask,
+                              int visualStage, int mechanicState, int completedMask,
                               boolean fullVisualEffects) {
         CoreSuppressionType nextType = CoreSuppressionType.byOrdinal(typeOrdinal);
         boolean entering = active && (!CoreSuppressionClientState.active || type != nextType);
@@ -42,6 +43,7 @@ public final class CoreSuppressionClientState {
         CoreSuppressionClientState.meltdownLevel = meltdownLevel;
         CoreSuppressionClientState.requiredMeltdownLevel = requiredMeltdownLevel;
         CoreSuppressionClientState.visualStage = visualStage;
+        CoreSuppressionClientState.mechanicState = mechanicState;
         CoreSuppressionClientState.completedMask = completedMask;
         CoreSuppressionClientState.fullVisualEffects = fullVisualEffects;
         if (active && nextType != null) CoreSuppressionWarningClientState.clear();
@@ -54,8 +56,10 @@ public final class CoreSuppressionClientState {
             suppressionTicks = 0L;
             netzachHasOverloaded = nextType == CoreSuppressionType.NETZACH && meltdownLevel >= 2;
             transitionTicks = nextType == CoreSuppressionType.YESOD
+                    || nextType == CoreSuppressionType.CHESED
                     ? 0 : TRANSITION_DURATION_TICKS;
-        } else if ((nextType == CoreSuppressionType.MALKUTH || nextType == CoreSuppressionType.YESOD)
+        } else if ((nextType == CoreSuppressionType.MALKUTH || nextType == CoreSuppressionType.YESOD
+                || nextType == CoreSuppressionType.CHESED)
                 && phaseChanged) {
             transitionTicks = 0;
         } else if (nextType == CoreSuppressionType.NETZACH && overloadAdvanced) {
@@ -105,6 +109,10 @@ public final class CoreSuppressionClientState {
 
     public static int getVisualStage() {
         return visualStage;
+    }
+
+    public static int getMechanicState() {
+        return mechanicState;
     }
 
     public static float getTransitionRate(float partialTick) {

@@ -157,6 +157,9 @@ public final class CoreSuppressionPostProcessor {
         if (!CoreSuppressionClientState.usesFullVisualEffects()) {
             return null;
         }
+        if (type == CoreSuppressionType.CHESED) {
+            return ResourceUtil.createInstance("shaders/post/core_chesed.json");
+        }
         if (type == CoreSuppressionType.HOD) {
             int phase = Math.max(0, Math.min(2, CoreSuppressionClientState.getVisualStage()));
             return ResourceUtil.createInstance("shaders/post/core_hod_" + phase + ".json");

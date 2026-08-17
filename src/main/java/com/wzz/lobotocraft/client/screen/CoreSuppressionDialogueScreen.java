@@ -57,8 +57,11 @@ public class CoreSuppressionDialogueScreen extends Screen {
         textY = drawWrappedCentered(graphics,
                 tr("screen.lobotocraft.core_suppression_dialogue.prompt"),
                 textY, 0xFFFFFF);
+        String objectiveKey = type == CoreSuppressionType.CHESED
+                ? "screen.lobotocraft.core_suppression_dialogue.objective.chesed"
+                : "screen.lobotocraft.core_suppression_dialogue.objective";
         drawWrappedCentered(graphics,
-                tr("screen.lobotocraft.core_suppression_dialogue.objective"),
+                tr(objectiveKey),
                 textY + 4, 0xB8B8B8);
         super.render(graphics, mouseX, mouseY, partialTick);
     }

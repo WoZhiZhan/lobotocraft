@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.capability.PanicType;
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionDamageHooks;
 import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.util.MentalValueUtil;
@@ -144,6 +145,9 @@ public class MentalValueEventHandler {
 
         DamageSource source = event.getSource();
         float damage = event.getAmount();
+        float suppressionMultiplier = player instanceof ServerPlayer serverPlayer
+                ? CoreSuppressionDamageHooks.incomingDamageMultiplier(serverPlayer, source)
+                : 1.0F;
 
         // 发送边框效果到客户端
         if (player instanceof ServerPlayer serverPlayer) {
@@ -179,7 +183,8 @@ public class MentalValueEventHandler {
             // resistance < 1: 减少伤害 (例如 0.5 = 减半)
             // resistance = 1: 正常伤害
             // resistance > 1: 增加伤害 (例如 2.0 = 双倍伤害)
-            float actualDamage = damage * (float) resistance;
+            float actualDamage = damage * (float) resistance * suppressionMultiplier;
+            float adjustedDamage = actualDamage;
 
             // 白色伤害：只扣精神值
             if (DamageHelper.isWhiteDamage(source)) {
@@ -188,9 +193,9 @@ public class MentalValueEventHandler {
                         MentalValueUtil.isPanic(mental), attacker != null,
                         attacker != null && MentalValueUtil.isPanic(attacker));
                 if (panicRecovery) {
-                    mental.addMentalValue(actualDamage, MentalValueEvent.ChangeType.ADD);
+                    mental.addMentalValue(adjustedDamage, MentalValueEvent.ChangeType.ADD);
                 } else {
-                    mental.reduceMentalValue(actualDamage, MentalValueEvent.ChangeType.DAMAGE);
+                    mental.reduceMentalValue(adjustedDamage, MentalValueEvent.ChangeType.DAMAGE);
                 }
                 event.setCanceled(true); // 取消血量伤害
                 if (player instanceof ServerPlayer serverPlayer) {
@@ -200,7 +205,7 @@ public class MentalValueEventHandler {
             }
             // 黑色伤害：同时扣血量和精神值
             else if (DamageHelper.isBlackDamage(source)) {
-                mental.reduceMentalValue(actualDamage, MentalValueEvent.ChangeType.DAMAGE);
+                mental.reduceMentalValue(adjustedDamage, MentalValueEvent.ChangeType.DAMAGE);
                 event.setAmount(actualDamage); // 设置实际伤害
                 if (player instanceof ServerPlayer serverPlayer) {
                     syncMentalValue(serverPlayer, MentalValueEvent.ChangeType.DAMAGE);
@@ -208,7 +213,7 @@ public class MentalValueEventHandler {
             }
             // 蓝色伤害：基础伤害 + 最大生命值的5%-7%
             else if (DamageHelper.isBlueDamage(source)) {
-                float maxHealth = player.getMaxHealth();
+                float maxHealth = player.getMaxHealth() * suppressionMultiplier;
                 float percentDamage = maxHealth * (0.05F + RANDOM.nextFloat() * 0.02F); // 5%-7%
                 if (source.getEntity() instanceof LivingEntity attacker) {
                     percentDamage *= BaseEgoWeapon.currentLeftClickDamageMultiplier(attacker);
@@ -239,7 +244,7 @@ public class MentalValueEventHandler {
                 }
                 
                 // 应用红抗
-                event.setAmount(damage * (float) redResistance);
+                event.setAmount(damage * (float) redResistance * suppressionMultiplier);
             }
         });
     }

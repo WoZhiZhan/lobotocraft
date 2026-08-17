@@ -93,7 +93,7 @@ public class ForgeModClientEvent {
             NormalWorkMusicManager.getInstance().clear();
             EscapeAlertManager.getInstance().clear();
             active_charms.clear();
-            CoreSuppressionClientState.update(false, -1, "", 0, 0, 0, 0, 0, 0, false);
+            CoreSuppressionClientState.update(false, -1, "", 0, 0, 0, 0, 0, 0, 0, false);
             CoreSuppressionWarningClientState.clear();
             CoreSuppressionPostProcessor.clear();
             GeburahCameraShakeState.clear();

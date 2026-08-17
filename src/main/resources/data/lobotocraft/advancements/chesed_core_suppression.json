@@ -1,0 +1,15 @@
+{
+  "display": {
+    "icon": { "item": "minecraft:blue_dye" },
+    "title": { "translate": "advancements.lobotocraft.chesed_core.title" },
+    "description": { "translate": "advancements.lobotocraft.chesed_core.description" },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "completed": { "trigger": "minecraft:impossible" }
+  },
+  "requirements": [["completed"]]
+}

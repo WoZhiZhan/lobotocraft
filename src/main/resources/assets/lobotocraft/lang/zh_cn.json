@@ -319,6 +319,8 @@
   "advancements.lobotocraft.hod_core.description": "完成Hod核心抑制",
   "advancements.lobotocraft.netzach_core.title": "生存下去的勇气",
   "advancements.lobotocraft.netzach_core.description": "完成Netzach核心抑制",
+  "advancements.lobotocraft.chesed_core.title": "平静的代价",
+  "advancements.lobotocraft.chesed_core.description": "完成Chesed核心抑制",
   "entity.lobotocraft.text": "请输入文本",
   "block.lobotocraft.room_marker": "房间标记",
   "item.lobotocraft.room_terminal": "监控终端",
@@ -1815,6 +1817,7 @@
   "overlay.lobotocraft.core_suppression.energy": "能源 %s/%s",
   "overlay.lobotocraft.core_suppression.meltdown": "逆卡巴拉熔毁 %s/%s",
   "overlay.lobotocraft.core_suppression.complete": "目标完成：可以结束当天。",
+  "overlay.lobotocraft.chesed.damage_types": "Chesed 危险伤害（5倍）",
   "message.lobotocraft.recruitment.failure.company_only": "请回到公司后再招募员工。",
   "message.lobotocraft.recruitment.failure.permission": "没有员工招募权限。",
   "message.lobotocraft.recruitment.failure.name": "员工名称必须为1-24个有效字符。",
@@ -2583,4 +2586,6 @@
   ,"attack.lobotocraft.geburah.will_of_battle": "陷阵之志"
   ,"command.lobotocraft_client.damage_border.status": "伤害边框当前为：%s"
   ,"command.lobotocraft_client.damage_border.set": "已将伤害边框设置为：%s"
+  ,"screen.lobotocraft.core_suppression_dialogue.objective.chesed": "完成当天能源配额并到达逆卡巴拉熔毁等级 VIII，即可结束挑战。"
+  ,"message.lobotocraft.core_suppression.cannot_end_day": "§c核心抑制结束前无法进入下一天。需要完成当天能源配额并到达逆卡巴拉熔毁等级 %s。"
 }

@@ -97,16 +97,20 @@ public final class CoreSuppressionAudio {
         CoreSuppressionType type = CoreSuppressionClientState.getType();
         if (type == null) return null;
         int visualStage = CoreSuppressionClientState.getVisualStage();
-        if (visualStage <= 0) return ResourceUtil.createInstance("escape_alert_bgm_1");
+        if (visualStage <= 0 && type != CoreSuppressionType.CHESED) {
+            return ResourceUtil.createInstance("escape_alert_bgm_1");
+        }
         String department = switch (type) {
             case MALKUTH -> "malkuth";
             case YESOD -> "yesod";
             case HOD -> "hod";
             case NETZACH -> "netzach";
+            case CHESED -> "chesed";
             default -> null;
         };
         if (department == null) return null;
-        int phase = visualStage >= 2 ? 2 : 1;
+        int phase = type == CoreSuppressionType.CHESED
+                ? 2 : visualStage >= 2 ? 2 : 1;
         return ResourceUtil.createInstance("core." + department + "_" + phase);
     }
 

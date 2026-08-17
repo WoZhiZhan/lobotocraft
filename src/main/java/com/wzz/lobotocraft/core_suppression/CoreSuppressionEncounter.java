@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.core_suppression;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.damagesource.DamageSource;
 
 public interface CoreSuppressionEncounter {
     default Component getStartDenialReason(ServerPlayer owner) {
@@ -31,6 +32,14 @@ public interface CoreSuppressionEncounter {
         return 0;
     }
 
+    default int mechanicState(MinecraftServer server) {
+        return 0;
+    }
+
+    default float incomingDamageMultiplier(ServerPlayer target, DamageSource source) {
+        return 1.0F;
+    }
+
     default boolean freezesAiEmployees() {
         return false;
     }
@@ -39,6 +48,10 @@ public interface CoreSuppressionEncounter {
     }
 
     default void onPlayerLogout(ServerPlayer player) {
+    }
+
+    default void onQliphothMeltdown(MinecraftServer server, CoreSuppressionData suppression,
+                                     int overloadLevel) {
     }
 
     default void onServerStartup(MinecraftServer server, CoreSuppressionData suppression) {

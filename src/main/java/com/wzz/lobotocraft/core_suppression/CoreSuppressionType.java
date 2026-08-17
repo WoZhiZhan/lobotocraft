@@ -11,10 +11,10 @@ public enum CoreSuppressionType {
     HOD("Hod", 0xD88965, "hod_core_suppression", true, true, 6, 0),
     NETZACH("Netzach", 0x79A85A, "netzach_core_suppression", true, true, 6, 0),
 
-    // Middle/lower layer completion rules mirror the original game. Their boss
-    // implementations do not exist yet, so admission remains disabled.
+    // Middle/lower layer completion rules mirror the original game. Chesed is
+    // implemented; the remaining lower-layer encounters stay disabled.
     TIPHERETH("Tiphereth", 0xFFC50B, "tiphereth_core_suppression", false, false, 10, 0),
-    CHESED("Chesed", 0x4D82C4, "chesed_core_suppression", false, true, 8, 0),
+    CHESED("Chesed", 0x4D82C4, "chesed_core_suppression", true, true, 8, 0),
     GEBURAH("Geburah", 0xB72D2D, "geburah_core_suppression", true, false, 0, 2),
     BINAH("Binah", 0xC9B037, "binah_core_suppression", false, false, 0, 3),
     HOKMA("Hokma", 0xD7D7D7, "hokma_core_suppression", false, true, 10, 0);

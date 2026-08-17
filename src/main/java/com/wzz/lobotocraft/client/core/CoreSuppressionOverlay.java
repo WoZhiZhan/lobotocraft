@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.client.core;
 
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
+import com.wzz.lobotocraft.core_suppression.chesed.ChesedDamageKind;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -30,6 +31,9 @@ public final class CoreSuppressionOverlay {
         if (minecraft.options.hideGui || minecraft.options.renderDebug || minecraft.screen != null) return;
         if (CoreSuppressionClientState.getType() != CoreSuppressionType.GEBURAH) {
             renderObjective(event.getGuiGraphics(), CoreSuppressionClientState.getType());
+            if (CoreSuppressionClientState.getType() == CoreSuppressionType.CHESED) {
+                renderChesedDamageTypes(event.getGuiGraphics());
+            }
         } else {
             renderGeburahStatuses(event.getGuiGraphics());
         }
@@ -64,6 +68,7 @@ public final class CoreSuppressionOverlay {
             case YESOD -> 0x204F2870;
             case HOD -> 0x24B58A52;
             case NETZACH -> 0x243B7A28;
+            case CHESED -> 0x243A628E;
             default -> 0x18000000;
         };
         graphics.fill(0, 0, width, height, color);
@@ -177,6 +182,26 @@ public final class CoreSuppressionOverlay {
             graphics.drawString(minecraft.font,
                     Component.translatable("overlay.lobotocraft.core_suppression.complete"),
                     13, y - 15, 0x7CFF8C, true);
+        }
+    }
+
+    private static void renderChesedDamageTypes(GuiGraphics graphics) {
+        Minecraft minecraft = Minecraft.getInstance();
+        int mask = CoreSuppressionClientState.getMechanicState();
+        int y = graphics.guiHeight() - 82;
+        Component label = Component.translatable("overlay.lobotocraft.chesed.damage_types");
+        int width = Math.max(184, minecraft.font.width(label) + 12);
+        graphics.fill(7, y - 5, 7 + width, y + 25, 0xB0000000);
+        graphics.fill(7, y - 5, 9, y + 25, 0xFF4D82C4);
+        graphics.drawString(minecraft.font, label, 13, y - 1, 0xFFE4F1FF, false);
+        ChesedDamageKind[] kinds = ChesedDamageKind.values();
+        for (int i = 0; i < kinds.length; i++) {
+            ChesedDamageKind kind = kinds[i];
+            int x = 13 + i * 42;
+            int color = kind.isSelected(mask) ? 0xFFEAF6FF : 0x665A6A78;
+            graphics.fill(x, y + 10, x + 34, y + 24, kind.isSelected(mask) ? 0xC02B5E8A : 0x602B3540);
+            graphics.drawCenteredString(minecraft.font, kind.id().toUpperCase(), x + 17,
+                    y + 12, color);
         }
     }
 

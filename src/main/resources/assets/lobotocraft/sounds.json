@@ -1607,6 +1607,8 @@
   "core.hod_2": {"sounds": [{"name": "lobotocraft:core/hod_2", "stream": true}]},
   "core.netzach_1": {"sounds": [{"name": "lobotocraft:core/netzach_1", "stream": true}]},
   "core.netzach_2": {"sounds": [{"name": "lobotocraft:core/netzach_2", "stream": true}]},
+  "core.chesed_1": {"sounds": [{"name": "lobotocraft:core/chesed_1", "stream": true}]},
+  "core.chesed_2": {"sounds": [{"name": "lobotocraft:core/chesed_2", "stream": true}]},
   "core_meltdown_alarm": {
     "sounds": [
       {

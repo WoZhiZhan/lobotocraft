@@ -447,7 +447,13 @@ public final class CoreSuppressionManager {
 
     /** Restores employee vitals on every Qliphoth meltdown during Netzach suppression. */
     public static void onQliphothMeltdown(ServerLevel level) {
-        if (!isActive(level, CoreSuppressionType.NETZACH)) return;
+        CoreSuppressionData suppression = CoreSuppressionData.get(level);
+        if (!suppression.isActive()) return;
+        int overloadLevel = FacilityDayData.get(level).getMeltdownLevel();
+        CoreSuppressionEncounterRegistry.onQliphothMeltdown(
+                level.getServer(), suppression, overloadLevel);
+        syncAll(level.getServer());
+        if (suppression.getActiveType() != CoreSuppressionType.NETZACH) return;
         forEachEmployee(level.getServer(), player -> {
             if (!player.isAlive()) return;
             player.setHealth(player.getMaxHealth());
@@ -725,8 +731,10 @@ public final class CoreSuppressionManager {
 
         if (!requirementsMet(server, state)) {
             event.setCanceled(true);
+            CoreSuppressionType type = state.getActiveType();
             event.getPlayer().sendSystemMessage(Component.translatable(
-                    "message.lobotocraft.core_suppression.cannot_end_day"));
+                    "message.lobotocraft.core_suppression.cannot_end_day",
+                    type == null ? 6 : type.getRequiredMeltdownLevel()));
             return;
         }
         finishChallenge(server, true, "考验完成");
@@ -906,14 +914,17 @@ public final class CoreSuppressionManager {
         int energy = active ? facility.getEnergy() : 0;
         int energyQuota = active ? facility.getEnergyQuota() : 0;
         int meltdownLevel = active ? facility.getMeltdownLevel() : 0;
+        CoreSuppressionType type = state.getActiveType();
         int stage = 0;
-        if (active) {
+        if (active && (type == CoreSuppressionType.MALKUTH
+                || type == CoreSuppressionType.YESOD
+                || type == CoreSuppressionType.HOD
+                || type == CoreSuppressionType.NETZACH)) {
             // The original upper-layer suppressions change phase at Qliphoth
             // overload levels I and III. FacilityDayData stores the next level,
             // so completed activations I and III are represented by II and IV.
             stage = HodPenaltyPolicy.visualStage(meltdownLevel);
         }
-        CoreSuppressionType type = state.getActiveType();
         if (active && type != null) {
             stage = Math.max(stage, CoreSuppressionEncounterRegistry.visualStage(server, type));
         }
@@ -926,6 +937,7 @@ public final class CoreSuppressionManager {
                 meltdownLevel,
                 type == null ? 0 : type.getRequiredMeltdownLevel(),
                 stage,
+                type == null ? 0 : CoreSuppressionEncounterRegistry.mechanicState(server, type),
                 state.getCompletedMask(),
                 state.usesFullVisualEffects(player.getUUID())
         ));

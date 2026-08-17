@@ -319,6 +319,8 @@
   "advancements.lobotocraft.hod_core.description": "Complete Hod Core Suppression",
   "advancements.lobotocraft.netzach_core.title": "The Fearlessness to Keep on Living",
   "advancements.lobotocraft.netzach_core.description": "Complete Netzach Core Suppression",
+  "advancements.lobotocraft.chesed_core.title": "The Price of Calm",
+  "advancements.lobotocraft.chesed_core.description": "Complete Chesed Core Suppression",
   "entity.lobotocraft.text": "Please Input Text",
   "block.lobotocraft.room_marker": "Room Marker",
   "item.lobotocraft.room_terminal": "Room Terminal",
@@ -1814,6 +1816,7 @@
   "overlay.lobotocraft.core_suppression.energy": "Energy %s/%s",
   "overlay.lobotocraft.core_suppression.meltdown": "Qliphoth Meltdown %s/%s",
   "overlay.lobotocraft.core_suppression.complete": "Objective complete: the day can now be ended.",
+  "overlay.lobotocraft.chesed.damage_types": "Chesed dangerous damage (5x)",
   "message.lobotocraft.recruitment.failure.company_only": "Return to the facility before recruiting an employee.",
   "message.lobotocraft.recruitment.failure.permission": "You do not have permission to recruit employees.",
   "message.lobotocraft.recruitment.failure.name": "Employee names must contain 1-24 valid characters.",
@@ -2582,4 +2585,6 @@
   ,"attack.lobotocraft.geburah.will_of_battle": "Will of Battle"
   ,"command.lobotocraft_client.damage_border.status": "Damage borders are currently: %s"
   ,"command.lobotocraft_client.damage_border.set": "Damage borders set to: %s"
+  ,"screen.lobotocraft.core_suppression_dialogue.objective.chesed": "Meet the day's energy quota and reach Qliphoth Meltdown Level VIII to complete the challenge."
+  ,"message.lobotocraft.core_suppression.cannot_end_day": "§cYou cannot enter the next day before the Core Suppression ends. Complete the energy quota and reach Qliphoth Meltdown Level %s."
 }

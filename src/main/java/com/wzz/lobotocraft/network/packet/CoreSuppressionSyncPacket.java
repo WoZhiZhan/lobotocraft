@@ -16,13 +16,14 @@ public class CoreSuppressionSyncPacket implements IMessage {
     private int meltdownLevel;
     private int requiredMeltdownLevel;
     private int visualStage;
+    private int mechanicState;
     private int completedMask;
     private boolean fullVisualEffects;
 
     public CoreSuppressionSyncPacket(boolean active, int type, String ownerName,
                                      int energy, int energyQuota,
                                      int meltdownLevel, int requiredMeltdownLevel,
-                                     int visualStage, int completedMask,
+                                     int visualStage, int mechanicState, int completedMask,
                                      boolean fullVisualEffects) {
         this.active = active;
         this.type = type;
@@ -32,6 +33,7 @@ public class CoreSuppressionSyncPacket implements IMessage {
         this.meltdownLevel = meltdownLevel;
         this.requiredMeltdownLevel = requiredMeltdownLevel;
         this.visualStage = visualStage;
+        this.mechanicState = mechanicState;
         this.completedMask = completedMask;
         this.fullVisualEffects = fullVisualEffects;
     }
@@ -51,6 +53,7 @@ public class CoreSuppressionSyncPacket implements IMessage {
         meltdownLevel = buf.readInt();
         requiredMeltdownLevel = buf.readInt();
         visualStage = buf.readInt();
+        mechanicState = buf.readInt();
         completedMask = buf.readInt();
         fullVisualEffects = buf.readBoolean();
     }
@@ -65,6 +68,7 @@ public class CoreSuppressionSyncPacket implements IMessage {
         buf.writeInt(meltdownLevel);
         buf.writeInt(requiredMeltdownLevel);
         buf.writeInt(visualStage);
+        buf.writeInt(mechanicState);
         buf.writeInt(completedMask);
         buf.writeBoolean(fullVisualEffects);
     }
@@ -73,7 +77,7 @@ public class CoreSuppressionSyncPacket implements IMessage {
     @Override
     public void runClient(NetworkEvent.Context ctx) {
         CoreSuppressionClientState.update(active, type, ownerName, energy, energyQuota,
-                meltdownLevel, requiredMeltdownLevel, visualStage, completedMask,
+                meltdownLevel, requiredMeltdownLevel, visualStage, mechanicState, completedMask,
                 fullVisualEffects);
     }
 }
