@@ -40,4 +40,7 @@ public interface CoreSuppressionEncounter {
 
     default void onPlayerLogout(ServerPlayer player) {
     }
+
+    default void onServerStartup(MinecraftServer server, CoreSuppressionData suppression) {
+    }
 }

@@ -73,4 +73,10 @@ public final class CoreSuppressionEncounterRegistry {
         CoreSuppressionEncounter encounter = ENCOUNTERS.get(type);
         if (encounter != null) encounter.onPlayerLogout(player);
     }
+
+    public static void onServerStartup(MinecraftServer server, CoreSuppressionData suppression) {
+        for (CoreSuppressionEncounter encounter : ENCOUNTERS.values()) {
+            encounter.onServerStartup(server, suppression);
+        }
+    }
 }

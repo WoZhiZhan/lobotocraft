@@ -22,9 +22,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.phys.Vec3;
 
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -34,7 +32,6 @@ public final class GeburahEncounterService implements CoreSuppressionEncounter {
     public static final String PARTICIPANT_RECOVERY_TAG = "lobotocraft_geburah_participant_recovery";
 
     private boolean cleanupInProgress;
-    private final Map<UUID, Boolean> employeeInvulnerability = new HashMap<>();
 
     private GeburahEncounterService() {
     }
@@ -151,8 +148,8 @@ public final class GeburahEncounterService implements CoreSuppressionEncounter {
                     }
                 }
             }
-            data.clear();
             restoreFrozenEmployees(server);
+            data.clear();
             GeburahBossBars.finish(server);
         } finally {
             cleanupInProgress = false;
@@ -209,6 +206,11 @@ public final class GeburahEncounterService implements CoreSuppressionEncounter {
         }
         GeburahBossBars.addPlayer(player, data);
         GeburahBleedSync.sync(player);
+    }
+
+    @Override
+    public void onServerStartup(MinecraftServer server, CoreSuppressionData suppression) {
+        reconcileServerState(server);
     }
 
     public GeburahEncounterData.DeathOutcome consumeParticipantDeath(ServerPlayer player) {
@@ -330,21 +332,26 @@ public final class GeburahEncounterService implements CoreSuppressionEncounter {
     }
 
     private void reconcileFrozenEmployees(MinecraftServer server) {
+        ServerLevel level = server.getLevel(ModDimensions.LOBOTO_KEY);
+        if (level == null) return;
+        GeburahEncounterData data = GeburahEncounterData.get(level);
         for (EmployeeServerPlayer employee : EmployeeRuntimeManager.activePlayers()) {
             if (employee.server != server || employee.isRemoved()) continue;
-            employeeInvulnerability.putIfAbsent(employee.getUUID(), employee.isInvulnerable());
+            data.recordEmployeeInvulnerability(employee.getUUID(), employee.isInvulnerable());
             employee.setInvulnerable(true);
             employee.clearNavigationInput();
         }
     }
 
     private void restoreFrozenEmployees(MinecraftServer server) {
+        ServerLevel level = server.getLevel(ModDimensions.LOBOTO_KEY);
+        if (level == null) return;
+        GeburahEncounterData data = GeburahEncounterData.get(level);
         for (EmployeeServerPlayer employee : EmployeeRuntimeManager.activePlayers()) {
             if (employee.server != server) continue;
-            Boolean original = employeeInvulnerability.remove(employee.getUUID());
+            Boolean original = data.getEmployeeInvulnerability(employee.getUUID());
             if (original != null) employee.setInvulnerable(original);
         }
-        employeeInvulnerability.clear();
     }
 
     private void teleportToValidSpawn(ServerPlayer player) {

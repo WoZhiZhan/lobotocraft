@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.core_suppression.geburah;
 
+import net.minecraft.nbt.CompoundTag;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
@@ -32,5 +33,22 @@ final class GeburahEncounterDataTest {
 
         assertEquals(GeburahEncounterData.DeathOutcome.SPECTATE, data.consumeDeath(player));
         assertEquals(0, data.getSharedLives());
+    }
+
+    @Test
+    void employeeInvulnerabilityStateSurvivesNbtRoundTrip() {
+        GeburahEncounterData data = new GeburahEncounterData();
+        UUID employeeWithInvulnerability = UUID.randomUUID();
+        UUID employeeWithoutInvulnerability = UUID.randomUUID();
+        data.start(UUID.randomUUID(), Set.of(UUID.randomUUID()));
+        data.recordEmployeeInvulnerability(employeeWithInvulnerability, true);
+        data.recordEmployeeInvulnerability(employeeWithoutInvulnerability, false);
+
+        GeburahEncounterData restored = GeburahEncounterData.load(data.save(new CompoundTag()));
+
+        assertEquals(Boolean.TRUE,
+                restored.getEmployeeInvulnerability(employeeWithInvulnerability));
+        assertEquals(Boolean.FALSE,
+                restored.getEmployeeInvulnerability(employeeWithoutInvulnerability));
     }
 }

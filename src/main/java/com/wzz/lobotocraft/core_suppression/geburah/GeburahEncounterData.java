@@ -7,7 +7,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -19,6 +21,7 @@ public final class GeburahEncounterData extends SavedData {
     private final Set<UUID> participants = new HashSet<>();
     private final Set<UUID> eliminated = new HashSet<>();
     private final Set<UUID> observers = new HashSet<>();
+    private final Map<UUID, Boolean> employeeInvulnerability = new HashMap<>();
     private int startingPlayerCount;
     private int sharedLives;
 
@@ -33,6 +36,7 @@ public final class GeburahEncounterData extends SavedData {
         this.participants.clear();
         this.eliminated.clear();
         this.observers.clear();
+        this.employeeInvulnerability.clear();
         if (participants != null) this.participants.addAll(participants);
         this.startingPlayerCount = this.participants.size();
         this.sharedLives = startingPlayerCount <= 5 ? 5 : 0;
@@ -42,12 +46,14 @@ public final class GeburahEncounterData extends SavedData {
     public void clear() {
         if (!active && entityUuid == null && participants.isEmpty() && eliminated.isEmpty()
                 && observers.isEmpty()
+                && employeeInvulnerability.isEmpty()
                 && startingPlayerCount == 0 && sharedLives == 0) return;
         active = false;
         entityUuid = null;
         participants.clear();
         eliminated.clear();
         observers.clear();
+        employeeInvulnerability.clear();
         startingPlayerCount = 0;
         sharedLives = 0;
         setDirty();
@@ -79,6 +85,16 @@ public final class GeburahEncounterData extends SavedData {
 
     public Set<UUID> observers() {
         return Collections.unmodifiableSet(observers);
+    }
+
+    public void recordEmployeeInvulnerability(UUID employeeUuid, boolean invulnerable) {
+        if (employeeUuid == null || employeeInvulnerability.containsKey(employeeUuid)) return;
+        employeeInvulnerability.put(employeeUuid, invulnerable);
+        setDirty();
+    }
+
+    public Boolean getEmployeeInvulnerability(UUID employeeUuid) {
+        return employeeUuid == null ? null : employeeInvulnerability.get(employeeUuid);
     }
 
     public void addObserver(UUID playerUuid) {
@@ -120,6 +136,7 @@ public final class GeburahEncounterData extends SavedData {
         tag.put("Participants", players);
         tag.put("Eliminated", saveUuidSet(eliminated));
         tag.put("Observers", saveUuidSet(observers));
+        tag.put("EmployeeInvulnerability", saveEmployeeInvulnerability());
         return tag;
     }
 
@@ -136,6 +153,8 @@ public final class GeburahEncounterData extends SavedData {
         }
         loadUuidSet(tag.getList("Eliminated", Tag.TAG_COMPOUND), data.eliminated);
         loadUuidSet(tag.getList("Observers", Tag.TAG_COMPOUND), data.observers);
+        data.loadEmployeeInvulnerability(
+                tag.getList("EmployeeInvulnerability", Tag.TAG_COMPOUND));
         return data;
     }
 
@@ -153,6 +172,27 @@ public final class GeburahEncounterData extends SavedData {
         for (int i = 0; i < values.size(); i++) {
             CompoundTag entry = values.getCompound(i);
             if (entry.hasUUID("Player")) target.add(entry.getUUID("Player"));
+        }
+    }
+
+    private ListTag saveEmployeeInvulnerability() {
+        ListTag result = new ListTag();
+        employeeInvulnerability.forEach((uuid, invulnerable) -> {
+            CompoundTag entry = new CompoundTag();
+            entry.putUUID("Employee", uuid);
+            entry.putBoolean("Invulnerable", invulnerable);
+            result.add(entry);
+        });
+        return result;
+    }
+
+    private void loadEmployeeInvulnerability(ListTag values) {
+        for (int i = 0; i < values.size(); i++) {
+            CompoundTag entry = values.getCompound(i);
+            if (entry.hasUUID("Employee")) {
+                employeeInvulnerability.put(entry.getUUID("Employee"),
+                        entry.getBoolean("Invulnerable"));
+            }
         }
     }
 

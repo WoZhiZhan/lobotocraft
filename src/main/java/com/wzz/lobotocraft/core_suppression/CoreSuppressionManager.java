@@ -60,6 +60,7 @@ import net.minecraftforge.event.entity.player.SleepingTimeCheckEvent;
 import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.fml.common.Mod;
 
 import java.util.Collections;
@@ -250,8 +251,7 @@ public final class CoreSuppressionManager {
         initializeMalkuthWorkState(server, state);
         reconcileHodEmployees(server, state);
         if (!CoreSuppressionEncounterRegistry.start(server, state)) {
-            CoreSuppressionEncounterRegistry.finish(server, type, false);
-            state.finish(false);
+            finishChallenge(server, false, "核心抑制遭遇初始化失败");
             player.sendSystemMessage(Component.translatable(
                     "message.lobotocraft.core_suppression.encounter_init_failed"));
             return false;
@@ -325,8 +325,7 @@ public final class CoreSuppressionManager {
         initializeMalkuthWorkState(server, state);
         reconcileHodEmployees(server, state);
         if (!CoreSuppressionEncounterRegistry.debugStart(server, state)) {
-            CoreSuppressionEncounterRegistry.finish(server, type, false);
-            state.finish(false);
+            finishChallenge(server, false, "核心抑制遭遇初始化失败");
             return failDebugStart(player, Component.translatable(
                     "message.lobotocraft.core_suppression.encounter_init_failed"));
         }
@@ -804,6 +803,20 @@ public final class CoreSuppressionManager {
             applyNetzachHealthBonus(player);
             reconcileHodState(player);
         }
+    }
+
+    @SubscribeEvent
+    public static void onServerStarted(ServerStartedEvent event) {
+        reconcileServerStartup(event.getServer());
+    }
+
+    public static void reconcileServerStartup(MinecraftServer server) {
+        CoreSuppressionData state = CoreSuppressionData.get(server.overworld());
+        if (state.isActive()) {
+            finishChallenge(server, false, "服务器重启导致核心抑制中断");
+        }
+        CoreSuppressionEncounterRegistry.onServerStartup(server,
+                CoreSuppressionData.get(server.overworld()));
     }
 
     public static void failChallenge(MinecraftServer server, String reason) {
