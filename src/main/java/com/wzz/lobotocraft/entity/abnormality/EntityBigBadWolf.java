@@ -80,6 +80,8 @@ public class EntityBigBadWolf extends AbstractAbnormality {
     private static final int DIMENSION_RETRY_INTERVAL = 10;
     static final int CLAW_ANIMATION_TICKS = 15;
     static final int BITE_ANIMATION_TICKS = 12;
+    static final int HOWL_START_ANIMATION_TICKS = 13;
+    static final int HOWL_END_ANIMATION_TICKS = 10;
     private static final int BASIC_ATTACK_HIT_TICKS = 8;
 
     private final List<UUID> swallowedPlayers = new ArrayList<>();
@@ -450,8 +452,9 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         return result;
     }
 
-    private void enterFog() {
+    void enterFog() {
         clearBasicAttackState(true);
+        clearHowlState(true);
         inFog = true;
         fogTimer = 8 * 20;
         lastFogHealth = this.getHealth();
@@ -701,13 +704,13 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         }
     }
 
-    private void beginHowl(ServerLevel level) {
+    void beginHowl(ServerLevel level) {
         howlPhase = 1;
-        howlTimer = 15;
+        howlTimer = HOWL_START_ANIMATION_TICKS;
         setAnimation("skill1");
     }
 
-    private void tickHowl(ServerLevel level) {
+    void tickHowl(ServerLevel level) {
         this.setDeltaMovement(0, getDeltaMovement().y, 0);
         howlTimer--;
         if (howlPhase == 1 && howlTimer <= 0) {
@@ -751,7 +754,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
             }
         } else if (howlPhase == 2 && howlTimer <= 0) {
             howlPhase = 3;
-            howlTimer = 15;
+            howlTimer = HOWL_END_ANIMATION_TICKS;
             setAnimation("skill2");
             // 嚎叫结束:额外 15-19 物理伤害
             for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class,
@@ -760,6 +763,16 @@ public class EntityBigBadWolf extends AbstractAbnormality {
             }
         } else if (howlPhase == 3 && howlTimer <= 0) {
             howlPhase = 0;
+            setAnimation("idle");
+        }
+    }
+
+    private void clearHowlState(boolean resetAnimation) {
+        howlTimer = 0;
+        howlPhase = 0;
+        if (resetAnimation && ("skill1".equals(getAnimation())
+                || "skill12".equals(getAnimation())
+                || "skill2".equals(getAnimation()))) {
             setAnimation("idle");
         }
     }

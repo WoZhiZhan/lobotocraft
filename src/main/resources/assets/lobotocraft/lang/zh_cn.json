@@ -372,6 +372,8 @@
   ,
   "entity.lobotocraft.lumberjack": "热心的樵夫",
   "item.lobotocraft.lumberjack_spawn_egg": "热心的樵夫 刷怪蛋",
+  "entity.lobotocraft.queen_of_hatred": "憎恶女王",
+  "item.lobotocraft.queen_of_hatred_spawn_egg": "憎恶女王 刷怪蛋",
   "entity.lobotocraft.censored": "数据删除",
   "entity.lobotocraft.censored_minion": "数据删除-1",
   "item.lobotocraft.censored_spawn_egg": "数据删除 刷怪蛋",
@@ -442,6 +444,9 @@
   "screen.lobotocraft.core_suppression_warning.choice.full": "长按开启完整效果",
   "screen.lobotocraft.core_suppression_warning.choice.safe": "长按安全模式",
   "screen.lobotocraft.core_suppression_warning.choice.color_only": "长按仅保留颜色",
+  "screen.lobotocraft.core_suppression_warning.choice.geburah_full": "完整",
+  "screen.lobotocraft.core_suppression_warning.choice.geburah_reduced": "降低",
+  "screen.lobotocraft.core_suppression_warning.choice.geburah_off": "关闭",
   "screen.lobotocraft.core_suppression_warning.hold": "持续按住 2 秒",
   "screen.lobotocraft.tool_use.title": "使用工具",
   "screen.lobotocraft.tool_use.confirmation": "§l工具使用确认",
@@ -817,6 +822,8 @@
   "message.lobotocraft.core_suppression.pending_exists": "§c已有核心抑制正在等待全员视觉安全确认。",
   "message.lobotocraft.core_suppression.awaiting_confirmation": "§e[核心抑制] 正在等待全员完成视觉安全确认，最多等待 %s 秒。",
   "message.lobotocraft.core_suppression.debug_awaiting_confirmation": "§e[核心抑制] 强制挑战正在等待全员视觉安全确认，最多等待 %s 秒。",
+  "message.lobotocraft.core_suppression.debug_start_failed": "§c[核心抑制] 调试启动失败：%s",
+  "overlay.lobotocraft.geburah.bleed": "流血 ×%s  %ss",
   "message.lobotocraft.core_suppression.daily_data_failed": "§c无法读取公司日程数据。",
   "message.lobotocraft.core_suppression.day_start_failed": "§c新一天无法开始，核心抑制已取消。",
   "message.lobotocraft.core_suppression.started": "§6[核心抑制] §f%s 开启了 %s 核心抑制。",
@@ -2562,4 +2569,18 @@
   "command.lobotocraft.test.auto_select.no_tool": "§e提示：手持结构保存工具才能自动圈选",
   "command.lobotocraft.test.auto_select.done": "§d已自动圈选结构：§f%s §d→ §f%s",
   "command.lobotocraft.test.unknown_rotation": "§c未知旋转：%s §7(none/clockwise_90/clockwise_180/counterclockwise_90)"
+  ,"entity.lobotocraft.geburah": "Geburah"
+  ,"bossbar.lobotocraft.geburah.health": "Geburah"
+  ,"bossbar.lobotocraft.geburah.posture": "架势"
+  ,"bossbar.lobotocraft.geburah.ego": "E.G.O 维持度"
+  ,"message.lobotocraft.core_suppression.geburah.denial.players_outside": "所有在线玩家必须位于设施维度"
+  ,"message.lobotocraft.core_suppression.encounter_init_failed": "核心抑制实体或安全生成点初始化失败"
+  ,"message.lobotocraft.core_suppression.geburah.revived": "已消耗一次共享复活机会，立即返回战斗。"
+  ,"message.lobotocraft.core_suppression.geburah.eliminated": "复活机会已耗尽，本次核心抑制期间转为旁观。"
+  ,"message.lobotocraft.core_suppression.geburah.special_attack_warning": "殷红迷雾即将使用 [%s]"
+  ,"attack.lobotocraft.geburah.blood_mist": "血雾弥漫"
+  ,"attack.lobotocraft.geburah.bodies_everywhere": "尸横遍野"
+  ,"attack.lobotocraft.geburah.will_of_battle": "陷阵之志"
+  ,"command.lobotocraft_client.damage_border.status": "伤害边框当前为：%s"
+  ,"command.lobotocraft_client.damage_border.set": "已将伤害边框设置为：%s"
 }

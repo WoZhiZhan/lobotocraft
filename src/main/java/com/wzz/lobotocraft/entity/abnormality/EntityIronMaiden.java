@@ -609,6 +609,14 @@ public class EntityIronMaiden extends AbstractAbnormality {
                 && player.getId() == usingPlayerEntityId;
     }
 
+    public boolean endUsageForOperatorDeath(ServerPlayer player) {
+        if (!isUsing(player)) return false;
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.abnormality.iron_maiden.operator_died"));
+        triggerEndAnimation();
+        return true;
+    }
+
     @Nullable
     private ServerPlayer resolveUsingPlayer() {
         if (!(this.level() instanceof ServerLevel serverLevel) || usingPlayerEntityId < 0) {

@@ -21,23 +21,32 @@ public final class CoreSuppressionOverlay {
     public static void render(RenderGuiOverlayEvent.Post event) {
         if (!event.getOverlay().id().equals(VanillaGuiOverlay.HOTBAR.id())) return;
         Minecraft minecraft = Minecraft.getInstance();
-        if (!CoreSuppressionClientState.isActive() || minecraft.player == null) return;
-        if (minecraft.screen == null) renderColorFilter(event.getGuiGraphics());
+        if (minecraft.player == null) return;
+        if (minecraft.screen == null) {
+            if (CoreSuppressionClientState.isActive()) renderAtmosphere(event.getGuiGraphics());
+            GeburahEffectCompositor.render(event.getGuiGraphics(), event.getPartialTick());
+        }
+        if (!CoreSuppressionClientState.isActive()) return;
         if (minecraft.options.hideGui || minecraft.options.renderDebug || minecraft.screen != null) return;
-        renderObjective(event.getGuiGraphics(), CoreSuppressionClientState.getType());
+        if (CoreSuppressionClientState.getType() != CoreSuppressionType.GEBURAH) {
+            renderObjective(event.getGuiGraphics(), CoreSuppressionClientState.getType());
+        } else {
+            renderGeburahStatuses(event.getGuiGraphics());
+        }
     }
 
     @SubscribeEvent
     public static void renderScreenFilter(ScreenEvent.Render.Post event) {
-        if (!CoreSuppressionClientState.isActive()
-                || !usesColorOnlyFilter()) return;
-        fillColorFilter(event.getGuiGraphics(), event.getGuiGraphics().guiWidth(),
-                event.getGuiGraphics().guiHeight());
+        if (CoreSuppressionClientState.isActive()) renderAtmosphere(event.getGuiGraphics());
+        GeburahEffectCompositor.render(event.getGuiGraphics(), event.getPartialTick());
     }
 
-    private static void renderColorFilter(GuiGraphics graphics) {
-        if (!usesColorOnlyFilter()) return;
-        fillColorFilter(graphics, graphics.guiWidth(), graphics.guiHeight());
+    private static void renderAtmosphere(GuiGraphics graphics) {
+        if (CoreSuppressionClientState.isActive(CoreSuppressionType.GEBURAH)) {
+            renderGeburahAtmosphere(graphics);
+        } else if (usesColorOnlyFilter()) {
+            fillColorFilter(graphics, graphics.guiWidth(), graphics.guiHeight());
+        }
     }
 
     private static boolean usesColorOnlyFilter() {
@@ -58,6 +67,93 @@ public final class CoreSuppressionOverlay {
             default -> 0x18000000;
         };
         graphics.fill(0, 0, width, height, color);
+    }
+
+    private static void renderGeburahAtmosphere(GuiGraphics graphics) {
+        if (GeburahEffectCompositor.mode() == GeburahEffectCompositor.Mode.OFF) return;
+        int width = graphics.guiWidth();
+        int height = graphics.guiHeight();
+        int stage = Math.max(0, CoreSuppressionClientState.getVisualStage());
+        float pulse = 0.5F + 0.5F * (float) Math.sin(
+                CoreSuppressionClientState.getEffectTime(0.0F) * 1.7F);
+        int baseAlpha = (CoreSuppressionClientState.usesFullVisualEffects() ? 46 : 30)
+                + stage * 8 + Math.round(pulse * 8.0F);
+
+        int layers = 12;
+        int cornerWidth = Math.max(72, width / 3);
+        int cornerHeight = Math.max(54, height / 3);
+        for (int i = 0; i < layers; i++) {
+            int inset = i * 3;
+            int alpha = Math.max(2, baseAlpha * (layers - i) / layers);
+            int color = argb(alpha, 150 + stage * 18, 8, 10);
+            int thickness = Math.max(1, 5 - i / 3);
+            int horizontal = Math.max(18, cornerWidth - inset * 2);
+            int vertical = Math.max(18, cornerHeight - inset * 2);
+
+            graphics.fill(inset, inset, inset + horizontal, inset + thickness, color);
+            graphics.fill(width - inset - horizontal, inset, width - inset, inset + thickness, color);
+            graphics.fill(inset, height - inset - thickness, inset + horizontal, height - inset, color);
+            graphics.fill(width - inset - horizontal, height - inset - thickness,
+                    width - inset, height - inset, color);
+
+            graphics.fill(inset, inset, inset + thickness, inset + vertical, color);
+            graphics.fill(width - inset - thickness, inset, width - inset, inset + vertical, color);
+            graphics.fill(inset, height - inset - vertical, inset + thickness, height - inset, color);
+            graphics.fill(width - inset - thickness, height - inset - vertical,
+                    width - inset, height - inset, color);
+        }
+
+        int panelAlpha = Math.min(150, baseAlpha + 36);
+        int panel = argb(panelAlpha, 70 + stage * 16, 3, 5);
+        int line = argb(Math.min(210, panelAlpha + 48), 220, 24, 28);
+        drawCornerPanels(graphics, width, height, panel, line);
+        GeburahEffectCompositor.renderPersistent(graphics);
+    }
+
+    private static void drawCornerPanels(GuiGraphics graphics, int width, int height,
+                                         int panelColor, int lineColor) {
+        int longBar = Math.max(46, Math.min(120, width / 7));
+        int shortBar = Math.max(26, longBar / 2);
+
+        graphics.fill(12, 12, 12 + longBar, 18, panelColor);
+        graphics.fill(12, 21, 12 + shortBar, 24, lineColor);
+        graphics.fill(18, 28, 22, 28 + shortBar, panelColor);
+
+        graphics.fill(width - 12 - longBar, 12, width - 12, 18, panelColor);
+        graphics.fill(width - 12 - shortBar, 21, width - 12, 24, lineColor);
+        graphics.fill(width - 22, 28, width - 18, 28 + shortBar, panelColor);
+
+        graphics.fill(12, height - 18, 12 + longBar, height - 12, panelColor);
+        graphics.fill(12, height - 24, 12 + shortBar, height - 21, lineColor);
+        graphics.fill(18, height - 28 - shortBar, 22, height - 28, panelColor);
+
+        graphics.fill(width - 12 - longBar, height - 18, width - 12, height - 12, panelColor);
+        graphics.fill(width - 12 - shortBar, height - 24, width - 12, height - 21, lineColor);
+        graphics.fill(width - 22, height - 28 - shortBar, width - 18, height - 28, panelColor);
+    }
+
+    private static int argb(int alpha, int red, int green, int blue) {
+        return (Math.max(0, Math.min(255, alpha)) << 24)
+                | (Math.max(0, Math.min(255, red)) << 16)
+                | (Math.max(0, Math.min(255, green)) << 8)
+                | Math.max(0, Math.min(255, blue));
+    }
+
+    private static void renderGeburahStatuses(GuiGraphics graphics) {
+        int stacks = GeburahStatusClientState.bleedStacks();
+        if (stacks <= 0) return;
+
+        Minecraft minecraft = Minecraft.getInstance();
+        float seconds = GeburahStatusClientState.bleedTicks() / 20.0F;
+        Component label = Component.translatable(
+                "overlay.lobotocraft.geburah.bleed", stacks, String.format("%.1f", seconds));
+        int width = Math.max(82, minecraft.font.width(label) + 20);
+        int x = graphics.guiWidth() - width - 8;
+        int y = graphics.guiHeight() - 48;
+        graphics.fill(x, y, x + width, y + 22, 0xC40A0708);
+        graphics.fill(x, y, x + 4, y + 22, 0xFFE32A31);
+        graphics.fill(x + 8, y + 5, x + 13, y + 17, 0xFFC20F1B);
+        graphics.drawString(minecraft.font, label, x + 17, y + 7, 0xFFFFD8D8, false);
     }
 
     private static void renderObjective(GuiGraphics graphics, CoreSuppressionType type) {

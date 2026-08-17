@@ -1056,9 +1056,10 @@ public class EntityIsharmla extends AbstractAbnormality {
     @Override
     public void die(DamageSource source) {
         // 只有人形态血量耗尽才真正死亡
+        net.minecraft.world.entity.Entity directKiller = source.getEntity();
         net.minecraft.world.entity.LivingEntity killCredit = getKillCredit();
         ServerPlayer suppressionPlayer = null;
-        if (source.getEntity() instanceof ServerPlayer directPlayer) {
+        if (directKiller instanceof ServerPlayer directPlayer) {
             suppressionPlayer = directPlayer;
         } else if (killCredit instanceof ServerPlayer creditedPlayer) {
             suppressionPlayer = creditedPlayer;
@@ -1068,7 +1069,9 @@ public class EntityIsharmla extends AbstractAbnormality {
         }
         super.die(source);
 
-        if (level() instanceof ServerLevel serverLevel) {
+        if (level() instanceof ServerLevel serverLevel
+                && com.wzz.lobotocraft.ego.SuppressionRewardPolicy.shouldGrant(
+                directKiller, killCredit)) {
             com.wzz.lobotocraft.ego.MustOpenPathRewardService.grantNormalSuppression(
                     serverLevel.getServer(), suppressionPlayer);
         }

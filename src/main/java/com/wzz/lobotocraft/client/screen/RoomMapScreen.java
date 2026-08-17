@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.client.performance.ClientPerformanceMonitor;
 import com.wzz.lobotocraft.client.core.CoreSuppressionClientState;
 import com.wzz.lobotocraft.client.room.FacilityLayoutTemplate;
 import com.wzz.lobotocraft.client.room.FacilityMonitorVisibility;
+import com.wzz.lobotocraft.client.room.RoomMapViewport;
 import com.wzz.lobotocraft.client.room.RoomMapViewState;
 import com.wzz.lobotocraft.client.room.RoomViewClient;
 import com.wzz.lobotocraft.client.ui.LobotomyUiTheme;
@@ -123,6 +124,12 @@ public class RoomMapScreen extends Screen {
     private static final int TAB_H = FLOOR_LABEL_H;
     private static final int TAB_GAP = 0;
     private static final int TAB_TOP = HEADER_H;
+    private static final int FOOTER_H = 18;
+    private static final int MINIMAP_SIZE = 132;
+    private static final int MINIMAP_MIN_SIZE = 72;
+    private static final int MINIMAP_MARGIN = 8;
+    private static final int MINIMAP_INSET = 5;
+    private static final double VIEWPORT_EDGE_PADDING = 10.0D;
 
     /** 没有楼层标记方块时，自动分层用的 Y 容差 */
     private static final int AUTO_FLOOR_TOLERANCE = 6;
@@ -326,6 +333,17 @@ public class RoomMapScreen extends Screen {
 
         boolean contains(double x, double y) {
             return x >= left && x < right && y >= top && y < bottom;
+        }
+
+        boolean intersects(ScreenBounds other) {
+            return left < other.right && right > other.left
+                    && top < other.bottom && bottom > other.top;
+        }
+
+        int intersectionArea(ScreenBounds other) {
+            int overlapWidth = Math.max(0, Math.min(right, other.right) - Math.max(left, other.left));
+            int overlapHeight = Math.max(0, Math.min(bottom, other.bottom) - Math.max(top, other.top));
+            return overlapWidth * overlapHeight;
         }
     }
 
@@ -605,7 +623,8 @@ public class RoomMapScreen extends Screen {
             computeCenter();
             panX = saved[0];
             panY = saved[1];
-            zoom = saved[2];
+            zoom = Mth.clamp(saved[2], 0.45D, 4.0D);
+            clampViewToFacility();
             return;
         }
         fitToView();
@@ -620,18 +639,21 @@ public class RoomMapScreen extends Screen {
         if (floors.isEmpty()) return;
 
         computeCenter();
-        double spanX = Math.max(CARD_W, layoutMaxX - layoutMinX + CARD_W);
-        double spanY = Math.max(CARD_H, layoutMaxY - layoutMinY + 24.0D);
+        RoomMapViewport.Bounds content = monitorContentBounds();
+        double spanX = Math.max(CARD_W, content.width() + CARD_W * 0.25D);
+        double spanY = Math.max(CARD_H, content.height() + 24.0D);
         double usableW = Math.max(120.0D, this.width - mapLeft() - 30.0D);
-        double usableH = Math.max(120.0D, this.height - HEADER_H - 36.0D);
+        double usableH = Math.max(120.0D, this.height - HEADER_H - FOOTER_H - 18.0D);
 
         this.zoom = Mth.clamp(Math.min(usableW / spanX, usableH / spanY), 0.45D, 1.35D);
         this.panX = 0;
         this.panY = 0;
+        clampViewToFacility();
         saveCurrentView();
     }
 
     private void saveCurrentView() {
+        clampViewToFacility();
         RoomMapViewState.setFloorView(OVERVIEW_VIEW_KEY, panX, panY, zoom);
     }
 
@@ -639,6 +661,7 @@ public class RoomMapScreen extends Screen {
         computeCenter();
         panX = 0.0D;
         panY = -(floor.layoutCenter - centerWorldZ) * zoom;
+        clampViewToFacility();
         saveCurrentView();
     }
 
@@ -682,6 +705,7 @@ public class RoomMapScreen extends Screen {
         if (layoutChanged) {
             buildFloors();
             computeCenter();
+            clampViewToFacility();
             selectedRoom = null;
             if (selectedKey != null) {
                 for (RoomEntry room : rooms) {
@@ -1019,6 +1043,61 @@ public class RoomMapScreen extends Screen {
         return HEADER_H + (this.height - HEADER_H) / 2.0D;
     }
 
+    private RoomMapViewport.Bounds monitorContentBounds() {
+        double minX = Double.POSITIVE_INFINITY;
+        double minY = Double.POSITIVE_INFINITY;
+        double maxX = Double.NEGATIVE_INFINITY;
+        double maxY = Double.NEGATIVE_INFINITY;
+
+        for (FacilityLayoutTemplate.Area area : facilityLayout.allAreas()) {
+            if (!facilityVisibility.isVisible(area)) continue;
+            FacilityLayoutTemplate.Bounds bounds = area.bounds();
+            minX = Math.min(minX, templateWorldX(bounds.minX()));
+            minY = Math.min(minY, templateWorldY(bounds.minY()));
+            maxX = Math.max(maxX, templateWorldX(bounds.maxX()));
+            maxY = Math.max(maxY, templateWorldY(bounds.maxY()));
+        }
+
+        for (RoomEntry room : rooms) {
+            if (roomAreaIds.containsKey(room.key())) continue;
+            LayoutPoint point = roomLayout.get(room.key());
+            if (point == null) continue;
+            minX = Math.min(minX, point.x() - CARD_W * 0.5D);
+            minY = Math.min(minY, point.y() - CARD_H * 0.5D);
+            maxX = Math.max(maxX, point.x() + CARD_W * 0.5D);
+            maxY = Math.max(maxY, point.y() + CARD_H * 0.5D);
+        }
+
+        if (!Double.isFinite(minX) || !Double.isFinite(minY)
+                || !Double.isFinite(maxX) || !Double.isFinite(maxY)
+                || maxX <= minX || maxY <= minY) {
+            return new RoomMapViewport.Bounds(layoutMinX, layoutMinY, layoutMaxX, layoutMaxY);
+        }
+        return new RoomMapViewport.Bounds(minX, minY, maxX, maxY);
+    }
+
+    private RoomMapViewport.Bounds mapViewportBounds() {
+        return new RoomMapViewport.Bounds(mapLeft(), HEADER_H + 1.0D,
+                Math.max(mapLeft() + 1.0D, this.width),
+                Math.max(HEADER_H + 2.0D, this.height - FOOTER_H));
+    }
+
+    private RoomMapViewport.Projection mapProjection() {
+        return new RoomMapViewport.Projection(centerWorldX, centerWorldZ,
+                mapCenterX(), mapCenterY(), zoom);
+    }
+
+    private void clampViewToFacility() {
+        if (zoom <= 0.0D || this.width <= mapLeft() || this.height <= HEADER_H + FOOTER_H + 1) {
+            return;
+        }
+        RoomMapViewport.Pan clamped = RoomMapViewport.clampPan(
+                monitorContentBounds(), mapViewportBounds(), mapProjection(),
+                new RoomMapViewport.Pan(panX, panY), VIEWPORT_EDGE_PADDING);
+        panX = clamped.x();
+        panY = clamped.y();
+    }
+
     private double worldToScreenX(double worldX) {
         return (worldX - centerWorldX) * zoom + mapCenterX() + panX;
     }
@@ -1131,17 +1210,20 @@ public class RoomMapScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         float alpha = Mth.clamp((Util.getMillis() - openedAt) / 260.0F, 0F, 1F);
+        ScreenBounds minimap = miniMapBounds();
 
         graphics.fill(0, 0, this.width, this.height, withAlpha(COLOR_BG, alpha));
-        graphics.enableScissor(mapLeft(), HEADER_H + 1, this.width, this.height - 18);
-        this.hoveredFacilityArea = hitFacilityArea(mouseX, mouseY).orElse(null);
+        graphics.enableScissor(mapLeft(), HEADER_H + 1, this.width, this.height - FOOTER_H);
+        this.hoveredFacilityArea = minimap.contains(mouseX, mouseY)
+                ? null : hitFacilityArea(mouseX, mouseY).orElse(null);
         renderFacilityTemplate(graphics, alpha);
         renderMoveCommandPulse(graphics, alpha);
 
         List<RoomEntry> visible = visibleRooms();
 
         this.hovered = null;
-        boolean pointerOnDetails = pointerOnCommandWindow(mouseX, mouseY);
+        boolean pointerOnDetails = pointerOnCommandWindow(mouseX, mouseY)
+                || minimap.contains(mouseX, mouseY);
         if (mouseX >= mapLeft() && mouseY >= HEADER_H && !pointerOnDetails) {
             for (RoomEntry entry : visible) {
                 if (roomScreenBounds(entry).contains(mouseX, mouseY)) {
@@ -1161,6 +1243,7 @@ public class RoomMapScreen extends Screen {
         renderEmployeeMarkers(graphics, mouseX, mouseY, alpha);
         if (selectingEmployees) renderEmployeeSelectionBox(graphics, alpha);
         graphics.disableScissor();
+        renderFacilityOverview(graphics, minimap, alpha);
 
         if (showTabs()) {
             renderFloorGutter(graphics, mouseX, mouseY, alpha);
@@ -1922,6 +2005,113 @@ public class RoomMapScreen extends Screen {
             }
         }
         return true;
+    }
+
+    private ScreenBounds miniMapBounds() {
+        int availableWidth = this.width - mapLeft() - MINIMAP_MARGIN * 2;
+        int availableHeight = this.height - HEADER_H - FOOTER_H - MINIMAP_MARGIN * 2;
+        int size = Math.min(MINIMAP_SIZE, Math.min(availableWidth, availableHeight));
+        if (size < MINIMAP_MIN_SIZE) return new ScreenBounds(0, 0, 0, 0);
+
+        int top = this.height - FOOTER_H - MINIMAP_MARGIN - size;
+        ScreenBounds left = new ScreenBounds(mapLeft() + MINIMAP_MARGIN, top,
+                mapLeft() + MINIMAP_MARGIN + size, top + size);
+        if (selectedRoom == null) return left;
+
+        ScreenBounds right = new ScreenBounds(this.width - MINIMAP_MARGIN - size, top,
+                this.width - MINIMAP_MARGIN, top + size);
+        ScreenBounds command = commandOverlayBounds();
+        if (!left.intersects(command)) return left;
+        if (!right.intersects(command)) return right;
+        return left.intersectionArea(command) <= right.intersectionArea(command) ? left : right;
+    }
+
+    private ScreenBounds commandOverlayBounds() {
+        ScreenBounds details = detailsBounds();
+        if (selectedWork < 0 || candidatePanelProgress() <= 0.05F) return details;
+        ScreenBounds candidate = candidateBounds();
+        return new ScreenBounds(Math.min(details.left(), candidate.left()),
+                Math.min(details.top(), candidate.top()),
+                Math.max(details.right(), candidate.right()),
+                Math.max(details.bottom(), candidate.bottom()));
+    }
+
+    private void renderFacilityOverview(GuiGraphics graphics, ScreenBounds panel, float alpha) {
+        if (panel.width() < MINIMAP_MIN_SIZE || panel.height() < MINIMAP_MIN_SIZE) return;
+
+        graphics.fill(panel.left(), panel.top(), panel.right(), panel.bottom(),
+                withAlpha(0xF20A1018, alpha));
+        drawBorder(graphics, panel.left(), panel.top(), panel.width(), panel.height(),
+                withAlpha(LobotomyUiTheme.LINE_BRIGHT, alpha * 0.92F));
+        graphics.fill(panel.left() + 2, panel.top() + 2, panel.right() - 2, panel.bottom() - 2,
+                withAlpha(0xFF111923, alpha * 0.96F));
+
+        ScreenBounds inner = new ScreenBounds(panel.left() + MINIMAP_INSET,
+                panel.top() + MINIMAP_INSET, panel.right() - MINIMAP_INSET,
+                panel.bottom() - MINIMAP_INSET);
+        RoomMapViewport.Bounds content = monitorContentBounds();
+        double scale = Math.min(inner.width() / content.width(), inner.height() / content.height());
+        double drawLeft = inner.left() + (inner.width() - content.width() * scale) * 0.5D;
+        double drawTop = inner.top() + (inner.height() - content.height() * scale) * 0.5D;
+
+        for (FacilityLayoutTemplate.Area area : facilityLayout.allAreas()) {
+            if (!facilityVisibility.isVisible(area)) continue;
+            FacilityLayoutTemplate.Bounds bounds = area.bounds();
+            int left = overviewX(templateWorldX(bounds.minX()), content, drawLeft, scale);
+            int top = overviewY(templateWorldY(bounds.minY()), content, drawTop, scale);
+            int right = Math.max(left + 1,
+                    overviewX(templateWorldX(bounds.maxX()), content, drawLeft, scale));
+            int bottom = Math.max(top + 1,
+                    overviewY(templateWorldY(bounds.maxY()), content, drawTop, scale));
+            int color = dangerousAreaIds.contains(area.areaId())
+                    ? LobotomyUiTheme.ALERT_RED
+                    : LobotomyUiTheme.departmentColor(area.departmentId());
+            float areaAlpha = switch (area.role()) {
+                case DEPARTMENT_BACKGROUND -> 0.16F;
+                case CORRIDOR, ELEVATOR_SHAFT -> 0.48F;
+                default -> 0.72F;
+            };
+            graphics.fill(left, top, right, bottom, withAlpha(color, alpha * areaAlpha));
+        }
+
+        for (RoomEntry room : rooms) {
+            if (roomAreaIds.containsKey(room.key())) continue;
+            LayoutPoint point = roomLayout.get(room.key());
+            if (point == null) continue;
+            int left = overviewX(point.x() - CARD_W * 0.5D, content, drawLeft, scale);
+            int top = overviewY(point.y() - CARD_H * 0.5D, content, drawTop, scale);
+            int right = Math.max(left + 1,
+                    overviewX(point.x() + CARD_W * 0.5D, content, drawLeft, scale));
+            int bottom = Math.max(top + 1,
+                    overviewY(point.y() + CARD_H * 0.5D, content, drawTop, scale));
+            graphics.fill(left, top, right, bottom,
+                    withAlpha(roomDepartmentColor(room), alpha * 0.76F));
+        }
+
+        RoomMapViewport.Bounds visible = RoomMapViewport.visibleWorldBounds(
+                mapViewportBounds(), mapProjection(), new RoomMapViewport.Pan(panX, panY));
+        int viewLeft = Mth.clamp(overviewX(visible.minX(), content, drawLeft, scale),
+                inner.left(), inner.right() - 1);
+        int viewTop = Mth.clamp(overviewY(visible.minY(), content, drawTop, scale),
+                inner.top(), inner.bottom() - 1);
+        int viewRight = Mth.clamp(overviewX(visible.maxX(), content, drawLeft, scale),
+                viewLeft + 1, inner.right());
+        int viewBottom = Mth.clamp(overviewY(visible.maxY(), content, drawTop, scale),
+                viewTop + 1, inner.bottom());
+        graphics.fill(viewLeft, viewTop, viewRight, viewBottom,
+                withAlpha(0xFFDCEBFA, alpha * 0.09F));
+        drawBorder(graphics, viewLeft, viewTop, viewRight - viewLeft, viewBottom - viewTop,
+                withAlpha(0xFFEAF6FF, alpha));
+    }
+
+    private static int overviewX(double worldX, RoomMapViewport.Bounds content,
+                                 double drawLeft, double scale) {
+        return (int) Math.round(drawLeft + (worldX - content.minX()) * scale);
+    }
+
+    private static int overviewY(double worldY, RoomMapViewport.Bounds content,
+                                 double drawTop, double scale) {
+        return (int) Math.round(drawTop + (worldY - content.minY()) * scale);
     }
 
     private void renderFacilityTemplate(GuiGraphics graphics, float alpha) {
@@ -2917,6 +3107,10 @@ public class RoomMapScreen extends Screen {
             playUiSound(globalTt2Enabled ? 0.95F : 1.15F);
             return true;
         }
+        if (miniMapBounds().contains(mouseX, mouseY)
+                && !pointerOnCommandWindow(mouseX, mouseY)) {
+            return true;
+        }
         if (button == 2) {
             cameraPanButton = button;
             return true;
@@ -3130,6 +3324,7 @@ public class RoomMapScreen extends Screen {
             }
             panX += dragX;
             panY += dragY;
+            clampViewToFacility();
             return true;
         }
         return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
@@ -3232,6 +3427,7 @@ public class RoomMapScreen extends Screen {
             return true;
         }
         if (selectedRoom != null && detailsBounds().contains(mouseX, mouseY)) return true;
+        if (miniMapBounds().contains(mouseX, mouseY)) return true;
 
         double worldX = screenToWorldX(mouseX);
         double worldZ = screenToWorldZ(mouseY);
@@ -3240,6 +3436,7 @@ public class RoomMapScreen extends Screen {
 
         panX += mouseX - worldToScreenX(worldX);
         panY += mouseY - worldToScreenY(worldZ);
+        clampViewToFacility();
         saveCurrentView();
         return true;
     }

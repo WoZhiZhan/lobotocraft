@@ -55,4 +55,14 @@ class FacilityDayMeltdownIdentityTest {
         assertEquals(MeltdownCause.APOCALYPSE_BIRD_EGG, meltdown.cause());
         assertTrue(MeltdownLifecycle.survivesWithoutSuppression(meltdown));
     }
+
+    @Test
+    void qliphothOverloadSurvivesWithoutCoreSuppression() {
+        UUID target = UUID.randomUUID();
+        FacilityDayData data = new FacilityDayData();
+        data.addMeltdown(target, 1200L, 3, "O-03-03", MeltdownCause.QLIPHOTH_OVERLOAD);
+
+        assertTrue(MeltdownLifecycle.survivesWithoutSuppression(
+            data.getActiveMeltdowns().get(target)));
+    }
 }

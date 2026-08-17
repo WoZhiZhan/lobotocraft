@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.util;
 
+import com.wzz.lobotocraft.entity.EntityGeburah;
 import com.wzz.lobotocraft.entity.abnormality.EntityCleaner;
 import com.wzz.lobotocraft.entity.abnormality.EntityLeticiaFriend;
 import com.wzz.lobotocraft.entity.abnormality.EntityWorkerBee;
@@ -26,8 +27,13 @@ public final class AbnormalityCombatUtil {
     }
 
     public static boolean isAbnormalitySuppressor(Entity entity) {
-        return entity instanceof EntityLeticiaFriend
-                || entity instanceof EntityWorkerBee
-                || entity instanceof EntityCleaner;
+        return entity != null && isAbnormalitySuppressorType(entity.getClass());
+    }
+
+    static boolean isAbnormalitySuppressorType(Class<? extends Entity> entityType) {
+        return EntityLeticiaFriend.class.isAssignableFrom(entityType)
+                || EntityWorkerBee.class.isAssignableFrom(entityType)
+                || EntityCleaner.class.isAssignableFrom(entityType)
+                || EntityGeburah.class.isAssignableFrom(entityType);
     }
 }

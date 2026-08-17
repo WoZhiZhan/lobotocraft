@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.command;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.BoolArgumentType;
+import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.wzz.lobotocraft.block.entity.ElevatorBlockEntity;
@@ -13,6 +14,8 @@ import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionData;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
+import com.wzz.lobotocraft.core_suppression.geburah.GeburahEncounterService;
+import com.wzz.lobotocraft.core_suppression.geburah.GeburahPhase;
 import com.wzz.lobotocraft.employee.DepartmentProgressData;
 import com.wzz.lobotocraft.employee.EmployeeDepartment;
 import com.wzz.lobotocraft.employee.EmployeeRecord;
@@ -21,10 +24,12 @@ import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
 import com.wzz.lobotocraft.employee.EmployeeTaskType;
 import com.wzz.lobotocraft.employee.FacilityPersonnelData;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.EntityGeburah;
 import com.wzz.lobotocraft.ego.AiEgoRepositoryData;
 import com.wzz.lobotocraft.ego.EgoLoadoutService;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.item.ego.base.IEgoLevelItem;
+import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.SuppressorCountSyncPacket;
 import com.wzz.lobotocraft.util.SuppressorCounterUtil;
@@ -51,6 +56,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.Comparator;
 import java.util.Locale;
@@ -62,6 +68,7 @@ import java.util.UUID;
  * the preferred entry point for reproducing and reporting bugs.
  */
 public final class DebugCommand implements ICommand {
+    private static final String GEBURAH_TRAIL_TEST_TAG = "lobotocraft.geburah_trail_test";
     @Override
     public String getName() {
         return "debug";
@@ -351,7 +358,67 @@ public final class DebugCommand implements ICommand {
                 .then(Commands.literal("end")
                         .then(Commands.argument("success", BoolArgumentType.bool())
                                 .executes(context -> suppressionEnd(context.getSource(),
-                                        BoolArgumentType.getBool(context, "success")))));
+                                        BoolArgumentType.getBool(context, "success")))))
+                .then(geburahSuppressionTree());
+    }
+
+    private LiteralArgumentBuilder<CommandSourceStack> geburahSuppressionTree() {
+        return Commands.literal("geburah")
+                .then(Commands.literal("status")
+                        .executes(context -> geburahStatus(context.getSource())))
+                .then(Commands.literal("damage")
+                        .then(Commands.argument("amount", FloatArgumentType.floatArg(0.01F))
+                                .executes(context -> geburahDamage(context.getSource(),
+                                        FloatArgumentType.getFloat(context, "amount")))))
+                .then(Commands.literal("trail")
+                        .then(Commands.literal("play")
+                                .then(Commands.argument("animation", StringArgumentType.word())
+                                        .then(Commands.argument("yaw", FloatArgumentType.floatArg(-180.0F, 180.0F))
+                                                .executes(context -> geburahTrailPlay(context.getSource(),
+                                                        StringArgumentType.getString(context, "animation"),
+                                                        FloatArgumentType.getFloat(context, "yaw"), 0.12F))
+                                                .then(Commands.argument("speed", FloatArgumentType.floatArg(0.05F, 2.0F))
+                                                        .executes(context -> geburahTrailPlay(context.getSource(),
+                                                                StringArgumentType.getString(context, "animation"),
+                                                                FloatArgumentType.getFloat(context, "yaw"),
+                                                                FloatArgumentType.getFloat(context, "speed")))))))
+                        .then(Commands.literal("clear")
+                                .executes(context -> geburahTrailClear(context.getSource()))))
+                .then(Commands.literal("set")
+                        .then(Commands.literal("health")
+                                .then(Commands.argument("value", FloatArgumentType.floatArg(0.0F))
+                                        .executes(context -> geburahSetFloat(context.getSource(), "health",
+                                                FloatArgumentType.getFloat(context, "value")))))
+                        .then(Commands.literal("posture")
+                                .then(Commands.argument("value", FloatArgumentType.floatArg(0.0F, 100.0F))
+                                        .executes(context -> geburahSetFloat(context.getSource(), "posture",
+                                                FloatArgumentType.getFloat(context, "value")))))
+                        .then(Commands.literal("ego")
+                                .then(Commands.argument("value", FloatArgumentType.floatArg(0.0F, 100.0F))
+                                        .executes(context -> geburahSetFloat(context.getSource(), "ego",
+                                                FloatArgumentType.getFloat(context, "value")))))
+                        .then(Commands.literal("phase")
+                                .then(Commands.argument("value", StringArgumentType.word())
+                                        .executes(context -> geburahSetPhase(context.getSource(),
+                                                StringArgumentType.getString(context, "value")))))
+                        .then(Commands.literal("ego_cooldown")
+                                .then(Commands.argument("ticks", IntegerArgumentType.integer(0))
+                                        .executes(context -> geburahSetInteger(context.getSource(),
+                                                "ego_cooldown", IntegerArgumentType.getInteger(context, "ticks")))))
+                        .then(Commands.literal("combo_depth")
+                                .then(Commands.argument("value", IntegerArgumentType.integer(0, 6))
+                                        .executes(context -> geburahSetInteger(context.getSource(),
+                                                "combo_depth", IntegerArgumentType.getInteger(context, "value")))))
+                        .then(Commands.literal("kill_bonus")
+                                .then(Commands.argument("value", IntegerArgumentType.integer(0, 5))
+                                        .executes(context -> geburahSetInteger(context.getSource(),
+                                                "kill_bonus", IntegerArgumentType.getInteger(context, "value")))))
+                        .then(Commands.literal("cooldown")
+                                .then(Commands.argument("move", StringArgumentType.word())
+                                        .then(Commands.argument("ticks", IntegerArgumentType.integer(0))
+                                                .executes(context -> geburahSetCooldown(context.getSource(),
+                                                        StringArgumentType.getString(context, "move"),
+                                                        IntegerArgumentType.getInteger(context, "ticks")))))));
     }
 
     private LiteralArgumentBuilder<CommandSourceStack> departmentTree() {
@@ -1128,6 +1195,169 @@ public final class DebugCommand implements ICommand {
         }
         source.sendSuccess(() -> Component.literal("§a核心抑制已按调试结果结束：" + (success ? "完成" : "失败")), true);
         return 1;
+    }
+
+    private int geburahStatus(CommandSourceStack source) {
+        EntityGeburah geburah = activeGeburah(source);
+        if (geburah == null) return 0;
+        var state = geburah.combatState();
+        var target = geburah.getTarget();
+        source.sendSuccess(() -> Component.literal("§cGeburah §fphase=" + state.phase()
+                + " uuid=" + geburah.getUUID()
+                + " pos=" + String.format(java.util.Locale.ROOT, "%.1f,%.1f,%.1f",
+                geburah.getX(), geburah.getY(), geburah.getZ())
+                + " target=" + (target == null ? "none" : target.getUUID())
+                + " health=" + state.health() + "/" + state.maxHealth()
+                + " posture=" + state.posture()
+                + " postureWindow=" + state.postureDamageInWindow()
+                + " ego=" + state.ego()
+                + " egoCooldown=" + state.egoExhaustionTicks()
+                + " egoKillBonus=" + geburah.debugEgoKillBonus()
+                + " action=" + geburah.debugAction()
+                + " comboDepth=" + geburah.debugComboDepth()
+                + " willCooldown=" + geburah.debugCooldown("willofbattle")
+                + " egoWillCooldown=" + geburah.debugCooldown("ego_willofbattle")
+                + " bloodMistCooldown=" + geburah.debugCooldown("bloodmist")
+                + " egoBloodMistCooldown=" + geburah.debugCooldown("egobloodmist")
+                + " bodiesCooldown=" + geburah.debugCooldown("bodieseverywhere")), false);
+        return 1;
+    }
+
+    private int geburahDamage(CommandSourceStack source, float amount) {
+        EntityGeburah geburah = activeGeburah(source);
+        if (geburah == null) return 0;
+        if (!geburah.applyDebugDamage(amount)) {
+            source.sendFailure(Component.literal("§c调试伤害未能进入 Geburah 伤害流程。"));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("§a已通过真实伤害入口施加 " + amount + " 点伤害。"), true);
+        return 1;
+    }
+
+    private int geburahTrailPlay(CommandSourceStack source, String animation,
+                                 float yaw, float speed) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.literal("This debug command requires a player."));
+            return 0;
+        }
+        if (!EntityGeburah.isDebugTrailAnimation(animation)) {
+            source.sendFailure(Component.literal("Unknown trail animation: " + animation));
+            return 0;
+        }
+        ServerLevel level = player.serverLevel();
+        EntityGeburah geburah = findTrailTestEntity(level, player);
+        if (geburah == null) {
+            geburah = ModEntities.geburah.get().create(level);
+            if (geburah == null) {
+                source.sendFailure(Component.literal("Unable to create Geburah test entity."));
+                return 0;
+            }
+            geburah.addTag(GEBURAH_TRAIL_TEST_TAG);
+            level.addFreshEntity(geburah);
+        }
+        Vec3 look = player.getLookAngle().multiply(1.0D, 0.0D, 1.0D);
+        if (look.lengthSqr() < 1.0E-6D) look = new Vec3(0.0D, 0.0D, 1.0D);
+        Vec3 position = player.position().add(look.normalize().scale(5.0D));
+        geburah.moveTo(position.x, player.getY(), position.z, yaw, 0.0F);
+        geburah.debugPlayTrailAnimation(animation, yaw, speed);
+        source.sendSuccess(() -> Component.literal("Geburah trail test: animation="
+                + animation + " yaw=" + yaw + " speed=" + speed), false);
+        return 1;
+    }
+
+    private int geburahTrailClear(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.literal("This debug command requires a player."));
+            return 0;
+        }
+        ServerLevel level = player.serverLevel();
+        int removed = 0;
+        for (EntityGeburah geburah : level.getEntitiesOfClass(EntityGeburah.class,
+                player.getBoundingBox().inflate(256.0D),
+                entity -> entity.getTags().contains(GEBURAH_TRAIL_TEST_TAG))) {
+            geburah.debugClearTrailAnimation();
+            geburah.discard();
+            removed++;
+        }
+        int count = removed;
+        source.sendSuccess(() -> Component.literal("Removed " + count
+                + " Geburah trail test entities."), false);
+        return removed > 0 ? 1 : 0;
+    }
+
+    private EntityGeburah findTrailTestEntity(ServerLevel level, ServerPlayer player) {
+        return level.getEntitiesOfClass(EntityGeburah.class,
+                        player.getBoundingBox().inflate(256.0D),
+                        entity -> entity.getTags().contains(GEBURAH_TRAIL_TEST_TAG))
+                .stream().min(Comparator.comparingDouble(player::distanceToSqr)).orElse(null);
+    }
+
+    private int geburahSetFloat(CommandSourceStack source, String field, float value) {
+        EntityGeburah geburah = activeGeburah(source);
+        if (geburah == null) return 0;
+        switch (field) {
+            case "health" -> geburah.debugSetHealth(value);
+            case "posture" -> geburah.debugSetPosture(value);
+            case "ego" -> geburah.debugSetEgo(value);
+            default -> {
+                return 0;
+            }
+        }
+        source.sendSuccess(() -> Component.literal("§a已设置 Geburah " + field + "=" + value), true);
+        return 1;
+    }
+
+    private int geburahSetPhase(CommandSourceStack source, String value) {
+        EntityGeburah geburah = activeGeburah(source);
+        if (geburah == null) return 0;
+        GeburahPhase phase;
+        try {
+            phase = GeburahPhase.valueOf(value.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            source.sendFailure(Component.literal("§c阶段必须是 normal、ego 或 exhausted。"));
+            return 0;
+        }
+        if (phase == GeburahPhase.DEFEATED) {
+            source.sendFailure(Component.literal("§c请使用 damage 测试最终击败流程。"));
+            return 0;
+        }
+        geburah.debugSetPhase(phase);
+        source.sendSuccess(() -> Component.literal("§a已设置 Geburah phase=" + phase), true);
+        return 1;
+    }
+
+    private int geburahSetInteger(CommandSourceStack source, String field, int value) {
+        EntityGeburah geburah = activeGeburah(source);
+        if (geburah == null) return 0;
+        if ("ego_cooldown".equals(field)) {
+            geburah.debugSetEgoCooldown(value);
+        } else if ("combo_depth".equals(field)) {
+            geburah.debugSetComboDepth(value);
+        } else if ("kill_bonus".equals(field)) {
+            geburah.debugSetEgoKillBonus(value);
+        } else {
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("§a已设置 Geburah " + field + "=" + value), true);
+        return 1;
+    }
+
+    private int geburahSetCooldown(CommandSourceStack source, String move, int ticks) {
+        EntityGeburah geburah = activeGeburah(source);
+        if (geburah == null) return 0;
+        geburah.debugSetCooldown(move, ticks);
+        source.sendSuccess(() -> Component.literal("§a已设置 Geburah cooldown " + move + "=" + ticks), true);
+        return 1;
+    }
+
+    private EntityGeburah activeGeburah(CommandSourceStack source) {
+        EntityGeburah geburah = GeburahEncounterService.INSTANCE.getActiveEntity(source.getServer());
+        if (geburah == null) {
+            source.sendFailure(Component.literal("§c当前没有有效的 Geburah 遭遇实体。"));
+        }
+        return geburah;
     }
 
     private int departmentStatus(CommandSourceStack source) {

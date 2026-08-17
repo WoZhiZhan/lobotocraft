@@ -6,6 +6,7 @@ import com.lobotocraft.facility.data.MeltdownCause;
 import com.lobotocraft.facility.data.MeltdownEndReason;
 import com.lobotocraft.facility.data.MeltdownFailurePolicy;
 import com.lobotocraft.facility.data.MeltdownLifecycle;
+import com.lobotocraft.facility.data.MeltdownDepartmentPolicy;
 import com.lobotocraft.facility.data.MeltdownPolicy;
 import com.lobotocraft.facility.data.MeltdownStageContext;
 import com.lobotocraft.facility.data.MeltdownTargetLocator;
@@ -34,6 +35,7 @@ import com.wzz.lobotocraft.entity.abnormality.EntityIronMaiden;
 import com.wzz.lobotocraft.entity.abnormality.EntityIsharmla;
 import com.wzz.lobotocraft.entity.abnormality.IsharmlaSpawnData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
+import com.wzz.lobotocraft.event.definition.company.FacilityQliphothStageEvent;
 import com.wzz.lobotocraft.event.definition.work.WorkCompleteEvent;
 import com.wzz.lobotocraft.event.definition.work.WorkPreExtractionEvent;
 import com.wzz.lobotocraft.event.listener.AmberDawnEvent;
@@ -65,6 +67,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraftforge.common.MinecraftForge;
 
 public final class FacilityManager {
     private static final Set<WorkManager.WorkSession> MELTDOWN_WORKS =
@@ -417,6 +420,7 @@ public final class FacilityManager {
                 "请在六十秒内完成受影响收容单元的工作。", 0xD84A4A);
         }
         CoreSuppressionManager.onQliphothMeltdown(level);
+        MinecraftForge.EVENT_BUS.post(new FacilityQliphothStageEvent(level, levelNumber));
         data.finishMeltdownStage();
         prepareAndSelectNextOrdeal(data, level.getSeed());
     }
@@ -491,7 +495,7 @@ public final class FacilityManager {
                     || isEndBirdEncounterEntity(abnormality)
                     || abnormality.getQliphothCounter() <= 0
                     || isMeltdownProtected(level, abnormality)
-                    || isCurrentSuppressionDepartment(level, abnormality)) continue;
+                    || isMeltdownDepartmentProtected(level, abnormality, cause)) continue;
             eligibleContainments++;
             if ((excludeWorking && WorkManager.isAbnormalityBeingWorked(abnormality))
                     || data.getActiveMeltdowns().containsKey(abnormality.getUUID())) continue;
@@ -617,15 +621,20 @@ public final class FacilityManager {
             abnormality.getAbnormalityCode(), boundRoomCode, protectedType);
     }
 
-    private static boolean isCurrentSuppressionDepartment(ServerLevel level,
-                                                            AbstractAbnormality abnormality) {
-        CoreSuppressionData suppression = CoreSuppressionData.get(level);
-        CoreSuppressionType activeType = suppression.isActive() ? suppression.getActiveType() : null;
-        if (activeType == null || abnormality.getHomeRoomDimension() == null
+    private static boolean isMeltdownDepartmentProtected(ServerLevel level,
+                                                          AbstractAbnormality abnormality,
+                                                          MeltdownCause cause) {
+        if (abnormality.getHomeRoomDimension() == null
                 || abnormality.getHomeRoomMarker() == null) return false;
         RoomEntry room = CompanyRoomData.get(level).findRoom(
                 abnormality.getHomeRoomDimension(), abnormality.getHomeRoomMarker());
-        return room != null && activeType.getId().equalsIgnoreCase(room.departmentId);
+        if (room == null) return false;
+
+        CoreSuppressionData suppression = CoreSuppressionData.get(level);
+        CoreSuppressionType activeType = suppression.isActive() ? suppression.getActiveType() : null;
+        boolean honorCompletedRewards = cause == MeltdownCause.QLIPHOTH_OVERLOAD;
+        return MeltdownDepartmentPolicy.isProtected(room.departmentId, activeType,
+                suppression.getCompletedMask(), honorCompletedRewards);
     }
 
     /**

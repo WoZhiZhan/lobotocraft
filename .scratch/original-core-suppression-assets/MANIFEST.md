@@ -1,0 +1,73 @@
+# 原版核心抑制素材清单
+
+本目录从《脑叶公司》原版 Unity 资源中提取以下核心抑制素材：
+
+- 福利部：Chesed
+- 中央本部：Tiphereth
+- 记录部：Hokma，原版资源内部拼写为 `Chokhmah` / `Chokma`
+- 研发部：按当前需求对应 Binah；原版通常称为抽取部
+
+原始游戏目录：
+
+`F:\SteamLibrary\steamapps\common\LobotomyCorp\LobotomyCorp_Data`
+
+主要资源文件：
+
+`resources.assets`
+
+反编译源码参照目录：
+
+`F:\1pyCode\mcmodfolder\lobotomy\reference_assets\lobotomy_corporation\source`
+
+## 目录说明
+
+每个部门均包含：
+
+- `audio/*.wav`：Unity `AudioClip` 解码出的原始 44.1 kHz 双声道 PCM WAV。
+- `audio/*.ogg`：使用 FFmpeg `libvorbis -q:a 7` 转换的模组可用版本。
+- `textures/core/`：从对应 `CoreAnim` 预制体沿材质依赖追踪到的实际战斗贴图。
+- `textures/ui_candidates/`：按原版资源名筛选出的抑制框体、背景、滤镜和过载 UI；同时保留 `Texture2D` 原图与可裁切的 `Sprite` 导出。
+
+完整的 Unity 类型、对象名、Path ID、尺寸、时长、重复对象和 SHA-256 位于 `EXPORT_INDEX.tsv`。
+
+## 音乐
+
+| 部门 | 阶段 | 原版资源路径 | 时长 |
+|---|---:|---|---:|
+| Chesed | 1 | `Sounds/BGM/Boss/Chesed/1_Theme_-_Blues_Man` | 125.337 秒 |
+| Chesed | 2 | `Sounds/BGM/Boss/Chesed/2_Battle_-_Urgent_Encounter` | 117.632 秒 |
+| Tiphereth | 1 | `Sounds/BGM/Boss/Tiphereth/1_Eternal` | 156.229 秒 |
+| Tiphereth | 2 | `Sounds/BGM/Boss/Tiphereth/2_Dark Fantasy Scene` | 129.524 秒 |
+| Hokma | 1 | `Sounds/BGM/Boss/Chokhmah/1_Tilarids - 090909090` | 156.056 秒 |
+| Hokma | 2 | `Sounds/BGM/Boss/Chokhmah/2_Tilarids - circle-rombed oxygen` | 237.714 秒 |
+| Binah | 1 | `Sounds/BGM/Boss/Binah/1_Jukai` | 114.064 秒 |
+| Binah | 2 | `Sounds/BGM/Boss/Binah/2_Haunted Streets_1` | 263.542 秒 |
+
+## 核心战斗贴图
+
+| 部门 | CoreAnim 根对象 | 实际材质贴图 |
+|---|---|---|
+| Chesed | `ChesedCoreAnim` | `chesedBoss` |
+| Tiphereth | `TipherethCoreAnim` | `tipeboss` |
+| Hokma | `ChokhmahCoreAnim` | `chokma` |
+| Binah | `BinahCoreAnim` | `bna`、`CFX_T_Flame1_BW_AB`、`CFX4_T_FireSoft A8`、`Spark`、`smokeTemp` |
+
+Binah 的后四张图是其核心实体预制体实际引用的火焰、柔光火焰、火花与烟雾粒子贴图，不是按名称猜测加入。
+
+## 导出结果
+
+- BGM：8 首，保留 8 个 WAV 和 8 个 OGG。
+- 核心战斗贴图：8 张。
+- 专属 UI 候选图：55 张。
+- PNG 已逐张完成尺寸与可读取性检查。
+- OGG 已通过 `ffprobe` 检查，时长与 Unity `AudioClip.m_Length` 一致。
+
+## 复现
+
+重新导出时运行：
+
+```powershell
+python .scratch\original-core-suppression-assets\extract_assets.py
+```
+
+脚本会覆盖同名导出文件并重新生成 `EXPORT_INDEX.tsv`。当前素材仅存放于 `.scratch`，尚未注册到模组 `sounds.json` 或正式材质目录。

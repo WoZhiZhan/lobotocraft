@@ -2,7 +2,7 @@ package com.lobotocraft.facility.data;
 
 /** Origin of a timed containment-unit meltdown. */
 public enum MeltdownCause {
-    QLIPHOTH_OVERLOAD(true),
+    QLIPHOTH_OVERLOAD(false),
     APOCALYPSE_BIRD_EGG(false),
     DEBUG(false),
     BINAH(true),

@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.client.damage_border;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.wzz.lobotocraft.ModMain;
+import com.wzz.lobotocraft.client.config.ClientVisualConfig;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -37,6 +38,7 @@ public class DamageBorderHud {
      * @param damageType 伤害类型
      */
     public static void addBorderEffect(DamageBorderEffect.DamageType damageType) {
+        if (!isEnabled()) return;
         // 移除同类型的旧效果，避免重复
         activeBorders.removeIf(effect -> effect.getDamageType() == damageType);
         // 添加新效果（300ms = 0.3秒）
@@ -47,6 +49,10 @@ public class DamageBorderHud {
     public static void onRenderGuiOverlay(RenderGuiOverlayEvent.Post event) {
         if (!event.getOverlay().id().equals(VanillaGuiOverlay.HOTBAR.id())) return;
         if (minecraft.player == null) return;
+        if (!isEnabled()) {
+            clearAll();
+            return;
+        }
 
         // 移除过期的效果
         activeBorders.removeIf(DamageBorderEffect::isExpired);
@@ -108,5 +114,14 @@ public class DamageBorderHud {
      */
     public static void clearAll() {
         activeBorders.clear();
+    }
+
+    public static boolean isEnabled() {
+        return ClientVisualConfig.DAMAGE_BORDERS_ENABLED.get();
+    }
+
+    public static void setEnabled(boolean enabled) {
+        ClientVisualConfig.DAMAGE_BORDERS_ENABLED.set(enabled);
+        if (!enabled) clearAll();
     }
 }

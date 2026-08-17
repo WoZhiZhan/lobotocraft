@@ -365,7 +365,7 @@ public class EntityFragmentOfUniverse extends AbstractAbnormality {
     private boolean isValidTarget(LivingEntity e) {
         if (e == this || !e.isAlive()) return false;
         if (e instanceof Player p) return !p.isCreative() && !p.isSpectator();
-        if (e instanceof AbstractAbnormality ab) return ab.hasEscape(); // 攻击其他出逃异想体
+        if (e instanceof AbstractAbnormality ab) return ab.isAbnormalityCombatTarget();
         return false;
     }
 

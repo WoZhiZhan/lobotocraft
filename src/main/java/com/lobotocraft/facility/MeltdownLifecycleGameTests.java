@@ -27,25 +27,25 @@ public final class MeltdownLifecycleGameTests {
 
     @GameTest(template = TEMPLATE, templateNamespace = TEST_NAMESPACE,
             timeoutTicks = 20, required = true, batch = BATCH)
-    public static void ordinaryDayKeepsBirdEggAndEndsSuppressionMeltdown(GameTestHelper helper) {
+    public static void ordinaryDayKeepsQliphothAndBirdEggMeltdowns(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         FacilityDayData data = reset(level);
-        UUID suppressionTarget = UUID.randomUUID();
+        UUID qliphothTarget = UUID.randomUUID();
         UUID birdTarget = UUID.randomUUID();
         long now = level.getServer().overworld().getGameTime();
 
         try {
             helper.assertFalse(CoreSuppressionData.get(level).isActive(),
                 "test server unexpectedly started with an active core suppression");
-            MeltdownLifecycle.start(data, suppressionTarget, now, 2, "O-01",
+            MeltdownLifecycle.start(data, qliphothTarget, now, 2, "O-01",
                 MeltdownCause.QLIPHOTH_OVERLOAD);
             MeltdownLifecycle.start(data, birdTarget, now, 2, "O-02",
                 MeltdownCause.APOCALYPSE_BIRD_EGG);
 
             FacilityManager.tick(level.getServer());
 
-            helper.assertFalse(data.getActiveMeltdowns().containsKey(suppressionTarget),
-                "ordinary server tick retained a core-suppression-only meltdown");
+            helper.assertTrue(data.getActiveMeltdowns().containsKey(qliphothTarget),
+                "ordinary server tick removed a normal Qliphoth meltdown");
             helper.assertTrue(data.getActiveMeltdowns().containsKey(birdTarget),
                 "ordinary server tick incorrectly removed the bird-egg meltdown");
             helper.succeed();

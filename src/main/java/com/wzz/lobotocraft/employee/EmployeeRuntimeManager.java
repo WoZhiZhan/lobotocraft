@@ -569,6 +569,9 @@ public final class EmployeeRuntimeManager {
 
     @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
+        for (RuntimeEmployee runtime : ACTIVE.values()) {
+            runtime.navigator.stop();
+        }
         ACTIVE.clear();
         INITIALIZED.remove(event.getServer());
         EmployeeNavigator.clearPlanningBudget(event.getServer());
@@ -591,6 +594,20 @@ public final class EmployeeRuntimeManager {
         // 继续跑下面的订单/存档逻辑等于操作一个已死实体，故在此复查一次
         if (player.isRemoved() || !player.isAlive()) {
             retireDead(runtime);
+            return;
+        }
+        if (CoreSuppressionManager.areAiEmployeesFrozen(player.level())) {
+            if (runtime.order != null) {
+                fail(runtime, "惩戒部核心抑制期间 AI 员工停用");
+            } else {
+                runtime.navigator.stop();
+                runtime.idleMoving = false;
+                clearAutonomousCombat(runtime);
+            }
+            player.clearNavigationInput();
+            if (WorkManager.isPlayerWorking(player)) {
+                WorkManager.cancelWork(player, "惩戒部核心抑制期间 AI 员工停用");
+            }
             return;
         }
         if (EntitySnowQueen.isFrozen(player)) {
@@ -1350,6 +1367,7 @@ public final class EmployeeRuntimeManager {
         EmployeeServerPlayer player = runtime.player;
         EmployeeRecord record = player.employeeRecord();
         MinecraftServer server = player.server;
+        runtime.navigator.stop();
         if (runtime.order != null && runtime.order.type == EmployeeTaskType.TOOL_USE
                 && runtime.order.started) {
             Entity target = findEntity(server, runtime.order.targetEntity);

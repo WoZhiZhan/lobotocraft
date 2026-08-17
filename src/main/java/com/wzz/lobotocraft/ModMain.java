@@ -2,6 +2,7 @@ package com.wzz.lobotocraft;
 
 import com.lobotocraft.facility.FacilityPatch;
 import com.lobotocraft.facility.config.FacilityServerConfig;
+import com.wzz.lobotocraft.client.config.ClientVisualConfig;
 import com.wzz.lobotocraft.init.*;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.world.RoomChunkTickets;
@@ -43,6 +44,8 @@ public class ModMain {
         MessageLoader.getLoader();
         ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, FacilityServerConfig.SPEC,
                 "lobotocraft-facility-server.toml");
+        ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, ClientVisualConfig.SPEC,
+                "lobotocraft-client.toml");
         FacilityPatch.initialize();
 //        System.setProperty("java.awt.headless", "false");
 //        com.wzz.lobotocraft.item.debug.DebugTunerFrame.open();

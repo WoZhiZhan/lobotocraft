@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.event;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.EntityCoreSuppressionNpc;
 import com.wzz.lobotocraft.entity.EntityGallows;
+import com.wzz.lobotocraft.entity.EntityGeburah;
 import com.wzz.lobotocraft.entity.EntityRedShoesClerk;
 import com.wzz.lobotocraft.entity.abnormality.*;
 import com.wzz.lobotocraft.entity.ordeal.EntityAmberDawn;
@@ -65,6 +66,8 @@ public class ModCommonEvent {
 		event.put(ModEntities.redhat_mercenary.get(), EntityRedHoodMercenary.createAttributes().build());
 		event.put(ModEntities.iron_maiden.get(), EntityIronMaiden.createAttributes().build());
 		event.put(ModEntities.lumberjack.get(), EntityLumberjack.createAttributes().build());
+		event.put(ModEntities.queen_of_hatred.get(), EntityQueenOfHatred.createAttributes().build());
+		event.put(ModEntities.geburah.get(), EntityGeburah.createAttributes().build());
 		event.put(ModEntities.censored.get(), EntityCensored.createAttributes().build());
 		event.put(ModEntities.censored_minion.get(), EntityCensoredMinion.createAttributes().build());
 		event.put(ModEntities.meat_idol.get(), EntityMeatIdol.createAttributes().build());

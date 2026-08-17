@@ -9,9 +9,11 @@ import org.junit.jupiter.api.Test;
 
 class MeltdownPolicyTest {
     @Test
-    void ordinaryDayNeverStartsOrAnnouncesMeltdown() {
-        assertFalse(MeltdownPolicy.canActivate(false, false));
-        assertEquals(0, MeltdownPolicy.stageNotificationType(false, false));
+    void ordinaryDayStartsMeltdownWhenTheStageHasNoOrdeal() {
+        assertTrue(MeltdownPolicy.canActivate(false, false));
+        assertEquals(2, MeltdownPolicy.stageNotificationType(false, false));
+        assertFalse(MeltdownPolicy.canActivate(false, true));
+        assertEquals(1, MeltdownPolicy.stageNotificationType(false, true));
     }
 
     @Test
@@ -54,7 +56,7 @@ class MeltdownPolicyTest {
 
     @Test
     void onlySuppressionBoundCausesAreRemovedWhenSuppressionEnds() {
-        assertTrue(MeltdownCause.QLIPHOTH_OVERLOAD.requiresCoreSuppression());
+        assertFalse(MeltdownCause.QLIPHOTH_OVERLOAD.requiresCoreSuppression());
         assertTrue(MeltdownCause.LEGACY_OR_UNKNOWN.requiresCoreSuppression());
         assertFalse(MeltdownCause.APOCALYPSE_BIRD_EGG.requiresCoreSuppression());
     }
@@ -62,15 +64,20 @@ class MeltdownPolicyTest {
     @Test
     void suppressionEndRemovesOnlySuppressionBoundInstances() {
         FacilityDayData data = new FacilityDayData();
-        UUID suppressionTarget = UUID.randomUUID();
+        UUID ordinaryTarget = UUID.randomUUID();
+        UUID legacyTarget = UUID.randomUUID();
         UUID birdTarget = UUID.randomUUID();
-        MeltdownLifecycle.start(data, suppressionTarget, 10L, 2, "O-01",
+        MeltdownLifecycle.start(data, ordinaryTarget, 10L, 2, "O-01",
             MeltdownCause.QLIPHOTH_OVERLOAD);
+        MeltdownLifecycle.start(data, legacyTarget, 10L, 2, "O-00",
+            MeltdownCause.LEGACY_OR_UNKNOWN);
         MeltdownLifecycle.start(data, birdTarget, 10L, 2, "O-02",
             MeltdownCause.APOCALYPSE_BIRD_EGG);
 
         assertEquals(1, MeltdownLifecycle.endSuppressionBound(data));
-        assertEquals(1, data.getActiveMeltdowns().size());
+        assertEquals(2, data.getActiveMeltdowns().size());
+        assertEquals(MeltdownCause.QLIPHOTH_OVERLOAD,
+            data.getActiveMeltdowns().get(ordinaryTarget).cause());
         assertEquals(MeltdownCause.APOCALYPSE_BIRD_EGG,
             data.getActiveMeltdowns().get(birdTarget).cause());
     }

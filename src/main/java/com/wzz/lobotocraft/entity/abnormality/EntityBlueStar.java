@@ -17,6 +17,7 @@ import com.wzz.lobotocraft.util.*;
 import com.wzz.lobotocraft.work.WorkManager;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -134,21 +135,16 @@ public class EntityBlueStar extends AbstractAbnormality {
     public void triggerEscape() {
         if (hasEscape() || this.level().isClientSide || !canEscape()) return;
         ServerLevel serverLevel = (ServerLevel) this.level();
-        setEscape(true);
-        escapePosition = this.blockPosition();
-        this.entityData.set(DATA_ESCAPED, true);
+        BlockPos reactorDestination = null;
         for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level, getOnPos(), 8)) {
             if (level.getBlockState(blockEntity.getBlockPos()).getBlock() instanceof RegenerationReactorBlock
                     && FacilityAccessService.isPositionOpen(serverLevel.getServer(),
                     serverLevel.dimension().location(), blockEntity.getBlockPos())) {
-                teleportTo(blockEntity.getBlockPos().getX(), blockEntity.getBlockPos().getY() + 1, blockEntity.getBlockPos().getZ());
+                reactorDestination = blockEntity.getBlockPos();
                 break;
             }
         }
-        stopAmbientSoundForAllPlayers();
-        playEscapeWarningSound();
-        playEscapeSound();
-        decreaseAllPlayersTodayWorkCount();
+        beginEscape(reactorDestination);
     }
 
     @Override
@@ -218,7 +214,7 @@ public class EntityBlueStar extends AbstractAbnormality {
     }
 
     private void killMob(LivingEntity living, boolean remove) {
-        setAnimation("animation.blue_star.attack");
+        if (living == null || !living.isAlive() || living.isRemoved()) return;
         TimerEntry<LivingEntity> timerEntry = new TimerEntry<>() {
             @Override
             public void onStart(@NotNull LivingEntity living) {
@@ -263,9 +259,12 @@ public class EntityBlueStar extends AbstractAbnormality {
                 if (reason == CancellationReason.LOGOUT && living instanceof ServerPlayer player) {
                     PendingPlayerExecution.mark(player);
                 }
+                setAnimation("animation.blue_star.idle");
             }
         };
-        timerEntry.addSkillTimer(living, 0, 1800, 1);
+        if (timerEntry.addSkillTimer(living, 0, 1800, 1)) {
+            setAnimation("animation.blue_star.attack");
+        }
     }
 
     @Override

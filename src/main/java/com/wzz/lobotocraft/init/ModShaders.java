@@ -20,6 +20,10 @@ public class ModShaders {
     public static Uniform screenDistortionTime;
     public static Uniform screenDistortionIntensity;
 
+    public static CCShaderInstance QUEEN_LASER_MASK_SHADER;
+    public static Uniform queenLaserMaskIntensity;
+    public static Uniform queenLaserMaskTexelSize;
+
     public static CCShaderInstance PARTICLE_SHADER;
     public static Uniform particleTime;
     public static Uniform particleAge;
@@ -34,11 +38,24 @@ public class ModShaders {
                 DefaultVertexFormat.POSITION_TEX
         );
         event.registerShader(SCREEN_DISTORTION_SHADER, ModShaders::shieldShader);
+        event.registerShader(CCShaderInstance.create(
+                        event.getResourceProvider(),
+                        ResourceUtil.createInstance("queen_laser_mask"),
+                        DefaultVertexFormat.POSITION_TEX),
+                ModShaders::queenLaserMaskShader);
         event.registerShader(CCShaderInstance.create(event.getResourceProvider(),
                         ResourceUtil.createInstance("particle"),
                         DefaultVertexFormat.PARTICLE),
                 ModShaders::particleShader
         );
+    }
+
+    public static void queenLaserMaskShader(ShaderInstance shader) {
+        QUEEN_LASER_MASK_SHADER = (CCShaderInstance) shader;
+        queenLaserMaskIntensity = Objects.requireNonNull(
+                QUEEN_LASER_MASK_SHADER.getUniform("Intensity"));
+        queenLaserMaskTexelSize = Objects.requireNonNull(
+                QUEEN_LASER_MASK_SHADER.getUniform("TexelSize"));
     }
 
     public static void shieldShader(ShaderInstance shader) {

@@ -287,8 +287,7 @@ public final class FacilityDayData extends SavedData {
         boolean stageChanged = meltdownGauge >= getMeltdownThreshold();
         if (stageChanged) {
             // The original game resets every containment unit's repeated-work
-            // counter when the Qliphoth overload level changes, even if this
-            // mod's ordinary day does not spawn a visible meltdown.
+            // counter when the Qliphoth overload level changes.
             consecutiveWorks.clear();
             setDirty();
         }

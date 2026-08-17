@@ -4,20 +4,34 @@ import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.entity.abnormality.EntityIronMaiden;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 import java.util.UUID;
 
-/** Target-side recovery for interrupted We Can Change Anything sessions. */
+/** Session and target-side recovery for interrupted We Can Change Anything use. */
 @Mod.EventBusSubscriber(modid = ModMain.MODID)
 public final class IronMaidenSacrificeCleanup {
     private static final long RECOVERY_GRACE_TICKS = 100L;
 
     private IronMaidenSacrificeCleanup() {
+    }
+
+    @SubscribeEvent
+    public static void onOperatorDeath(LivingDeathEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)
+                || !(player.level() instanceof ServerLevel level)) return;
+        for (Entity entity : level.getAllEntities()) {
+            if (entity instanceof EntityIronMaiden ironMaiden
+                    && ironMaiden.endUsageForOperatorDeath(player)) {
+                return;
+            }
+        }
     }
 
     @SubscribeEvent

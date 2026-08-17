@@ -24,6 +24,7 @@ public class ModTabs {
 						tabData.accept(ModItems.HAPPY_TEDDY_SPAWN_EGG.get());
 						tabData.accept(ModItems.IRON_MAIDEN_SPAWN_EGG.get());
 						tabData.accept(ModItems.LUMBERJACK_SPAWN_EGG.get());
+						tabData.accept(ModItems.QUEEN_OF_HATRED_SPAWN_EGG.get());
 						tabData.accept(ModItems.MEAT_IDOL_SPAWN_EGG.get());
 						tabData.accept(ModItems.ABANDONED_MURDERER_SPAWN_EGG.get());
 						tabData.accept(ModItems.LARGE_BIRD_SPAWN_EGG.get());

@@ -8,6 +8,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
@@ -64,6 +65,7 @@ public class DotHelper {
 
     /** DOT 的 id（自己加新的就行，互不干扰） */
     public static final String RED_SHOES_BLEED = "red_shoes_bleed";
+    public static final String GEBURAH_BLEED = "geburah_bleed";
     public static final String THORN_BUS_DOT = "thorn_bus";
 
     public static final float MENACE_DOT_BONUS = 4.0f;
@@ -84,7 +86,7 @@ public class DotHelper {
      * @param durationTicks  持续时间（tick），再次施加会刷新
      * @param maxStacks      最大层数（不叠层就填 1）
      */
-    public static void applyDot(String id, Player attacker, LivingEntity target, float damagePerStack,
+    public static void applyDot(String id, LivingEntity attacker, LivingEntity target, float damagePerStack,
                                 String color, int intervalTicks, int durationTicks, int maxStacks) {
         if (id == null || attacker == null || target == null) return;
         if (target == attacker) return;
@@ -211,12 +213,16 @@ public class DotHelper {
         // DOT 无视无敌帧，结算完把无敌帧还原，避免把玩家自己的普攻“吃掉”
         int invulnerableTime = target.invulnerableTime;
         int hurtTime = target.hurtTime;
+        boolean hurtMarked = target.hurtMarked;
+        net.minecraft.world.phys.Vec3 movement = target.getDeltaMovement();
         try {
             target.invulnerableTime = 0;
             target.hurt(source, amount);
         } finally {
             target.invulnerableTime = invulnerableTime;
             target.hurtTime = hurtTime;
+            target.setDeltaMovement(movement);
+            target.hurtMarked = hurtMarked;
             data.remove(TAG_DOT);
             data.remove(TAG_DOT_IGNORE_RES);
             data.remove(TAG_DOT_AMOUNT);
@@ -266,7 +272,7 @@ public class DotHelper {
             dots.put(id, dot);
             changed = true;
 
-            Player source = resolveSource(target, dot);
+            LivingEntity source = resolveSource(target, dot);
             if (source == null) {
                 // 施加者已下线/死亡/不在当前维度：本次跳伤跳过，持续时间照常走
                 continue;
@@ -315,10 +321,17 @@ public class DotHelper {
         }
     }
 
-    private static Player resolveSource(LivingEntity target, CompoundTag dot) {
+    private static LivingEntity resolveSource(LivingEntity target, CompoundTag dot) {
         if (!dot.hasUUID(KEY_SOURCE)) return null;
         UUID uuid = dot.getUUID(KEY_SOURCE);
-        Player player = target.level().getPlayerByUUID(uuid);
-        return (player != null && player.isAlive()) ? player : null;
+        if (!(target.level() instanceof ServerLevel level)) return null;
+        net.minecraft.world.entity.Entity source = level.getEntity(uuid);
+        return source instanceof LivingEntity living && living.isAlive() ? living : null;
+    }
+
+    public static int getRemainingTicks(LivingEntity target, String id) {
+        if (target == null) return 0;
+        CompoundTag dots = target.getPersistentData().getCompound(TAG_DOTS);
+        return dots.contains(id) ? Math.max(0, dots.getCompound(id).getInt(KEY_DURATION)) : 0;
     }
 }

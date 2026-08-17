@@ -26,6 +26,9 @@ import com.wzz.lobotocraft.network.packet.EscapeAlertPacket;
 import com.wzz.lobotocraft.network.packet.ExplosionPacket;
 import com.wzz.lobotocraft.network.packet.FallBackCameraPacket;
 import com.wzz.lobotocraft.network.packet.FullScreenRenderMessage;
+import com.wzz.lobotocraft.network.packet.GeburahCameraShakePacket;
+import com.wzz.lobotocraft.network.packet.GeburahStatusSyncPacket;
+import com.wzz.lobotocraft.network.packet.GeburahVisualEffectPacket;
 import com.wzz.lobotocraft.network.packet.LambdaPacket;
 import com.wzz.lobotocraft.network.packet.LargeBirdBorderPacket;
 import com.wzz.lobotocraft.network.packet.LockInputPacket;
@@ -94,6 +97,8 @@ import com.wzz.lobotocraft.network.packet.WorkCompletePacket;
 import com.wzz.lobotocraft.network.packet.WorkExtractionPacket;
 import com.wzz.lobotocraft.network.packet.PlayerDepartmentSyncPacket;
 import com.wzz.lobotocraft.network.packet.MustOpenPathMeterSyncPacket;
+import com.wzz.lobotocraft.debug.prototype.queenlaser.QueenLaserPrototypePacket;
+import com.wzz.lobotocraft.debug.prototype.queenstar.QueenStarPrototypePacket;
 
 /**
  * 网络包白名单注册表。
@@ -205,7 +210,12 @@ public final class PacketRegistry {
             SetEmployeeAppearancePacket.class,
             OpenWelcomeNoticePacket.class,
             AcknowledgeWelcomeNoticePacket.class,
-            MustOpenPathMeterSyncPacket.class);
+            MustOpenPathMeterSyncPacket.class,
+            QueenLaserPrototypePacket.class,
+            QueenStarPrototypePacket.class,
+            GeburahCameraShakePacket.class,
+            GeburahStatusSyncPacket.class,
+            GeburahVisualEffectPacket.class);
 
     /** Class -> id 的缓存，用 IdentityHashMap（Class 用引用相等即可，避免 equals/hashCode 开销）。 */
     private static final Map<Class<?>, Integer> ID_BY_CLASS = new IdentityHashMap<>();

@@ -40,6 +40,9 @@ import net.minecraftforge.fml.common.Mod;
 
 import java.util.*;
 
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
+
 @Mod.EventBusSubscriber
 public class BlackForestEvent {
 
@@ -49,6 +52,7 @@ public class BlackForestEvent {
         if (!isBird(abnormality) || abnormality.level().isClientSide) return;
 
         ServerLevel level = (ServerLevel) abnormality.level();
+        if (CoreSuppressionManager.isActive(level, CoreSuppressionType.GEBURAH)) return;
         BlackForestSavedData data = BlackForestSavedData.get(level);
         data.addEscapedBird(abnormality);
         EnumMap<BirdRole, AbstractAbnormality> escapedBirdsByRole = collectEscapedBirdsByRole(level, data);
@@ -284,6 +288,7 @@ public class BlackForestEvent {
     public static void onLevelTick(TickEvent.LevelTickEvent event) {
         if (event.phase != TickEvent.Phase.END || !(event.level instanceof ServerLevel level)
                 || level.dimension() != ModDimensions.LOBOTO_KEY || level.getGameTime() % 20L != 0L) return;
+        if (CoreSuppressionManager.isActive(level, CoreSuppressionType.GEBURAH)) return;
         BlackForestSavedData data = BlackForestSavedData.get(level);
         data.retryPendingCapturedBirds(level);
         AbstractAbnormality loadedEscapedBird = null;

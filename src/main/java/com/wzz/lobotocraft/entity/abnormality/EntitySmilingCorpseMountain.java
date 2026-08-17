@@ -346,7 +346,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     // ============================================================
     private boolean isValidVictim(LivingEntity e) {
         if (e == this || !e.isAlive()) return false;
-        if (e instanceof AbstractAbnormality ab) return ab.hasEscape();
+        if (e instanceof AbstractAbnormality ab) return ab.isAbnormalityCombatTarget();
         if (e instanceof Player p) return !p.isCreative() && !p.isSpectator();
         return true;
     }
@@ -354,14 +354,14 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     /** 三阶段仇恨：一切有效生物，但不主动仇恨未出逃异想体。 */
     private boolean isPhase3Target(LivingEntity e) {
         if (e == this || !e.isAlive()) return false;
-        if (e instanceof AbstractAbnormality ab) return ab.hasEscape();
+        if (e instanceof AbstractAbnormality ab) return ab.isAbnormalityCombatTarget();
         if (e instanceof Player p) return !p.isCreative() && !p.isSpectator();
         return true;
     }
 
     private boolean isHowlTrigger(LivingEntity e) {
         if (e == this || !e.isAlive()) return false;
-        if (e instanceof AbstractAbnormality ab) return ab.hasEscape();
+        if (e instanceof AbstractAbnormality ab) return ab.isAbnormalityCombatTarget();
         if (e instanceof Player p) return !p.isCreative() && !p.isSpectator();
         return e instanceof Villager || e instanceof EntityClerk;
     }

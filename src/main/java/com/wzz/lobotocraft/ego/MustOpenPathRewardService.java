@@ -20,19 +20,20 @@ public final class MustOpenPathRewardService {
                                                      @Nullable ServerPlayer finalHitPlayer) {
         if (server == null) return new GrantResult(false, false, false);
 
-        boolean playerGranted = false;
+        AiEgoRepositoryData repository = AiEgoRepositoryData.get(server);
+        int weaponBefore = repository.total(SKADI_CODE, "weapon");
+        int armorBefore = repository.total(SKADI_CODE, "armor");
+        EgoAuthorizationService.grantSuppressionReward(server, finalHitPlayer, SKADI_CODE);
+
+        boolean playerGranted = finalHitPlayer != null;
         if (finalHitPlayer != null) {
-            for (ItemStack stack : completePlayerReward()) give(finalHitPlayer, stack);
+            give(finalHitPlayer, new ItemStack(ModItems.MUST_OPEN_PATH_CURIO.get()));
             finalHitPlayer.sendSystemMessage(Component.translatable(
                     "message.lobotocraft.must_open_path_reward"));
-            playerGranted = true;
         }
 
-        AiEgoRepositoryData repository = AiEgoRepositoryData.get(server);
-        boolean aiWeaponAdded = repository.grantUniqueSuppressionReward(
-                SKADI_CODE, "weapon", weaponReward());
-        boolean aiArmorAdded = repository.grantUniqueSuppressionReward(
-                SKADI_CODE, "armor", armorReward());
+        boolean aiWeaponAdded = repository.total(SKADI_CODE, "weapon") > weaponBefore;
+        boolean aiArmorAdded = repository.total(SKADI_CODE, "armor") > armorBefore;
         return new GrantResult(playerGranted, aiWeaponAdded, aiArmorAdded);
     }
 
@@ -46,15 +47,6 @@ public final class MustOpenPathRewardService {
                 new ItemStack(ModItems.MUST_OPEN_PATH_CHESTPLATE.get()),
                 new ItemStack(ModItems.MUST_OPEN_PATH_LEGGINGS.get()),
                 new ItemStack(ModItems.MUST_OPEN_PATH_BOOTS.get()));
-    }
-
-    public static List<ItemStack> completePlayerReward() {
-        return List.of(
-                new ItemStack(ModItems.MUST_OPEN_PATH_WEAPON.get()),
-                new ItemStack(ModItems.MUST_OPEN_PATH_CHESTPLATE.get()),
-                new ItemStack(ModItems.MUST_OPEN_PATH_LEGGINGS.get()),
-                new ItemStack(ModItems.MUST_OPEN_PATH_BOOTS.get()),
-                new ItemStack(ModItems.MUST_OPEN_PATH_CURIO.get()));
     }
 
     private static void give(ServerPlayer player, ItemStack reward) {

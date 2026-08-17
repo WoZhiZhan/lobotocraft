@@ -34,7 +34,8 @@ class GameplayFlowSimulationTest {
 
                 OrdealTier tier = facility.getScheduledOrdeal(stage);
                 boolean ordealTriggered = tier == OrdealTier.DAWN || tier == OrdealTier.NOON;
-                assertFalse(MeltdownPolicy.canActivate(false, ordealTriggered));
+                assertEquals(!ordealTriggered,
+                        MeltdownPolicy.canActivate(false, ordealTriggered));
                 if (tier == OrdealTier.DUSK || tier == OrdealTier.MIDNIGHT) {
                     assertTrue(OrdealContentPolicy.isUnfinished(tier));
                 }

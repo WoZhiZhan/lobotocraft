@@ -6,6 +6,7 @@ import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.capability.PanicType;
+import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
 import com.wzz.lobotocraft.ego.AiEgoRepositoryData;
 import com.wzz.lobotocraft.ego.EgoLoadoutService;
 import com.wzz.lobotocraft.ego.MustOpenPathRewardService;
@@ -68,6 +69,34 @@ public final class MustOpenPathGameTests {
                         && MustOpenPathRewardService.armorReward().stream()
                         .noneMatch(stack -> stack.is(ModItems.MUST_OPEN_PATH_CURIO.get())),
                 "AI armor stock still contains the player-only curio");
+        employee.kill();
+        helper.succeed();
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 80, required = true, batch = "must_open_path")
+    public static void suppressionRewardsPersonalAuthorizationInsteadOfBackpackEquipment(
+            GameTestHelper helper) {
+        EmployeeServerPlayer employee = employee(helper, "must_open_path_personal_authorization");
+        setStats(employee, 110, 110, 110, 110);
+
+        MustOpenPathRewardService.grantNormalSuppression(helper.getLevel().getServer(), employee);
+
+        boolean[] weaponAuthorized = {false};
+        boolean[] armorAuthorized = {false};
+        employee.getCapability(PlayerAbnormalityDataProvider.PLAYER_ABNORMALITY_DATA)
+                .ifPresent(data -> {
+                    weaponAuthorized[0] = !data.getPersonalEgoItems(
+                            MustOpenPathRewardService.SKADI_CODE, "weapon").isEmpty();
+                    armorAuthorized[0] = !data.getPersonalEgoItems(
+                            MustOpenPathRewardService.SKADI_CODE, "armor").isEmpty();
+                });
+        helper.assertTrue(weaponAuthorized[0] && armorAuthorized[0],
+                "normal suppression did not grant personal Must Open Path authorization");
+        helper.assertTrue(countRewardItems(employee) == 1
+                        && employee.getInventory().contains(
+                        new ItemStack(ModItems.MUST_OPEN_PATH_CURIO.get())),
+                "normal suppression put weapon or armor directly into the backpack");
         employee.kill();
         helper.succeed();
     }

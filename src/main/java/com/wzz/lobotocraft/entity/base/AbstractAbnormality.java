@@ -394,7 +394,7 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
                         AbstractAbnormality.class,
                         this.getBoundingBox().inflate(32.0),
                         ab -> ab != this
-                                && ab.hasEscape()
+                                && ab.isAbnormalityCombatTarget()
                                 && !ab.isBirdOfBlackForest()  // 不攻击三鸟
                                 && ab.isAlive()
                 ).stream()
@@ -822,6 +822,10 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
     @Override
     public boolean hasEscape() {
         return this.entityData.get(DATA_ESCAPED);
+    }
+
+    public boolean isAbnormalityCombatTarget() {
+        return hasEscape();
     }
 
     public void setEscape(boolean value) {

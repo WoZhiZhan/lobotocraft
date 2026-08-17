@@ -31,7 +31,11 @@ class CoreSuppressionScheduleRequirementsTest {
     void middleAndLowerLayerRulesRemainDisabledPlaceholders() {
         assertPlaceholder(CoreSuppressionType.TIPHERETH, false, 10, 0);
         assertPlaceholder(CoreSuppressionType.CHESED, true, 8, 0);
-        assertPlaceholder(CoreSuppressionType.GEBURAH, false, 0, 4);
+        assertTrue(CoreSuppressionType.GEBURAH.isImplemented());
+        assertFalse(CoreSuppressionType.GEBURAH.isEnergyQuotaRequired());
+        assertEquals(0, CoreSuppressionType.GEBURAH.getRequiredMeltdownLevel());
+        assertEquals(2, CoreSuppressionType.GEBURAH.getRequiredBossPhases());
+        assertFalse(CoreSuppressionType.GEBURAH.isFacilityObjectiveMet(10_000, 1, 10));
         assertPlaceholder(CoreSuppressionType.BINAH, false, 0, 3);
         assertPlaceholder(CoreSuppressionType.HOKMA, true, 10, 0);
     }

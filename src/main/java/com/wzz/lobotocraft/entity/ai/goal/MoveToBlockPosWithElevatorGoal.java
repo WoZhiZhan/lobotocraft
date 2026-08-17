@@ -3,9 +3,9 @@ package com.wzz.lobotocraft.entity.ai.goal;
 import com.wzz.lobotocraft.block.entity.ElevatorBlockEntity;
 import com.wzz.lobotocraft.block.entity.ElevatorEntryFloorPolicy;
 import com.wzz.lobotocraft.employee.ElevatorRegistry;
-import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec3;
@@ -15,7 +15,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 public class MoveToBlockPosWithElevatorGoal extends Goal {
-    private final AbstractAbnormality mob;
+    private final PathfinderMob mob;
     private final double speed;
     private final Supplier<BlockPos> targetSupplier;
     private final BooleanSupplier activeSupplier;
@@ -37,7 +37,7 @@ public class MoveToBlockPosWithElevatorGoal extends Goal {
 
     private State state = State.FINDING_PATH;
 
-    public MoveToBlockPosWithElevatorGoal(AbstractAbnormality mob, double speed,
+    public MoveToBlockPosWithElevatorGoal(PathfinderMob mob, double speed,
                                           Supplier<BlockPos> targetSupplier,
                                           BooleanSupplier activeSupplier,
                                           Runnable arrivalAction) {

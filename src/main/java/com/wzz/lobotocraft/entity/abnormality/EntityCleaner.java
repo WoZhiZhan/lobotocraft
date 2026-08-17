@@ -39,6 +39,7 @@ import software.bernie.geckolib.core.object.PlayState;
  * 每次造成伤害回复等量血量;抗性 红1.0/白1.2/黑0.5/蓝0.8。
  */
 public class EntityCleaner extends BaseGeoEntity {
+    public static final double MAX_HEALTH = 55.0D;
     private static final double SPEED_II_WALKING_PLAYER_SPEED = 0.28D;
 
     private static final EntityDataAccessor<String> ANIM =
@@ -201,6 +202,11 @@ public class EntityCleaner extends BaseGeoEntity {
     public void tick() {
         super.tick();
         if (this.level().isClientSide) return;
+        if (this.level().dimension() == Level.OVERWORLD
+                && !CleanerTimePolicy.isNaturalSpawnTime(this.level().getDayTime())) {
+            discard();
+            return;
+        }
 
         if (skillCombo > 0) {
             tickSkillAttack();
@@ -320,7 +326,7 @@ public class EntityCleaner extends BaseGeoEntity {
 
     public static AttributeSupplier.Builder createAttributes() {
         return Mob.createMobAttributes()
-                .add(Attributes.MAX_HEALTH, 80.0D)
+                .add(Attributes.MAX_HEALTH, MAX_HEALTH)
                 .add(Attributes.MOVEMENT_SPEED, SPEED_II_WALKING_PLAYER_SPEED)
                 .add(Attributes.ATTACK_DAMAGE, 3.0D)
                 .add(Attributes.FOLLOW_RANGE, 35.0D)

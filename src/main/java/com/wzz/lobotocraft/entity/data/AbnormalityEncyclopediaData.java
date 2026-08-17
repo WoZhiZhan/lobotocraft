@@ -31,7 +31,7 @@ public class AbnormalityEncyclopediaData {
             "Ppodae", "GalaxyBoy", "LittleWitch", "BlueStar", "Porccu",
             "BossBird", "Helper", "Cosmos", "BigBadWolf", "Butterfly",
             "RedHood", "PinkCorps", "ArmorCreature", "OldLady",
-            "DangoCreature", "Lumberjack"
+            "DangoCreature", "Lumberjack", "MagicalGirl"
     };
 
     public record StoryEntry(int openLevel, String text) {
@@ -413,6 +413,20 @@ public class AbnormalityEncyclopediaData {
                         "突破收容后，如果“微笑的尸山”已在尸体上催生出其他实体，那么只是单单将一个实体的生命值清空并不能完全镇压它。只有先将“微笑的尸山”催生出的实体全部击杀后才能对本体造成伤害。"
                 },
                 "计数器极限：2 | 会突破收容 | 红色(1.2 抗性较低) 白色(0.8 抗性较高) 黑色(0.8 抗性较高) 蓝色(0.5 抗性较高)"
+        ));
+
+        // 憎恶女王 (O-01-04) - 原版 7 条管理须知
+        ENCYCLOPEDIA_DATA.put("O-01-04", new EntryData(
+                new String[]{
+                        "当工作结果为差时，“憎恶女王”的逆卡巴拉计数器会立刻减少。",
+                        "每次设施推进逆卡巴拉警报阶段时，如果上一阶段死亡的职员不足3名，“憎恶女王”的逆卡巴拉计数器会立刻减少。",
+                        "当“憎恶女王”的逆卡巴拉计数器为最大值时，完成工作的员工会在亲吻动作结束后恢复全部生命值和精神值。",
+                        "发生二级警报时，“憎恶女王”会自愿协助镇压。协助期间若死亡职员达到出动时职员总数的20%，她会陷入歇斯底里并最终化为蛇形。",
+                        "当“憎恶女王”的逆卡巴拉计数器降为1时，她会陷入歇斯底里，所有工作的基础成功率降低20个百分点。",
+                        "处于歇斯底里状态时，若一次工作产出不少于16个PE-BOX，她的逆卡巴拉计数器会立刻恢复。",
+                        "处于歇斯底里状态时，若一次工作产出少于16个PE-BOX，她的逆卡巴拉计数器会归零并突破收容。"
+                },
+                "计数器极限：2 | 会突破收容 | 红色(0.7 抗性较高) 白色(1.2 抗性较低) 黑色(0.3 抗性极高) 苍白(1.5 抗性较低)"
         ));
     }
 

@@ -1,6 +1,9 @@
 package com.wzz.lobotocraft.network.packet;
 
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
+import com.wzz.lobotocraft.core_suppression.geburah.GeburahSuppressionRewardPolicy;
 import com.wzz.lobotocraft.ego.AiEgoRepositoryData;
 import com.wzz.lobotocraft.ego.EgoResearchScope;
 import com.wzz.lobotocraft.ego.EgoItemSpec;
@@ -120,6 +123,8 @@ public class DevelopEquipmentPacket implements IMessage {
                 int maximum = equipmentType.equals("weapon")
                         ? abnormality.getWeaponDevelopmentMaxCount()
                         : abnormality.getArmorDevelopmentMaxCount();
+                maximum = GeburahSuppressionRewardPolicy.aiResearchMaximum(maximum,
+                        CoreSuppressionManager.hasReward(player, CoreSuppressionType.GEBURAH));
                 if (scope == EgoResearchScope.AI_GLOBAL
                         && repository.total(abnormalityCode, equipmentType) >= Math.max(1, maximum)) {
                     player.sendSystemMessage(Component.translatable(

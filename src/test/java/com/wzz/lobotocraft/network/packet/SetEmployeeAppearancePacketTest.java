@@ -1,6 +1,8 @@
 package com.wzz.lobotocraft.network.packet;
 
 import com.wzz.lobotocraft.employee.EmployeeAppearance;
+import com.wzz.lobotocraft.debug.prototype.queenlaser.QueenLaserPrototypePacket;
+import com.wzz.lobotocraft.debug.prototype.queenstar.QueenStarPrototypePacket;
 import com.wzz.lobotocraft.network.PacketRegistry;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
@@ -39,19 +41,44 @@ final class SetEmployeeAppearancePacketTest {
         int id = PacketRegistry.idOf(SetEmployeeAppearancePacket.class);
         int noticeId = PacketRegistry.idOf(OpenWelcomeNoticePacket.class);
 
-        assertEquals(PacketRegistry.size() - 4, id);
+        assertEquals(noticeId - 1, id);
         assertTrue(PacketRegistry.accepts(id, false));
         assertFalse(PacketRegistry.accepts(id, true));
-        assertEquals(PacketRegistry.size() - 3, noticeId);
         assertFalse(PacketRegistry.accepts(noticeId, false));
         assertTrue(PacketRegistry.accepts(noticeId, true));
         int acknowledgementId = PacketRegistry.idOf(AcknowledgeWelcomeNoticePacket.class);
-        assertEquals(PacketRegistry.size() - 2, acknowledgementId);
+        assertEquals(noticeId + 1, acknowledgementId);
         assertTrue(PacketRegistry.accepts(acknowledgementId, false));
         assertFalse(PacketRegistry.accepts(acknowledgementId, true));
         int meterId = PacketRegistry.idOf(MustOpenPathMeterSyncPacket.class);
-        assertEquals(PacketRegistry.size() - 1, meterId);
+        assertEquals(acknowledgementId + 1, meterId);
+        assertEquals(PacketRegistry.size() - 6, meterId);
         assertFalse(PacketRegistry.accepts(meterId, false));
         assertTrue(PacketRegistry.accepts(meterId, true));
+        int prototypeId = PacketRegistry.idOf(QueenLaserPrototypePacket.class);
+        assertEquals(meterId + 1, prototypeId);
+        assertEquals(PacketRegistry.size() - 5, prototypeId);
+        assertFalse(PacketRegistry.accepts(prototypeId, false));
+        assertTrue(PacketRegistry.accepts(prototypeId, true));
+        int starPrototypeId = PacketRegistry.idOf(QueenStarPrototypePacket.class);
+        assertEquals(prototypeId + 1, starPrototypeId);
+        assertEquals(PacketRegistry.size() - 4, starPrototypeId);
+        assertFalse(PacketRegistry.accepts(starPrototypeId, false));
+        assertTrue(PacketRegistry.accepts(starPrototypeId, true));
+        int geburahShakeId = PacketRegistry.idOf(GeburahCameraShakePacket.class);
+        assertEquals(starPrototypeId + 1, geburahShakeId);
+        assertEquals(PacketRegistry.size() - 3, geburahShakeId);
+        assertFalse(PacketRegistry.accepts(geburahShakeId, false));
+        assertTrue(PacketRegistry.accepts(geburahShakeId, true));
+        int geburahStatusId = PacketRegistry.idOf(GeburahStatusSyncPacket.class);
+        assertEquals(geburahShakeId + 1, geburahStatusId);
+        assertEquals(PacketRegistry.size() - 2, geburahStatusId);
+        assertFalse(PacketRegistry.accepts(geburahStatusId, false));
+        assertTrue(PacketRegistry.accepts(geburahStatusId, true));
+        int geburahVisualId = PacketRegistry.idOf(GeburahVisualEffectPacket.class);
+        assertEquals(geburahStatusId + 1, geburahVisualId);
+        assertEquals(PacketRegistry.size() - 1, geburahVisualId);
+        assertFalse(PacketRegistry.accepts(geburahVisualId, false));
+        assertTrue(PacketRegistry.accepts(geburahVisualId, true));
     }
 }

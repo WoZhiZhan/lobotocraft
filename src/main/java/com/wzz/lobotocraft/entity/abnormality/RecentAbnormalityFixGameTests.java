@@ -5,16 +5,20 @@ import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.block.entity.RoomMarkerBlockEntity;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionData;
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
 import com.wzz.lobotocraft.employee.EmployeeDepartment;
 import com.wzz.lobotocraft.employee.EmployeeRecord;
 import com.wzz.lobotocraft.employee.EmployeeRuntimeManager;
 import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
 import com.wzz.lobotocraft.entity.EntityClerk;
+import com.wzz.lobotocraft.event.ForgeModEvent;
 import com.wzz.lobotocraft.init.ModBlocks;
 import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.init.ModMobEffects;
+import com.wzz.lobotocraft.item.CaptureUnitItem;
 import com.wzz.lobotocraft.item.ego.blue_star.BlueStarWeapon;
 import com.wzz.lobotocraft.item.ego.red_shoes.RedShoesDamagePolicy;
 import com.wzz.lobotocraft.item.ego.snowqueen.SnowQueenWeapon;
@@ -52,8 +56,11 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.gametest.GameTestHolder;
+import top.theillusivec4.curios.api.CuriosApi;
 
 /** Dedicated-server regression scenarios for the abnormality fixes reported together. */
 @GameTestHolder(ModMain.MODID + "_recent_fixes")
@@ -122,6 +129,70 @@ public final class RecentAbnormalityFixGameTests {
         helper.assertTrue("idle".equals(wolf.getAnimation()),
                 "successful claw attack did not return to idle after the full animation");
         liveTarget.discard();
+        helper.succeed();
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 40, required = true, batch = "recent_big_bad_wolf_animation")
+    public static void bigBadWolfHowlAnimationRecoversWhenFogInterruptsIt(GameTestHelper helper) {
+        EntityBigBadWolf startWolf = spawnEscapedBigBadWolf(helper, new BlockPos(2, 1, 2));
+        startWolf.beginHowl(helper.getLevel());
+        helper.assertTrue("skill1".equals(startWolf.getAnimation()),
+                "wolf did not enter the howl startup animation");
+        startWolf.enterFog();
+        assertWolfHowlInterrupted(helper, startWolf, "howl startup");
+        startWolf.discard();
+
+        EntityBigBadWolf endWolf = spawnEscapedBigBadWolf(helper, new BlockPos(6, 1, 2));
+        endWolf.beginHowl(helper.getLevel());
+        for (int tick = 0; tick < EntityBigBadWolf.HOWL_START_ANIMATION_TICKS; tick++) {
+            endWolf.tickHowl(helper.getLevel());
+        }
+        for (int tick = 0; tick < 60; tick++) {
+            endWolf.tickHowl(helper.getLevel());
+        }
+        helper.assertTrue("skill2".equals(endWolf.getAnimation()),
+                "wolf did not reach the howl ending animation");
+        endWolf.enterFog();
+        assertWolfHowlInterrupted(helper, endWolf, "howl ending");
+        endWolf.discard();
+        helper.succeed();
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 40, required = true, batch = "recent_big_bad_wolf_animation")
+    public static void bigBadWolfHowlPhasesMatchAnimationDurations(GameTestHelper helper) {
+        EntityBigBadWolf wolf = spawnEscapedBigBadWolf(helper, new BlockPos(2, 1, 2));
+        wolf.beginHowl(helper.getLevel());
+
+        for (int tick = 1; tick < EntityBigBadWolf.HOWL_START_ANIMATION_TICKS; tick++) {
+            wolf.tickHowl(helper.getLevel());
+        }
+        helper.assertTrue("skill1".equals(wolf.getAnimation()),
+                "howl startup ended before the animation duration");
+        wolf.tickHowl(helper.getLevel());
+        helper.assertTrue("skill12".equals(wolf.getAnimation()),
+                "howl startup did not advance after the animation duration");
+
+        for (int tick = 1; tick < 60; tick++) {
+            wolf.tickHowl(helper.getLevel());
+        }
+        helper.assertTrue("skill12".equals(wolf.getAnimation()),
+                "looping howl ended before its configured duration");
+        wolf.tickHowl(helper.getLevel());
+        helper.assertTrue("skill2".equals(wolf.getAnimation()),
+                "looping howl did not advance to its ending animation");
+
+        for (int tick = 1; tick < EntityBigBadWolf.HOWL_END_ANIMATION_TICKS; tick++) {
+            wolf.tickHowl(helper.getLevel());
+        }
+        helper.assertTrue("skill2".equals(wolf.getAnimation()),
+                "howl ending stopped before the animation duration");
+        wolf.tickHowl(helper.getLevel());
+        helper.assertTrue("idle".equals(wolf.getAnimation()),
+                "howl ending did not return to idle after the animation duration");
+
+        wolf.discard();
         helper.succeed();
     }
 
@@ -236,6 +307,124 @@ public final class RecentAbnormalityFixGameTests {
     }
 
     @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 100, required = true, batch = "recent_blue_star")
+    public static void blueStarLowTemperanceExecutionRestoresIdle(GameTestHelper helper) {
+        EntityBlueStar blueStar = ModEntities.blue_star.get().create(helper.getLevel());
+        EmployeeServerPlayer worker = spawnEmployee(helper, new BlockPos(3, 1, 2),
+                "blue_star_low_temperance", 20);
+        if (blueStar == null) {
+            worker.kill();
+            helper.fail("blue star could not be created");
+            return;
+        }
+        moveTo(helper, blueStar, new BlockPos(4, 1, 2));
+        helper.getLevel().addFreshEntity(blueStar);
+
+        helper.runAfterDelay(70, () -> {
+            try {
+                helper.assertFalse(worker.isAlive(),
+                        "low-temperance employee survived Blue Star execution");
+                helper.assertTrue("animation.blue_star.idle".equals(blueStar.getAnimation()),
+                        "Blue Star did not restore idle animation after the execution");
+                helper.succeed();
+            } finally {
+                blueStar.discard();
+                if (worker.isAlive()) worker.kill();
+            }
+        });
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 40, required = true, batch = "recent_red_hood")
+    public static void redHoodRequiresEquippedBigBadWolfAccessory(GameTestHelper helper) {
+        EntityRedHoodMercenary redHood = ModEntities.redhat_mercenary.get().create(helper.getLevel());
+        EmployeeServerPlayer worker = spawnEmployee(helper, new BlockPos(2, 1, 2),
+                "red_hood_wolf_accessory", 100);
+        if (redHood == null) {
+            worker.kill();
+            helper.fail("Little Red could not be created");
+            return;
+        }
+        moveTo(helper, redHood, new BlockPos(4, 1, 2));
+        helper.getLevel().addFreshEntity(redHood);
+        int initialCounter = redHood.getQliphothCounter();
+
+        try {
+            worker.getInventory().add(new ItemStack(ModItems.SHEEPSKIN_CURIO.get()));
+            redHood.onWorkComplete(worker, WorkType.INSIGHT, WorkResult.GOOD);
+            helper.assertTrue(redHood.getQliphothCounter() == initialCounter,
+                    "backpack sheep skin incorrectly satisfied the wolf accessory rule");
+
+            worker.getInventory().clearContent();
+            boolean[] equipped = {false};
+            CuriosApi.getCuriosInventory(worker).resolve().ifPresent(handler -> {
+                var headwear = handler.getCurios().get("headwear");
+                if (headwear != null && headwear.getSlots() > 0) {
+                    headwear.getStacks().setStackInSlot(
+                            0, new ItemStack(ModItems.BIG_BADWOLF_CURIO.get()));
+                    equipped[0] = true;
+                }
+            });
+            helper.assertTrue(equipped[0], "wolf accessory Curios slot was unavailable");
+            redHood.onWorkComplete(worker, WorkType.INSIGHT, WorkResult.GOOD);
+            helper.assertTrue(redHood.getQliphothCounter() == initialCounter - 1,
+                    "equipped Big Bad Wolf accessory did not reduce Little Red's counter");
+            helper.succeed();
+        } finally {
+            redHood.discard();
+            worker.kill();
+        }
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 40, required = true, batch = "recent_capture_unit")
+    public static void coreSuppressionBlocksCaptureAtForgeEventBoundary(GameTestHelper helper) {
+        ServerLevel facility = helper.getLevel().getServer().getLevel(ModDimensions.LOBOTO_KEY);
+        if (facility == null) {
+            helper.fail("facility dimension was not loaded");
+            return;
+        }
+        EmployeeRecord record = new EmployeeRecord(UUID.randomUUID(),
+                "capture_unit_suppression", EmployeeDepartment.CONTROL);
+        EmployeeServerPlayer player = new EmployeeServerPlayer(facility,
+                new GameProfile(record.id(), record.name()), record);
+        player.absMoveTo(200.5D, 270.0D, 20.5D, 0.0F, 0.0F);
+        facility.addNewPlayer(player);
+        EntityOneBad abnormality = ModEntities.onebad.get().create(facility);
+        if (abnormality == null) {
+            player.kill();
+            helper.fail("capture target could not be created");
+            return;
+        }
+        abnormality.absMoveTo(202.5D, 270.0D, 20.5D, 0.0F, 0.0F);
+        facility.addFreshEntity(abnormality);
+        ItemStack captureUnit = new ItemStack(ModItems.CAPTURE_UNIT.get());
+        player.setItemInHand(InteractionHand.MAIN_HAND, captureUnit);
+        CoreSuppressionData suppression = CoreSuppressionData.get(facility);
+        if (suppression.isActive()) suppression.finish(false);
+        suppression.start(CoreSuppressionType.MALKUTH, player.getUUID(), player.getName().getString(),
+                26, 0, 0, Map.of());
+
+        try {
+            PlayerInteractEvent.EntityInteract event = new PlayerInteractEvent.EntityInteract(
+                    player, InteractionHand.MAIN_HAND, abnormality);
+            ForgeModEvent.onPlayerRightEntity(event);
+            helper.assertTrue(event.isCanceled()
+                            && event.getCancellationResult() == InteractionResult.FAIL,
+                    "core suppression capture was not rejected at the Forge event boundary");
+            helper.assertFalse(abnormality.isRemoved(),
+                    "core suppression still allowed the abnormality to be captured");
+            helper.assertFalse(captureUnit.getOrCreateTag().contains(CaptureUnitItem.ENTITY_UUID),
+                    "core suppression capture still wrote abnormality data into the unit");
+            helper.succeed();
+        } finally {
+            suppression.finish(false);
+            abnormality.discard();
+            player.kill();
+        }
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
             timeoutTicks = 40, required = true, batch = "recent_red_shoes_rescue")
     public static void redShoesJudgementCanBeBrokenByDamage(GameTestHelper helper) {
         EntityRedShoes redShoes = spawnRedShoes(helper, new BlockPos(4, 1, 2));
@@ -283,33 +472,50 @@ public final class RecentAbnormalityFixGameTests {
                 "red_shoes_target", 45);
         float healthBefore = target.getHealth();
 
-        redShoes.onWorkStart(attacker, WorkType.ATTACHMENT);
-        redShoes.onWorkComplete(attacker, WorkType.ATTACHMENT, WorkResult.GOOD);
-        attacker.getPersistentData().putInt(JUDGEMENT_TIMER_TAG, 0);
-        // Synthetic ServerPlayers are not part of PlayerList's ordinary tick loop.
-        MinecraftForge.EVENT_BUS.post(new LivingEvent.LivingTickEvent(attacker));
+        try {
+            helper.assertTrue(helper.getLevel().getEntity(redShoes.getUUID()) == redShoes,
+                    "red shoes source was not registered in the test level");
+            helper.assertTrue(redShoes.onWorkStart(attacker, WorkType.ATTACHMENT),
+                    "red shoes rejected the controlled-combat work fixture");
+            redShoes.onWorkComplete(attacker, WorkType.ATTACHMENT, WorkResult.GOOD);
+            helper.assertTrue(attacker.getPersistentData().getBoolean(JUDGEMENT_TAG),
+                    "low-temperance work did not establish judgement");
+            helper.assertTrue(attacker.getPersistentData().hasUUID(RED_SHOES_SOURCE_TAG)
+                            && helper.getLevel().getEntity(attacker.getPersistentData()
+                            .getUUID(RED_SHOES_SOURCE_TAG)) == redShoes,
+                    "judgement source UUID did not resolve to the red shoes entity");
 
-        helper.runAfterDelay(4, () -> {
-            try {
-                helper.assertTrue(EntityRedShoes.isRedShoesControlled(attacker),
-                        "red shoes control ended before the combat check");
-                helper.assertTrue(target.getHealth() < healthBefore,
-                        "controlled attack failed: judgement="
-                                + attacker.getPersistentData().getBoolean(JUDGEMENT_TAG)
-                                + ", charmed=" + attacker.getPersistentData().getBoolean(CHARMED_TAG)
-                                + ", bloodlust=" + attacker.getPersistentData().getBoolean(BLOODLUST_TAG)
-                                + ", cooldown="
-                                + attacker.getPersistentData().getInt(BLOODLUST_ATTACK_COOLDOWN_TAG)
-                                + ", distanceSq=" + attacker.distanceToSqr(target)
-                                + ", targetHealth=" + target.getHealth());
-                helper.succeed();
-            } finally {
-                EntityRedShoes.clearControlForRecovery(attacker);
-                redShoes.discard();
-                attacker.kill();
-                target.kill();
-            }
-        });
+            attacker.getPersistentData().putInt(JUDGEMENT_TIMER_TAG, 0);
+            // Synthetic ServerPlayers are not part of PlayerList's ordinary tick loop.
+            MinecraftForge.EVENT_BUS.post(new LivingEvent.LivingTickEvent(attacker));
+
+            helper.assertTrue(EntityRedShoes.isRedShoesControlled(attacker),
+                    "red shoes control ended before the combat check: judgement="
+                            + attacker.getPersistentData().getBoolean(JUDGEMENT_TAG)
+                            + ", charmed=" + attacker.getPersistentData().getBoolean(CHARMED_TAG)
+                            + ", bloodlust=" + attacker.getPersistentData().getBoolean(BLOODLUST_TAG)
+                            + ", sourcePresent="
+                            + attacker.getPersistentData().hasUUID(RED_SHOES_SOURCE_TAG)
+                            + ", sourceAlive=" + redShoes.isAlive()
+                            + ", sourceRemoved=" + redShoes.isRemoved()
+                            + ", sourceRegistered="
+                            + (helper.getLevel().getEntity(redShoes.getUUID()) == redShoes));
+            helper.assertTrue(target.getHealth() < healthBefore,
+                    "controlled attack failed: judgement="
+                            + attacker.getPersistentData().getBoolean(JUDGEMENT_TAG)
+                            + ", charmed=" + attacker.getPersistentData().getBoolean(CHARMED_TAG)
+                            + ", bloodlust=" + attacker.getPersistentData().getBoolean(BLOODLUST_TAG)
+                            + ", cooldown="
+                            + attacker.getPersistentData().getInt(BLOODLUST_ATTACK_COOLDOWN_TAG)
+                            + ", distanceSq=" + attacker.distanceToSqr(target)
+                            + ", targetHealth=" + target.getHealth());
+            helper.succeed();
+        } finally {
+            EntityRedShoes.clearControlForRecovery(attacker);
+            redShoes.discard();
+            attacker.kill();
+            target.kill();
+        }
     }
 
     @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
@@ -617,12 +823,17 @@ public final class RecentAbnormalityFixGameTests {
                 "iron_maiden_respawn", EmployeeDepartment.CONTROL);
         EmployeeServerPlayer replacement = new EmployeeServerPlayer(helper.getLevel(),
                 new GameProfile(operator.getUUID(), replacementRecord.name()), replacementRecord);
+        replacement.setId(operator.getId());
 
         try {
             helper.assertTrue(ironMaiden.isUsing(operator),
                     "iron maiden lost the original operator session");
+            MinecraftForge.EVENT_BUS.post(new LivingDeathEvent(
+                    operator, operator.damageSources().genericKill()));
+            helper.assertFalse(ironMaiden.isUsing(operator),
+                    "player death did not terminate the Iron Maiden session");
             helper.assertFalse(ironMaiden.isUsing(replacement),
-                    "same-UUID respawn entity inherited the dead operator's session");
+                    "same-UUID and same-ID respawn entity inherited the dead operator's session");
             helper.succeed();
         } finally {
             ironMaiden.discard();
@@ -644,7 +855,8 @@ public final class RecentAbnormalityFixGameTests {
         helper.getLevel().addFreshEntity(zombie);
         zombie.addEffect(new MobEffectInstance(ModMobEffects.KISS.get(), 40, 2));
 
-        helper.runAfterDelay(2, () -> {
+        try {
+            zombie.tick();
             helper.assertTrue(zombie.getPersistentData().getBoolean("isFreezeKiss"),
                     "three-stack kiss did not enter the frozen state");
             helper.assertTrue(zombie.isNoAi(), "kiss changed a pre-existing NoAI state");
@@ -652,16 +864,19 @@ public final class RecentAbnormalityFixGameTests {
             helper.assertFalse(zombie.getPersistentData().getBoolean("isFreezeKiss"),
                     "kiss freeze marker survived effect removal");
             helper.assertTrue(zombie.isNoAi(), "effect removal cleared a pre-existing NoAI state");
+        } catch (RuntimeException exception) {
+            zombie.discard();
+            throw exception;
+        }
 
-            helper.runAfterDelay(130, () -> {
-                try {
-                    helper.assertTrue(zombie.isNoAi(),
-                            "a delayed kiss callback cleared the pre-existing NoAI state");
-                    helper.succeed();
-                } finally {
-                    zombie.discard();
-                }
-            });
+        helper.runAfterDelay(130, () -> {
+            try {
+                helper.assertTrue(zombie.isNoAi(),
+                        "a delayed kiss callback cleared the pre-existing NoAI state");
+                helper.succeed();
+            } finally {
+                zombie.discard();
+            }
         });
     }
 
@@ -1024,6 +1239,36 @@ public final class RecentAbnormalityFixGameTests {
         moveTo(helper, endBird, relative);
         helper.getLevel().addFreshEntity(endBird);
         return endBird;
+    }
+
+    private static EntityBigBadWolf spawnEscapedBigBadWolf(GameTestHelper helper, BlockPos relative) {
+        EntityBigBadWolf wolf = ModEntities.bigbadwolf.get().create(helper.getLevel());
+        if (wolf == null) throw new IllegalStateException("big bad wolf could not be created");
+        moveTo(helper, wolf, relative);
+        helper.getLevel().addFreshEntity(wolf);
+        wolf.triggerEscape();
+        helper.assertTrue(wolf.hasEscape(), "big bad wolf did not enter its escaped state");
+        return wolf;
+    }
+
+    private static void assertWolfHowlInterrupted(GameTestHelper helper, EntityBigBadWolf wolf,
+                                                  String phase) {
+        helper.assertTrue("idle".equals(wolf.getAnimation()),
+                phase + " remained on its final frame after fog started");
+        helper.assertTrue(readIntField(wolf, "howlPhase") == 0,
+                phase + " phase was not cleared when fog started");
+        helper.assertTrue(readIntField(wolf, "howlTimer") == 0,
+                phase + " timer was not cleared when fog started");
+    }
+
+    private static int readIntField(Object target, String fieldName) {
+        try {
+            Field field = target.getClass().getDeclaredField(fieldName);
+            field.setAccessible(true);
+            return field.getInt(target);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("could not inspect " + fieldName, exception);
+        }
     }
 
     private static EntityNothingThere spawnNothingThere(GameTestHelper helper, BlockPos relative) {

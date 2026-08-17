@@ -36,11 +36,17 @@ public class ModAttributes {
     @SubscribeEvent
     public static void onEntityAttributeModification(EntityAttributeModificationEvent event) {
         for (EntityType<? extends LivingEntity> livingType : event.getTypes()) {
-            event.add(livingType, RED_DAMAGE_RESISTANCE.get());
-            event.add(livingType, WHITE_DAMAGE_RESISTANCE.get());
-            event.add(livingType, BLACK_DAMAGE_RESISTANCE.get());
-            event.add(livingType, BLUE_DAMAGE_RESISTANCE.get());
-            event.add(livingType, EXTRA_MENTAL_VALUE.get());
+            addIfMissing(event, livingType, RED_DAMAGE_RESISTANCE.get());
+            addIfMissing(event, livingType, WHITE_DAMAGE_RESISTANCE.get());
+            addIfMissing(event, livingType, BLACK_DAMAGE_RESISTANCE.get());
+            addIfMissing(event, livingType, BLUE_DAMAGE_RESISTANCE.get());
+            addIfMissing(event, livingType, EXTRA_MENTAL_VALUE.get());
         }
+    }
+
+    private static void addIfMissing(EntityAttributeModificationEvent event,
+                                     EntityType<? extends LivingEntity> livingType,
+                                     Attribute attribute) {
+        if (!event.has(livingType, attribute)) event.add(livingType, attribute);
     }
 }

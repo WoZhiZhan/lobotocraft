@@ -213,7 +213,7 @@ public class EntityCensored extends AbstractAbnormality {
                         AbstractAbnormality.class,
                         getBoundingBox().inflate(32.0D),
                         abnormality -> abnormality != this
-                                && abnormality.hasEscape()
+                                && abnormality.isAbnormalityCombatTarget()
                                 && !abnormality.isBirdOfBlackForest()
                                 && abnormality.isAlive())
                 .stream()
@@ -234,7 +234,7 @@ public class EntityCensored extends AbstractAbnormality {
 
     private boolean isValidVictim(LivingEntity entity) {
         if (entity == this || !entity.isAlive() || entity instanceof EntityCensoredMinion) return false;
-        if (entity instanceof AbstractAbnormality abnormality) return abnormality.hasEscape();
+        if (entity instanceof AbstractAbnormality abnormality) return abnormality.isAbnormalityCombatTarget();
         if (entity instanceof Player player) return !player.isCreative() && !player.isSpectator();
         return true;
     }

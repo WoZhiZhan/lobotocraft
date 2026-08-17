@@ -9,6 +9,7 @@ import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.item.TargetMarkerItem;
 import com.wzz.lobotocraft.item.ego.butterfly_funeral.ButterflyFuneralWeapon;
+import com.wzz.lobotocraft.util.CuriosUtil;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.ResourceUtil;
@@ -147,12 +148,8 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
         player.getCapability(com.wzz.lobotocraft.capability.CompanyDailyDataProvider.COMPANY_DAILY_DATA)
                 .ifPresent(data -> player.getPersistentData()
                         .putInt("lobotocraft_worked_redhat_day", data.getCurrentDay()));
-        // 须知Ⅱ:拥有狼的饰品"羊皮"的员工完成工作 → 计数器在倒计时结束后减少
-        boolean hasSheepskin = false;
-        for (ItemStack st : player.getInventory().items) {
-            if (st.getItem() == ModItems.SHEEPSKIN_CURIO.get()) { hasSheepskin = true; break; }
-        }
-        if (hasSheepskin) {
+        // 须知Ⅱ:佩戴又大又可能很坏的狼饰品的员工完成工作 → 计数器减少
+        if (CuriosUtil.hasCurios(player, ModItems.BIG_BADWOLF_CURIO.get())) {
             decreaseQliphothCounter(1);
         }
         if (workType == WorkType.ATTACHMENT) {

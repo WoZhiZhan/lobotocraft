@@ -1,7 +1,9 @@
 package com.wzz.lobotocraft.event.listener;
 
+import com.wzz.lobotocraft.entity.abnormality.EntityCleaner;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -22,5 +24,10 @@ class CleanerEventTest {
         assertTrue(CleanerEvent.isNaturalSpawnTime(37_000L));
         assertFalse(CleanerEvent.isNaturalSpawnTime(48_000L));
         assertTrue(CleanerEvent.isNaturalSpawnTime(-11_000L));
+    }
+
+    @Test
+    void cleanerHealthIsNerfedToFiftyFive() {
+        assertEquals(55.0D, EntityCleaner.MAX_HEALTH);
     }
 }

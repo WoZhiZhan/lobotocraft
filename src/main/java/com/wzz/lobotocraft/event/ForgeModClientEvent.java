@@ -9,6 +9,10 @@ import com.wzz.lobotocraft.client.audio.GuiMusicManager;
 import com.wzz.lobotocraft.client.audio.NormalWorkMusicManager;
 import com.wzz.lobotocraft.client.alert.EscapeAlertManager;
 import com.wzz.lobotocraft.client.core.CoreSuppressionClientState;
+import com.wzz.lobotocraft.client.core.GeburahCameraShakeState;
+import com.wzz.lobotocraft.client.core.GeburahBladeTrailState;
+import com.wzz.lobotocraft.client.core.GeburahEffectCompositor;
+import com.wzz.lobotocraft.client.core.GeburahStatusClientState;
 import com.wzz.lobotocraft.client.core.CoreSuppressionPostProcessor;
 import com.wzz.lobotocraft.client.core.CoreSuppressionWarningClientState;
 import com.wzz.lobotocraft.client.performance.ClientPerformanceMonitor;
@@ -65,6 +69,9 @@ public class ForgeModClientEvent {
             ++ModShaders.renderTime;
             ScreenDistortionState.tick();
             CoreSuppressionClientState.tick();
+            GeburahCameraShakeState.tick();
+            GeburahEffectCompositor.tick();
+            GeburahStatusClientState.tick();
             WelcomeNoticeClientState.tick();
         }
     }
@@ -89,11 +96,21 @@ public class ForgeModClientEvent {
             CoreSuppressionClientState.update(false, -1, "", 0, 0, 0, 0, 0, 0, false);
             CoreSuppressionWarningClientState.clear();
             CoreSuppressionPostProcessor.clear();
+            GeburahCameraShakeState.clear();
+            GeburahBladeTrailState.clear();
+            GeburahEffectCompositor.clear();
+            GeburahStatusClientState.clear();
         }
     }
 
     @SubscribeEvent
     public static void onComputeCameraAngles(ViewportEvent.ComputeCameraAngles event) {
+        GeburahCameraShakeState.Sample shake = GeburahCameraShakeState.sample(
+                (float) event.getPartialTick());
+        event.setYaw(event.getYaw() + shake.yaw());
+        event.setPitch(event.getPitch() + shake.pitch());
+        event.setRoll(event.getRoll() + shake.roll());
+
         Camera camera = event.getCamera();
         Entity cameraEntity = camera.getEntity();
         int perspective = 0;

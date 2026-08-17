@@ -1,6 +1,8 @@
 package com.wzz.lobotocraft.command;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.wzz.lobotocraft.debug.prototype.queenlaser.QueenLaserPrototypeCommand;
+import com.wzz.lobotocraft.debug.prototype.queenstar.QueenStarPrototypeCommand;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 
@@ -27,6 +29,8 @@ public class CommandRegistry {
         registerCommand(new EgoAuthorizationCommand());
         registerCommand(new ExhibitionCommand());
         registerCommand(new DebugCommand());
+        registerCommand(new QueenLaserPrototypeCommand());
+        registerCommand(new QueenStarPrototypeCommand());
     }
     
     /**

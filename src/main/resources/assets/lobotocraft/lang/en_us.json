@@ -371,6 +371,8 @@
   "tooltip.lobotocraft.must_open_path_curio.panic": "Upon entering panic, immediately take damage equal to 65% of maximum HP, end the panic, restore 5% SP, and remove all negative effects once.",
   "entity.lobotocraft.lumberjack": "Warm-Hearted Woodsman",
   "item.lobotocraft.lumberjack_spawn_egg": "Warm-Hearted Woodsman Spawn Egg",
+  "entity.lobotocraft.queen_of_hatred": "The Queen of Hatred",
+  "item.lobotocraft.queen_of_hatred_spawn_egg": "The Queen of Hatred Spawn Egg",
   "entity.lobotocraft.censored": "CENSORED",
   "entity.lobotocraft.censored_minion": "CENSORED-1",
   "item.lobotocraft.censored_spawn_egg": "CENSORED Spawn Egg",
@@ -441,6 +443,9 @@
   "screen.lobotocraft.core_suppression_warning.choice.full": "Hold for Full Effects",
   "screen.lobotocraft.core_suppression_warning.choice.safe": "Hold for Safe Mode",
   "screen.lobotocraft.core_suppression_warning.choice.color_only": "Hold for Color Filter Only",
+  "screen.lobotocraft.core_suppression_warning.choice.geburah_full": "Full",
+  "screen.lobotocraft.core_suppression_warning.choice.geburah_reduced": "Reduced",
+  "screen.lobotocraft.core_suppression_warning.choice.geburah_off": "Off",
   "screen.lobotocraft.core_suppression_warning.hold": "Hold for 2 Seconds",
   "screen.lobotocraft.tool_use.title": "Use Tool",
   "screen.lobotocraft.tool_use.confirmation": "§lConfirm Tool Use",
@@ -816,6 +821,8 @@
   "message.lobotocraft.core_suppression.pending_exists": "§cA Core Suppression is already awaiting visual safety confirmation from all players.",
   "message.lobotocraft.core_suppression.awaiting_confirmation": "§e[Core Suppression] Waiting for all players to complete visual safety confirmation. Maximum wait: %s seconds.",
   "message.lobotocraft.core_suppression.debug_awaiting_confirmation": "§e[Core Suppression] The forced challenge is waiting for all players to complete visual safety confirmation. Maximum wait: %s seconds.",
+  "message.lobotocraft.core_suppression.debug_start_failed": "§c[Core Suppression] Debug start failed: %s",
+  "overlay.lobotocraft.geburah.bleed": "Bleed ×%s  %ss",
   "message.lobotocraft.core_suppression.daily_data_failed": "§cFacility schedule data could not be read.",
   "message.lobotocraft.core_suppression.day_start_failed": "§cThe new day could not begin. Core Suppression was cancelled.",
   "message.lobotocraft.core_suppression.started": "§6[Core Suppression] §f%s initiated the %s Core Suppression.",
@@ -2561,4 +2568,18 @@
   "command.lobotocraft.test.auto_select.no_tool": "§eHold the structure save tool to use automatic selection.",
   "command.lobotocraft.test.auto_select.done": "§dAutomatically selected structure: §f%s §d→ §f%s",
   "command.lobotocraft.test.unknown_rotation": "§cUnknown rotation: %s §7(none/clockwise_90/clockwise_180/counterclockwise_90)"
+  ,"entity.lobotocraft.geburah": "Geburah"
+  ,"bossbar.lobotocraft.geburah.health": "Geburah"
+  ,"bossbar.lobotocraft.geburah.posture": "Posture"
+  ,"bossbar.lobotocraft.geburah.ego": "E.G.O Sustain"
+  ,"message.lobotocraft.core_suppression.geburah.denial.players_outside": "All online players must be inside the facility dimension"
+  ,"message.lobotocraft.core_suppression.encounter_init_failed": "The suppression entity or a safe spawn point could not be initialized"
+  ,"message.lobotocraft.core_suppression.geburah.revived": "A shared revival was consumed. You may continue fighting immediately."
+  ,"message.lobotocraft.core_suppression.geburah.eliminated": "No revival remains. You are now observing this suppression."
+  ,"message.lobotocraft.core_suppression.geburah.special_attack_warning": "The Red Mist is about to use [%s]"
+  ,"attack.lobotocraft.geburah.blood_mist": "Blood Mist"
+  ,"attack.lobotocraft.geburah.bodies_everywhere": "Bodies Everywhere"
+  ,"attack.lobotocraft.geburah.will_of_battle": "Will of Battle"
+  ,"command.lobotocraft_client.damage_border.status": "Damage borders are currently: %s"
+  ,"command.lobotocraft_client.damage_border.set": "Damage borders set to: %s"
 }

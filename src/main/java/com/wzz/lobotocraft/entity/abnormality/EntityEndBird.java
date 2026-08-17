@@ -461,7 +461,7 @@ public class EntityEndBird extends AbstractAbnormality {
         List<LivingEntity> targets = level().getEntitiesOfClass(LivingEntity.class, area,
                 e -> canEndBirdDamage(e)
                         && (e instanceof Player
-                        || (e instanceof AbstractAbnormality ab && ab.hasEscape())));
+                        || (e instanceof AbstractAbnormality ab && ab.isAbnormalityCombatTarget())));
 
         if (targets.isEmpty()) return;
 

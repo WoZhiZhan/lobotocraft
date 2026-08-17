@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.client.screen;
 
 import com.wzz.lobotocraft.client.core.CoreSuppressionWarningClientState;
+import com.wzz.lobotocraft.client.core.GeburahEffectCompositor;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.CoreSuppressionVisualChoicePacket;
@@ -37,7 +38,7 @@ public final class CoreSuppressionWarningScreen extends Screen {
             return;
         }
         heldTicks = Math.min(HOLD_TICKS, heldTicks + 1);
-        if (heldTicks >= HOLD_TICKS) submit(holding == Choice.FULL);
+        if (heldTicks >= HOLD_TICKS) submit(holding);
     }
 
     @Override
@@ -86,19 +87,36 @@ public final class CoreSuppressionWarningScreen extends Screen {
                 CoreSuppressionWarningClientState.getRemainingSeconds());
         graphics.drawCenteredString(font, status, width / 2, textY + 11, 0xFFFFD76A);
 
-        int buttonWidth = (panelWidth - 48) / 2;
         int buttonY = panelBottom - BUTTON_HEIGHT - 18;
-        int fullX = panelX + 16;
-        int colorX = panelX + panelWidth - 16 - buttonWidth;
-        renderChoice(graphics, Choice.FULL, fullX, buttonY, buttonWidth, BUTTON_HEIGHT,
-                mouseX, mouseY,
-                tr("screen.lobotocraft.core_suppression_warning.choice.full"), 0xFFFF3838);
-        renderChoice(graphics, Choice.COLOR_ONLY, colorX, buttonY, buttonWidth, BUTTON_HEIGHT,
-                mouseX, mouseY,
-                tr(type == CoreSuppressionType.YESOD
-                        ? "screen.lobotocraft.core_suppression_warning.choice.safe"
-                        : "screen.lobotocraft.core_suppression_warning.choice.color_only"),
-                0xFF8CD9A0);
+        if (type == CoreSuppressionType.GEBURAH) {
+            int gap = 8;
+            int buttonWidth = (panelWidth - 32 - gap * 2) / 3;
+            int fullX = panelX + 16;
+            int reducedX = fullX + buttonWidth + gap;
+            int offX = reducedX + buttonWidth + gap;
+            renderChoice(graphics, Choice.FULL, fullX, buttonY, buttonWidth, BUTTON_HEIGHT,
+                    mouseX, mouseY,
+                    tr("screen.lobotocraft.core_suppression_warning.choice.geburah_full"), 0xFFFF3838);
+            renderChoice(graphics, Choice.REDUCED, reducedX, buttonY, buttonWidth, BUTTON_HEIGHT,
+                    mouseX, mouseY,
+                    tr("screen.lobotocraft.core_suppression_warning.choice.geburah_reduced"), 0xFFFFC46B);
+            renderChoice(graphics, Choice.OFF, offX, buttonY, buttonWidth, BUTTON_HEIGHT,
+                    mouseX, mouseY,
+                    tr("screen.lobotocraft.core_suppression_warning.choice.geburah_off"), 0xFFBDBDBD);
+        } else {
+            int buttonWidth = (panelWidth - 48) / 2;
+            int fullX = panelX + 16;
+            int colorX = panelX + panelWidth - 16 - buttonWidth;
+            renderChoice(graphics, Choice.FULL, fullX, buttonY, buttonWidth, BUTTON_HEIGHT,
+                    mouseX, mouseY,
+                    tr("screen.lobotocraft.core_suppression_warning.choice.full"), 0xFFFF3838);
+            renderChoice(graphics, Choice.REDUCED, colorX, buttonY, buttonWidth, BUTTON_HEIGHT,
+                    mouseX, mouseY,
+                    tr(type == CoreSuppressionType.YESOD
+                            ? "screen.lobotocraft.core_suppression_warning.choice.safe"
+                            : "screen.lobotocraft.core_suppression_warning.choice.color_only"),
+                    0xFF8CD9A0);
+        }
         super.render(graphics, mouseX, mouseY, partialTick);
     }
 
@@ -124,16 +142,32 @@ public final class CoreSuppressionWarningScreen extends Screen {
         int panelX = (width - panelWidth) / 2;
         int panelY = Math.max(18, (height - 270) / 2);
         int panelBottom = Math.min(height - 18, panelY + 270);
-        int buttonWidth = (panelWidth - 48) / 2;
         int buttonY = panelBottom - BUTTON_HEIGHT - 18;
-        int fullX = panelX + 16;
-        int colorX = panelX + panelWidth - 16 - buttonWidth;
-        if (inside(mouseX, mouseY, fullX, buttonY, buttonWidth, BUTTON_HEIGHT)) {
-            holding = Choice.FULL;
-            heldTicks = 0;
-        } else if (inside(mouseX, mouseY, colorX, buttonY, buttonWidth, BUTTON_HEIGHT)) {
-            holding = Choice.COLOR_ONLY;
-            heldTicks = 0;
+        if (type == CoreSuppressionType.GEBURAH) {
+            int gap = 8;
+            int buttonWidth = (panelWidth - 32 - gap * 2) / 3;
+            int fullX = panelX + 16;
+            int reducedX = fullX + buttonWidth + gap;
+            int offX = reducedX + buttonWidth + gap;
+            if (inside(mouseX, mouseY, fullX, buttonY, buttonWidth, BUTTON_HEIGHT)) {
+                holding = Choice.FULL;
+            } else if (inside(mouseX, mouseY, reducedX, buttonY, buttonWidth, BUTTON_HEIGHT)) {
+                holding = Choice.REDUCED;
+            } else if (inside(mouseX, mouseY, offX, buttonY, buttonWidth, BUTTON_HEIGHT)) {
+                holding = Choice.OFF;
+            }
+            if (holding != null) heldTicks = 0;
+        } else {
+            int buttonWidth = (panelWidth - 48) / 2;
+            int fullX = panelX + 16;
+            int colorX = panelX + panelWidth - 16 - buttonWidth;
+            if (inside(mouseX, mouseY, fullX, buttonY, buttonWidth, BUTTON_HEIGHT)) {
+                holding = Choice.FULL;
+                heldTicks = 0;
+            } else if (inside(mouseX, mouseY, colorX, buttonY, buttonWidth, BUTTON_HEIGHT)) {
+                holding = Choice.REDUCED;
+                heldTicks = 0;
+            }
         }
         return true;
     }
@@ -150,10 +184,18 @@ public final class CoreSuppressionWarningScreen extends Screen {
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
-    private void submit(boolean fullEffects) {
+    private void submit(Choice choice) {
         if (submitted) return;
         submitted = true;
-        MessageLoader.getLoader().sendToServer(new CoreSuppressionVisualChoicePacket(fullEffects));
+        if (type == CoreSuppressionType.GEBURAH) {
+            GeburahEffectCompositor.setMode(switch (choice) {
+                case FULL -> GeburahEffectCompositor.Mode.FULL;
+                case REDUCED -> GeburahEffectCompositor.Mode.REDUCED;
+                case OFF -> GeburahEffectCompositor.Mode.OFF;
+            });
+        }
+        MessageLoader.getLoader().sendToServer(
+                new CoreSuppressionVisualChoicePacket(choice == Choice.FULL));
         CoreSuppressionWarningClientState.choiceSubmitted();
     }
 
@@ -191,5 +233,5 @@ public final class CoreSuppressionWarningScreen extends Screen {
         return false;
     }
 
-    private enum Choice { FULL, COLOR_ONLY }
+    private enum Choice { FULL, REDUCED, OFF }
 }

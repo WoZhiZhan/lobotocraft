@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.client.core;
 
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
+import com.wzz.lobotocraft.core_suppression.geburah.GeburahVisualEffectType;
 import com.wzz.lobotocraft.logger.ModLogger;
 import com.wzz.lobotocraft.mixin.PostChainAccessor;
 import com.wzz.lobotocraft.util.ResourceUtil;
@@ -17,6 +18,8 @@ public final class CoreSuppressionPostProcessor {
     private static final int RETRY_DELAY_TICKS = 40;
 
     private static ResourceLocation loadedEffect;
+    private static PostChain loadedChain;
+    private static ResourceLocation failedEffect;
     private static long clientTicks;
     private static long nextRetryTick;
 
@@ -31,48 +34,73 @@ public final class CoreSuppressionPostProcessor {
             clear();
             return;
         }
-        if (desired.equals(loadedEffect) && minecraft.gameRenderer.currentEffect() != null) return;
-        if (clientTicks < nextRetryTick) return;
+        PostChain currentChain = minecraft.gameRenderer.currentEffect();
+        if (!shouldAttemptLoad(desired.equals(loadedEffect), currentChain == loadedChain,
+                desired.equals(failedEffect), clientTicks, nextRetryTick)) return;
 
         minecraft.gameRenderer.shutdownEffect();
+        loadedChain = null;
         try {
             minecraft.gameRenderer.loadEffect(desired);
         } catch (RuntimeException exception) {
             loadedEffect = null;
+            failedEffect = desired;
             nextRetryTick = clientTicks + RETRY_DELAY_TICKS;
             ModLogger.LOGGER.warn("Unable to load core suppression post effect {}", desired, exception);
             return;
         }
-        if (minecraft.gameRenderer.currentEffect() == null) {
+        PostChain loaded = minecraft.gameRenderer.currentEffect();
+        if (loaded == null) {
             loadedEffect = null;
+            loadedChain = null;
+            failedEffect = desired;
             nextRetryTick = clientTicks + RETRY_DELAY_TICKS;
             return;
         }
         loadedEffect = desired;
+        loadedChain = loaded;
+        failedEffect = null;
         nextRetryTick = clientTicks;
     }
 
     public static void clear() {
-        if (loadedEffect != null) Minecraft.getInstance().gameRenderer.shutdownEffect();
+        Minecraft minecraft = Minecraft.getInstance();
+        if (loadedChain != null && minecraft.gameRenderer.currentEffect() == loadedChain) {
+            minecraft.gameRenderer.shutdownEffect();
+        }
         loadedEffect = null;
+        loadedChain = null;
+        failedEffect = null;
         nextRetryTick = clientTicks;
     }
 
     public static boolean shouldRenderAfterGui() {
-        return loadedEffect != null && CoreSuppressionClientState.isActive()
+        return loadedChain != null && CoreSuppressionClientState.isActive()
                 && !shouldSkipForReadableChat()
-                && Minecraft.getInstance().gameRenderer.currentEffect() != null;
+                && Minecraft.getInstance().gameRenderer.currentEffect() == loadedChain;
     }
 
     public static boolean shouldSkipForReadableChat() {
-        return loadedEffect != null
+        return loadedChain != null
                 && CoreSuppressionClientState.isActive(CoreSuppressionType.YESOD)
                 && Minecraft.getInstance().screen instanceof ChatScreen;
     }
 
+    public static boolean isReady() {
+        return loadedChain != null
+                && Minecraft.getInstance().gameRenderer.currentEffect() == loadedChain;
+    }
+
     public static boolean owns(PostChain effect) {
-        return loadedEffect != null
-                && Minecraft.getInstance().gameRenderer.currentEffect() == effect;
+        return effect != null && effect == loadedChain
+                && Minecraft.getInstance().gameRenderer.currentEffect() == loadedChain;
+    }
+
+    static boolean shouldAttemptLoad(boolean desiredMatchesLoaded, boolean ownsCurrentChain,
+                                     boolean desiredMatchesFailed, long currentTick,
+                                     long retryTick) {
+        if (desiredMatchesLoaded && ownsCurrentChain) return false;
+        return !desiredMatchesFailed || currentTick >= retryTick;
     }
 
     public static void prepareFrame(PostChain effect, float partialTick) {
@@ -86,6 +114,15 @@ public final class CoreSuppressionPostProcessor {
             setFloat(shader, "Transition", transition);
             setFloat(shader, "EffectTime", effectTime);
             setFloat(shader, "FarPlane", farPlane);
+            GeburahVisualEffectType effectType = GeburahEffectCompositor.dominantType();
+            setFloat(shader, "EffectKind", effectType == null ? 0.0F : effectType.shaderKind());
+            setFloat(shader, "EffectProgress", GeburahEffectCompositor.shaderProgress(partialTick));
+            setFloat(shader, "EffectIntensity", GeburahEffectCompositor.shaderIntensity());
+            setFloat(shader, "HitSeverity", GeburahEffectCompositor.shaderHitSeverity());
+            setFloat(shader, "EgoAttack", GeburahEffectCompositor.shaderEgoAttack());
+            setFloat(shader, "GeburahProximity", GeburahEffectCompositor.shaderProximity());
+            setVec2(shader, "EffectOrigin", GeburahEffectCompositor.shaderOrigin());
+            setVec2(shader, "EffectDirection", GeburahEffectCompositor.shaderDirection());
         }
     }
 
@@ -94,10 +131,25 @@ public final class CoreSuppressionPostProcessor {
         if (uniform != null) uniform.set(value);
     }
 
+    private static void setVec2(EffectInstance shader, String name, float[] values) {
+        Uniform uniform = shader.getUniform(name);
+        if (uniform != null && values != null && values.length >= 2) {
+            uniform.set(values[0], values[1]);
+        }
+    }
+
     private static ResourceLocation desiredEffect() {
-        if (!CoreSuppressionClientState.isActive()) return null;
+        if (!CoreSuppressionClientState.isActive()) {
+            return GeburahEffectCompositor.usesShader()
+                    ? ResourceUtil.createInstance("shaders/post/core_geburah.json") : null;
+        }
         CoreSuppressionType type = CoreSuppressionClientState.getType();
         if (type == null || !type.isImplemented()) return null;
+        if (type == CoreSuppressionType.GEBURAH) {
+            return CoreSuppressionClientState.usesFullVisualEffects()
+                    && GeburahEffectCompositor.mode() == GeburahEffectCompositor.Mode.FULL
+                    ? ResourceUtil.createInstance("shaders/post/core_geburah.json") : null;
+        }
         if (!CoreSuppressionClientState.usesFullVisualEffects()
                 && type == CoreSuppressionType.YESOD) {
             return ResourceUtil.createInstance("shaders/post/core_yesod_safe.json");

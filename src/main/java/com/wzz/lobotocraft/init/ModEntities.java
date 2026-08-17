@@ -339,6 +339,22 @@ public class ModEntities {
                             .updateInterval(3)
                             .build("lumberjack"));
 
+    public static final RegistryObject<EntityType<EntityQueenOfHatred>> queen_of_hatred =
+            ENTITIES.register("queen_of_hatred",
+                    () -> EntityType.Builder.of(EntityQueenOfHatred::new, MobCategory.CREATURE)
+                            .sized(0.9F, 2.7F)
+                            .clientTrackingRange(16)
+                            .updateInterval(2)
+                            .build("queen_of_hatred"));
+
+    public static final RegistryObject<EntityType<EntityGeburah>> geburah =
+            ENTITIES.register("geburah",
+                    () -> EntityType.Builder.of(EntityGeburah::new, MobCategory.MONSTER)
+                            .sized(0.9F, 2.7F)
+                            .clientTrackingRange(32)
+                            .updateInterval(1)
+                            .build("geburah"));
+
     public static final RegistryObject<EntityType<EntityCensored>> censored =
             ENTITIES.register("censored",
                     () -> EntityType.Builder.of(EntityCensored::new, MobCategory.MONSTER)

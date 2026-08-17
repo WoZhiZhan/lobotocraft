@@ -1654,5 +1654,110 @@
   },
   "censored1_spawn": {
     "sounds": [{"name": "lobotocraft:censored1_spawn", "stream": false}]
+  },
+  "qoh_hero_attack": {
+    "sounds": [{"name": "lobotocraft:qoh_hero_attack", "stream": false}]
+  },
+  "qoh_hero_kiss_1": {
+    "sounds": [{"name": "lobotocraft:qoh_hero_kiss_1", "stream": false}]
+  },
+  "qoh_hero_kiss_2": {
+    "sounds": [{"name": "lobotocraft:qoh_hero_kiss_2", "stream": false}]
+  },
+  "qoh_hero_panic_down": {
+    "sounds": [{"name": "lobotocraft:qoh_hero_panic_down", "stream": false}]
+  },
+  "qoh_hero_panic_loop": {
+    "sounds": [{"name": "lobotocraft:qoh_hero_panic_loop", "stream": false}]
+  },
+  "qoh_hero_skill_start": {
+    "sounds": [{"name": "lobotocraft:qoh_hero_skill_start", "stream": false}]
+  },
+  "qoh_hero_skill_portal_1": {
+    "sounds": [{"name": "lobotocraft:qoh_hero_skill_portal_1", "stream": false}]
+  },
+  "qoh_hero_skill_portal_2": {
+    "sounds": [{"name": "lobotocraft:qoh_hero_skill_portal_2", "stream": false}]
+  },
+  "qoh_hero_skill_cast_end": {
+    "sounds": [{"name": "lobotocraft:qoh_hero_skill_cast_end", "stream": false}]
+  },
+  "qoh_hero_skill_loop": {
+    "sounds": [{"name": "lobotocraft:qoh_hero_skill_loop", "stream": false}]
+  },
+  "qoh_hero_delay_1": {
+    "sounds": [{"name": "lobotocraft:qoh_hero_delay_1", "stream": false}]
+  },
+  "qoh_hero_delay_2": {
+    "sounds": [{"name": "lobotocraft:qoh_hero_delay_2", "stream": false}]
+  },
+  "qoh_hero_transform_1": {
+    "sounds": [{"name": "lobotocraft:qoh_hero_transform_1", "stream": false}]
+  },
+  "qoh_teleport": {
+    "sounds": [{"name": "lobotocraft:qoh_teleport", "stream": false}]
+  },
+  "qoh_villain_cast_start": {
+    "sounds": [{"name": "lobotocraft:qoh_villain_cast_start", "stream": false}]
+  },
+  "qoh_villain_cast_1": {
+    "sounds": [{"name": "lobotocraft:qoh_villain_cast_1", "stream": false}]
+  },
+  "qoh_villain_cast_2": {
+    "sounds": [{"name": "lobotocraft:qoh_villain_cast_2", "stream": false}]
+  },
+  "qoh_villain_cast_loop": {
+    "sounds": [{"name": "lobotocraft:qoh_villain_cast_loop", "stream": false}]
+  },
+  "qoh_villain_dead_1": {
+    "sounds": [{"name": "lobotocraft:qoh_villain_dead_1", "stream": false}]
+  },
+  "qoh_villain_dead_2": {
+    "sounds": [{"name": "lobotocraft:qoh_villain_dead_2", "stream": false}]
+  },
+  "qoh_villain_dead_boom": {
+    "sounds": [{"name": "lobotocraft:qoh_villain_dead_boom", "stream": false}]
+  },
+  "qoh_villain_dead_end": {
+    "sounds": [{"name": "lobotocraft:qoh_villain_dead_end", "stream": false}]
+  },
+  "qoh_villain_down": {
+    "sounds": [{"name": "lobotocraft:qoh_villain_down", "stream": false}]
+  },
+  "geburah_bgm_distorted_night": {
+    "sounds": [{"name": "lobotocraft:geburah_bgm_distorted_night", "stream": true}]
+  },
+  "geburah_bgm_insignia_decay": {
+    "sounds": [{"name": "lobotocraft:geburah_bgm_insignia_decay", "stream": true}]
+  },
+  "geburah_ego_release": {
+    "sounds": [{"name": "lobotocraft:geburah_ego_release", "stream": true}]
+  },
+  "geburah_ego_manifest": {
+    "sounds": [{"name": "lobotocraft:geburah_ego_manifest", "stream": false}]
+  },
+  "geburah_slash": {
+    "sounds": [{"name": "lobotocraft:geburah_slash", "stream": false}]
+  },
+  "geburah_stab": {
+    "sounds": [{"name": "lobotocraft:geburah_stab", "stream": false}]
+  },
+  "geburah_vertical_slash": {
+    "sounds": [{"name": "lobotocraft:geburah_vertical_slash", "stream": false}]
+  },
+  "geburah_ego_vertical_slash": {
+    "sounds": [{"name": "lobotocraft:geburah_ego_vertical_slash", "stream": false}]
+  },
+  "geburah_blood_mist_windup": {
+    "sounds": [{"name": "lobotocraft:geburah_blood_mist_windup", "stream": false}]
+  },
+  "geburah_blood_mist": {
+    "sounds": [{"name": "lobotocraft:geburah_blood_mist", "stream": false}]
+  },
+  "geburah_bodies_everywhere_windup": {
+    "sounds": [{"name": "lobotocraft:geburah_bodies_everywhere_windup", "stream": false}]
+  },
+  "geburah_bodies_everywhere": {
+    "sounds": [{"name": "lobotocraft:geburah_bodies_everywhere", "stream": false}]
   }
 }

@@ -1,0 +1,8 @@
+{
+  "targets": [ "distorted", "swap" ],
+  "passes": [
+    { "name": "lobotocraft:core_geburah", "intarget": "minecraft:main", "outtarget": "distorted" },
+    { "name": "lobotocraft:core_geburah_composite", "intarget": "distorted", "outtarget": "swap" },
+    { "name": "minecraft:blit", "intarget": "swap", "outtarget": "minecraft:main" }
+  ]
+}

@@ -116,6 +116,8 @@ public final class CoreSuppressionManager {
             return Component.translatable("message.lobotocraft.core_suppression.denial.unimplemented",
                     Component.translatable("core_suppression.lobotocraft." + type.getId()));
         }
+        Component encounterDenial = CoreSuppressionEncounterRegistry.getStartDenialReason(player, type);
+        if (encounterDenial != null) return encounterDenial;
         if (state.hasCompleted(type)) {
             return Component.translatable("message.lobotocraft.core_suppression.denial.completed",
                     Component.translatable("core_suppression.lobotocraft." + type.getId()));
@@ -159,7 +161,8 @@ public final class CoreSuppressionManager {
                 continue;
             }
             abnormalityCount++;
-            if (abnormality.hasEscape()) {
+            if (abnormality.hasEscape()
+                    && !CoreSuppressionEncounterRegistry.allowsActiveBreaches(type)) {
                 return Component.translatable(
                         "message.lobotocraft.core_suppression.denial.breach_active");
             }
@@ -246,6 +249,13 @@ public final class CoreSuppressionManager {
                 ordeal.getDawnTriggerSerialToday(), ordeal.getMiddayTriggerSerialToday(), visualChoices);
         initializeMalkuthWorkState(server, state);
         reconcileHodEmployees(server, state);
+        if (!CoreSuppressionEncounterRegistry.start(server, state)) {
+            CoreSuppressionEncounterRegistry.finish(server, type, false);
+            state.finish(false);
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.core_suppression.encounter_init_failed"));
+            return false;
+        }
 
         for (ServerPlayer participant : server.getPlayerList().getPlayers()) {
             if (participant.level().dimension() == ModDimensions.LOBOTO_KEY) {
@@ -295,9 +305,17 @@ public final class CoreSuppressionManager {
                                                Map<UUID, Boolean> visualChoices) {
         MinecraftServer server = player.getServer();
         CoreSuppressionData state = CoreSuppressionData.get(server.overworld());
-        if (state.isActive()) return false;
+        if (state.isActive()) {
+            return failDebugStart(player, Component.translatable(
+                    "message.lobotocraft.core_suppression.denial.active",
+                    Component.translatable("core_suppression.lobotocraft."
+                            + state.getActiveType().getId())));
+        }
         CompanyDailyData daily = getDailyData(player);
-        if (daily == null) return false;
+        if (daily == null) {
+            return failDebugStart(player, Component.translatable(
+                    "message.lobotocraft.core_suppression.daily_data_failed"));
+        }
         KillCommand.queueActiveOrdealTargets(server);
         FacilityManager.debugResetSuppressionProgress(server.overworld());
         OrdealData ordeal = OrdealData.get(server.overworld());
@@ -306,10 +324,16 @@ public final class CoreSuppressionManager {
                 ordeal.getDawnTriggerSerialToday(), ordeal.getMiddayTriggerSerialToday(), visualChoices);
         initializeMalkuthWorkState(server, state);
         reconcileHodEmployees(server, state);
-        for (ServerPlayer participant : server.getPlayerList().getPlayers()) {
-            if (participant.level().dimension() == ModDimensions.LOBOTO_KEY) WorkDeviceItem.disableAll(participant);
+        if (!CoreSuppressionEncounterRegistry.debugStart(server, state)) {
+            CoreSuppressionEncounterRegistry.finish(server, type, false);
+            state.finish(false);
+            return failDebugStart(player, Component.translatable(
+                    "message.lobotocraft.core_suppression.encounter_init_failed"));
         }
-        teleportToCompany(player);
+        for (ServerPlayer participant : server.getPlayerList().getPlayers()) {
+            teleportToCompany(participant);
+            WorkDeviceItem.disableAll(participant);
+        }
         syncDaily(player, daily);
         broadcastTitle(server,
                 Component.translatable("title.lobotocraft.core_suppression.start.top"),
@@ -319,6 +343,12 @@ public final class CoreSuppressionManager {
         broadcastStopCommand(server);
         syncAll(server);
         return true;
+    }
+
+    private static boolean failDebugStart(ServerPlayer player, Component reason) {
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.core_suppression.debug_start_failed", reason));
+        return false;
     }
 
     private static void broadcastStopCommand(MinecraftServer server) {
@@ -394,6 +424,12 @@ public final class CoreSuppressionManager {
         CoreSuppressionData state = CoreSuppressionData.get(server.overworld());
         refreshMalkuthWorkState(server, state);
         return MalkuthWorkPolicy.map(selected, state.getMalkuthWorkMapping());
+    }
+
+    public static boolean areAiEmployeesFrozen(Level level) {
+        if (!(level instanceof ServerLevel serverLevel)) return false;
+        CoreSuppressionType type = CoreSuppressionData.get(serverLevel).getActiveType();
+        return type != null && CoreSuppressionEncounterRegistry.freezesAiEmployees(type);
     }
 
     public static boolean isMalkuthWorkScrambled(Level level) {
@@ -527,6 +563,9 @@ public final class CoreSuppressionManager {
 
     private static void processChallenge(MinecraftServer server) {
         CoreSuppressionData state = CoreSuppressionData.get(server.overworld());
+        if (!state.isActive()) return;
+
+        CoreSuppressionEncounterRegistry.tick(server, state);
         if (!state.isActive()) return;
 
         reconcileHodEmployees(server, state);
@@ -732,7 +771,12 @@ public final class CoreSuppressionManager {
             }
         }
         CoreSuppressionData state = CoreSuppressionData.get(player.serverLevel());
-        if (state.isActive() && player.getUUID().equals(state.getOwnerUuid())) {
+        CoreSuppressionType activeType = state.getActiveType();
+        if (state.isActive()) {
+            CoreSuppressionEncounterRegistry.onPlayerLogout(activeType, player);
+        }
+        if (state.isActive() && player.getUUID().equals(state.getOwnerUuid())
+                && !CoreSuppressionEncounterRegistry.ownsParticipantLifecycle(activeType)) {
             finishChallenge(server, false, "接取者退出了游戏");
         }
     }
@@ -749,6 +793,8 @@ public final class CoreSuppressionManager {
         applyPendingMeltdownPenalty(player);
         grantCompletedAdvancements(player);
         applyNetzachHealthBonus(player);
+        CoreSuppressionType activeType = CoreSuppressionData.get(player.serverLevel()).getActiveType();
+        if (activeType != null) CoreSuppressionEncounterRegistry.onPlayerLogin(activeType, player);
         syncTo(player);
     }
 
@@ -765,6 +811,14 @@ public final class CoreSuppressionManager {
         if (state.isActive()) finishChallenge(server, false, reason);
     }
 
+    public static boolean completeChallenge(MinecraftServer server, CoreSuppressionType expectedType,
+                                            String reason) {
+        CoreSuppressionData state = CoreSuppressionData.get(server.overworld());
+        if (!state.isActive() || state.getActiveType() != expectedType) return false;
+        finishChallenge(server, true, reason);
+        return true;
+    }
+
     /** Finishes the active suppression without checking its completion conditions. */
     public static boolean debugFinishChallenge(MinecraftServer server, boolean success) {
         if (!CoreSuppressionData.get(server.overworld()).isActive()) return false;
@@ -777,6 +831,7 @@ public final class CoreSuppressionManager {
         CoreSuppressionType type = state.getActiveType();
         if (type == null) return;
 
+        CoreSuppressionEncounterRegistry.finish(server, type, success);
         if (type == CoreSuppressionType.HOD) state.prepareHodRestores();
         state.finish(success);
         forEachEmployee(server, CoreSuppressionManager::applyPendingHodRestore);
@@ -846,6 +901,9 @@ public final class CoreSuppressionManager {
             stage = HodPenaltyPolicy.visualStage(meltdownLevel);
         }
         CoreSuppressionType type = state.getActiveType();
+        if (active && type != null) {
+            stage = Math.max(stage, CoreSuppressionEncounterRegistry.visualStage(server, type));
+        }
         MessageLoader.getLoader().sendToPlayer(player, new CoreSuppressionSyncPacket(
                 active,
                 type == null ? -1 : type.ordinal(),
@@ -996,7 +1054,9 @@ public final class CoreSuppressionManager {
         double x = nbt.contains(RETURN_X + "_loboto") ? nbt.getDouble(RETURN_X + "_loboto") : 0.5D;
         double y = nbt.contains(RETURN_Y + "_loboto") ? nbt.getDouble(RETURN_Y + "_loboto") : 4.0D;
         double z = nbt.contains(RETURN_Z + "_loboto") ? nbt.getDouble(RETURN_Z + "_loboto") : 0.5D;
-        if (Structures.LOBOTO.isGenerated(player.serverLevel()) && x == 0.5D && y == 4.0D) {
+        ServerLevel companyLevel = player.getServer().getLevel(ModDimensions.LOBOTO_KEY);
+        if (companyLevel != null && Structures.LOBOTO.isGenerated(companyLevel)
+                && x == 0.5D && y == 4.0D) {
             x = 195.0D;
             y = 273.0D;
             z = 29.0D;

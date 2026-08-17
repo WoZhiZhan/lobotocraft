@@ -6,8 +6,10 @@ import com.wzz.lobotocraft.employee.ElevatorRegistry;
 import com.wzz.lobotocraft.employee.EmployeeDepartment;
 import com.wzz.lobotocraft.employee.EmployeeRecord;
 import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
+import com.wzz.lobotocraft.entity.EntityGeburah;
 import com.wzz.lobotocraft.entity.abnormality.EntityPunishingBird;
 import com.wzz.lobotocraft.entity.ai.goal.MoveToBlockPosWithElevatorGoal;
+import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.init.ModBlocks;
 import com.wzz.lobotocraft.init.ModEntities;
 import net.minecraft.core.BlockPos;
@@ -135,6 +137,51 @@ public final class ElevatorGameTests {
         }
         bird.discard();
         helper.succeed();
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = ModMain.MODID,
+            timeoutTicks = 40, required = true, batch = "elevator_geburah")
+    public static void geburahUsesElevatorForCrossFloorPursuit(GameTestHelper helper) {
+        helper.setBlock(SOURCE, ModBlocks.ELEVATOR.get());
+        helper.setBlock(DESTINATION, ModBlocks.ELEVATOR.get());
+        BlockPos absoluteSource = helper.absolutePos(SOURCE);
+        BlockPos absoluteDestination = helper.absolutePos(DESTINATION);
+        ElevatorRegistry.register(helper.getLevel(), absoluteSource);
+        ElevatorRegistry.register(helper.getLevel(), absoluteDestination);
+
+        EntityGeburah geburah = ModEntities.geburah.get().create(helper.getLevel());
+        EntityPunishingBird target = ModEntities.punishing_bird.get().create(helper.getLevel());
+        if (geburah == null || target == null) {
+            helper.fail("Geburah or pursuit target was not created");
+            return;
+        }
+
+        geburah.absMoveTo(absoluteSource.getX() + 0.5D, absoluteSource.getY() + 1.0D,
+                absoluteSource.getZ() + 0.5D, 0.0F, 0.0F);
+        BlockPos targetPos = absoluteDestination.offset(4, 4, 0);
+        target.absMoveTo(targetPos.getX() + 0.5D, targetPos.getY(),
+                targetPos.getZ() + 0.5D, 0.0F, 0.0F);
+        target.setNoAi(true);
+        target.setNoGravity(true);
+        target.getEntityData().set(AbstractAbnormality.DATA_ESCAPED, true);
+        helper.getLevel().addFreshEntity(target);
+        helper.getLevel().addFreshEntity(geburah);
+        geburah.debugSetCooldown("willofbattle", 100);
+        geburah.debugSetCooldown("ego_willofbattle", 100);
+        geburah.setTarget(target);
+
+        helper.runAfterDelay(1, () -> {
+            double expectedY = absoluteDestination.getY() + 1.0D;
+            if (Math.abs(geburah.getY() - expectedY) > 0.75D) {
+                geburah.discard();
+                target.discard();
+                helper.fail("Geburah did not use the elevator for cross-floor pursuit");
+                return;
+            }
+            geburah.discard();
+            target.discard();
+            helper.succeed();
+        });
     }
 
     @GameTest(template = "navigation_empty", templateNamespace = ModMain.MODID,

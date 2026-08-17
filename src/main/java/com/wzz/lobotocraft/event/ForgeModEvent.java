@@ -4,7 +4,10 @@ import com.wzz.lobotocraft.block.TombstoneBlock;
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
+import com.wzz.lobotocraft.core_suppression.geburah.GeburahDamageTuning;
 import com.wzz.lobotocraft.entity.EntityClerk;
+import com.wzz.lobotocraft.entity.EntityGeburah;
 import com.wzz.lobotocraft.entity.abnormality.*;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
@@ -393,7 +396,12 @@ public class ForgeModEvent {
 			}
 
 			if (resistanceAttr != null) {
-				double resistance = resistanceAttr.getValue();
+				double resistance = isRedDamage
+						? GeburahDamageTuning.effectiveRedMultiplier(
+							src.getEntity() instanceof EntityGeburah,
+							target instanceof AbstractAbnormality,
+							resistanceAttr.getValue())
+						: resistanceAttr.getValue();
 				if (resistance != 1.0) {
 					float finalAmount = event.getAmount() * (float) resistance;
 					event.setAmount(finalAmount);
@@ -439,6 +447,10 @@ public class ForgeModEvent {
 		if (!(target instanceof Player player)) {
 			return;
 		}
+		if (isRedDamage) {
+			resistance = GeburahDamageTuning.effectivePlayerRedMultiplier(
+					src.getEntity() instanceof EntityGeburah, resistance);
+		}
 		if (resistance < 0) {
 			event.setCanceled(true);
 			float healAmount = event.getAmount() * (float) Math.abs(resistance);
@@ -471,6 +483,9 @@ public class ForgeModEvent {
 					}
 				});
 			}
+		} else if (isRedDamage && src.getEntity() instanceof EntityGeburah
+				&& resistance != 1.0D) {
+			event.setAmount(event.getAmount() * (float) resistance);
 		}
 	}
 
@@ -945,6 +960,13 @@ public class ForgeModEvent {
 			return;
 		}
 		if (!(stack.getItem() instanceof CaptureUnitItem)) {
+			return;
+		}
+		if (CoreSuppressionManager.isDeviceRestricted(player)) {
+			player.displayClientMessage(Component.translatable(
+					"message.lobotocraft.capture_unit.restricted"), true);
+			event.setCancellationResult(InteractionResult.FAIL);
+			event.setCanceled(true);
 			return;
 		}
 		if (!(event.getTarget() instanceof AbstractAbnormality abnormality)) {

@@ -469,7 +469,7 @@ public class EntityHelper extends AbstractAbnormality {
     private boolean isValidTarget(LivingEntity e) {
         if (e == this || !e.isAlive()) return false;
         if (e instanceof Player p) return !p.isCreative() && !p.isSpectator();
-        if (e instanceof AbstractAbnormality ab) return ab.hasEscape();
+        if (e instanceof AbstractAbnormality ab) return ab.isAbnormalityCombatTarget();
         return true;
     }
 

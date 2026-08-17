@@ -81,6 +81,10 @@ public class ModItems {
             () -> new TextSpawnEggItem(ModEntities.lumberjack, 0x466331, 0x8A1720, new Item.Properties(),
                     "§c在这片满是心脏的森林中，树木和曾经一样郁郁葱葱。"));
 
+    public static final RegistryObject<Item> QUEEN_OF_HATRED_SPAWN_EGG = REGISTRY.register("queen_of_hatred_spawn_egg",
+            () -> new TextSpawnEggItem(ModEntities.queen_of_hatred, 0xF17BCB, 0x53C8F0, new Item.Properties(),
+                    "§c以爱与正义之名，魔法少女闪亮登场！"));
+
     public static final RegistryObject<Item> MEAT_IDOL_SPAWN_EGG = REGISTRY.register("meat_idol_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.meat_idol, 0x8B0000, 0x1a1a1a, new Item.Properties(),
                     "§c纯洁的颂唱止于永恒而绝望的嘶喊。"));

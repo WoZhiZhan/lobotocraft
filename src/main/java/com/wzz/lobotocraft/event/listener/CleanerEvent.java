@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.event.listener;
 
 import com.wzz.lobotocraft.ModMain;
+import com.wzz.lobotocraft.entity.abnormality.CleanerTimePolicy;
 import com.wzz.lobotocraft.entity.abnormality.EntityCleaner;
 import com.wzz.lobotocraft.init.ModEntities;
 import net.minecraft.core.BlockPos;
@@ -21,9 +22,6 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = ModMain.MODID)
 public class CleanerEvent {
 
-    private static final long DAY_LENGTH = 24_000L;
-    private static final long NIGHT_START = 13_000L;
-    private static final long NIGHT_END = 23_000L;
     private static final int SPAWN_INTERVAL = 100;     // 每5秒尝试一次
     private static final int MAX_VISIBLE = 12;          // 可视范围内上限
     private static final double VISIBLE_RANGE = 48.0;
@@ -66,8 +64,7 @@ public class CleanerEvent {
     }
 
     static boolean isNaturalSpawnTime(long dayTime) {
-        long timeOfDay = Math.floorMod(dayTime, DAY_LENGTH);
-        return timeOfDay >= NIGHT_START && timeOfDay < NIGHT_END;
+        return CleanerTimePolicy.isNaturalSpawnTime(dayTime);
     }
 
     private static BlockPos findSpawnPos(ServerLevel level, BlockPos center) {

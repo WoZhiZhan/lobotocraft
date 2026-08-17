@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lobotocraft Module Graph Prototype</title>
+  <!-- THROWAWAY PROTOTYPE: three draggable views of the same module graph, switchable via ?variant=A|B|C. -->
+  <link rel="stylesheet" href="https://unpkg.com/vis-network/styles/vis-network.min.css" />
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <style>
+    :root {
+      --bg: #111315;
+      --panel: #1b1e20;
+      --surface: #24282b;
+      --ink: #e7e9ea;
+      --muted: #969da1;
+      --line: #34393d;
+      --strong: #17191b;
+      --accent: #45c79e;
+      --risk: #ff665e;
+      --warning: #e4a64e;
+      --purple: #af83e6;
+      --blue: #62a6ef;
+      --orange: #e69b4b;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+    body { background: var(--bg); color: var(--ink); font: 14px/1.45 "Segoe UI", "Microsoft YaHei", sans-serif; letter-spacing: 0; }
+    button, input { font: inherit; letter-spacing: 0; }
+    button { color: inherit; }
+    .app { height: 100%; display: grid; grid-template-rows: 58px minmax(0, 1fr) 50px; }
+    .topbar { display: flex; align-items: center; gap: 18px; padding: 0 16px; background: var(--strong); color: #fff; border-bottom: 1px solid #2e3235; }
+    .brand { min-width: 250px; }
+    .brand strong { display: block; font-size: 17px; font-weight: 650; }
+    .brand span { display: block; color: #8e969a; font-size: 11px; margin-top: 1px; }
+    .search { flex: 1; max-width: 620px; position: relative; }
+    .search svg { position: absolute; left: 11px; top: 10px; width: 17px; height: 17px; color: #7d8589; }
+    .search input { width: 100%; height: 38px; padding: 0 12px 0 37px; border: 1px solid #3d4347; background: #24282b; color: #edf0f1; outline: none; border-radius: 5px; }
+    .search input:focus { border-color: #45c79e; box-shadow: 0 0 0 2px rgba(69,199,158,.16); }
+    .toolbar { display: flex; align-items: center; gap: 7px; margin-left: auto; }
+    .icon-btn { width: 38px; height: 38px; display: inline-grid; place-items: center; border: 1px solid #40464a; background: #25292c; border-radius: 5px; cursor: pointer; }
+    .icon-btn:hover { background: #303539; border-color: #596166; }
+    .icon-btn.active { background: #234c40; border-color: #45c79e; }
+    .icon-btn svg { width: 18px; height: 18px; }
+    .main { min-height: 0; display: grid; grid-template-columns: 250px minmax(0, 1fr) 300px; }
+    .sidebar, .details { min-height: 0; overflow: auto; background: var(--panel); }
+    .sidebar { border-right: 1px solid var(--line); }
+    .details { border-left: 1px solid var(--line); }
+    .panel-section { padding: 17px 16px; border-bottom: 1px solid var(--line); }
+    .panel-title { display: flex; align-items: center; justify-content: space-between; margin: 0 0 12px; font-size: 12px; color: #bcc2c5; text-transform: uppercase; font-weight: 700; }
+    .count { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 500; }
+    .checks { display: grid; grid-template-columns: 1fr; gap: 8px; }
+    .check { display: flex; align-items: center; gap: 9px; min-height: 25px; cursor: pointer; }
+    .check input { width: 15px; height: 15px; accent-color: var(--accent); }
+    .dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; border: 1px solid rgba(255,255,255,.18); }
+    .relation-sample { width: 24px; height: 0; border-top: 2px solid; flex: 0 0 auto; }
+    .relation-sample.dashed { border-top-style: dashed; }
+    .relation-sample.dotted { border-top-style: dotted; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat { background: var(--surface); border: 1px solid var(--line); padding: 10px; border-radius: 5px; }
+    .stat strong { display: block; font-size: 18px; }
+    .stat span { display: block; color: var(--muted); font-size: 11px; }
+    .graph-wrap { min-width: 0; min-height: 0; position: relative; background-color: #121416; background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(rgba(255,255,255,.065) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.065) 1px, transparent 1px); background-size: 24px 24px, 24px 24px, 120px 120px, 120px 120px; }
+    #network { position: absolute; inset: 0; }
+    #minimap { position: absolute; right: 16px; bottom: 16px; z-index: 4; width: 210px; height: 140px; overflow: hidden; background: rgba(18,20,22,.94); border: 1px solid #4a5155; border-radius: 5px; box-shadow: 0 8px 24px rgba(0,0,0,.42); }
+    #minimap canvas { cursor: crosshair !important; }
+    .graph-label { position: absolute; top: 13px; left: 14px; z-index: 3; pointer-events: none; background: rgba(28,31,33,.94); border: 1px solid #41474b; padding: 8px 10px; border-radius: 5px; box-shadow: 0 5px 18px rgba(0,0,0,.28); }
+    .graph-label strong { display: block; font-size: 13px; }
+    .graph-label span { display: block; margin-top: 1px; color: var(--muted); font-size: 11px; }
+    .details-empty { height: 100%; display: grid; place-items: center; padding: 30px; text-align: center; color: var(--muted); }
+    .details-empty svg { width: 34px; height: 34px; margin-bottom: 10px; }
+    .detail-head { padding: 20px 19px 17px; color: #fff; background: #202427; }
+    .detail-head .eyebrow { color: #99a2a6; font-size: 11px; text-transform: uppercase; }
+    .detail-head h2 { margin: 5px 0 4px; font-size: 21px; line-height: 1.25; }
+    .detail-head p { margin: 0; color: #aeb5b8; font-size: 12px; }
+    .risk-badge { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 4px 7px; border: 1px solid rgba(255,255,255,.35); border-radius: 4px; font-size: 11px; }
+    .detail-section { padding: 16px 19px; border-bottom: 1px solid var(--line); }
+    .detail-section h3 { margin: 0 0 9px; color: #a7afb3; font-size: 11px; text-transform: uppercase; }
+    .detail-section p { margin: 0; }
+    .file-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; }
+    .file-list li { font-family: Consolas, monospace; font-size: 11px; overflow-wrap: anywhere; color: #c3c9cc; }
+    .edge-list { display: grid; gap: 8px; }
+    .edge-row { display: grid; grid-template-columns: 10px 1fr; gap: 8px; align-items: start; }
+    .edge-row b { display: block; font-size: 12px; }
+    .edge-row span { display: block; color: var(--muted); font-size: 11px; }
+    .group-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+    .group-summary div { padding: 9px; background: var(--surface); border: 1px solid var(--line); border-radius: 5px; }
+    .group-summary strong { display: block; font-size: 17px; }
+    .group-summary span { color: var(--muted); font-size: 10px; }
+    .group-members { display: grid; gap: 6px; }
+    .group-member { width: 100%; display: grid; grid-template-columns: 10px minmax(0,1fr); gap: 9px; align-items: center; padding: 9px; color: var(--ink); text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
+    .group-member:hover { border-color: #697277; background: #2b3033; }
+    .group-member b { display: block; font-size: 12px; overflow-wrap: anywhere; }
+    .group-member small { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+    .switcher { display: flex; align-items: center; justify-content: center; gap: 8px; background: #17191b; border-top: 1px solid #303437; color: #fff; }
+    .switcher button { height: 34px; border: 1px solid #41474b; background: #25292c; border-radius: 5px; cursor: pointer; }
+    .switcher .arrow { width: 38px; display: inline-grid; place-items: center; }
+    .switcher .arrow svg { width: 17px; }
+    .variant-label { width: 260px; text-align: center; font-size: 13px; }
+    .variant-tabs { display: flex; gap: 4px; margin-left: 16px; }
+    .variant-tabs button { min-width: 34px; padding: 0 10px; }
+    .variant-tabs button.active { background: #234c40; color: #baf4df; border-color: #45c79e; }
+    .risk-note { color: var(--risk); }
+    .hidden { display: none !important; }
+    @media (max-width: 1250px) { .main { grid-template-columns: 240px minmax(0, 1fr) 310px; } .brand { min-width: 210px; } }
+    @media (max-width: 980px) { .main { grid-template-columns: 210px minmax(0, 1fr); } .details { display: none; } .brand span { display: none; } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><strong>Lobotocraft 模块全局图</strong><span>当前工作树 · 交互原型</span></div>
+    <label class="search" title="搜索模块或文件">
+      <i data-lucide="search"></i>
+      <input id="searchInput" type="search" placeholder="搜索模块、职责或文件" autocomplete="off" />
+    </label>
+    <div class="toolbar">
+      <button id="fitBtn" class="icon-btn" title="适配全部模块" aria-label="适配全部模块"><i data-lucide="maximize-2"></i></button>
+      <button id="resetBtn" class="icon-btn" title="重置布局" aria-label="重置布局"><i data-lucide="rotate-ccw"></i></button>
+      <button id="riskBtn" class="icon-btn" title="仅显示高风险关系" aria-label="仅显示高风险关系"><i data-lucide="triangle-alert"></i></button>
+      <button id="exportBtn" class="icon-btn" title="导出 PNG" aria-label="导出 PNG"><i data-lucide="download"></i></button>
+    </div>
+  </header>
+
+  <div class="main">
+    <aside class="sidebar">
+      <section class="panel-section">
+        <h2 class="panel-title">领域 <span id="domainCount" class="count"></span></h2>
+        <div id="domainFilters" class="checks"></div>
+      </section>
+      <section class="panel-section">
+        <h2 class="panel-title">连接 <span id="edgeCount" class="count"></span></h2>
+        <div id="relationFilters" class="checks"></div>
+      </section>
+      <section class="panel-section">
+        <h2 class="panel-title">图谱</h2>
+        <div class="stats">
+          <div class="stat"><strong id="visibleNodes">0</strong><span>可见模块</span></div>
+          <div class="stat"><strong id="visibleEdges">0</strong><span>可见连接</span></div>
+          <div class="stat"><strong id="riskNodes">0</strong><span>高风险模块</span></div>
+          <div class="stat"><strong id="stateOwners">0</strong><span>状态所有者</span></div>
+        </div>
+      </section>
+    </aside>
+
+    <main class="graph-wrap">
+      <div class="graph-label"><strong id="viewName"></strong><span id="viewSubtitle"></span></div>
+      <div id="network"></div>
+      <div id="minimap" title="全局缩略图"></div>
+    </main>
+
+    <aside id="details" class="details">
+      <div class="details-empty"><div><i data-lucide="network"></i><div>选择一个模块或连接</div></div></div>
+    </aside>
+  </div>
+
+  <footer class="switcher">
+    <button id="prevVariant" class="arrow" aria-label="上一个视角"><i data-lucide="chevron-left"></i></button>
+    <div id="variantLabel" class="variant-label"></div>
+    <button id="nextVariant" class="arrow" aria-label="下一个视角"><i data-lucide="chevron-right"></i></button>
+    <div id="variantTabs" class="variant-tabs"></div>
+  </footer>
+</div>
+
+<script>
+  const DOMAIN = {
+    platform: { label: '平台与入口', color: '#9aa5a0', light: '#252a28' },
+    facility: { label: '设施与天数', color: '#49c99d', light: '#1f302b' },
+    work: { label: '工作系统', color: '#53bdd8', light: '#1e2d32' },
+    abnormality: { label: '异想体', color: '#e37467', light: '#342422' },
+    employee: { label: 'AI 员工', color: '#d5aa55', light: '#332d21' },
+    ego: { label: 'E.G.O 与战斗', color: '#b68be1', light: '#2e2636' },
+    client: { label: '客户端表现', color: '#789de8', light: '#232a38' },
+    persistence: { label: '存档与权威状态', color: '#8aba65', light: '#283124' },
+    integration: { label: '外部兼容与工具', color: '#c87db9', light: '#352735' }
+  };
+
+  const RELATION = {
+    calls: { label: '调用', color: '#62a6ef', dashes: false },
+    event: { label: '事件', color: '#e69b4b', dashes: [7, 5] },
+    network: { label: '网络', color: '#af83e6', dashes: [2, 5] },
+    state: { label: '状态读写', color: '#69c77f', dashes: false },
+    renders: { label: '渲染/展示', color: '#a5afb0', dashes: [3, 4] },
+    risk: { label: '绕过/高风险', color: '#ff665e', dashes: [10, 4] }
+  };
+
+  const modules = [
+    { id:'forge', label:'Forge 事件入口', domain:'platform', risk:'high', owner:false, files:['event/ForgeModEvent.java','event/ForgeModClientEvent.java'], summary:'接收攻击、伤害、死亡、工作、登录、tick 和服务器生命周期事件。', note:'29 个订阅集中在一个 1164 行模块，多个领域共享事件顺序。', layer:0 },
+    { id:'network', label:'网络传输', domain:'platform', risk:'medium', owner:false, files:['network/MessageLoader.java','network/PacketRegistry.java','network/IMessage.java'], summary:'注册消息、方向和客户端/服务端发送。', note:'是客户端动作进入服务端逻辑的公共入口。', layer:1 },
+    { id:'packets', label:'动作数据包', domain:'platform', risk:'medium', owner:false, files:['network/packet/*'], summary:'解析请求并转交工作、员工、设施和 GUI 行为。', note:'部分包只做 Adapter，部分仍含业务校验。', layer:2 },
+    { id:'commands', label:'命令与调试', domain:'platform', risk:'low', owner:false, files:['command/CommandRegistry.java','command/DebugCommand.java'], summary:'管理员、测试和调试入口。', note:'可绕过普通 UI，必须调用权威 Module。', layer:1 },
+    { id:'registries', label:'注册与初始化', domain:'platform', risk:'medium', owner:false, files:['init/ModEntities.java','init/ModItems.java','event/ModCommonEvent.java'], summary:'实体、物品、属性、声音和客户端渲染注册。', note:'跨模块新增内容的装配入口。', layer:0 },
+    { id:'mixins', label:'Mixin 注入', domain:'platform', risk:'high', owner:false, files:['mixin/*','facility/mixin/*'], summary:'修改 Minecraft 移动、玩家、工作和设施底层行为。', note:'侵入性最高的 Adapter，错误会跨越所有领域。', layer:1 },
+
+    { id:'facilityManager', label:'FacilityManager', domain:'facility', risk:'medium', owner:true, files:['facility/FacilityManager.java'], summary:'能源、逆流、融毁触发、考验推进和全局工作惩罚协调。', note:'设施日流程的主要协调 Module。', layer:4 },
+    { id:'dayTransition', label:'换天生命周期', domain:'facility', risk:'medium', owner:true, files:['facility/day/DayTransitionService.java'], summary:'投票、预检、换天提交和玩家日状态推进。', note:'以服务器为键保存投票运行状态。', layer:4 },
+    { id:'meltdown', label:'融毁生命周期', domain:'facility', risk:'low', owner:true, files:['facility/data/MeltdownLifecycle.java','facility/data/MeltdownDefinition.java'], summary:'统一 start、resolve、end、advance、时间倍率与原因。', note:'当前较深的 Module，活动融毁写入基本集中。', layer:5 },
+    { id:'coreSuppression', label:'核心抑制', domain:'facility', risk:'medium', owner:true, files:['core_suppression/CoreSuppressionManager.java'], summary:'核心抑制阶段、视觉与机制修正。', note:'影响融毁、工作类型和设施日流程。', layer:4 },
+    { id:'ordeal', label:'考验生命周期', domain:'facility', risk:'medium', owner:true, files:['world/data/OrdealData.java','event/listener/*Ordeal*.java','entity/ordeal/*'], summary:'考验计划、生成、成员结算、奖励和标题表现。', note:'实体类型多，结算路径仍需保持幂等。', layer:5 },
+    { id:'roomBinding', label:'收容室与设施布局', domain:'facility', risk:'medium', owner:true, files:['world/data/CompanyRoomData.java','block/entity/RoomMarkerBlockEntity.java','world/FacilityWorldLayout.java'], summary:'房间登记、部门/楼层、异想体绑定和出逃门坐标。', note:'监控、工作登记、出逃和员工导航共同依赖。', layer:5 },
+    { id:'chunkTickets', label:'房间区块票', domain:'facility', risk:'medium', owner:true, files:['world/RoomChunkTickets.java'], summary:'维持监控和设施相关房间加载。', note:'加载策略直接影响工作、导航和房间快照。', layer:5 },
+
+    { id:'workInteraction', label:'工作交互入口', domain:'work', risk:'medium', owner:false, files:['work/AbnormalityWorkHandler.java'], summary:'右键异想体、打开工作/工具/百科界面并签发授权。', note:'连接实体交互、观察数据和客户端选择界面。', layer:2 },
+    { id:'workAuth', label:'工作授权', domain:'work', risk:'low', owner:true, files:['work/WorkStartAuthorizations.java'], summary:'短期绑定玩家、异想体、维度与交互类型的授权。', note:'防止客户端直接构造工作请求。', layer:3 },
+    { id:'workManager', label:'WorkManager', domain:'work', risk:'medium', owner:true, files:['work/WorkManager.java'], summary:'工作会话、校验、伤害、提取、完成、连续工作与取消。', note:'1116 行但具有较高 Leverage；主要问题是内部职责过多。', layer:4 },
+    { id:'workRules', label:'工作规则', domain:'work', risk:'low', owner:false, files:['work/AbnormalityWorkRules.java','work/WorkSpeedModifierManager.java'], summary:'登记、保留、速度与成功率等共享规则。', note:'供交互入口、WorkManager 和 AI 员工复用。', layer:4 },
+    { id:'toolUse', label:'工具使用派遣', domain:'work', risk:'medium', owner:true, files:['employee/EmployeeRuntimeManager.java','network/packet/AssignToolEmployeePacket.java'], summary:'工具类异想体不进入普通四项工作，由员工订单独立处理。', note:'当前实现仍嵌在 EmployeeRuntimeManager。', layer:4 },
+
+    { id:'abnormalityContract', label:'IAbnormality 接口', domain:'abnormality', risk:'high', owner:false, files:['entity/base/IAbnormality.java'], summary:'同时暴露工作、工具、计数器、音频、百科、E.G.O 和展示信息。', note:'831 行、约 129 个方法，Interface 过宽。', layer:3 },
+    { id:'abnormalityRuntime', label:'AbstractAbnormality', domain:'abnormality', risk:'high', owner:true, files:['entity/base/AbstractAbnormality.java'], summary:'实体基础、计数器、工作回调、出逃、回收、收容绑定和 NBT。', note:'1246 行，承担多个生命周期。', layer:4 },
+    { id:'concreteAbnormalities', label:'具体异想体', domain:'abnormality', risk:'high', owner:true, files:['entity/abnormality/Entity*.java'], summary:'每个异想体的状态机、动画、攻击、工作须知和特殊机制。', note:'状态持久化与出逃扩展方式不统一。', layer:5 },
+    { id:'escapeLifecycle', label:'出逃/回收流程', domain:'abnormality', risk:'high', owner:true, files:['entity/base/AbstractAbnormality.java'], summary:'计算出逃落点、广播、事件、追踪和回收收容室。', note:'裸 setEscape 仍可绕过公共流程。', layer:5 },
+    { id:'escapeTracker', label:'警报与 EscapeTracker', domain:'abnormality', risk:'medium', owner:true, files:['entity/base/EscapeTracker.java'], summary:'按服务器跟踪出逃 UUID、风险得分和警报等级。', note:'依赖每条出逃路径正确发送开始/停止。', layer:6 },
+    { id:'qliphoth', label:'逆卡巴拉计数器', domain:'abnormality', risk:'medium', owner:true, files:['entity/base/QliphothCounterPolicy.java','event/definition/abnormality/QliphothCounterEvent.java'], summary:'计数变化、首次归零和异想体融毁回调。', note:'decrease 已集中，set/increase 仍能绕过部分约束。', layer:5 },
+    { id:'encyclopediaData', label:'异想体百科资料', domain:'abnormality', risk:'medium', owner:true, files:['entity/data/AbnormalityEncyclopediaData.java','stories/*'], summary:'管理须知、故事、观察信息和多语言缓存。', note:'运行实体与展示资料仍通过超宽接口耦合。', layer:5 },
+    { id:'blackForest', label:'黑森林/终末鸟遭遇', domain:'abnormality', risk:'medium', owner:true, files:['event/listener/BlackForestEvent.java','entity/abnormality/EntityEndBird.java','world/data/EndBirdEggTracker.java'], summary:'三鸟捕获、鸟蛋、终末鸟、CG、奖励和归还。', note:'跨多个实体与 SavedData 的长生命周期。', layer:6 },
+    { id:'queen', label:'憎恶女王状态机', domain:'abnormality', risk:'medium', owner:true, files:['entity/abnormality/EntityQueenOfHatred.java','QueenOfHatredPolicy.java','QueenOfHatredCombat.java'], summary:'收容、帮助、歇斯底里、蛇形态、激光和回收。', note:'显式状态机较清晰，但部分路径直接写 escape。', layer:6 },
+
+    { id:'employeeRecords', label:'员工持久资料', domain:'employee', risk:'medium', owner:true, files:['employee/EmployeeRecord.java','employee/EmployeeData.java'], summary:'员工属性、装备、位置、部门、外观和退休状态。', note:'AI 员工重启恢复的权威资料。', layer:6 },
+    { id:'employeeRuntime', label:'员工运行时', domain:'employee', risk:'high', owner:true, files:['employee/EmployeeRuntimeManager.java','employee/EmployeeServerPlayer.java'], summary:'生成、死亡、订单、工作、战斗、恐慌、存档和外观刷新。', note:'1415 行、26 个调用文件，职责高度集中。', layer:4 },
+    { id:'employeeOrders', label:'员工订单', domain:'employee', risk:'medium', owner:true, files:['employee/EmployeeOrder.java'], summary:'移动、工作、工具、镇压和跟随任务表达。', note:'订单执行与战斗细节仍主要在运行时管理器。', layer:5 },
+    { id:'navigator', label:'员工导航', domain:'employee', risk:'high', owner:true, files:['employee/EmployeeNavigator.java','employee/FacilityAreaMoveService.java'], summary:'A*、楼层、电梯、重试、区块状态和路径执行。', note:'1227 行，设施布局与实体移动共同影响。', layer:5 },
+    { id:'navigationCache', label:'导航缓存', domain:'employee', risk:'medium', owner:true, files:['employee/navigation/FacilityNavigationCache.java','employee/ElevatorRegistry.java'], summary:'设施可行走单元、连接图和电梯位置缓存。', note:'异步加载并按 ServerLevel 清理。', layer:6 },
+    { id:'employeeCombat', label:'员工战斗决策', domain:'employee', risk:'high', owner:true, files:['employee/EmployeeRuntimeManager.java'], summary:'主动索敌、恐慌攻击、近战、远程、E.G.O 特殊攻击。', note:'战斗与订单/导航共享同一运行时状态。', layer:5 },
+    { id:'ysm', label:'YSM 可选兼容', domain:'integration', risk:'medium', owner:false, files:['compat/ysm/*','client/compat/YsmClientCompat.java'], summary:'模型目录、服务端可用性、员工模型同步和客户端能力。', note:'通过反射/可选类加载适配外部模组。', layer:6 },
+
+    { id:'egoBase', label:'E.G.O 基类', domain:'ego', risk:'medium', owner:true, files:['item/ego/base/BaseEgoWeapon.java','BaseEgoArmor.java','BaseEgoCurio.java'], summary:'装备要求、基础伤害入口、冷却和公共装备行为。', note:'子类仍存在多种技能状态与冷却实现。', layer:4 },
+    { id:'egoImpl', label:'E.G.O 具体装备', domain:'ego', risk:'high', owner:true, files:['item/ego/*'], summary:'武器技能、套装效果、护甲、饰品和各类计时状态。', note:'大量匿名 TimerEntry 与物品专属 NBT 状态。', layer:5 },
+    { id:'egoTooltip', label:'E.G.O 描述模板', domain:'ego', risk:'low', owner:false, files:['item/ego/base/EgoTooltipUtil.java'], summary:'统一武器、护甲、饰品的描述段落和多语言键。', note:'当前迁移覆盖较高，是较稳定的展示 Module。', layer:6 },
+    { id:'damage', label:'彩色伤害管线', domain:'ego', risk:'medium', owner:true, files:['util/DamageHelper.java','facility/damage/*','damagetype/*'], summary:'RED/WHITE/BLACK/PALE、抗性、伤害历史和死亡信息。', note:'被 E.G.O、异想体、工作和员工战斗共同调用。', layer:5 },
+    { id:'combatRules', label:'战斗目标与保护规则', domain:'ego', risk:'medium', owner:false, files:['util/FacilityCombatRules.java','util/EntityUtil.java'], summary:'友敌、受保护目标、无敌帧和攻击资格。', note:'规则错误会影响玩家、员工与异想体三方。', layer:5 },
+    { id:'temporaryEffects', label:'临时控制与计时', domain:'ego', risk:'high', owner:true, files:['util/TimerEntry.java','util/MovementLockUtil.java','util/ControlStateRecoveryService.java'], summary:'速度、移动锁、亲吻、魅惑、定身和定时技能清理。', note:'取消路径、NoAI 和各类持久 tag 尚未统一。', layer:6 },
+
+    { id:'roomMap', label:'监控面板', domain:'client', risk:'high', owner:false, files:['client/screen/RoomMapScreen.java'], summary:'3390 行，房间布局、员工标记、工作派遣、模态框和监控渲染。', note:'客户端最大单类 Module。', layer:0 },
+    { id:'encyclopediaScreen', label:'异想体图鉴界面', domain:'client', risk:'medium', owner:false, files:['client/screen/AbnormalityEncyclopediaScreen.java'], summary:'2710 行，解锁、故事、E.G.O、3D 实体和滚动布局。', note:'读取实体接口和百科资料两套来源。', layer:0 },
+    { id:'employeeScreens', label:'员工与 E.G.O 分配界面', domain:'client', risk:'medium', owner:false, files:['client/screen/DepartmentAssignmentScreen.java','client/screen/EgoAssignmentScreen.java'], summary:'员工部门、装备库存、属性与候选分配。', note:'依赖大量服务端快照与操作包。', layer:0 },
+    { id:'hud', label:'HUD 与警报表现', domain:'client', risk:'low', owner:false, files:['facility/client/FacilityHud.java','client/overlay/*'], summary:'能源、逆流、考验、融毁、警报和全屏提示。', note:'消费设施与出逃同步结果。', layer:1 },
+    { id:'rendering', label:'渲染/动画/着色器', domain:'client', risk:'medium', owner:false, files:['client/renderer/*','client/shader/*','client/model/*'], summary:'GeckoLib 模型、E.G.O 渲染、激光、核心抑制和屏幕效果。', note:'依赖实体同步动画名与视觉包。', layer:1 },
+    { id:'clientState', label:'客户端状态缓存', domain:'client', risk:'medium', owner:true, files:['client/*ClientState.java','client/room/*'], summary:'部门、房间、玩家状态、视图偏移和效果缓存。', note:'世界卸载时必须完整清理。', layer:1 },
+
+    { id:'facilityData', label:'FacilityDayData', domain:'persistence', risk:'medium', owner:true, files:['facility/data/FacilityDayData.java'], summary:'天数、能源、逆流、融毁实例、考验阶段和设施状态。', note:'设施生命周期的权威 SavedData。', layer:7 },
+    { id:'roomData', label:'CompanyRoomData', domain:'persistence', risk:'medium', owner:true, files:['world/data/CompanyRoomData.java'], summary:'房间、楼层、部门和绑定记录。', note:'建筑与监控共同依赖的权威数据。', layer:7 },
+    { id:'playerCaps', label:'玩家 Capability', domain:'persistence', risk:'medium', owner:true, files:['capability/*','facility/player/*'], summary:'观察等级、员工属性、精神、日数据和玩家状态。', note:'克隆、死亡、换天和登录同步路径较多。', layer:7 },
+    { id:'entityNbt', label:'实体 NBT', domain:'persistence', risk:'high', owner:true, files:['entity/abnormality/Entity*.java'], summary:'各异想体自行决定保存哪些状态与恢复策略。', note:'Resume/Cancel/Rollback 规则不统一。', layer:7 },
+
+    { id:'llm', label:'LLM 调度', domain:'integration', risk:'medium', owner:true, files:['llm/LlmDispatchService.java','llm/EmployeeRadioService.java'], summary:'员工对话、异步请求、冷却、任务和广播。', note:'外部 I/O 与员工运行时连接。', layer:3 },
+    { id:'exhibition', label:'展会安全工具', domain:'integration', risk:'low', owner:false, files:['exhibition/ExhibitionSafetyService.java'], summary:'停止工作、清控制、回收异想体、恢复 AI 和设施进度。', note:'它暴露了多个生命周期缺少统一清理入口。', layer:2 },
+    { id:'externalYsm', label:'外部 YSM 模组', domain:'integration', risk:'medium', owner:false, files:['optional dependency'], summary:'可选模型系统与服务端模型目录。', note:'不存在时必须无害降级。', layer:8 },
+    { id:'externalLlm', label:'外部 LLM 端点', domain:'integration', risk:'medium', owner:false, files:['HTTP endpoint'], summary:'可选对话后端。', note:'延迟、失败和返回内容不受游戏 tick 控制。', layer:8 }
+  ];
+
+  let edgeSeq = 0;
+  const edges = [];
+  const E = (from, to, relation, label, note='') => edges.push({ id:'e'+(++edgeSeq), from, to, relation, label, note });
+
+  E('forge','workInteraction','event','实体交互'); E('forge','workManager','event','工作/玩家 tick'); E('forge','employeeRuntime','event','死亡/重生/tick');
+  E('forge','egoImpl','event','攻击/受伤/死亡'); E('forge','temporaryEffects','event','登出/停服清理'); E('forge','dayTransition','event','登录与换天');
+  E('forge','abnormalityRuntime','event','实体生命周期'); E('forge','damage','event','伤害历史'); E('registries','concreteAbnormalities','calls','注册实体');
+  E('registries','egoImpl','calls','注册装备'); E('registries','rendering','calls','注册渲染'); E('mixins','workManager','event','工作完成注入');
+  E('mixins','temporaryEffects','risk','底层移动拦截','底层注入可能绕过正常传送/碰撞语义'); E('commands','facilityManager','calls','调试设施');
+  E('commands','employeeRuntime','calls','调试员工'); E('commands','abnormalityRuntime','risk','直接状态命令','调试命令可写计数器/出逃状态');
+
+  E('roomMap','network','network','请求房间/员工快照'); E('encyclopediaScreen','network','network','解锁与研发'); E('employeeScreens','network','network','分配部门/E.G.O');
+  E('network','packets','network','解码与方向'); E('packets','workAuth','calls','消费授权'); E('packets','workManager','calls','开始/停止工作');
+  E('packets','employeeRuntime','calls','分配订单'); E('packets','facilityManager','calls','设施操作'); E('packets','roomBinding','calls','房间绑定/配置');
+  E('packets','llm','calls','对话请求'); E('facilityManager','facilityData','state','读写设施日状态'); E('dayTransition','facilityData','state','提交新一天');
+  E('facilityManager','meltdown','calls','触发/推进/结算'); E('meltdown','facilityData','state','活动融毁实例'); E('facilityManager','ordeal','calls','选择并启动考验');
+  E('ordeal','facilityData','state','考验阶段'); E('coreSuppression','facilityManager','event','修改逆流/工作'); E('coreSuppression','meltdown','calls','阶段与时间倍率');
+  E('roomBinding','roomData','state','房间与楼层'); E('roomBinding','chunkTickets','calls','保持设施区块'); E('roomBinding','escapeLifecycle','calls','权威门口坐标');
+  E('roomBinding','navigator','calls','设施区域/电梯'); E('roomMap','roomBinding','renders','监控房间快照'); E('hud','facilityData','renders','能源/融毁/考验');
+
+  E('workInteraction','workAuth','state','签发一次授权'); E('workInteraction','abnormalityContract','calls','开屏回调/展示数据'); E('workInteraction','playerCaps','state','观察等级与属性');
+  E('workManager','workRules','calls','统一工作规则'); E('workManager','abnormalityRuntime','calls','工作回调'); E('workManager','damage','calls','工作伤害');
+  E('workManager','facilityManager','event','工作完成推进逆流'); E('workManager','playerCaps','state','属性/观察/日次数'); E('workManager','egoImpl','calls','饰品奖励');
+  E('toolUse','employeeRuntime','calls','工具订单'); E('toolUse','concreteAbnormalities','calls','工具专属使用');
+
+  E('abnormalityContract','abnormalityRuntime','calls','基类实现'); E('abnormalityRuntime','concreteAbnormalities','calls','继承/默认生命周期');
+  E('abnormalityRuntime','escapeLifecycle','calls','开始/停止出逃'); E('escapeLifecycle','escapeTracker','event','警报开始/停止'); E('escapeLifecycle','roomBinding','calls','出逃/回收位置');
+  E('abnormalityRuntime','qliphoth','calls','计数器转换'); E('qliphoth','concreteAbnormalities','event','归零回调'); E('concreteAbnormalities','entityNbt','state','各自保存状态');
+  E('concreteAbnormalities','escapeLifecycle','risk','直接 setEscape / 重复副作用','公共生命周期仍可被子类绕过'); E('concreteAbnormalities','temporaryEffects','calls','魅惑/冰封/定身/计时');
+  E('concreteAbnormalities','damage','calls','特殊攻击'); E('concreteAbnormalities','combatRules','calls','目标选择'); E('encyclopediaData','abnormalityContract','calls','展示信息');
+  E('encyclopediaScreen','encyclopediaData','renders','故事/管理须知'); E('encyclopediaScreen','abnormalityContract','renders','E.G.O/偏好/观察信息');
+  E('blackForest','concreteAbnormalities','calls','三鸟捕获与恢复'); E('blackForest','facilityData','state','遭遇进度/奖励'); E('queen','escapeLifecycle','risk','直接结束/回退写 escape','局部状态机与公共回收流程并存');
+  E('queen','facilityManager','event','逆流阶段与死亡统计'); E('queen','rendering','renders','激光/星星/动画');
+
+  E('employeeRuntime','employeeRecords','state','加载/落盘'); E('employeeRuntime','employeeOrders','state','当前任务'); E('employeeRuntime','navigator','calls','路径执行');
+  E('navigator','navigationCache','calls','设施图与电梯'); E('navigationCache','roomData','state','房间/区域结构'); E('employeeRuntime','workManager','calls','AI 正式工作');
+  E('employeeRuntime','toolUse','calls','工具到达结算'); E('employeeRuntime','employeeCombat','calls','恐慌/自动战斗'); E('employeeCombat','egoImpl','calls','AI 使用 E.G.O');
+  E('employeeCombat','combatRules','calls','选敌'); E('employeeCombat','damage','calls','攻击结算'); E('employeeRuntime','ysm','calls','员工外观');
+  E('ysm','externalYsm','network','可选模型目录'); E('employeeScreens','employeeRuntime','renders','员工快照'); E('roomMap','employeeRuntime','renders','位置/状态/派遣');
+
+  E('egoBase','egoImpl','calls','继承基础装备'); E('egoImpl','damage','calls','彩色伤害'); E('egoImpl','temporaryEffects','calls','技能计时/状态'); E('egoImpl','combatRules','calls','目标资格');
+  E('egoImpl','egoTooltip','renders','统一描述'); E('rendering','egoBase','renders','装备模型'); E('temporaryEffects','entityNbt','state','持久标签/锁来源');
+  E('temporaryEffects','forge','event','登出/停服取消'); E('temporaryEffects','egoImpl','risk','onCancelled 清理可缺失','部分效果只在 onEnd 回滚');
+
+  E('clientState','roomMap','state','视图和快照缓存'); E('clientState','employeeScreens','state','员工/部门缓存'); E('clientState','hud','state','设施同步缓存');
+  E('rendering','concreteAbnormalities','renders','实体动画/模型'); E('hud','escapeTracker','renders','警报等级同步');
+  E('playerCaps','workManager','state','精神/属性/观察'); E('playerCaps','employeeRuntime','state','合成员工玩家能力');
+
+  E('llm','externalLlm','network','HTTP 请求'); E('llm','employeeRuntime','calls','员工上下文/状态'); E('exhibition','workManager','calls','停止全部工作');
+  E('exhibition','employeeRuntime','calls','恢复 AI/满级'); E('exhibition','temporaryEffects','calls','清除控制'); E('exhibition','escapeLifecycle','calls','回收异想体');
+  E('exhibition','meltdown','calls','设施恢复');
+
+  const variants = {
+    A: { name:'A — 领域拓扑', subtitle:'架构层级横向展开，领域使用 ComfyUI 组框', view:{ position:{x:250,y:180}, scale:.68 } },
+    B: { name:'B — 生命周期流向', subtitle:'客户端 → 请求 → 运行时 → 权威状态', view:{ position:{x:-360,y:0}, scale:.7 } },
+    C: { name:'C — 状态所有权与风险', subtitle:'风险等级与状态所有权使用独立组框', view:{ position:{x:250,y:-520}, scale:.68 } }
+  };
+
+  let currentVariant = new URLSearchParams(location.search).get('variant') || 'A';
+  if (!variants[currentVariant]) currentVariant = 'A';
+  let network;
+  let nodeSet;
+  let edgeSet;
+  let miniNetwork;
+  let miniNodeSet;
+  let miniEdgeSet;
+  let renderedGroups = [];
+  let riskOnly = false;
+  let edgeLabelsVisible = null;
+  const enabledDomains = new Set(Object.keys(DOMAIN));
+  const enabledRelations = new Set(Object.keys(RELATION));
+
+  function nodeShape(module) {
+    const base = DOMAIN[module.domain];
+    const highRisk = module.risk === 'high';
+    const mediumRisk = module.risk === 'medium';
+    let border = highRisk ? '#ff665e' : base.color;
+    let background = base.light;
+    if (currentVariant === 'C') {
+      background = highRisk ? '#3a2221' : mediumRisk ? '#342d20' : '#24282a';
+      border = highRisk ? '#ff665e' : mediumRisk ? '#e4a64e' : base.color;
+    }
+    return {
+      id: module.id,
+      label: module.label,
+      shape: 'box',
+      shapeProperties:{ borderRadius:6 },
+      margin:{ top:17, right:16, bottom:17, left:16 },
+      borderWidth: highRisk ? 4 : module.owner ? 3 : 2,
+      borderWidthSelected: 4,
+      color:{
+        background,
+        border,
+        highlight:{ background:'#33383c', border:'#f2f5f6' },
+        hover:{ background:'#2e3336', border }
+      },
+      font:{ color:'#edf0f1', size:14, face:'Segoe UI', multi:false, bold:{ color:'#ffffff', size:14 } },
+      shadow:{ enabled:true, color:highRisk ? 'rgba(255,102,94,.28)' : 'rgba(0,0,0,.36)', size:12, x:0, y:4 },
+      title: module.summary
+    };
+  }
+
+  function edgeShape(edge) {
+    const type = RELATION[edge.relation];
+    return {
+      id: edge.id, from: edge.from, to: edge.to,
+      label: edge.label,
+      relation: edge.relation,
+      arrows: { to: { enabled:true, scaleFactor:.48 } },
+      color: { color:type.color, highlight:'#ffffff', hover:type.color, opacity: edge.relation === 'renders' ? .36 : .58 },
+      dashes: type.dashes,
+      width: edge.relation === 'risk' ? 3.2 : edge.relation === 'state' ? 2.4 : 1.7,
+      selectionWidth: 3,
+      hoverWidth: 2.2,
+      smooth: { enabled:true, type:'cubicBezier', forceDirection:'horizontal', roundness:.5 },
+      font: { size:10, color:'#d6dadd', strokeWidth:5, strokeColor:'#121416', align:'middle' },
+      title: edge.note || edge.label
+    };
+  }
+
+  function domainPosition(module) {
+    const lanes = { client:0, platform:1, work:2, facility:3, abnormality:4, employee:5, ego:6, persistence:7, integration:8 };
+    const sameSlot = modules.filter(m => m.domain === module.domain && m.layer === module.layer);
+    const index = sameSlot.findIndex(m => m.id === module.id);
+    return {
+      x:-1300 + module.layer * 330,
+      y:-2600 + lanes[module.domain] * 680 + (index - (sameSlot.length - 1) / 2) * 150
+    };
+  }
+
+  function lifecyclePosition(module, index) {
+    const columns = { client:0, platform:1, work:2, facility:3, abnormality:4, employee:5, ego:6, persistence:7, integration:8 };
+    const stage = columns[module.domain];
+    const sameColumn = modules.filter(m => columns[m.domain] === columns[module.domain]);
+    const localIndex = sameColumn.findIndex(m => m.id === module.id);
+    const x = -1520 + stage * 380;
+    const y = (localIndex - (sameColumn.length - 1) / 2) * 165;
+    return { x, y };
+  }
+
+  function riskPosition(module) {
+    const sameSlot = modules.filter(m => m.risk === module.risk && m.owner === module.owner && m.layer === module.layer);
+    const index = sameSlot.findIndex(m => m.id === module.id);
+    const bandY = { high:-1400, medium:0, low:1400 }[module.risk];
+    const ownershipOffset = module.owner ? -300 : 300;
+    return {
+      x:-1300 + module.layer * 330,
+      y:bandY + ownershipOffset + (index - (sameSlot.length - 1) / 2) * 155
+    };
+  }
+
+  function positionFor(module, index) {
+    if (currentVariant === 'B') return lifecyclePosition(module, index);
+    if (currentVariant === 'C') return riskPosition(module);
+    return domainPosition(module);
+  }
+
+  function groupDefinitions() {
+    if (currentVariant !== 'C') {
+      return Object.entries(DOMAIN).map(([id, domain]) => ({
+        id:'domain-'+id,
+        label:domain.label,
+        color:domain.color,
+        kind:'领域组',
+        nodeIds:modules.filter(m => m.domain === id).map(m => m.id)
+      }));
+    }
+    const riskMeta = {
+      high:{ label:'高风险', color:'#ff665e' },
+      medium:{ label:'中风险', color:'#e4a64e' },
+      low:{ label:'低风险', color:'#9aa5a0' }
+    };
+    return Object.entries(riskMeta).flatMap(([risk, meta]) => [true, false].map(owner => ({
+      id:`risk-${risk}-${owner ? 'owner' : 'adapter'}`,
+      label:`${meta.label} · ${owner ? '状态所有者' : '协调 / Adapter'}`,
+      color:meta.color,
+      kind:'风险与所有权组',
+      owner,
+      nodeIds:modules.filter(m => m.risk === risk && m.owner === owner).map(m => m.id)
+    })));
+  }
+
+  function roundedRect(ctx, x, y, width, height, radius) {
+    const r = Math.min(radius, width / 2, height / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + width, y, x + width, y + height, r);
+    ctx.arcTo(x + width, y + height, x, y + height, r);
+    ctx.arcTo(x, y + height, x, y, r);
+    ctx.arcTo(x, y, x + width, y, r);
+    ctx.closePath();
+  }
+
+  function visibleGroupNodes(group) {
+    return group.nodeIds.filter(id => {
+      const node = nodeSet.get(id);
+      return node && !node.hidden;
+    });
+  }
+
+  function groupBounds(group) {
+    const nodeIds = visibleGroupNodes(group);
+    if (!nodeIds.length) return null;
+    const boxes = nodeIds.map(id => network.getBoundingBox(id));
+    return {
+      left:Math.min(...boxes.map(box => box.left)) - 58,
+      top:Math.min(...boxes.map(box => box.top)) - 84,
+      right:Math.max(...boxes.map(box => box.right)) + 58,
+      bottom:Math.max(...boxes.map(box => box.bottom)) + 52,
+      nodeIds
+    };
+  }
+
+  function drawGroupFrames(ctx) {
+    renderedGroups = [];
+    const canvas = document.getElementById('network');
+    const viewTopLeft = network.DOMtoCanvas({ x:0, y:0 });
+    const viewBottomRight = network.DOMtoCanvas({ x:canvas.clientWidth, y:canvas.clientHeight });
+    groupDefinitions().forEach(group => {
+      const bounds = groupBounds(group);
+      if (!bounds) return;
+      const width = bounds.right - bounds.left;
+      const height = bounds.bottom - bounds.top;
+      ctx.save();
+      roundedRect(ctx, bounds.left, bounds.top, width, height, 12);
+      ctx.fillStyle = group.color;
+      ctx.globalAlpha = .055;
+      ctx.fill();
+      ctx.globalAlpha = .52;
+      ctx.lineWidth = 2.4;
+      ctx.strokeStyle = group.color;
+      ctx.setLineDash(group.owner === false ? [14, 10] : []);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      roundedRect(ctx, bounds.left, bounds.top, width, 48, 12);
+      ctx.globalAlpha = .2;
+      ctx.fillStyle = group.color;
+      ctx.fill();
+      ctx.globalAlpha = .95;
+      ctx.fillStyle = '#f2f4f5';
+      ctx.font = '600 18px "Segoe UI", "Microsoft YaHei", sans-serif';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.fillText(group.label, bounds.left + 18, bounds.top + 25);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#b8c0c4';
+      ctx.font = '500 14px "Segoe UI", "Microsoft YaHei", sans-serif';
+      ctx.fillText(String(bounds.nodeIds.length), bounds.right - 18, bounds.top + 25);
+      const intersectsViewport = bounds.right > viewTopLeft.x && bounds.left < viewBottomRight.x && bounds.bottom > viewTopLeft.y && bounds.top < viewBottomRight.y;
+      const titleOffscreen = bounds.left < viewTopLeft.x || bounds.top < viewTopLeft.y;
+      if (intersectsViewport && titleOffscreen) {
+        const stickyX = Math.max(bounds.left + 14, viewTopLeft.x + 16);
+        const stickyY = Math.max(bounds.top + 12, viewTopLeft.y + 16);
+        const measured = ctx.measureText(group.label).width + 44;
+        const stickyWidth = Math.min(Math.max(180, measured), 330, bounds.right - stickyX - 14, viewBottomRight.x - stickyX - 16);
+        if (stickyWidth > 110 && stickyY + 38 < bounds.bottom) {
+          roundedRect(ctx, stickyX, stickyY, stickyWidth, 38, 7);
+          ctx.globalAlpha = .94;
+          ctx.fillStyle = '#1b1e20';
+          ctx.fill();
+          ctx.globalAlpha = .85;
+          ctx.lineWidth = 1.6;
+          ctx.strokeStyle = group.color;
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#f2f4f5';
+          ctx.font = '600 15px "Segoe UI", "Microsoft YaHei", sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(group.label, stickyX + 12, stickyY + 20, stickyWidth - 24);
+        }
+      }
+      ctx.restore();
+      renderedGroups.push({ ...group, ...bounds });
+    });
+  }
+
+  function groupAt(point) {
+    return [...renderedGroups].reverse().find(group =>
+      point.x >= group.left && point.x <= group.right && point.y >= group.top && point.y <= group.bottom
+    );
+  }
+
+  function focusGroup(group) {
+    const nodeIds = visibleGroupNodes(group);
+    if (!nodeIds.length) return;
+    network.fit({ nodes:nodeIds, animation:{duration:460,easingFunction:'easeInOutQuad'} });
+    network.selectNodes(nodeIds);
+    setTimeout(() => { syncEdgeLabels(); miniNetwork?.redraw(); }, 500);
+  }
+
+  function syncEdgeLabels(scale = network.getScale()) {
+    const visible = scale >= 1.05;
+    if (visible === edgeLabelsVisible) return;
+    edgeLabelsVisible = visible;
+    edgeSet.update(edges.map(e => ({
+      id:e.id,
+      font:{ size:visible ? 10 : 0, color:'#d6dadd', strokeWidth:5, strokeColor:'#121416', align:'middle' }
+    })));
+  }
+
+  function moveToInitialView(animate=false) {
+    const view = variants[currentVariant].view;
+    network.moveTo({
+      position:view.position,
+      scale:view.scale,
+      animation:animate ? { duration:420, easingFunction:'easeInOutQuad' } : false
+    });
+    setTimeout(() => { syncEdgeLabels(view.scale); miniNetwork?.redraw(); }, animate ? 450 : 0);
+  }
+
+  function drawMiniViewport(ctx) {
+    if (!network || !miniNetwork) return;
+    const canvas = document.getElementById('network');
+    const topLeft = network.DOMtoCanvas({ x:0, y:0 });
+    const bottomRight = network.DOMtoCanvas({ x:canvas.clientWidth, y:canvas.clientHeight });
+    const scale = miniNetwork.getScale() || 1;
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,.055)';
+    ctx.strokeStyle = 'rgba(255,255,255,.9)';
+    ctx.lineWidth = 2 / scale;
+    ctx.fillRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+    ctx.strokeRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+    ctx.restore();
+  }
+
+  function syncMiniPositions(nodeIds=[]) {
+    if (!miniNodeSet || !nodeIds.length) return;
+    const positions = network.getPositions(nodeIds);
+    miniNodeSet.update(nodeIds.map(id => ({ id, x:positions[id].x, y:positions[id].y })));
+    miniNetwork?.redraw();
+  }
+
+  function buildMiniMap(nodes) {
+    if (miniNetwork) miniNetwork.destroy();
+    const miniNodes = nodes.map(node => {
+      const module = modules.find(m => m.id === node.id);
+      const color = currentVariant === 'C'
+        ? module.risk === 'high' ? '#ff665e' : module.risk === 'medium' ? '#e4a64e' : '#9aa5a0'
+        : DOMAIN[module.domain].color;
+      return { id:node.id, x:node.x, y:node.y, fixed:true, shape:'dot', size:9, label:'', color:{background:color,border:color}, borderWidth:0 };
+    });
+    const miniEdges = edges.map(edge => ({
+      id:edge.id, from:edge.from, to:edge.to, label:'', arrows:'', width:.7,
+      color:{color:RELATION[edge.relation].color,opacity:.25}, smooth:false
+    }));
+    miniNodeSet = new vis.DataSet(miniNodes);
+    miniEdgeSet = new vis.DataSet(miniEdges);
+    miniNetwork = new vis.Network(document.getElementById('minimap'), { nodes:miniNodeSet, edges:miniEdgeSet }, {
+      autoResize:true,
+      interaction:{ dragNodes:false, dragView:false, zoomView:false, selectable:false, hover:false },
+      layout:{ improvedLayout:false },
+      physics:{ enabled:false },
+      nodes:{ chosen:false },
+      edges:{ chosen:false }
+    });
+    miniNetwork.on('afterDrawing', drawMiniViewport);
+    miniNetwork.on('click', params => {
+      network.moveTo({ position:params.pointer.canvas, scale:network.getScale(), animation:{duration:360,easingFunction:'easeInOutQuad'} });
+      setTimeout(() => miniNetwork.redraw(), 390);
+    });
+    setTimeout(() => {
+      miniNetwork.fit({ animation:false });
+      miniNetwork.redraw();
+    }, 0);
+  }
+
+  function buildGraph() {
+    const nodes = modules.map((m, i) => {
+      const n = nodeShape(m);
+      Object.assign(n, positionFor(m, i), { fixed:false });
+      return n;
+    });
+    nodeSet = new vis.DataSet(nodes);
+    edgeSet = new vis.DataSet(edges.map(edgeShape));
+    const options = {
+      autoResize:true,
+      interaction:{ hover:true, hoverConnectedEdges:true, multiselect:true, navigationButtons:false, keyboard:{enabled:true,bindToWindow:false}, tooltipDelay:250, zoomView:true, dragView:true, dragNodes:true },
+      nodes:{ chosen:true, widthConstraint:{ minimum:172, maximum:210 }, heightConstraint:{ minimum:58 }, labelHighlightBold:true },
+      edges:{ chosen:true },
+      layout:{ improvedLayout:false },
+      physics:{ enabled:false },
+      configure:false
+    };
+    if (network) network.destroy();
+    edgeLabelsVisible = null;
+    network = new vis.Network(document.getElementById('network'), { nodes:nodeSet, edges:edgeSet }, options);
+    network.on('beforeDrawing', drawGroupFrames);
+    network.on('click', params => {
+      if (params.nodes.length) showNode(params.nodes[0]);
+      else if (params.edges.length) showEdge(params.edges[0]);
+      else {
+        const group = groupAt(params.pointer.canvas);
+        if (group) { network.selectNodes(visibleGroupNodes(group)); showGroup(group); }
+        else showEmpty();
+      }
+    });
+    network.on('doubleClick', params => {
+      if (params.nodes.length) {
+        network.focus(params.nodes[0], { scale:1.18, animation:{duration:450,easingFunction:'easeInOutQuad'} });
+        const connected = network.getConnectedNodes(params.nodes[0]);
+        network.selectNodes([params.nodes[0], ...connected]);
+        return;
+      }
+      const group = groupAt(params.pointer.canvas);
+      if (group) focusGroup(group);
+    });
+    network.on('zoom', params => { syncEdgeLabels(params.scale); miniNetwork?.redraw(); });
+    network.on('dragging', params => { syncMiniPositions(params.nodes); miniNetwork?.redraw(); });
+    network.on('dragEnd', params => { syncMiniPositions(params.nodes); miniNetwork?.redraw(); });
+    buildMiniMap(nodes);
+    setTimeout(() => moveToInitialView(false), 0);
+    applyFilters();
+    updateViewText();
+  }
+
+  function applyFilters() {
+    const q = document.getElementById('searchInput').value.trim().toLowerCase();
+    const visibleNodeIds = new Set();
+    modules.forEach(m => {
+      const text = [m.label,m.summary,m.note,...m.files].join(' ').toLowerCase();
+      const domainOk = enabledDomains.has(m.domain);
+      const searchOk = !q || text.includes(q);
+      const riskOk = !riskOnly || m.risk === 'high';
+      const visible = domainOk && searchOk && riskOk;
+      nodeSet.update({ id:m.id, hidden:!visible });
+      miniNodeSet?.update({ id:m.id, hidden:!visible });
+      if (visible) visibleNodeIds.add(m.id);
+    });
+    let visibleEdgeCount = 0;
+    edges.forEach(e => {
+      const relationOk = enabledRelations.has(e.relation);
+      const riskOk = !riskOnly || e.relation === 'risk';
+      const visible = visibleNodeIds.has(e.from) && visibleNodeIds.has(e.to) && relationOk && riskOk;
+      edgeSet.update({ id:e.id, hidden:!visible });
+      miniEdgeSet?.update({ id:e.id, hidden:!visible });
+      if (visible) visibleEdgeCount++;
+    });
+    document.getElementById('visibleNodes').textContent = visibleNodeIds.size;
+    document.getElementById('visibleEdges').textContent = visibleEdgeCount;
+    document.getElementById('riskNodes').textContent = modules.filter(m => visibleNodeIds.has(m.id) && m.risk === 'high').length;
+    document.getElementById('stateOwners').textContent = modules.filter(m => visibleNodeIds.has(m.id) && m.owner).length;
+    document.getElementById('domainCount').textContent = enabledDomains.size + '/' + Object.keys(DOMAIN).length;
+    document.getElementById('edgeCount').textContent = enabledRelations.size + '/' + Object.keys(RELATION).length;
+    network?.redraw();
+    miniNetwork?.redraw();
+  }
+
+  function showNode(id) {
+    const m = modules.find(x => x.id === id);
+    const incoming = edges.filter(e => e.to === id);
+    const outgoing = edges.filter(e => e.from === id);
+    const riskText = m.risk === 'high' ? '高风险' : m.risk === 'medium' ? '中风险' : '低风险';
+    const relationRows = [...outgoing.map(e => ({...e, direction:'→', other:e.to})), ...incoming.map(e => ({...e, direction:'←', other:e.from}))]
+      .slice(0, 18).map(e => {
+        const other = modules.find(x => x.id === e.other);
+        return `<div class="edge-row"><span class="dot" style="background:${RELATION[e.relation].color}"></span><div><b>${e.direction} ${escapeHtml(other.label)} · ${escapeHtml(e.label)}</b><span>${escapeHtml(RELATION[e.relation].label)}${e.note ? ' · '+escapeHtml(e.note) : ''}</span></div></div>`;
+      }).join('');
+    document.getElementById('details').innerHTML = `
+      <div class="detail-head"><div class="eyebrow">${escapeHtml(DOMAIN[m.domain].label)}</div><h2>${escapeHtml(m.label)}</h2><p>${m.owner ? '状态所有者' : '协调 / Adapter Module'}</p><span class="risk-badge">${riskText}</span></div>
+      <section class="detail-section"><h3>职责</h3><p>${escapeHtml(m.summary)}</p></section>
+      <section class="detail-section"><h3>架构判断</h3><p class="${m.risk==='high'?'risk-note':''}">${escapeHtml(m.note)}</p></section>
+      <section class="detail-section"><h3>关键文件</h3><ul class="file-list">${m.files.map(f=>`<li>${escapeHtml(f)}</li>`).join('')}</ul></section>
+      <section class="detail-section"><h3>连接 · ${incoming.length+outgoing.length}</h3><div class="edge-list">${relationRows || '<span class="count">无连接</span>'}</div></section>`;
+  }
+
+  function showGroup(group) {
+    const visibleIds = new Set(visibleGroupNodes(group));
+    const members = modules.filter(module => visibleIds.has(module.id));
+    const ownerCount = members.filter(module => module.owner).length;
+    const highRiskCount = members.filter(module => module.risk === 'high').length;
+    const internalConnections = edges.filter(edge => visibleIds.has(edge.from) && visibleIds.has(edge.to)).length;
+    const externalConnections = edges.filter(edge => visibleIds.has(edge.from) !== visibleIds.has(edge.to)).length;
+    const rows = members.map(module => `
+      <button class="group-member" data-focus-node="${escapeHtml(module.id)}">
+        <span class="dot" style="background:${DOMAIN[module.domain].color}"></span>
+        <span><b>${escapeHtml(module.label)}</b><small>${escapeHtml(DOMAIN[module.domain].label)} · ${module.owner ? '状态所有者' : '协调 / Adapter'}</small></span>
+      </button>`).join('');
+    document.getElementById('details').innerHTML = `
+      <div class="detail-head" style="border-top:4px solid ${group.color}"><div class="eyebrow">${escapeHtml(group.kind)}</div><h2>${escapeHtml(group.label)}</h2><p>${members.length} 个当前可见模块</p></div>
+      <section class="detail-section"><div class="group-summary">
+        <div><strong>${members.length}</strong><span>模块</span></div>
+        <div><strong>${ownerCount}</strong><span>状态所有者</span></div>
+        <div><strong>${highRiskCount}</strong><span>高风险</span></div>
+      </div></section>
+      <section class="detail-section"><h3>连接</h3><p>组内 ${internalConnections} 条，跨组 ${externalConnections} 条。</p></section>
+      <section class="detail-section"><h3>组成员</h3><div class="group-members">${rows}</div></section>`;
+  }
+
+  function showEdge(id) {
+    const e = edges.find(x => x.id === id);
+    const from = modules.find(x => x.id === e.from), to = modules.find(x => x.id === e.to);
+    document.getElementById('details').innerHTML = `
+      <div class="detail-head"><div class="eyebrow">${escapeHtml(RELATION[e.relation].label)}</div><h2>${escapeHtml(e.label)}</h2><p>${escapeHtml(from.label)} → ${escapeHtml(to.label)}</p></div>
+      <section class="detail-section"><h3>来源</h3><p>${escapeHtml(from.label)}</p></section>
+      <section class="detail-section"><h3>目标</h3><p>${escapeHtml(to.label)}</p></section>
+      <section class="detail-section"><h3>说明</h3><p class="${e.relation==='risk'?'risk-note':''}">${escapeHtml(e.note || e.label)}</p></section>`;
+  }
+
+  function showEmpty() {
+    document.getElementById('details').innerHTML = '<div class="details-empty"><div><i data-lucide="network"></i><div>选择一个模块或连接</div></div></div>';
+    lucide.createIcons();
+  }
+
+  function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+
+  function renderFilters() {
+    document.getElementById('domainFilters').innerHTML = Object.entries(DOMAIN).map(([key,d]) => `<label class="check"><input type="checkbox" data-domain="${key}" checked><span class="dot" style="background:${d.color}"></span><span>${d.label}</span></label>`).join('');
+    document.getElementById('relationFilters').innerHTML = Object.entries(RELATION).map(([key,r]) => `<label class="check"><input type="checkbox" data-relation="${key}" checked><span class="relation-sample ${r.dashes?'dashed':''}" style="border-color:${r.color}"></span><span>${r.label}</span></label>`).join('');
+    document.querySelectorAll('[data-domain]').forEach(el => el.addEventListener('change', () => { el.checked ? enabledDomains.add(el.dataset.domain) : enabledDomains.delete(el.dataset.domain); applyFilters(); }));
+    document.querySelectorAll('[data-relation]').forEach(el => el.addEventListener('change', () => { el.checked ? enabledRelations.add(el.dataset.relation) : enabledRelations.delete(el.dataset.relation); applyFilters(); }));
+  }
+
+  function updateViewText() {
+    document.getElementById('viewName').textContent = variants[currentVariant].name;
+    document.getElementById('viewSubtitle').textContent = variants[currentVariant].subtitle;
+    document.getElementById('variantLabel').textContent = variants[currentVariant].name;
+    document.querySelectorAll('[data-variant]').forEach(b => b.classList.toggle('active', b.dataset.variant === currentVariant));
+  }
+
+  function switchVariant(next) {
+    currentVariant = next;
+    const url = new URL(location.href); url.searchParams.set('variant', next); history.replaceState(null,'',url);
+    buildGraph();
+  }
+
+  function cycleVariant(direction) {
+    const keys = Object.keys(variants); const i = keys.indexOf(currentVariant); switchVariant(keys[(i + direction + keys.length) % keys.length]);
+  }
+
+  document.getElementById('searchInput').addEventListener('input', applyFilters);
+  document.getElementById('details').addEventListener('click', event => {
+    const target = event.target.closest('[data-focus-node]');
+    if (!target) return;
+    const id = target.dataset.focusNode;
+    network.focus(id, { scale:1.08, animation:{duration:420,easingFunction:'easeInOutQuad'} });
+    network.selectNodes([id]);
+    showNode(id);
+    setTimeout(() => miniNetwork?.redraw(), 450);
+  });
+  document.getElementById('fitBtn').addEventListener('click', () => {
+    network.fit({ animation:{duration:500,easingFunction:'easeInOutQuad'} });
+    setTimeout(() => { syncEdgeLabels(); miniNetwork?.redraw(); }, 550);
+  });
+  document.getElementById('resetBtn').addEventListener('click', buildGraph);
+  document.getElementById('riskBtn').addEventListener('click', () => { riskOnly=!riskOnly; document.getElementById('riskBtn').classList.toggle('active', riskOnly); applyFilters(); });
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    const canvas = document.querySelector('#network canvas'); if (!canvas) return;
+    const a = document.createElement('a'); a.download = `lobotocraft-module-graph-${currentVariant}.png`; a.href = canvas.toDataURL('image/png'); a.click();
+  });
+  document.getElementById('prevVariant').addEventListener('click', () => cycleVariant(-1));
+  document.getElementById('nextVariant').addEventListener('click', () => cycleVariant(1));
+  document.addEventListener('keydown', event => {
+    const tag = document.activeElement?.tagName; if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return;
+    if (event.key === 'ArrowLeft') cycleVariant(-1); if (event.key === 'ArrowRight') cycleVariant(1);
+  });
+
+  document.getElementById('variantTabs').innerHTML = Object.keys(variants).map(k => `<button data-variant="${k}" title="${variants[k].name}">${k}</button>`).join('');
+  document.querySelectorAll('[data-variant]').forEach(b => b.addEventListener('click', () => switchVariant(b.dataset.variant)));
+  renderFilters();
+  buildGraph();
+  lucide.createIcons();
+</script>
+</body>
+</html>

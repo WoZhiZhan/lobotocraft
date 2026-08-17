@@ -561,7 +561,7 @@ public class EntityLumberjack extends AbstractAbnormality {
     private boolean isValidTarget(LivingEntity target) {
         if (target == this || !target.isAlive()) return false;
         if (target instanceof Player player) return !player.isCreative() && !player.isSpectator();
-        if (target instanceof AbstractAbnormality abnormality) return abnormality.hasEscape();
+        if (target instanceof AbstractAbnormality abnormality) return abnormality.isAbnormalityCombatTarget();
         return target instanceof EntityClerk || FacilityCombatRules.isOrdealCombatant(target);
     }
 

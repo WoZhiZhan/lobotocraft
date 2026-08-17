@@ -10,13 +10,14 @@ public final class MeltdownPolicy {
     private MeltdownPolicy() {
     }
 
-    public static boolean canActivate(boolean coreSuppressionActive, boolean ordealTriggered) {
-        return coreSuppressionActive && !ordealTriggered;
+    public static boolean canActivate(boolean ignoredCoreSuppressionActive, boolean ordealTriggered) {
+        return !ordealTriggered;
     }
 
-    public static int stageNotificationType(boolean coreSuppressionActive, boolean ordealTriggered) {
+    public static int stageNotificationType(boolean ignoredCoreSuppressionActive,
+                                            boolean ordealTriggered) {
         if (ordealTriggered) return 1;
-        return coreSuppressionActive ? 2 : 0;
+        return 2;
     }
 
     public static boolean countsForFacilityProgress(boolean forcedEnd) {
