@@ -196,25 +196,23 @@ public final class CoreSuppressionOverlay {
 
     private static void renderChesedDamageTypes(GuiGraphics graphics) {
         int mask = CoreSuppressionClientState.getMechanicState();
-        int centerX = graphics.guiWidth() / 2;
-        int centerY = 42;
-        renderChesedDamageIcon(graphics, ChesedDamageKind.RED,
-                centerX - 16, centerY - 32, mask);
-        renderChesedDamageIcon(graphics, ChesedDamageKind.WHITE,
-                centerX, centerY - 16, mask);
-        renderChesedDamageIcon(graphics, ChesedDamageKind.BLACK,
-                centerX - 16, centerY, mask);
-        renderChesedDamageIcon(graphics, ChesedDamageKind.PALE,
-                centerX - 32, centerY - 16, mask);
-        graphics.blit(CHESED_CORE, centerX - 6, centerY - 6,
-                0, 0, 12, 11, 37, 35);
+        ChesedHudLayout.Layout layout = ChesedHudLayout.calculate(
+                graphics.guiWidth(), graphics.guiHeight());
+        renderChesedDamageIcon(graphics, ChesedDamageKind.RED, layout.red(), mask);
+        renderChesedDamageIcon(graphics, ChesedDamageKind.WHITE, layout.white(), mask);
+        renderChesedDamageIcon(graphics, ChesedDamageKind.BLACK, layout.black(), mask);
+        renderChesedDamageIcon(graphics, ChesedDamageKind.PALE, layout.pale(), mask);
+        ChesedHudLayout.Rect core = layout.core();
+        graphics.blit(CHESED_CORE, core.x(), core.y(), core.width(), core.height(),
+                0, 0, 37, 35, 37, 35);
     }
 
     private static void renderChesedDamageIcon(GuiGraphics graphics, ChesedDamageKind kind,
-                                               int x, int y, int mask) {
+                                               ChesedHudLayout.Rect rect, int mask) {
         ResourceLocation[] textures = kind.isSelected(mask)
                 ? CHESED_DAMAGE_ENABLED : CHESED_DAMAGE_DISABLED;
-        graphics.blit(textures[kind.ordinal()], x, y, 0, 0, 32, 32, 96, 96);
+        graphics.blit(textures[kind.ordinal()], rect.x(), rect.y(), rect.width(), rect.height(),
+                0, 0, 96, 96, 96, 96);
     }
 
     private static ResourceLocation[] damageTextures(String state) {

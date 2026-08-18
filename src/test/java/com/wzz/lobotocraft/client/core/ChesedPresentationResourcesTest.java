@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.client.core;
 
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
 
@@ -21,12 +22,20 @@ final class ChesedPresentationResourcesTest {
     @Test
     void chesedUsesADedicatedNonDistortingRainShader() throws IOException {
         String post = Files.readString(RESOURCES.resolve("shaders/post/core_chesed.json"));
-        JsonParser.parseString(post);
+        JsonObject postJson = JsonParser.parseString(post).getAsJsonObject();
         assertTrue(post.contains("lobotocraft:core_chesed_rain"));
         assertTrue(post.contains("RainSampler"));
-        assertTrue(post.contains("effect/core/chesed_rain_fx"));
+        assertTrue(post.contains("lobotocraft:textures/effect/core/chesed_rain_fx.png"));
         assertFalse(post.contains("core_water_drop"));
         assertFalse(post.contains("core_vignette"));
+
+        String auxiliaryId = postJson.getAsJsonArray("passes").get(0).getAsJsonObject()
+                .getAsJsonArray("auxtargets").get(0).getAsJsonObject()
+                .get("id").getAsString();
+        String[] resourceParts = auxiliaryId.split(":", 2);
+        assertEquals(2, resourceParts.length);
+        assertTrue(Files.isRegularFile(Path.of("src/main/resources/assets")
+                .resolve(resourceParts[0]).resolve(resourceParts[1])));
 
         String fragment = Files.readString(
                 RESOURCES.resolve("shaders/program/core_chesed_rain.fsh"));
@@ -78,6 +87,7 @@ final class ChesedPresentationResourcesTest {
         String overlay = Files.readString(Path.of(
                 "src/main/java/com/wzz/lobotocraft/client/core/CoreSuppressionOverlay.java"));
         assertTrue(overlay.contains("textures/gui/core_suppression/chesed/damage/"));
+        assertTrue(overlay.contains("0, 0, 96, 96, 96, 96"));
         assertFalse(overlay.contains("kind.id().toUpperCase()"));
     }
 }

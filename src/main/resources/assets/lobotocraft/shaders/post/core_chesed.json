@@ -6,7 +6,7 @@
       "intarget": "minecraft:main",
       "outtarget": "swap",
       "auxtargets": [
-        { "name": "RainSampler", "id": "lobotocraft:effect/core/chesed_rain_fx", "width": 1024, "height": 1024, "bilinear": true }
+        { "name": "RainSampler", "id": "lobotocraft:textures/effect/core/chesed_rain_fx.png", "width": 1024, "height": 1024, "bilinear": true }
       ]
     },
     { "name": "minecraft:blit", "intarget": "swap", "outtarget": "minecraft:main" }
