@@ -3,9 +3,11 @@ package com.wzz.lobotocraft.client.core;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
 import com.wzz.lobotocraft.core_suppression.chesed.ChesedDamageKind;
+import com.wzz.lobotocraft.util.ResourceUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
 import net.minecraftforge.client.event.ScreenEvent;
@@ -15,6 +17,13 @@ import net.minecraftforge.fml.common.Mod;
 
 @Mod.EventBusSubscriber(modid = ModMain.MODID, value = Dist.CLIENT)
 public final class CoreSuppressionOverlay {
+    private static final String CHESED_DAMAGE_TEXTURE_ROOT =
+            "textures/gui/core_suppression/chesed/damage/";
+    private static final ResourceLocation[] CHESED_DAMAGE_ENABLED = damageTextures("enabled");
+    private static final ResourceLocation[] CHESED_DAMAGE_DISABLED = damageTextures("disabled");
+    private static final ResourceLocation CHESED_CORE = ResourceUtil.createInstance(
+            CHESED_DAMAGE_TEXTURE_ROOT + "core.png");
+
     private CoreSuppressionOverlay() {
     }
 
@@ -186,23 +195,36 @@ public final class CoreSuppressionOverlay {
     }
 
     private static void renderChesedDamageTypes(GuiGraphics graphics) {
-        Minecraft minecraft = Minecraft.getInstance();
         int mask = CoreSuppressionClientState.getMechanicState();
-        int y = graphics.guiHeight() - 82;
-        Component label = Component.translatable("overlay.lobotocraft.chesed.damage_types");
-        int width = Math.max(184, minecraft.font.width(label) + 12);
-        graphics.fill(7, y - 5, 7 + width, y + 25, 0xB0000000);
-        graphics.fill(7, y - 5, 9, y + 25, 0xFF4D82C4);
-        graphics.drawString(minecraft.font, label, 13, y - 1, 0xFFE4F1FF, false);
+        int centerX = graphics.guiWidth() / 2;
+        int centerY = 42;
+        renderChesedDamageIcon(graphics, ChesedDamageKind.RED,
+                centerX - 16, centerY - 32, mask);
+        renderChesedDamageIcon(graphics, ChesedDamageKind.WHITE,
+                centerX, centerY - 16, mask);
+        renderChesedDamageIcon(graphics, ChesedDamageKind.BLACK,
+                centerX - 16, centerY, mask);
+        renderChesedDamageIcon(graphics, ChesedDamageKind.PALE,
+                centerX - 32, centerY - 16, mask);
+        graphics.blit(CHESED_CORE, centerX - 6, centerY - 6,
+                0, 0, 12, 11, 37, 35);
+    }
+
+    private static void renderChesedDamageIcon(GuiGraphics graphics, ChesedDamageKind kind,
+                                               int x, int y, int mask) {
+        ResourceLocation[] textures = kind.isSelected(mask)
+                ? CHESED_DAMAGE_ENABLED : CHESED_DAMAGE_DISABLED;
+        graphics.blit(textures[kind.ordinal()], x, y, 0, 0, 32, 32, 96, 96);
+    }
+
+    private static ResourceLocation[] damageTextures(String state) {
         ChesedDamageKind[] kinds = ChesedDamageKind.values();
+        ResourceLocation[] textures = new ResourceLocation[kinds.length];
         for (int i = 0; i < kinds.length; i++) {
-            ChesedDamageKind kind = kinds[i];
-            int x = 13 + i * 42;
-            int color = kind.isSelected(mask) ? 0xFFEAF6FF : 0x665A6A78;
-            graphics.fill(x, y + 10, x + 34, y + 24, kind.isSelected(mask) ? 0xC02B5E8A : 0x602B3540);
-            graphics.drawCenteredString(minecraft.font, kind.id().toUpperCase(), x + 17,
-                    y + 12, color);
+            textures[i] = ResourceUtil.createInstance(
+                    CHESED_DAMAGE_TEXTURE_ROOT + kinds[i].id() + "_" + state + ".png");
         }
+        return textures;
     }
 
     private static String roman(int level) {

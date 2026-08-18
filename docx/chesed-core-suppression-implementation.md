@@ -20,7 +20,8 @@
 - `ChesedEncounterData` 持久化当前危险类型掩码和已处理的熔毁等级。
 - `ChesedEncounterService` 通过 `CoreSuppressionEncounter` 接入开始、结束、服务器启动清理、熔毁通知和伤害倍率。
 - `CoreSuppressionDamageHooks` 在红、白、黑、蓝伤害的最终结算处统一应用倍率，蓝伤的生命百分比部分也会完整放大。
-- 客户端同步机制状态并在 HUD 显示四种危险类型；完整视觉模式使用水滴扰动和黑色暗角，音乐使用 `core.chesed_1` 与 `core.chesed_2`。
+- 客户端同步机制状态并在 HUD 显示四种危险类型；完整视觉模式使用独立的 `core_chesed_rain` 后处理：只叠加微弱深蓝滤镜、滑落雨滴和随机水波，不改变场景 UV，也不使用暗角。HUD 使用原作 `ChesedBossUI` 的四向内聚 Sprite 和中央 Chesed 核心图标。
+- 音乐沿用其他上层核心抑制的通用阶段切换：阶段 0 播放设施警报，阶段 1 播放 `core.chesed_1`，阶段 2 播放 `core.chesed_2`；阶段变化只在切换瞬间启动对应曲目。
 
 ## 有意保留的差异
 

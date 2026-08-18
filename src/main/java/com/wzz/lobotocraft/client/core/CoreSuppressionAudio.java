@@ -94,24 +94,10 @@ public final class CoreSuppressionAudio {
 
     private static ResourceLocation desiredTrack() {
         if (!CoreSuppressionClientState.isActive()) return null;
-        CoreSuppressionType type = CoreSuppressionClientState.getType();
-        if (type == null) return null;
-        int visualStage = CoreSuppressionClientState.getVisualStage();
-        if (visualStage <= 0 && type != CoreSuppressionType.CHESED) {
-            return ResourceUtil.createInstance("escape_alert_bgm_1");
-        }
-        String department = switch (type) {
-            case MALKUTH -> "malkuth";
-            case YESOD -> "yesod";
-            case HOD -> "hod";
-            case NETZACH -> "netzach";
-            case CHESED -> "chesed";
-            default -> null;
-        };
-        if (department == null) return null;
-        int phase = type == CoreSuppressionType.CHESED
-                ? 2 : visualStage >= 2 ? 2 : 1;
-        return ResourceUtil.createInstance("core." + department + "_" + phase);
+        String path = CoreSuppressionMusicPolicy.trackPath(
+                CoreSuppressionClientState.getType(),
+                CoreSuppressionClientState.getVisualStage());
+        return path == null ? null : ResourceUtil.createInstance(path);
     }
 
     private static void stop(Minecraft minecraft) {

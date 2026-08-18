@@ -1,28 +1,7 @@
 {
-  "targets": [ "swap_a", "swap_b" ],
+  "targets": [ "swap" ],
   "passes": [
-    {
-      "name": "lobotocraft:core_water_drop",
-      "intarget": "minecraft:main",
-      "outtarget": "swap_a",
-      "auxtargets": [
-        { "name": "WaterSampler", "id": "lobotocraft:core/water_drop", "width": 512, "height": 512, "bilinear": true }
-      ]
-    },
-    {
-      "name": "lobotocraft:core_vignette",
-      "intarget": "swap_a",
-      "outtarget": "swap_b",
-      "auxtargets": [
-        { "name": "VignetteSampler", "id": "lobotocraft:core/vignette", "width": 512, "height": 512, "bilinear": true }
-      ],
-      "uniforms": [
-        { "name": "Vignetting", "values": [ 0.9 ] },
-        { "name": "VignettingFull", "values": [ 0.2 ] },
-        { "name": "VignettingDirt", "values": [ 0.45 ] },
-        { "name": "VignettingColor", "values": [ 0.0, 0.0, 0.0, 1.0 ] }
-      ]
-    },
-    { "name": "minecraft:blit", "intarget": "swap_b", "outtarget": "minecraft:main" }
+    { "name": "lobotocraft:core_chesed_rain", "intarget": "minecraft:main", "outtarget": "swap" },
+    { "name": "minecraft:blit", "intarget": "swap", "outtarget": "minecraft:main" }
   ]
 }

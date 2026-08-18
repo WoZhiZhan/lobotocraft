@@ -54,6 +54,19 @@
 
 Binah 的后四张图是其核心实体预制体实际引用的火焰、柔光火焰、火花与烟雾粒子贴图，不是按名称猜测加入。
 
+## Chesed 伤害机制贴图
+
+原版 `source/ChesedBossUI.cs` 的 `RWBPUnit` 为红、白、黑、蓝（Pale）四种危险类型分别保存 enabled/disabled Sprite。通过 `ChesedBossUI` 预制体的序列化引用追踪到的 Sprite 如下：
+
+| 类型 | disabled | enabled |
+|---|---:|---:|
+| 红（R） | `UI_2_1`（Path ID 16182） | `UI_2_2`（Path ID 16343） |
+| 白（W） | `UI_2_3`（Path ID 16437） | `UI_2_5`（Path ID 16528） |
+| 黑（B） | `UI_2_7`（Path ID 16611） | `UI_2_9`（Path ID 16690） |
+| 蓝（Pale） | `UI_2_12`（Path ID 16767） | `UI_2_13`（Path ID 16844） |
+
+中央固定图标为 `UI_2_18`（Path ID 16915）。模组正式资源位于 `textures/gui/core_suppression/chesed/damage/`，并按 `red/white/black/pale_{enabled,disabled}.png` 与 `core.png` 命名。四个图标按原作方向在屏幕上方围绕中央图标向内排列。
+
 ## 导出结果
 
 - BGM：8 首，保留 8 个 WAV 和 8 个 OGG。
