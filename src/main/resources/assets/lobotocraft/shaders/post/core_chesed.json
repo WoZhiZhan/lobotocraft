@@ -1,7 +1,14 @@
 {
   "targets": [ "swap" ],
   "passes": [
-    { "name": "lobotocraft:core_chesed_rain", "intarget": "minecraft:main", "outtarget": "swap" },
+    {
+      "name": "lobotocraft:core_chesed_rain",
+      "intarget": "minecraft:main",
+      "outtarget": "swap",
+      "auxtargets": [
+        { "name": "RainSampler", "id": "lobotocraft:effect/core/chesed_rain_fx", "width": 1024, "height": 1024, "bilinear": true }
+      ]
+    },
     { "name": "minecraft:blit", "intarget": "swap", "outtarget": "minecraft:main" }
   ]
 }

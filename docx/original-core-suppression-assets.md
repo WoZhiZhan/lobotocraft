@@ -67,6 +67,8 @@ Binah 的后四张图是其核心实体预制体实际引用的火焰、柔光�
 
 中央固定图标为 `UI_2_18`（Path ID 16915）。模组正式资源位于 `textures/gui/core_suppression/chesed/damage/`，并按 `red/white/black/pale_{enabled,disabled}.png` 与 `core.png` 命名。四个图标按原作方向在屏幕上方围绕中央图标向内排列。
 
+Chesed 的相机雨幕使用 `CameraFilterPack_Atmosphere_Rain_FX`（Texture2D Path ID 865，1024×1024）。该贴图将雨线、风暴噪声和水滴飞溅分别打包在 R、G、B 通道；模组正式资源为 `textures/effect/core/chesed_rain_fx.png`。原 `CameraFilterPack/Atmosphere_Rain_Pro` 像素 shader（Shader Path ID 5250）的 DXBC 已反汇编，并据其五层 R 通道采样、B 通道边缘响应和 G 通道风暴采样结构移植。
+
 ## 导出结果
 
 - BGM：8 首，保留 8 个 WAV 和 8 个 OGG。

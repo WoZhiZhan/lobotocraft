@@ -1,92 +1,68 @@
 #version 150
 
 uniform sampler2D DiffuseSampler;
+uniform sampler2D RainSampler;
 uniform vec2 OutSize;
 uniform float EffectTime;
+uniform float Transition;
 
 in vec2 texCoord;
 out vec4 fragColor;
 
-float hash11(float value) {
-    return fract(sin(value * 127.1) * 43758.5453123);
+vec4 sampleRain(vec2 uv) {
+    return texture(RainSampler, fract(uv));
 }
 
-vec2 hash22(vec2 value) {
-    return fract(sin(vec2(
-        dot(value, vec2(127.1, 311.7)),
-        dot(value, vec2(269.5, 183.3)))) * 43758.5453123);
-}
-
-float segmentDistance(vec2 point, vec2 start, vec2 end) {
-    vec2 line = end - start;
-    float rate = clamp(dot(point - start, line) / max(dot(line, line), 0.00001), 0.0, 1.0);
-    return length(point - start - line * rate);
-}
-
-float fallingRain(vec2 point, float time) {
-    float rain = 0.0;
-    for (int index = 0; index < 18; ++index) {
-        float seed = float(index) + 17.0;
-        float randomA = hash11(seed);
-        float randomB = hash11(seed + 43.0);
-        float cycle = mix(1.7, 4.2, randomA);
-        float phase = fract((time + randomB * cycle) / cycle);
-        float x = (randomA - 0.5) * 0.96 * (OutSize.x / max(OutSize.y, 1.0));
-        float headY = 1.10 - phase * 1.24;
-        float trailLength = mix(0.035, 0.105, randomB);
-        float width = mix(0.0015, 0.0030, hash11(seed + 9.0));
-        float distanceToTrail = segmentDistance(
-                point, vec2(x, headY), vec2(x, headY + trailLength));
-        float trail = 1.0 - smoothstep(width, width * 2.8, distanceToTrail);
-        float headDistance = length((point - vec2(x, headY)) * vec2(0.72, 1.45));
-        float head = 1.0 - smoothstep(width * 2.0, width * 4.8, headDistance);
-        float life = smoothstep(0.0, 0.07, phase) * (1.0 - smoothstep(0.86, 1.0, phase));
-        rain += (trail * 0.36 + head * 0.72) * life;
-    }
-    return rain;
-}
-
-float impactRipples(vec2 point, float time) {
-    float ripples = 0.0;
-    for (int index = 0; index < 5; ++index) {
-        float seed = float(index) + 71.0;
-        float period = mix(2.2, 4.8, hash11(seed));
-        float timeline = (time + seed * 1.731) / period;
-        float eventIndex = floor(timeline);
-        float age = fract(timeline);
-        vec2 randomPoint = hash22(vec2(eventIndex, seed));
-        vec2 center = vec2(
-                (randomPoint.x - 0.5) * 0.88 * (OutSize.x / max(OutSize.y, 1.0)),
-                mix(0.12, 0.88, randomPoint.y));
-        float radius = age * mix(0.085, 0.145, hash11(seed + eventIndex));
-        float ringDistance = abs(length(point - center) - radius);
-        float ringWidth = mix(0.0025, 0.0045, hash11(seed + 8.0));
-        float ring = 1.0 - smoothstep(ringWidth, ringWidth * 2.5, ringDistance);
-        float echoAge = max(age - 0.15, 0.0);
-        float echoRadius = echoAge * radius / max(age, 0.001);
-        float echoDistance = abs(length(point - center) - echoRadius);
-        float echo = (1.0 - smoothstep(ringWidth, ringWidth * 2.3, echoDistance))
-                * step(0.15, age);
-        float fade = smoothstep(0.0, 0.05, age) * (1.0 - smoothstep(0.48, 0.95, age));
-        float impact = (1.0 - smoothstep(0.006, 0.022, length(point - center)))
-                * (1.0 - smoothstep(0.0, 0.10, age));
-        ripples += (ring + echo * 0.42) * fade + impact * 0.8;
-    }
-    return ripples;
+float sceneEdge(vec2 uv) {
+    vec2 texel = 3.0 / max(OutSize, vec2(1.0));
+    vec3 upperRight = texture(DiffuseSampler,
+            clamp(uv + texel, vec2(0.0), vec2(1.0))).rgb;
+    vec3 lowerRight = texture(DiffuseSampler,
+            clamp(uv + vec2(texel.x, -texel.y), vec2(0.0), vec2(1.0))).rgb;
+    vec3 upperLeft = texture(DiffuseSampler,
+            clamp(uv + vec2(-texel.x, texel.y), vec2(0.0), vec2(1.0))).rgb;
+    vec3 difference = (abs(upperRight - lowerRight) + abs(upperRight - upperLeft)) * 0.5;
+    return length(difference);
 }
 
 void main() {
     vec3 source = texture(DiffuseSampler, texCoord).rgb;
-    vec3 blueFiltered = source * vec3(0.76, 0.87, 1.02) + vec3(0.0, 0.012, 0.030);
-    vec3 color = mix(source, blueFiltered, 0.14);
+    float rate = clamp(Transition, 0.0, 1.0);
 
-    float aspect = OutSize.x / max(OutSize.y, 1.0);
-    vec2 point = vec2((texCoord.x - 0.5) * aspect, texCoord.y);
-    float rain = fallingRain(point, EffectTime);
-    float ripple = impactRipples(point, EffectTime);
-    float waterMask = clamp(rain * 0.18 + ripple * 0.34, 0.0, 0.52);
-    vec3 waterColor = vec3(0.34, 0.67, 0.88);
-    color = mix(color, waterColor, waterMask);
+    // ChesedBossBase.UpdateEffect: the Rain_Pro burst settles over exactly three seconds.
+    float speed = mix(0.35, 0.10, rate);
+    float size = mix(0.40, 1.80, rate);
+    float intensity = mix(2.0, 0.5, rate);
+    float dropOnOff = mix(0.90, 0.15, rate);
+    float directionX = 0.12;
+    float time = EffectTime * speed;
+
+    float timeStep = floor(time * 32.0);
+    float steppedTime = timeStep * 0.0625;
+    vec2 dropUv = vec2(
+            texCoord.x * 2.0 + steppedTime - time * directionX * 0.55,
+            texCoord.y + timeStep * 0.0555556 + time * 0.15);
+    float drop = sceneEdge(texCoord) * sampleRain(dropUv).b * dropOnOff;
+
+    vec2 rainUv = texCoord * size;
+    rainUv.x += directionX * rainUv.y;
+    vec2 rainUv1 = rainUv * 3.0 + vec2(0.10, time * 0.80);
+    vec2 rainUv2 = rainUv1 * 0.65 + vec2(0.10, time);
+    vec2 rainUv3 = rainUv2 * 0.65 + vec2(0.10, time * 1.20);
+    vec2 rainUv4 = rainUv3 * 0.50 + vec2(0.10, time * 1.20);
+    vec2 rainUv5 = rainUv4 * 0.40 + vec2(0.10, time * 1.20);
+    float rain = intensity * 0.25 * (
+            sampleRain(rainUv1).r * 0.30
+            + sampleRain(rainUv2).r * 0.50
+            + sampleRain(rainUv3).r * 0.70
+            + sampleRain(rainUv4).r * 0.90
+            + sampleRain(rainUv5).r * 0.90);
+
+    float storm = sampleRain(vec2(texCoord.x * 0.001 + time * 0.20,
+            time * 0.01)).g * intensity * 0.50;
+    vec3 rainLayer = source + vec3(rain + drop + storm);
+    vec3 blueFiltered = rainLayer * vec3(0.88, 0.94, 1.03) + vec3(0.0, 0.006, 0.016);
+    vec3 color = mix(rainLayer, blueFiltered, 0.10);
 
     fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
 }

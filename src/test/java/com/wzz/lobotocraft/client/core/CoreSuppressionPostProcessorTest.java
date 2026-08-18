@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.client.core;
 
+import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -16,5 +17,11 @@ final class CoreSuppressionPostProcessorTest {
                 false, false, true, 40L, 40L));
         assertTrue(CoreSuppressionPostProcessor.shouldAttemptLoad(
                 true, false, false, 20L, 20L));
+    }
+
+    @Test
+    void chesedRunsBeforeGuiLikeTheOriginalMainCameraEffect() {
+        assertFalse(CoreSuppressionPostProcessor.shouldRenderAfterGui(CoreSuppressionType.CHESED));
+        assertTrue(CoreSuppressionPostProcessor.shouldRenderAfterGui(CoreSuppressionType.GEBURAH));
     }
 }

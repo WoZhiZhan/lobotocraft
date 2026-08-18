@@ -23,6 +23,8 @@ final class ChesedPresentationResourcesTest {
         String post = Files.readString(RESOURCES.resolve("shaders/post/core_chesed.json"));
         JsonParser.parseString(post);
         assertTrue(post.contains("lobotocraft:core_chesed_rain"));
+        assertTrue(post.contains("RainSampler"));
+        assertTrue(post.contains("effect/core/chesed_rain_fx"));
         assertFalse(post.contains("core_water_drop"));
         assertFalse(post.contains("core_vignette"));
 
@@ -30,9 +32,26 @@ final class ChesedPresentationResourcesTest {
                 RESOURCES.resolve("shaders/program/core_chesed_rain.fsh"));
         JsonParser.parseString(Files.readString(
                 RESOURCES.resolve("shaders/program/core_chesed_rain.json")));
+        assertTrue(fragment.contains("uniform sampler2D RainSampler"));
+        assertTrue(fragment.contains("uniform float Transition"));
+        assertTrue(fragment.contains("mix(0.35, 0.10, rate)"));
+        assertTrue(fragment.contains("mix(0.40, 1.80, rate)"));
+        assertTrue(fragment.contains("mix(2.0, 0.5, rate)"));
+        assertTrue(fragment.contains("mix(0.90, 0.15, rate)"));
         assertTrue(fragment.contains("texture(DiffuseSampler, texCoord)"));
+        assertTrue(fragment.contains("texture(RainSampler"));
+        assertFalse(fragment.contains("fallingRain"));
+        assertFalse(fragment.contains("impactRipples"));
+        assertFalse(fragment.contains("hash11"));
         assertFalse(fragment.contains("distortedUv"));
         assertFalse(fragment.contains("Vignetting"));
+
+        Path rainTexture = RESOURCES.resolve("textures/effect/core/chesed_rain_fx.png");
+        assertTrue(Files.isRegularFile(rainTexture));
+        BufferedImage image = ImageIO.read(rainTexture.toFile());
+        assertNotNull(image);
+        assertEquals(1024, image.getWidth());
+        assertEquals(1024, image.getHeight());
     }
 
     @Test

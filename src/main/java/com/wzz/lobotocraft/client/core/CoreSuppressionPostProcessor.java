@@ -76,8 +76,13 @@ public final class CoreSuppressionPostProcessor {
 
     public static boolean shouldRenderAfterGui() {
         return loadedChain != null && CoreSuppressionClientState.isActive()
+                && shouldRenderAfterGui(CoreSuppressionClientState.getType())
                 && !shouldSkipForReadableChat()
                 && Minecraft.getInstance().gameRenderer.currentEffect() == loadedChain;
+    }
+
+    static boolean shouldRenderAfterGui(CoreSuppressionType type) {
+        return type != CoreSuppressionType.CHESED;
     }
 
     public static boolean shouldSkipForReadableChat() {
