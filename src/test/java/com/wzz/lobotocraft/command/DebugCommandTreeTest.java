@@ -29,8 +29,9 @@ class DebugCommandTreeTest {
         assertNotNull(root.getChild("abnormality").getChild("escape"));
         assertNotNull(root.getChild("abnormality").getChild("return"));
         assertNotNull(root.getChild("abnormality").getChild("heal"));
-        assertNotNull(root.getChild("facility").getChild("trigger-stage"));
-        assertNotNull(root.getChild("facility").getChild("requirements"));
+         assertNotNull(root.getChild("facility").getChild("trigger-stage"));
+         assertNotNull(root.getChild("facility").getChild("clear-meltdowns"));
+         assertNotNull(root.getChild("facility").getChild("requirements"));
         assertNotNull(root.getChild("facility").getChild("energy"));
         assertNotNull(root.getChild("facility").getChild("gauge"));
         assertNotNull(root.getChild("counter").getChild("set"));

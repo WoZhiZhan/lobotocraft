@@ -18,6 +18,10 @@ final class NavigationExecutionPolicy {
     private NavigationExecutionPolicy() {
     }
 
+    static boolean needsJump(double currentY, double targetY, double stepHeight, boolean onGround) {
+        return onGround && targetY - currentY > Math.max(0.0D, stepHeight) + 1.0E-4D;
+    }
+
     static boolean hasReachedWaypoint(Vec3 position, NavigationPathStep current,
                                       NavigationPathStep next, boolean finalActualGoal,
                                       boolean actualGoalReached) {

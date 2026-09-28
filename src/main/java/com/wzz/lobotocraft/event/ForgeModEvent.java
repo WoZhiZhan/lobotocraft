@@ -483,9 +483,6 @@ public class ForgeModEvent {
 					}
 				});
 			}
-		} else if (isRedDamage && src.getEntity() instanceof EntityGeburah
-				&& resistance != 1.0D) {
-			event.setAmount(event.getAmount() * (float) resistance);
 		}
 	}
 
@@ -1071,6 +1068,11 @@ public class ForgeModEvent {
 
 	@SubscribeEvent
 	public static void onWorkScreenOpen(WorkScreenOpenEvent event) {
+		if (event.isOpeningWorkScreen() && event.getAbnormality() instanceof AbstractAbnormality abnormality
+				&& com.wzz.lobotocraft.work.UniqueWorkRequest.isBusy(abnormality)) {
+			event.setCanceled(true);
+			return;
+		}
 		if (event.getEntity().getMainHandItem().getItem() instanceof CaptureUnitItem) {
 			event.setCanceled(true);
 		}
@@ -1124,6 +1126,9 @@ public class ForgeModEvent {
 		Player player = event.getEntity();
 		if (player instanceof ServerPlayer serverPlayer) {
 			com.wzz.lobotocraft.util.ControlStateRecoveryService.clearTransientControls(serverPlayer);
+			if (MentalValueUtil.isPanic(serverPlayer)) {
+				com.wzz.lobotocraft.event.listener.MentalValueEventHandler.forceRecover(serverPlayer);
+			}
 			CompoundTag root = player.getPersistentData();
 			CompoundTag persisted = root.getCompound(Player.PERSISTED_NBT_TAG);
 			boolean noticeSeen = persisted.getBoolean(AcknowledgeWelcomeNoticePacket.SEEN_TAG);

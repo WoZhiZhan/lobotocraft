@@ -18,11 +18,14 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.shapes.BooleanOp;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.level.BlockEvent;
@@ -215,6 +218,12 @@ public final class FacilityNavigationCache {
     public static void onNeighborChanged(BlockEvent.NeighborNotifyEvent event) {
         if (!(event.getLevel() instanceof ServerLevel level)) return;
         markDirty(level, event.getPos());
+        BlockState state = level.getBlockState(event.getPos());
+        if (state.getBlock() instanceof DoorBlock && state.hasProperty(DoorBlock.HALF)) {
+            markDirty(level, state.getValue(DoorBlock.HALF)
+                    == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER
+                    ? event.getPos().below() : event.getPos().above());
+        }
         event.getNotifiedSides().forEach(direction -> markDirty(level,
                 event.getPos().relative(direction)));
     }
@@ -286,9 +295,33 @@ public final class FacilityNavigationCache {
 
         private void refreshNow(BlockPos position) {
             if (!contains(position) || !level.hasChunkAt(position)) return;
-            liveOverrides.put(position.asLong(),
-                    NavigationSnapshot.describeLiveCell(level, position));
+            long key = position.asLong();
+            CellData live = NavigationSnapshot.describeLiveCell(level, position);
+            CellData base = baseCells == null ? null : baseCells.get(key);
+            if (base != null && sameCell(base, live)) {
+                liveOverrides.remove(key);
+            } else if (base == null && live == NavigationSnapshot.airCell()) {
+                liveOverrides.remove(key);
+            } else {
+                liveOverrides.put(key, live);
+            }
         }
+
+    }
+
+    static boolean sameCell(CellData first, CellData second) {
+        if (first == second) return true;
+        if (first == null || second == null
+                || first.traversableClosedDoor() != second.traversableClosedDoor()
+                || first.softObstacle() != second.softObstacle()
+                || first.breakable() != second.breakable()
+                || first.unsafeNarrowSupport() != second.unsafeNarrowSupport()
+                || Float.compare(first.destroySpeed(), second.destroySpeed()) != 0
+                || first.hazard() != second.hazard()) return false;
+        if (first.collisionShape().isEmpty() != second.collisionShape().isEmpty()) return false;
+        if (first.collisionShape().isEmpty()) return true;
+        return !Shapes.joinIsNotEmpty(
+                first.collisionShape(), second.collisionShape(), BooleanOp.NOT_SAME);
     }
 
     private static Map<Long, CellData> loadBaseCells(HolderLookup<Block> blocks) {

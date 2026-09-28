@@ -28,6 +28,7 @@ public class AbnormalityEncyclopediaData {
             "Nullthing", "Onebadmanygood", "Happyteddy", "IronMaiden",
             "MeatIdol", "StraitJacket", "Bigbird", "SmallBird", "LongBird",
             "Matchgirl", "Fairy", "QueenBee", "RedShoes", "SnowQueen",
+            "SingingMachine", "Censored",
             "Ppodae", "GalaxyBoy", "LittleWitch", "BlueStar", "Porccu",
             "BossBird", "Helper", "Cosmos", "BigBadWolf", "Butterfly",
             "RedHood", "PinkCorps", "ArmorCreature", "OldLady",
@@ -413,6 +414,29 @@ public class AbnormalityEncyclopediaData {
                         "突破收容后，如果“微笑的尸山”已在尸体上催生出其他实体，那么只是单单将一个实体的生命值清空并不能完全镇压它。只有先将“微笑的尸山”催生出的实体全部击杀后才能对本体造成伤害。"
                 },
                 "计数器极限：2 | 会突破收容 | 红色(1.2 抗性较低) 白色(0.8 抗性较高) 黑色(0.8 抗性较高) 蓝色(0.5 抗性较高)"
+        ));
+
+        ENCYCLOPEDIA_DATA.put("O-05-30", new EntryData(
+                new String[]{
+                        "勇气等级高于3级的员工完成工作后会跳入“歌唱机”并启动机器。",
+                        "自律等级低于3级的员工完成工作后会跳入“歌唱机”并启动机器。",
+                        "工作结果为差时，“歌唱机”的逆卡巴拉计数器会立刻减少。",
+                        "计数器归零时，下一名进入收容单元的员工会直接跳入机器。",
+                        "机器启动后会从原部门附近开始寻找可被“机器狂想曲”控制的员工或文职。",
+                        "受控者会袭击其他设施人员；杀死目标后返回歌唱机，令机器再次演奏并控制更多人员。"
+                },
+                "计数器极限：1 | 不会突破收容 | 受控者可以被镇压"
+        ));
+
+        ENCYCLOPEDIA_DATA.put("O-03-89", new EntryData(
+                new String[]{
+                        "当员工进入“数据删除”的收容单元时，低等级员工会直接陷入恐慌。",
+                        "当员工在“数据删除”的收容单元内陷入恐慌时，“数据删除”的逆卡巴拉计数器会立刻减少。",
+                        "当工作结果为差时，“数据删除”的逆卡巴拉计数器会立刻减少。"
+                },
+                "计数器极限：2 | 最大产量：32 | 差：0–16，良：17–32，无优 | "
+                        + "第四工作槽为随机献祭，成功献祭增加计数器 | "
+                        + "会突破收容，本体与子体均会独立触发首次恐惧遭遇"
         ));
 
         // 憎恶女王 (O-01-04) - 原版 7 条管理须知

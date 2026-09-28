@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.client.screen;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.wzz.lobotocraft.client.screen.api.AbnormalityMusicScreen;
 import com.wzz.lobotocraft.client.screen.config.EncyclopediaGUIConfig;
+import com.wzz.lobotocraft.client.ui.DamageTypeVisual;
 import com.wzz.lobotocraft.client.ui.LobotomyUiRenderer;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.AbnormalityEncyclopediaData;
@@ -98,15 +99,6 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
             ResourceUtil.createInstance("textures/gui/work_pref_attachment.png");
     private static final ResourceLocation REPRESSION_ICON =
             ResourceUtil.createInstance("textures/gui/work_pref_repression.png");
-
-    private static final ResourceLocation DAMAGE_WHITE =
-            ResourceUtil.createInstance("textures/particle/white.png");
-    private static final ResourceLocation DAMAGE_RED =
-            ResourceUtil.createInstance("textures/particle/red.png");
-    private static final ResourceLocation DAMAGE_BLACK =
-            ResourceUtil.createInstance("textures/particle/black.png");
-    private static final ResourceLocation DAMAGE_PALE =
-            ResourceUtil.createInstance("textures/particle/blue.png");
 
     private static final ResourceLocation QUESTION_MARK =
             ResourceUtil.createInstance("textures/gui/question_mark.png");
@@ -515,9 +507,8 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         drawCenteredScaledText(graphics, tr("screen.lobotocraft.encyclopedia.damage_type"),
                 imageX + 80, infoY + 9,
                 2.0F, ARCHIVE_PALE, 145);
-        ResourceLocation damageIcon = getDamageTypeIcon();
-        graphics.blit(damageIcon, imageX + 18, infoY + 43, 0, 0, 42, 42, 42, 42);
-        drawScaledText(graphics, damageType, imageX + 72, infoY + 53,
+        renderDamageTypeIcon(graphics, damageType, imageX + 18, infoY + 43, 42);
+        drawScaledText(graphics, DamageTypeVisual.label(damageType), imageX + 72, infoY + 53,
                 3.0F, EncyclopediaGUIConfig.Colors.getDamageTypeColor(damageType), 78);
 
         drawArchivePanel(graphics, imageX + 180, infoY, 160, 120, ARCHIVE_GOLD_DIM);
@@ -537,12 +528,12 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
             int normalMin = getDisplayedNormalWorkResultMin();
             drawScaledText(graphics, tr("work_result.lobotocraft.good"), imageX + 18, rangeY + 43,
                     3.0F, EncyclopediaGUIConfig.Colors.STATUS_GREEN, 40);
-            drawRightAlignedScaledText(graphics, goodMin + " - " + maxPEOutput,
+            drawRightAlignedScaledText(graphics, goodMin > maxPEOutput ? "/" : goodMin + " - " + maxPEOutput,
                     imageX + imageSize - 16, rangeY + 46, 2.0F,
                     EncyclopediaGUIConfig.Colors.STATUS_GREEN, 160);
             drawScaledText(graphics, tr("work_result.lobotocraft.normal"), imageX + 18, rangeY + 70,
                     3.0F, EncyclopediaGUIConfig.Colors.STATUS_YELLOW, 40);
-            drawRightAlignedScaledText(graphics, normalMin + " - " + (goodMin - 1),
+            drawRightAlignedScaledText(graphics, normalMin + " - " + Math.min(maxPEOutput, goodMin - 1),
                     imageX + imageSize - 16, rangeY + 73, 2.0F,
                     EncyclopediaGUIConfig.Colors.STATUS_YELLOW, 160);
             drawScaledText(graphics, tr("work_result.lobotocraft.bad"), imageX + 18, rangeY + 97,
@@ -800,7 +791,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         drawCenteredScaledText(graphics, weapon.name(), x + EGO_W / 2,
                 EGO_Y + 263, 2.0F, ARCHIVE_PALE, EGO_W - 28);
         renderEgoMetric(graphics, x, EGO_Y + 302,
-                tr("screen.lobotocraft.encyclopedia.attribute"), weapon.damageType(),
+                tr("screen.lobotocraft.encyclopedia.attribute"), DamageTypeVisual.label(weapon.damageType()),
                 EncyclopediaGUIConfig.Colors.getDamageTypeColor(
                         "ALL".equals(weapon.damageType()) ? "WHITE" : weapon.damageType()));
         renderEgoMetric(graphics, x, EGO_Y + 334,
@@ -938,8 +929,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                     .filter(entry -> entry.type().equals(type)).findFirst().orElse(null);
             if (resistance == null) continue;
             int rowY = y + index * 31;
-            ResourceLocation icon = getDamageTypeIcon(type);
-            graphics.blit(icon, x, rowY, 0, 0, 20, 20, 20, 20);
+            renderDamageTypeIcon(graphics, type, x, rowY, 20);
             int color = EncyclopediaGUIConfig.Colors.getDamageTypeColor(type);
             drawScaledText(graphics, type, x + 28, rowY + 2, 1.8F, color, 74);
             drawRightAlignedScaledText(graphics, String.format("%.1f", resistance.value()),
@@ -1343,14 +1333,9 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                 x + 10, infoY,
                 EncyclopediaGUIConfig.Colors.TEXT_GRAY);
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        graphics.blit(getDamageTypeIcon(),
-                x + 90, infoY - 5,
-                0, 0,
-                EncyclopediaGUIConfig.Layout.CenterColumn.INFO_ICON_SIZE,
-                EncyclopediaGUIConfig.Layout.CenterColumn.INFO_ICON_SIZE,
-                EncyclopediaGUIConfig.Layout.CenterColumn.INFO_ICON_SIZE,
+        renderDamageTypeIcon(graphics, damageType, x + 90, infoY - 5,
                 EncyclopediaGUIConfig.Layout.CenterColumn.INFO_ICON_SIZE);
-        graphics.drawString(this.font, damageType,
+        graphics.drawString(this.font, DamageTypeVisual.label(damageType),
                 x + 110, infoY,
                 EncyclopediaGUIConfig.Colors.getDamageTypeColor(damageType));
 
@@ -1385,12 +1370,13 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
             int goodMin = getDisplayedGoodWorkResultMin();
             int goodMax = maxPEOutput;
             int normalMin = getDisplayedNormalWorkResultMin();
-            int normalMax = goodMin - 1;
+            int normalMax = Math.min(maxPEOutput, goodMin - 1);
             int badMin = 0;
             int badMax = normalMin - 1;
 
             graphics.drawString(this.font,
-                    EncyclopediaGUIConfig.Text.PE_RANGE_GOOD + ": " + goodMin + "-" + goodMax,
+                    EncyclopediaGUIConfig.Text.PE_RANGE_GOOD + ": "
+                            + (goodMin > goodMax ? "/" : goodMin + "-" + goodMax),
                     x + 10, infoY,
                     EncyclopediaGUIConfig.Colors.STATUS_GREEN);
             graphics.drawString(this.font,
@@ -1408,6 +1394,9 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         if (this.abnormality != null) {
             return this.abnormality.getGoodWorkResultMin();
         }
+        if ("O-03-89".equals(this.abnormalityCode)) {
+            return 33;
+        }
         if ("O-01-12".equals(this.abnormalityCode)) {
             return 11;
         }
@@ -1417,6 +1406,9 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
     private int getDisplayedNormalWorkResultMin() {
         if (this.abnormality != null) {
             return this.abnormality.getNormalWorkResultMin();
+        }
+        if ("O-03-89".equals(this.abnormalityCode)) {
+            return 17;
         }
         if ("O-01-12".equals(this.abnormalityCode)) {
             return 6;
@@ -1553,17 +1545,15 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         String damageType = weaponData.damageType();
         if ("ALL".equals(damageType)) {
             // 全属性：叠加显示4个图标
-            String[] allTypes = {"red", "blue", "white", "black"};
+            String[] allTypes = {"RED", "PALE", "WHITE", "BLACK"};
             int iconDamageTypeSize = 12;
             int startX = attrX + 30;
             int startY = attrY - 3;
             int offset = 8; // 每个图标偏移量，产生叠放效果
 
             for (int i = 0; i < allTypes.length; i++) {
-                ResourceLocation icon = getDamageTypeIcon(allTypes[i]);
-                graphics.blit(icon,
-                        startX + i * offset, startY + (i % 2 == 0 ? 0 : 2), // 奇偶错开更自然
-                        0, 0, iconDamageTypeSize, iconDamageTypeSize, iconDamageTypeSize, iconDamageTypeSize);
+                renderDamageTypeIcon(graphics, allTypes[i],
+                        startX + i * offset, startY + (i % 2 == 0 ? 0 : 2), iconDamageTypeSize);
             }
 
             // 绘制"全属性"文字
@@ -1572,9 +1562,8 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                     EncyclopediaGUIConfig.Colors.getDamageTypeColor("WHITE"));
         } else {
             // 单一属性：正常显示
-            ResourceLocation damageIcon = getDamageTypeIcon(weaponData.damageType());
-            graphics.blit(damageIcon, attrX + 30, attrY - 3, 0, 0, 12, 12, 12, 12);
-            graphics.drawString(this.font, weaponData.damageType(),
+            renderDamageTypeIcon(graphics, weaponData.damageType(), attrX + 30, attrY - 3, 12);
+            graphics.drawString(this.font, DamageTypeVisual.label(weaponData.damageType()),
                     attrX + 45, attrY, EncyclopediaGUIConfig.Colors.getDamageTypeColor(weaponData.damageType()));
         }
 
@@ -1667,7 +1656,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         int lineHeight = 13;
 
         // RED抗性
-        graphics.blit(DAMAGE_RED, resX, resY - 3, 0, 0, 10, 10, 10, 10);
+        renderDamageTypeIcon(graphics, "RED", resX, resY - 3, 10);
         String redText = String.format("RED (%.1f)", armorData.redResistance());
         graphics.drawString(this.font, redText,
                 resX + 13, resY, 0xFFFF6666);
@@ -1676,7 +1665,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
         // WHITE抗性
         resY += lineHeight;
-        graphics.blit(DAMAGE_WHITE, resX, resY - 3, 0, 0, 10, 10, 10, 10);
+        renderDamageTypeIcon(graphics, "WHITE", resX, resY - 3, 10);
         String whiteText = String.format("WHITE (%.1f)", armorData.whiteResistance());
         graphics.drawString(this.font, whiteText,
                 resX + 13, resY, 0xFFFFFFFF);
@@ -1685,7 +1674,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
         // BLACK抗性
         resY += lineHeight;
-        graphics.blit(DAMAGE_BLACK, resX, resY - 3, 0, 0, 10, 10, 10, 10);
+        renderDamageTypeIcon(graphics, "BLACK", resX, resY - 3, 10);
         String blackText = String.format("BLACK (%.1f)", armorData.blackResistance());
         graphics.drawString(this.font, blackText,
                 resX + 13, resY, 0xFFAA66FF);
@@ -1694,8 +1683,8 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
         // PALE抗性
         resY += lineHeight;
-        graphics.blit(DAMAGE_PALE, resX, resY - 3, 0, 0, 10, 10, 10, 10);
-        String paleText = String.format("BLUE (%.1f)", armorData.paleResistance());
+        renderDamageTypeIcon(graphics, "PALE", resX, resY - 3, 10);
+        String paleText = String.format("PALE (%.1f)", armorData.paleResistance());
         graphics.drawString(this.font, paleText,
                 resX + 13, resY, 0xFF66DDFF);
         graphics.drawString(this.font, getResistanceLevel(armorData.paleResistance()),
@@ -1725,18 +1714,13 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
         return tr("screen.lobotocraft.encyclopedia.resistance.extremely_high");
     }
 
-    private ResourceLocation getDamageTypeIcon() {
-        return getDamageTypeIcon(damageType);
-    }
-
-    private ResourceLocation getDamageTypeIcon(String damageType) {
-        return switch (damageType.toUpperCase()) {
-            case "RED" -> DAMAGE_RED;
-            case "WHITE" -> DAMAGE_WHITE;
-            case "BLACK" -> DAMAGE_BLACK;
-            case "BLUE" -> DAMAGE_PALE;
-            default -> DAMAGE_WHITE;
-        };
+    private void renderDamageTypeIcon(GuiGraphics graphics, String type, int x, int y, int size) {
+        DamageTypeVisual visual = DamageTypeVisual.from(type);
+        ResourceLocation icon = visual.icon();
+        if (icon != null) {
+            LobotomyUiRenderer.blitScaled(graphics, icon, x, y, size, size,
+                    visual.textureWidth(), visual.textureHeight());
+        }
     }
 
     private void renderWorkPreferences(GuiGraphics graphics, int x, int y, boolean[] unlockedStates) {
@@ -2607,56 +2591,20 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                 new UnlockManualPacket(abnormalityCode, entryIndex, cost)
         );
 
-        // 本地更新解锁状态
-        playerEnergy -= cost;
-        if (entryIndex == 0) {
-            basicInfoUnlocked = true;
-        } else if (entryIndex >= 100 && entryIndex <= 103) {
-            // 工作偏好解锁 (100=本能, 101=洞察, 102=依恋, 103=压迫)
-            int workIndex = entryIndex - 100;
-            workPreferencesUnlocked[workIndex] = true;
-        } else if (entryIndex == 2) {
-            sensitiveInfoUnlocked = true;
-        } else if (entryIndex >= 3) {
-            // 管理须知解锁 (index >= 3)
-            int manualIndex = entryIndex - 3;
-            if (manualIndex >= 0 && manualIndex < manualsUnlocked.length) {
-                manualsUnlocked[manualIndex] = true;
-            }
-        }
+        // Only the server's shared-knowledge reply may unlock an entry or spend PE.
+    }
 
-        // 规则：基础信息(+1) + 每个工作偏好(+0.25) + 敏感信息(+1) + 管理须知全部解锁(+1)
-        observationLevel = 0;
-        if (basicInfoUnlocked) observationLevel++;
-
-        // 计算工作偏好解锁数量
-        int unlockedWorkCount = 0;
-        for (boolean unlocked : workPreferencesUnlocked) {
-            if (unlocked) unlockedWorkCount++;
+    public void refreshSharedKnowledge(com.wzz.lobotocraft.capability.PlayerAbnormalityData knowledge) {
+        basicInfoUnlocked = knowledge.isManualUnlocked(abnormalityCode, 0);
+        sensitiveInfoUnlocked = knowledge.isManualUnlocked(abnormalityCode, 2);
+        for (int i = 0; i < workPreferencesUnlocked.length; i++) {
+            workPreferencesUnlocked[i] = knowledge.isManualUnlocked(abnormalityCode, 100 + i);
         }
-        // 每解锁一个工作类型增加0.25等级，全部解锁为1级
-        if (unlockedWorkCount == 4) {
-            observationLevel++;
+        for (int i = 0; i < manualsUnlocked.length; i++) {
+            manualsUnlocked[i] = knowledge.isManualUnlocked(abnormalityCode, 3 + i);
         }
-
-        if (sensitiveInfoUnlocked) observationLevel++;
-
-        // 检查管理须知是否全部解锁
-        boolean allManualsUnlocked = true;
-        for (boolean unlocked : manualsUnlocked) {
-            if (!unlocked) {
-                allManualsUnlocked = false;
-                break;
-            }
-        }
-        if (allManualsUnlocked && manualsUnlocked.length > 0) {
-            observationLevel++;
-        }
-
-        // 播放音效
-        if (minecraft != null && minecraft.player != null) {
-            minecraft.player.playSound(ModSounds.UNLOCK_INFORMATION.get(), 1.0F, 1.5F);
-        }
+        observationLevel = knowledge.getObservationLevel(abnormalityCode);
+        loadPlayerEnergy();
     }
 
     /**

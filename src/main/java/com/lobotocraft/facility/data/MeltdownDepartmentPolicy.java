@@ -11,8 +11,21 @@ public final class MeltdownDepartmentPolicy {
                                       int completedMask, boolean honorCompletedRewards) {
         if (departmentId == null || departmentId.isBlank()) return false;
         if (matches(departmentId, activeType)) return true;
-        if (!honorCompletedRewards || ignoresCompletedRewards(activeType)) return false;
+        return hasCompletedRewardImmunity(departmentId, activeType,
+            completedMask, honorCompletedRewards);
+    }
 
+    /**
+     * Original overload statistics exclude completed departments, but do not
+     * exclude the department whose suppression is currently active. The latter
+     * is removed only from the actual target pool.
+     */
+    public static boolean hasCompletedRewardImmunity(String departmentId,
+                                                      CoreSuppressionType activeType,
+                                                      int completedMask,
+                                                      boolean honorCompletedRewards) {
+        if (departmentId == null || departmentId.isBlank()
+                || !honorCompletedRewards || ignoresCompletedRewards(activeType)) return false;
         for (CoreSuppressionType type : CoreSuppressionType.values()) {
             if ((completedMask & type.getCompletionBit()) != 0 && matches(departmentId, type)) {
                 return true;

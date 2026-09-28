@@ -7,8 +7,8 @@ import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
 import com.wzz.lobotocraft.compat.ysm.YsmEmployeeCompat;
 import com.wzz.lobotocraft.ego.AiEgoRepositoryData;
 import com.wzz.lobotocraft.ego.EgoLoadoutService;
-import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
 import com.wzz.lobotocraft.entity.abnormality.EntitySnowQueen;
+import com.wzz.lobotocraft.entity.control.HostileControlState;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.EgoWeaponDisplayCatalog;
@@ -75,6 +75,11 @@ public final class FacilityManagementService {
         if (selectedEmployee != null) snapshot.putUUID("SelectedEmployee", selectedEmployee);
         snapshot.putBoolean("LlmEnabled", LlmDispatchService.enabled());
         snapshot.putBoolean("CanManageAi", viewer.hasPermissions(2));
+        snapshot.putBoolean("CanPause", true);
+        snapshot.putBoolean("FacilityPaused",
+                com.lobotocraft.facility.FacilityPauseState.isPaused(viewer.server));
+        snapshot.putInt("PauseCooldownTicks",
+                com.lobotocraft.facility.FacilityPauseState.cooldownTicks(viewer.server));
         snapshot.putBoolean("CanRecruit", viewer.hasPermissions(2));
         String ysmProvider = YsmEmployeeCompat.activeProvider();
         snapshot.putBoolean("YsmAvailable", !ysmProvider.isEmpty());
@@ -525,7 +530,7 @@ public final class FacilityManagementService {
     }
 
     private static boolean isControlled(ServerPlayer player) {
-        return EntitySnowQueen.isFrozen(player) || EntityRedShoes.isRedShoesControlled(player);
+        return EntitySnowQueen.isFrozen(player) || HostileControlState.isActive(player);
     }
 
     private static int countPeBoxes(ServerPlayer player) {

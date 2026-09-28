@@ -91,6 +91,22 @@ class FacilityWorldLayoutTest {
     }
 
     @Test
+    void completeAreaLookupRecognizesDynamicContainmentInterior() {
+        BlockPos marker = new BlockPos(160, 270, 30);
+        FacilityAreaEntry dynamic = new FacilityAreaEntry(
+                COMPANY, "dynamic-containment", marker,
+                marker.offset(-4, -1, -4), marker.offset(4, 3, 4),
+                "", FacilityAreaType.CONTAINMENT, "");
+
+        FacilityAreaEntry selected = FacilityWorldLayout.facilityAreaAt(
+                COMPANY, List.of(dynamic), marker.offset(2, 0, 0)).orElseThrow();
+
+        assertEquals(FacilityAreaType.CONTAINMENT, selected.type);
+        assertEquals("control", selected.departmentId);
+        assertEquals("dept/control/containment/left-upper-way5", selected.groupId);
+    }
+
+    @Test
     void containmentSlotsAreUniqueAndCompletePerDepartmentSection() {
         Map<String, Set<Integer>> slotsByDepartment = FacilityWorldLayout
                 .containmentBindings(COMPANY).stream()

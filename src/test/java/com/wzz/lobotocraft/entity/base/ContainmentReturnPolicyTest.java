@@ -20,6 +20,12 @@ class ContainmentReturnPolicyTest {
     }
 
     @Test
+    void onlyUnregisteredAbnormalitiesReturnToTheirEscapeOrigin() {
+        assertTrue(ContainmentReturnPolicy.returnsToEscapeOrigin(false));
+        assertFalse(ContainmentReturnPolicy.returnsToEscapeOrigin(true));
+    }
+
+    @Test
     void legacyPendingSaveBecomesEscapedHealthyAndRetryable() {
         ContainmentReturnPolicy.LoadedState loaded = ContainmentReturnPolicy.normalizeLoadedState(
                 false, true, true, 1.0F, 3000.0F);

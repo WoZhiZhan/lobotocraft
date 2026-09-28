@@ -358,7 +358,7 @@ public class ModEntities {
     public static final RegistryObject<EntityType<EntityCensored>> censored =
             ENTITIES.register("censored",
                     () -> EntityType.Builder.of(EntityCensored::new, MobCategory.MONSTER)
-                            .sized(2.0F, 3.0F)
+                            .sized(2.0F, 5.7F)
                             .clientTrackingRange(10)
                             .updateInterval(3)
                             .build("censored"));
@@ -459,6 +459,14 @@ public class ModEntities {
                             .clientTrackingRange(8)
                             .updateInterval(3)
                             .build("red_shoes"));
+
+    public static final RegistryObject<EntityType<EntitySingingMachine>> singing_machine =
+            ENTITIES.register("singing_machine",
+                    () -> EntityType.Builder.of(EntitySingingMachine::new, MobCategory.CREATURE)
+                            .sized(2.8F, 2.8F)
+                            .clientTrackingRange(10)
+                            .updateInterval(3)
+                            .build("singing_machine"));
 
     public static final RegistryObject<EntityType<EntityWorkerBee>> worker_bee =
             ENTITIES.register("worker_bee",

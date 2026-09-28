@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
+import com.wzz.lobotocraft.entity.ai.FacilityAbnormalityTargetPolicy;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.FacilityCombatRules;
@@ -25,7 +26,19 @@ final class QueenOfHatredCombat {
         if (entity instanceof AbstractAbnormality abnormality) {
             return abnormality.hasEscape();
         }
-        return FacilityCombatRules.isOrdealCombatant(entity);
+        return FacilityCombatRules.isOrdealCombatant(entity)
+                || FacilityAbnormalityTargetPolicy.isCoreSuppressionCombatant(entity);
+    }
+
+    /**
+     * Special compatibility target for escaped abnormalities whose original
+     * target matrix does not include arbitrary abnormality-vs-abnormality
+     * combat. The Queen is intentionally opt-in; the base escaped flag is not
+     * used here so existing target restrictions remain intact.
+     */
+    static boolean isQueenOfHatredCombatTarget(LivingEntity entity) {
+        return entity instanceof EntityQueenOfHatred queen
+                && queen.isAbnormalityCombatTarget();
     }
 
     static boolean isVillainTarget(LivingEntity entity, EntityQueenOfHatred queen) {
@@ -33,7 +46,8 @@ final class QueenOfHatredCombat {
         if (QueenOfHatredStaff.isAttackableStaff(entity)) return true;
         if (entity instanceof Player) return false;
         if (entity instanceof AbstractAbnormality abnormality) return abnormality.isAbnormalityCombatTarget();
-        return FacilityCombatRules.isOrdealCombatant(entity);
+        return FacilityCombatRules.isOrdealCombatant(entity)
+                || FacilityAbnormalityTargetPolicy.isCoreSuppressionCombatant(entity);
     }
 
     static Vec3 clipToBlocks(ServerLevel level, LivingEntity source, Vec3 start, Vec3 desiredEnd) {

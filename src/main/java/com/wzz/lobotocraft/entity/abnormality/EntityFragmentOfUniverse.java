@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
+import com.wzz.lobotocraft.entity.ai.FacilityAbnormalityTargetPolicy;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
@@ -366,7 +367,7 @@ public class EntityFragmentOfUniverse extends AbstractAbnormality {
         if (e == this || !e.isAlive()) return false;
         if (e instanceof Player p) return !p.isCreative() && !p.isSpectator();
         if (e instanceof AbstractAbnormality ab) return ab.isAbnormalityCombatTarget();
-        return false;
+        return FacilityAbnormalityTargetPolicy.isCoreSuppressionCombatant(e);
     }
 
     private LivingEntity findTarget(ServerLevel level) {

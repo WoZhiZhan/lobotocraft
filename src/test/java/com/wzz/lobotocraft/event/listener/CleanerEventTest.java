@@ -27,7 +27,7 @@ class CleanerEventTest {
     }
 
     @Test
-    void cleanerHealthIsNerfedToFiftyFive() {
-        assertEquals(55.0D, EntityCleaner.MAX_HEALTH);
+    void cleanerHealthIsNerfedToThirty() {
+        assertEquals(30.0D, EntityCleaner.MAX_HEALTH);
     }
 }

@@ -26,11 +26,10 @@ float sceneEdge(vec2 uv) {
 }
 
 void main() {
-    vec3 source = texture(DiffuseSampler, texCoord).rgb;
     float rate = clamp(Transition, 0.0, 1.0);
 
     // ChesedBossBase.UpdateEffect: the Rain_Pro burst settles over exactly three seconds.
-    float speed = mix(0.35, 0.10, rate);
+    float speed = mix(0.95, 0.55, rate);
     float size = mix(0.40, 1.80, rate);
     float intensity = mix(2.0, 0.5, rate);
     float dropOnOff = mix(0.90, 0.15, rate);
@@ -41,7 +40,7 @@ void main() {
     float steppedTime = timeStep * 0.0625;
     vec2 dropUv = vec2(
             texCoord.x * 2.0 + steppedTime - time * directionX * 0.55,
-            texCoord.y + timeStep * 0.0555556 + time * 0.15);
+            texCoord.y + timeStep * 0.11 + time * 0.45);
     float drop = sceneEdge(texCoord) * sampleRain(dropUv).b * dropOnOff;
 
     vec2 rainUv = texCoord * size;
@@ -60,9 +59,11 @@ void main() {
 
     float storm = sampleRain(vec2(texCoord.x * 0.001 + time * 0.20,
             time * 0.01)).g * intensity * 0.50;
+    vec3 source = texture(DiffuseSampler, texCoord).rgb;
     vec3 rainLayer = source + vec3(rain + drop + storm);
-    vec3 blueFiltered = rainLayer * vec3(0.88, 0.94, 1.03) + vec3(0.0, 0.006, 0.016);
-    vec3 color = mix(rainLayer, blueFiltered, 0.10);
+    vec3 blueFiltered = rainLayer * vec3(0.64, 0.78, 1.12)
+            + vec3(0.008, 0.020, 0.070);
+    vec3 color = mix(rainLayer, blueFiltered, 0.38);
 
     fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
 }

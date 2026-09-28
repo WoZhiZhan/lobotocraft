@@ -25,10 +25,15 @@ public class AbnormalityRenderer<T extends AbstractAbnormality> extends GeoEntit
     }
 
     public AbnormalityRenderer(EntityRendererProvider.Context renderManager, GeoModel<T> model) {
+        this(renderManager, model, 1.0F, 1.0F);
+    }
+
+    public AbnormalityRenderer(EntityRendererProvider.Context renderManager, GeoModel<T> model,
+                               float height, float width) {
         super(renderManager, model);
         this.shadowRadius = 0.65F;
-        this.height = 1.0f;
-        this.width = 1.0f;
+        this.height = height;
+        this.width = width;
     }
 
     public AbnormalityRenderer(EntityRendererProvider.Context renderManager, float scale) {

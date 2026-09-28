@@ -1,0 +1,6 @@
+{
+  size: [32, 12, 20],
+  palette: [{Name: "minecraft:air"}],
+  blocks: [],
+  entities: []
+}

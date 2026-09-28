@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.event.listener;
 
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.util.MentalValueUtil;
+import com.wzz.lobotocraft.client.fear.FearClientState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
@@ -23,7 +24,12 @@ public class MentalValueClientEventHandler {
     @SubscribeEvent
     public static void onMovementInput(MovementInputUpdateEvent event) {
         Player player = event.getEntity();
-        if (isPanicking(player) && !MentalValueEventHandler.isPrudencePanic(player)) {
+        if (FearClientState.isDisorientationActive(player)) {
+            event.getInput().forwardImpulse *= 0.15F;
+            event.getInput().leftImpulse *= 0.15F;
+            event.getInput().jumping = false;
+            event.getInput().shiftKeyDown = false;
+        } else if (isPanicking(player) && !MentalValueEventHandler.isPrudencePanic(player)) {
             event.getInput().forwardImpulse = 0;
             event.getInput().leftImpulse = 0;
             event.getInput().jumping = false;
@@ -40,7 +46,15 @@ public class MentalValueClientEventHandler {
             return;
         }
 
-        if (MentalValueEventHandler.isPrudencePanic(player)) {
+        if (FearClientState.isDisorientationActive(player)) {
+            if (postureActive) {
+                player.setXRot(pitchBeforePanic);
+                player.xRotO = pitchBeforePanic;
+                player.setYHeadRot(player.getYRot());
+                player.yHeadRotO = player.getYRot();
+                postureActive = false;
+            }
+        } else if (MentalValueEventHandler.isPrudencePanic(player)) {
             if (!postureActive) {
                 postureActive = true;
                 pitchBeforePanic = player.getXRot();

@@ -4,13 +4,21 @@ import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.entity.abnormality.CleanerTimePolicy;
 import com.wzz.lobotocraft.entity.abnormality.EntityCleaner;
 import com.wzz.lobotocraft.init.ModEntities;
+import com.wzz.lobotocraft.init.ModItems;
+import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.util.CuriosUtil;
+import com.wzz.lobotocraft.util.MentalValueUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
+import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -26,6 +34,8 @@ public class CleanerEvent {
     private static final int MAX_VISIBLE = 12;          // 可视范围内上限
     private static final double VISIBLE_RANGE = 48.0;
     private static final float SPAWN_CHANCE = 0.30f;
+    private static final float CURIO_DROP_CHANCE = 0.23f;
+    private static final float CURIO_RECOVERY_CHANCE = 0.15f;
 
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
@@ -86,8 +96,28 @@ public class CleanerEvent {
     /** 被清道夫击杀的生物不产生掉落物 */
     @SubscribeEvent
     public static void onLivingDrops(LivingDropsEvent event) {
+        if (event.getEntity() instanceof EntityCleaner cleaner
+                && cleaner.getRandom().nextFloat() < CURIO_DROP_CHANCE) {
+            event.getDrops().add(new ItemEntity(cleaner.level(), cleaner.getX(), cleaner.getY(), cleaner.getZ(),
+                    new ItemStack(ModItems.CLEANER_CURIO.get())));
+        }
         if (event.getEntity().getPersistentData().getBoolean("cleaner_no_loot")) {
             event.setCanceled(true);
         }
+    }
+
+    /** 满蓄力 E.G.O 命中并实际造成伤害时，有概率恢复生命和精神。 */
+    @SubscribeEvent
+    public static void onLivingDamage(LivingDamageEvent event) {
+        if (event.isCanceled() || event.getAmount() <= 0.0F) return;
+        if (!(event.getSource().getEntity() instanceof Player player)) return;
+        if (!(player.getMainHandItem().getItem() instanceof BaseEgoWeapon)) return;
+        if (!BaseEgoWeapon.hasCurrentLeftClickAttack(player)
+                || BaseEgoWeapon.currentLeftClickDamageMultiplier(player) < 0.999F) return;
+        if (!CuriosUtil.hasCurios(player, ModItems.CLEANER_CURIO.get())) return;
+        if (player.getRandom().nextFloat() >= CURIO_RECOVERY_CHANCE) return;
+
+        player.heal(10.0F);
+        MentalValueUtil.addMentalValue(player, 10.0F);
     }
 }

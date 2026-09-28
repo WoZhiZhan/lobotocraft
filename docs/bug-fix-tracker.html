@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>Lobotocraft · Bug 修复台账</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101924;
+      --surface: #172433;
+      --surface-raised: #1e3041;
+      --border: #344557;
+      --ink: #ecf3f7;
+      --muted: #a8bbc9;
+      --accent: #7ddfcb;
+      --accent-soft: #214b50;
+      --warning: #ffd68c;
+      --danger: #ffaca7;
+      --success: #a4e3ac;
+      --shadow: 0 18px 48px rgba(0, 0, 0, .2);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 6% 0%, #204050 0%, transparent 30%), var(--bg);
+      color: var(--ink);
+      font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+      line-height: 1.55;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .shell { max-width: 1480px; padding: 28px clamp(14px, 3vw, 42px) 48px; margin: 0 auto; }
+    .eyebrow { color: var(--accent); letter-spacing: .15em; font-size: 12px; font-weight: 700; }
+    header h1 { font-size: clamp(28px, 3vw, 42px); letter-spacing: -.04em; margin: 4px 0; }
+    .sub { color: var(--muted); max-width: 75ch; margin: 4px 0 20px; }
+    .toolbar, .filters, .footer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .toolbar { margin-bottom: 20px; }
+    .button {
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: var(--surface-raised);
+      color: var(--ink);
+      padding: 9px 13px;
+      min-height: 42px;
+      white-space: nowrap;
+    }
+    .button:hover { border-color: var(--accent); }
+    .button.primary { background: var(--accent); color: #10232b; border-color: transparent; font-weight: 700; }
+    .button.subtle { background: transparent; }
+    .button.danger { color: var(--danger); }
+    .button:disabled { cursor: not-allowed; opacity: .55; }
+    .metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+    .metric {
+      background: rgba(30, 48, 65, .85);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      min-width: 0;
+    }
+    .metric .name { color: var(--muted); font-size: 13px; }
+    .metric .value { font-size: clamp(24px, 3vw, 34px); line-height: 1.2; font-variant-numeric: tabular-nums; font-weight: 700; }
+    .metric .hint { color: var(--muted); font-size: 11px; }
+    .filters { margin: 16px 0 14px; }
+    .filters label { font-size: 12px; color: var(--muted); display: grid; gap: 5px; min-width: 140px; }
+    .filters .search { flex: 2 1 270px; }
+    .filters .short { flex: 1 1 155px; }
+    input, select, textarea {
+      width: 100%;
+      min-height: 42px;
+      color: var(--ink);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 9px 11px;
+    }
+    textarea { resize: vertical; min-height: 92px; }
+    input::placeholder, textarea::placeholder { color: #8197a7; }
+    .layout { display: grid; grid-template-columns: minmax(300px, 42%) minmax(0, 1fr); gap: 14px; align-items: start; }
+    .list, .detail { background: rgba(23, 36, 51, .94); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
+    .list { min-height: 420px; }
+    .list-head {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; gap: 12px;
+      color: var(--muted); font-size: 13px;
+    }
+    #issue-list { max-height: min(70vh, 830px); overflow-y: auto; }
+    .group-title {
+      position: sticky; top: 0; z-index: 1;
+      background: #253849;
+      color: #d6e9ed;
+      padding: 8px 16px;
+      font-size: 12px; font-weight: 700; letter-spacing: .03em;
+    }
+    .issue {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      color: var(--ink);
+      border: 0;
+      border-top: 1px solid rgba(176, 198, 211, .1);
+      padding: 12px 16px;
+    }
+    .issue:hover, .issue.active { background: #213849; }
+    .issue.active { box-shadow: inset 3px 0 var(--accent); }
+    .issue-top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .code { color: var(--accent); font-size: 12px; font-weight: 700; }
+    .excerpt { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin: 5px 0 8px; font-size: 13px; }
+    .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+    .badge.unknown { color: var(--muted); background: #2a3949; }
+    .badge.working { color: var(--warning); background: #4a3a27; }
+    .badge.done { color: var(--accent); background: var(--accent-soft); }
+    .badge.passed { color: var(--success); background: #294b39; }
+    .badge.failed { color: var(--danger); background: #4f3036; }
+    .detail { padding: clamp(16px, 2vw, 26px); min-height: 420px; }
+    .detail h2 { margin: 0 0 6px; font-size: clamp(19px, 2.1vw, 25px); }
+    .detail .meta { color: var(--muted); font-size: 12px; margin-bottom: 20px; }
+    .detail label { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+    .detail label > input, .detail label > select, .detail label > textarea { color: var(--ink); font-size: 14px; }
+    .detail section { margin: 16px 0; }
+    .detail section h3 { margin: 0 0 6px; font-size: 13px; color: var(--accent); }
+    .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .detail .stack { display: grid; gap: 12px; }
+    .detail textarea.long { min-height: 150px; }
+    .detail textarea.medium { min-height: 105px; }
+    .footer-actions { margin-top: 18px; justify-content: space-between; }
+    #save-state { color: var(--muted); font-size: 12px; }
+    #notice { min-height: 20px; color: var(--warning); font-size: 13px; }
+    .empty { padding: 30px 18px; color: var(--muted); }
+    dialog {
+      width: min(570px, calc(100vw - 28px));
+      max-height: 85vh; overflow: auto;
+      background: var(--surface);
+      color: var(--ink);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px;
+    }
+    dialog::backdrop { background: rgba(5, 13, 21, .72); }
+    dialog form { display: grid; gap: 13px; }
+    dialog h2 { margin: 0; }
+    .file-input { display: none; }
+    @media (max-width: 900px) {
+      .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .layout { grid-template-columns: 1fr; }
+      #issue-list { max-height: 400px; }
+    }
+    @media (max-width: 540px) {
+      .shell { padding-top: 18px; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .detail-grid { grid-template-columns: 1fr; }
+      .toolbar .button { flex: 1 1 auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="eyebrow">LOBOTOCRAFT / ISSUE LEDGER</div>
+      <h1>Bug 修复台账</h1>
+      <p class="sub">把“有没有动过代码”和“有没有验证通过”分开。内置原反馈 107 条，另附 3 条代码审查发现；后者的自动测试通过不等于实机验收。更改保存在此浏览器，导出备份后才能带到另一台电脑。</p>
+    </header>
+
+    <div class="toolbar">
+      <button id="add" class="button primary" type="button">＋ 新增问题</button>
+      <button id="import-md" class="button" type="button">导入反馈 MD</button>
+      <button id="import-json" class="button" type="button">导入台账 JSON</button>
+      <button id="export-json" class="button" type="button">备份 JSON</button>
+      <button id="export-md" class="button" type="button">导出交接 MD</button>
+      <input id="md-file" class="file-input" type="file" accept=".md,text/markdown,text/plain">
+      <input id="json-file" class="file-input" type="file" accept=".json,application/json">
+    </div>
+    <div id="notice" role="status" aria-live="polite"></div>
+
+    <section class="metrics" aria-label="修复统计">
+      <div class="metric"><div class="name">收录问题</div><div class="value" id="count-all">—</div><div class="hint">内置快照 + 后续导入</div></div>
+      <div class="metric"><div class="name">代码已改</div><div class="value" id="count-implemented">—</div><div class="hint">不等于已验收</div></div>
+      <div class="metric"><div class="name">自动测试通过</div><div class="value" id="count-automated">—</div><div class="hint">仍可待实机验证</div></div>
+      <div class="metric"><div class="name">实机验收</div><div class="value" id="count-accepted">—</div><div class="hint">需要人工确认</div></div>
+      <div class="metric"><div class="name">实施未核实</div><div class="value" id="count-unknown">—</div><div class="hint">不推断为未修</div></div>
+    </section>
+
+    <div class="filters">
+      <label class="search">搜索编号、现象、备注<input id="search" type="search" placeholder="例如：数据删除 / 恐慌救助 / PALE"></label>
+      <label class="short">实施状态<select id="filter-implementation"></select></label>
+      <label class="short">验证状态<select id="filter-verification"></select></label>
+      <label class="short">分类<select id="filter-bucket"></select></label>
+      <label class="short">对象<select id="filter-section"></select></label>
+    </div>
+
+    <div class="layout">
+      <section class="list" aria-label="问题列表">
+        <div class="list-head"><span id="shown">问题列表</span><span id="source">内置快照</span></div>
+        <div id="issue-list"></div>
+      </section>
+      <section id="detail" class="detail" aria-label="问题详情" aria-live="polite"></section>
+    </div>
+  </main>
+
+  <dialog id="add-dialog" aria-labelledby="add-title">
+    <form id="add-form">
+      <h2 id="add-title">新增问题</h2>
+      <label>类别<select name="bucket" required><option>稳定复现</option><option>非常难复现</option><option>代码审查</option></select></label>
+      <label>对象／小节<input name="section" required placeholder="例如：O-03-89 数据删除"></label>
+      <label>当前／不应／而是<textarea name="report" required placeholder="当前……；不应……；而是应……"></textarea></label>
+      <div class="footer-actions"><button id="cancel-add" class="button subtle" type="button">取消</button><button class="button primary" type="submit">新增到台账</button></div>
+    </form>
+  </dialog>
+
+  <script id="seed" type="application/json">[{"id":"稳定复现 / 异想体图鉴 #1","bucket":"稳定复现","section":"异想体图鉴","number":1,"report":"当前所有**出逃类异想体**的图鉴灵魂图片显示错误；不应使用错误的灵魂图片，而是应显示各自对应的正确图片（逐个对应关系待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-89 数据删除（原反馈误写为 O-03-98） #1","bucket":"稳定复现","section":"O-03-89 数据删除（原反馈误写为 O-03-98）","number":1,"report":"当前**数据删除**待机时贴图显示错误；不应显示错位或错误贴图，而是应显示正确的待机贴图（具体错误帧待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-89 数据删除（原反馈误写为 O-03-98） #2","bucket":"稳定复现","section":"O-03-89 数据删除（原反馈误写为 O-03-98）","number":2,"report":"当前攻击音效先播放、目标随后才受到伤害；不应使音效与命中脱节，而是应在攻击实际命中时播放对应音效。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-89 数据删除（原反馈误写为 O-03-98） #3","bucket":"稳定复现","section":"O-03-89 数据删除（原反馈误写为 O-03-98）","number":3,"report":"当前旧版管理须知Ⅱ写成“工作结束时精神值耗尽则减计数”，工作开始或进行期间在数据删除的收容单元内恐慌却没有立即减计数；不应等待工作结束或因恐慌中断漏判，而是应在绑定的收容室内由员工**首次进入恐慌状态**时立刻减少一次。原版 `OnReleaseWork` 的时点只作来源对照，不覆盖用户确认的 Minecraft 适配。[原版：Censored.cs](../LobotomyCorp-Decompiled-20260911/basemod-backup-main/Censored.cs)","after":"2026-09-28 重跑：同一恐慌过程只减一次、室外恐慌不扣的 GameTest 通过（见上方日志）；待实机复测。"},{"id":"稳定复现 / O-03-89 数据删除（原反馈误写为 O-03-98） #4","bucket":"稳定复现","section":"O-03-89 数据删除（原反馈误写为 O-03-98）","number":4,"report":"当前旧版图鉴把“逆卡巴拉计数器归零时突破收容”列为管理须知Ⅳ，原反馈认为多余；不应继续保留这条额外须知，而是应按反馈删除。安装目录的原版中文 XML 另有“献祭增计数”须知；本模组将该机制留在图鉴敏感信息说明，前三条管理须知分别为低等级恐慌、收容室内恐慌减计数、工作结果为差减计数。","after":"源码已删除多余须知，归零出逃机制未删。本地化单测 9/9 通过，但不验证须知Ⅳ是否消失；待游戏内图鉴复核。"},{"id":"稳定复现 / O-03-89 数据删除（原反馈误写为 O-03-98） #5","bucket":"稳定复现","section":"O-03-89 数据删除（原反馈误写为 O-03-98）","number":5,"report":"当前工作期间受伤会播放**转换尸体**动画；不应因工作受伤进入该动画，而是应保持原版工作期间的待机动画。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-89 数据删除（原反馈误写为 O-03-98） #6","bucket":"稳定复现","section":"O-03-89 数据删除（原反馈误写为 O-03-98）","number":6,"report":"当前**数据删除**前往墓碑时，因体积被卡住、碰撞箱没有实际接触墓碑便无法转换；不应让体积和碰撞阻断转换，而是应在到达墓碑附近后正确接触并触发转换。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-89 数据删除（原反馈误写为 O-03-98） #7","bucket":"稳定复现","section":"O-03-89 数据删除（原反馈误写为 O-03-98）","number":7,"report":"当前**数据删除**不会攻击处于 HERO 协助状态的魔法少女；不应仅因其 `hasEscape()==false` 而排除她，而是应允许攻击 **HERO 魔法少女、出逃憎恶女王及其可参与异想体战斗的变体状态**，仍保留其死亡/变身期间的受击限制。","after":"2026-09-28 重跑：HERO 和出逃女王可选中的 GameTest 通过（见上方日志）；实际追击、命中和伤害待实机复测。"},{"id":"稳定复现 / O-03-89 数据删除（原反馈误写为 O-03-98） #8","bucket":"稳定复现","section":"O-03-89 数据删除（原反馈误写为 O-03-98）","number":8,"report":"当前镇压**数据删除**后恐惧效果不会刷新；不应继续保留异常的恐惧效果状态，而是应按镇压结束规则刷新或清理恐惧效果（具体是重置持续时间还是直接解除，待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-89 数据删除（原反馈误写为 O-03-98） #9","bucket":"稳定复现","section":"O-03-89 数据删除（原反馈误写为 O-03-98）","number":9,"report":"当前旧版最大产量为 **28**，按通用比例显示“优/良/差”，四类工作偏好也使用非原版值；不应继续使用这些估值，而是应按安装目录 `BaseMod/BaseCreatures/Censored_stat.txt`：最大产量 **32**，结果**差 0–16、良 17–32、无优**；本能Ⅰ—Ⅴ **80/70/60/50/40%**，洞察 **90/80/70/60/50%**，沟通 **70/60/50/40/30%**，压迫 **0/0/0/0/0%**（此槽已由随机献祭替换）。同份数据的工作 BLACK 伤害 **5–10**、抗性 RED/WHITE/BLACK/PALE 为 **0.6/0.8/0.4/1.0**。数据源是 BaseMod 备份候选，未声明纯净原版。","after":"2026-09-28 重跑：产量、结果阈值及五级工作概率矩阵的 GameTest 通过（见上方日志）；客户端图鉴显示、实际工作伤害与抗性待实机复测。"},{"id":"稳定复现 / O-03-89-1 #1","bucket":"稳定复现","section":"O-03-89-1","number":1,"report":"当前 **O-03-89-1** 不会攻击异想体；不应将全部异想体都无条件纳入目标，而是应按原版子体 `IsHostile` 条件筛选：目标有生命、可被攻击，且不是数据删除本体或子体时才可索敌；其他出逃异想体如满足这些条件，应能够被选中并攻击。Minecraft 的跨实体伤害结算仍需单独核验。[源码：CensoredCreatureBase.cs](../LobotomyCorp-Decompiled-20260911/basemod-backup-main/CensoredCreatureBase.cs)","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-89-1 #2","bucket":"稳定复现","section":"O-03-89-1","number":2,"report":"当前 **O-03-89-1** 的体积过小；不应使用明显偏小的尺寸，而是应让模型和碰撞箱与预期尺寸一致（准确尺寸待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-93 碧蓝新星 #1","bucket":"稳定复现","section":"O-03-93 碧蓝新星","number":1,"report":"当前从**控制部左下角**房间出逃后停在出逃方块上；不应仅凭落点名称判定错误，而是应核对它是否属于随机选中的已开放部门通道中心及是否卡住。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-93 碧蓝新星 #2","bucket":"稳定复现","section":"O-03-93 碧蓝新星","number":2,"report":"当前从**控制部右下角**房间出逃后落在左下角的出逃方块上；不应要求必然落在右下角对应位置，而是应按随机已开放部门的通道中心判定该坐标是否合法。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-93 碧蓝新星 #3","bucket":"稳定复现","section":"O-03-93 碧蓝新星","number":3,"report":"当前从**安保部**出逃后停在前方出逃方块、不前往安保部大厅；不应要求出逃后必须去安保部大厅，而是应核对该位置是否对应原版随机目标通道中心，若停滞再查路径。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-93 碧蓝新星 #4","bucket":"稳定复现","section":"O-03-93 碧蓝新星","number":4,"report":"当前从**情报部左下角**房间出逃后停在出逃方块上；不应仅凭停在出逃方块判定错误，而是应核对随机目标位置及实体是否卡住。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-93 碧蓝新星 #5","bucket":"稳定复现","section":"O-03-93 碧蓝新星","number":5,"report":"当前从**情报部右下角**房间出逃后落在左下角的出逃方块上；不应要求必然落在右下角对应位置，而是应核对是否为随机已开放部门的通道中心。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-93 碧蓝新星 #6","bucket":"稳定复现","section":"O-03-93 碧蓝新星","number":6,"report":"当前从**培训部左上角、右上角和右下角**房间出逃后，均落在控制部左下角出逃方块上；不应因跨部门而直接判错，而是应核对控制部是否开放、该点是否是合法通道中心，以及多次随机结果是否异常固定。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-93 碧蓝新星 #7","bucket":"稳定复现","section":"O-03-93 碧蓝新星","number":7,"report":"当前从**培训部左下角**房间出逃后落在情报部左下角出逃方块上；不应因跨部门而直接判错，而是应核对情报部开放状态与目标通道中心。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-93 碧蓝新星 #8","bucket":"稳定复现","section":"O-03-93 碧蓝新星","number":8,"report":"当前从**中央本部左上角两个房间**出逃后停在各自出逃方块上；不应要求固定到本房间对应方块，而是应核对随机目标和是否停滞。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-93 碧蓝新星 #9","bucket":"稳定复现","section":"O-03-93 碧蓝新星","number":9,"report":"当前从**中央本部右上角两个房间**出逃后落在左上角靠右出逃方块上；不应要求固定在右上角，而是应核对随机目标是否合法。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-93 碧蓝新星 #10","bucket":"稳定复现","section":"O-03-93 碧蓝新星","number":10,"report":"当前从**福利部上方两个房间**出逃后停在各自出逃方块上；不应仅凭原房间位置判断是否正确，而是应核对随机目标与是否卡住。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-93 碧蓝新星 #11","bucket":"稳定复现","section":"O-03-93 碧蓝新星","number":11,"report":"当前从**惩戒部上方两个房间**出逃后落在情报部左下角走廊的出逃方块上、从下方两个房间出逃后落在中央本部大厅最下层；不应将跨部门结果一律视为错误，而是应逐点核对部门是否开放、目的点是否为通道中心及坐标是否安全。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-93 碧蓝新星 #12","bucket":"稳定复现","section":"O-03-93 碧蓝新星","number":12,"report":"当前从**记录部**出逃后停在对应出逃方块上；不应只按“对应”与否判错，而是应核对它是否为随机选中的通道中心及是否卡住。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-93 碧蓝新星 #13","bucket":"稳定复现","section":"O-03-93 碧蓝新星","number":13,"report":"当前从**研发部左起第 1—4 个房间**出逃后落在记录部走廊右侧的出逃方块上；不应因跨部门而直接判错，而是应核对记录部开放状态、目的点及多次随机结果。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-93 碧蓝新星 #14","bucket":"稳定复现","section":"O-03-93 碧蓝新星","number":14,"report":"当前从**构筑部左边走廊、由右往左数第 1—4 个房间**出逃后落在走廊右侧出逃方块上；不应默认每间房各有固定落点，而是应核对该走廊位置是否为本次随机部门的通道中心。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-93 碧蓝新星 #15","bucket":"稳定复现","section":"O-03-93 碧蓝新星","number":15,"report":"当前从**构筑部右边走廊、由左往右数第 1—4 个房间**出逃后落在记录部走廊右侧出逃方块上；不应因跨部门而直接判错，而是应核对目标部门开放状态、通道中心及安全性。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-93 碧蓝新星 #16","bucket":"稳定复现","section":"O-03-93 碧蓝新星","number":16,"report":"当前**碧蓝新星**计数器为 1 时，一开始工作就直接出逃，与管理须知Ⅱ“完成工作后减少计数器”不一致；不应在工作开始瞬间提前出逃，而是应按原版在工作结束 `OnWorkClosed` 时判定：工作者谨慎等级 `\u003c= 4` 则减少一次；若工作计时达到 60 秒，另减少计数并使工作者进入死亡演出。计数归零后走出逃流程，不是开始工作时立即触发。[源码：BlueStar.cs](../LobotomyCorp-Decompiled-20260911/basemod-backup-main/BlueStar.cs)","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / T-01-75 微笑的尸山 #1","bucket":"稳定复现","section":"T-01-75 微笑的尸山","number":1,"report":"当前目标紧靠墙时，**微笑的尸山**会后退并隔墙锁定目标、无法前往墙另一侧；不应隔墙持续锁定且原地受阻，而是应寻找可通行路径接近目标，无法到达时重新选择或解除目标。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / T-01-75 微笑的尸山 #2","bucket":"稳定复现","section":"T-01-75 微笑的尸山","number":2,"report":"当前图鉴所列 E.G.O 护甲的侵蚀抗性与原版不符；不应显示错误数值，而是应显示 **0.2**。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / T-01-75 微笑的尸山 #3","bucket":"稳定复现","section":"T-01-75 微笑的尸山","number":3,"report":"当前对**微笑的尸山**进行工作的玩家死亡后，计数器未减少；不应把触发点写成“死亡瞬间必定减少”，而是应按原版在该工作者退出工作 `OnReleaseWork` 时检查是否已经死亡，并在死亡时减少计数器。若 Minecraft 中死亡会提前终止会话，也需保证退出回调或等效收尾能触发一次，不要漏判或重复减计数。[源码：DangoCreature.cs](../LobotomyCorp-Decompiled-20260911/basemod-backup-main/DangoCreature.cs)","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-40 大鸟 #1","bucket":"稳定复现","section":"O-02-40 大鸟","number":1,"report":"当前图鉴中大鸟的 E.G.O 饰品部位文本错误；不应显示错误部位，而是应标为**头饰**。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-40 大鸟 #2","bucket":"稳定复现","section":"O-02-40 大鸟","number":2,"report":"当前帮助镇压的魔法少女攻击大鸟后，大鸟会持续追击魔法少女却无法造成伤害；不应进入无限无效追击，而是应按已确认的受击规则处理，并厘清此场景是否允许反击（目标规则待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-40 大鸟 #3","bucket":"稳定复现","section":"O-02-40 大鸟","number":3,"report":"当前出逃的憎恶女王攻击大鸟后会被直接秒杀；不应在缺乏正常伤害判定的情况下直接秒杀，而是应按已确认的“大鸟可受女王伤害”规则处理后续战斗（女王被秒杀是否为预期，待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-40 大鸟 #4","bucket":"稳定复现","section":"O-02-40 大鸟","number":4,"report":"当前**热心的樵夫**无法攻击/伤害大鸟；不应因目标过滤或命中判定无故失效，而是应按双方阵营、状态及抗性执行攻击（具体是否可索敌待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-40 大鸟 #5","bucket":"稳定复现","section":"O-02-40 大鸟","number":5,"report":"当前**亡蝶礼仪**无法攻击/伤害大鸟；不应因目标过滤或命中判定无故失效，而是应按双方阵营、状态及抗性执行攻击（具体是否可索敌待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-40 大鸟 #6","bucket":"稳定复现","section":"O-02-40 大鸟","number":6,"report":"当前**棘刺公交**无法攻击/伤害大鸟；不应因目标过滤或命中判定无故失效，而是应按双方阵营、状态及抗性执行攻击（具体是否可索敌待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-40 大鸟 #7","bucket":"稳定复现","section":"O-02-40 大鸟","number":7,"report":"当前**微笑的尸山**无法攻击/伤害大鸟；不应因目标过滤或命中判定无故失效，而是应按双方阵营、状态及抗性执行攻击（具体是否可索敌待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-40 大鸟 #8","bucket":"稳定复现","section":"O-02-40 大鸟","number":8,"report":"当前**数据删除**无法攻击/伤害大鸟；不应因目标过滤或命中判定无故失效，而是应按双方阵营、状态及抗性执行攻击（具体是否可索敌待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-56 惩戒鸟 #1","bucket":"稳定复现","section":"O-02-56 惩戒鸟","number":1,"report":"当前帮助镇压的魔法少女攻击惩戒鸟后，魔法少女遭到反击；不应仅因惩戒鸟“不主动攻击异想体”就判定该反击为错误，而是应保留已确认的受击反击规则；如有异常伤害数值或仇恨持续问题，需另行描述。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-56 惩戒鸟 #2","bucket":"稳定复现","section":"O-02-56 惩戒鸟","number":2,"report":"当前**热心的樵夫**无法对惩戒鸟造成伤害；不应因目标过滤/命中而让有效攻击失效，而是应在符合双方攻击规则时正常结算伤害（具体条件待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-56 惩戒鸟 #3","bucket":"稳定复现","section":"O-02-56 惩戒鸟","number":3,"report":"当前**棘刺公交**无法对惩戒鸟造成伤害；不应因目标过滤/命中而让有效攻击失效，而是应在符合双方攻击规则时正常结算伤害（具体条件待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-56 惩戒鸟 #4","bucket":"稳定复现","section":"O-02-56 惩戒鸟","number":4,"report":"当前**宇宙碎片**无法对惩戒鸟造成伤害；不应因目标过滤/命中而让有效攻击失效，而是应在符合双方攻击规则时正常结算伤害（具体条件待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-56 惩戒鸟 #5","bucket":"稳定复现","section":"O-02-56 惩戒鸟","number":5,"report":"当前**小帮手**无法对惩戒鸟造成伤害；不应因目标过滤/命中而让有效攻击失效，而是应在符合双方攻击规则时正常结算伤害（具体条件待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-56 惩戒鸟 #6","bucket":"稳定复现","section":"O-02-56 惩戒鸟","number":6,"report":"当前**又大又可能很坏的狼**无法对惩戒鸟造成伤害；不应因目标过滤/命中而让有效攻击失效，而是应在符合双方攻击规则时正常结算伤害（具体条件待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-56 惩戒鸟 #7","bucket":"稳定复现","section":"O-02-56 惩戒鸟","number":7,"report":"当前**亡蝶礼仪**无法对惩戒鸟造成伤害；不应因目标过滤/命中而让有效攻击失效，而是应在符合双方攻击规则时正常结算伤害（具体条件待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-56 惩戒鸟 #8","bucket":"稳定复现","section":"O-02-56 惩戒鸟","number":8,"report":"当前**小红帽雇佣兵**无法对惩戒鸟造成伤害；不应因目标过滤/命中而让有效攻击失效，而是应在符合双方攻击规则时正常结算伤害（具体条件待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-56 惩戒鸟 #9","bucket":"稳定复现","section":"O-02-56 惩戒鸟","number":9,"report":"当前**微笑的尸山**无法对惩戒鸟造成伤害；不应因目标过滤/命中而让有效攻击失效，而是应在符合双方攻击规则时正常结算伤害（具体条件待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-56 惩戒鸟 #10","bucket":"稳定复现","section":"O-02-56 惩戒鸟","number":10,"report":"当前**数据删除**无法对惩戒鸟造成伤害；不应因目标过滤/命中而让有效攻击失效，而是应在符合双方攻击规则时正常结算伤害（具体条件待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-62 审判鸟 #1","bucket":"稳定复现","section":"O-02-62 审判鸟","number":1,"report":"当前**焦化少女**与审判鸟之间双向均无法造成伤害；不应让双方的有效命中无故失效，而是应分别按命中、阵营及抗性结算（可攻击条件待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-62 审判鸟 #2","bucket":"稳定复现","section":"O-02-62 审判鸟","number":2,"report":"当前审判鸟无法对**热心的樵夫**造成伤害；不应让有效命中无故失效，而是应按目标规则及抗性结算（是否主动攻击待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-62 审判鸟 #3","bucket":"稳定复现","section":"O-02-62 审判鸟","number":3,"report":"当前审判鸟无法对**被遗弃的杀人魔**造成伤害；不应让有效命中无故失效，而是应按目标规则及抗性结算（是否主动攻击待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-62 审判鸟 #4","bucket":"稳定复现","section":"O-02-62 审判鸟","number":4,"report":"当前审判鸟无法对**波迪**造成伤害；不应让有效命中无故失效，而是应按目标规则及抗性结算（是否主动攻击待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-62 审判鸟 #5","bucket":"稳定复现","section":"O-02-62 审判鸟","number":5,"report":"当前审判鸟无法对**碧蓝新星**造成伤害；不应让有效命中无故失效，而是应按目标规则及抗性结算（是否主动攻击待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-62 审判鸟 #6","bucket":"稳定复现","section":"O-02-62 审判鸟","number":6,"report":"当前审判鸟无法对**棘刺公交**造成伤害；不应让有效命中无故失效，而是应按目标规则及抗性结算（是否主动攻击待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-62 审判鸟 #7","bucket":"稳定复现","section":"O-02-62 审判鸟","number":7,"report":"当前审判鸟无法对**亡蝶礼仪**造成伤害；不应让有效命中无故失效，而是应按目标规则及抗性结算（是否主动攻击待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-62 审判鸟 #8","bucket":"稳定复现","section":"O-02-62 审判鸟","number":8,"report":"当前审判鸟无法对**小红帽雇佣兵**造成伤害；不应让有效命中无故失效，而是应按目标规则及抗性结算（是否主动攻击待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-62 审判鸟 #9","bucket":"稳定复现","section":"O-02-62 审判鸟","number":9,"report":"当前审判鸟无法对**宇宙碎片**造成伤害；不应让有效命中无故失效，而是应按目标规则及抗性结算（是否主动攻击待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-62 审判鸟 #10","bucket":"稳定复现","section":"O-02-62 审判鸟","number":10,"report":"当前审判鸟无法对**又大又可能很坏的狼**造成伤害；不应让有效命中无故失效，而是应按目标规则及抗性结算（是否主动攻击待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-62 审判鸟 #11","bucket":"稳定复现","section":"O-02-62 审判鸟","number":11,"report":"当前审判鸟无法对**小帮手**造成伤害；不应让有效命中无故失效，而是应按目标规则及抗性结算（是否主动攻击待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-62 审判鸟 #12","bucket":"稳定复现","section":"O-02-62 审判鸟","number":12,"report":"当前审判鸟无法对**深黯军团**造成伤害；不应让有效命中无故失效，而是应按目标规则及抗性结算（是否主动攻击待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-62 审判鸟 #13","bucket":"稳定复现","section":"O-02-62 审判鸟","number":13,"report":"当前审判鸟无法对**一无所有**造成伤害；不应让有效命中无故失效，而是应按目标规则及抗性结算（是否主动攻击待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-62 审判鸟 #14","bucket":"稳定复现","section":"O-02-62 审判鸟","number":14,"report":"当前审判鸟无法对**微笑的尸山**造成伤害；不应让有效命中无故失效，而是应按目标规则及抗性结算（是否主动攻击待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-62 审判鸟 #15","bucket":"稳定复现","section":"O-02-62 审判鸟","number":15,"report":"当前审判鸟无法对**数据删除**及 **O-03-89-1** 造成伤害；不应让这两个目标的有效命中无故失效，而是应分别按目标规则及抗性结算（是否主动攻击待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / F-05-32 热心的樵夫 #1","bucket":"稳定复现","section":"F-05-32 热心的樵夫","number":1,"report":"当前目标在攻击范围内时，樵夫攻击后会固定攻击方向，目标远离后又恢复，反复循环；不应锁死攻击方向，而是应持续更新朝向并按攻击范围重新选择目标。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / F-05-32 热心的樵夫 #2","bucket":"稳定复现","section":"F-05-32 热心的樵夫","number":2,"report":"当前樵夫主动靠近异想体攻击时无法命中；不应出现走到目标旁却打不到的情况，而是应在合法距离、可见及伤害条件下命中（可主动攻击的异想体范围待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / F-05-32 热心的樵夫 #3","bucket":"稳定复现","section":"F-05-32 热心的樵夫","number":3,"report":"当前图鉴的灵魂抗性描述错误；不应显示错误数值，而是应显示原版数值 **1.0**。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / D-02-107 波迪（目标规则待确认） #1","bucket":"稳定复现","section":"D-02-107 波迪（目标规则待确认）","number":1,"report":"当前波迪出逃后，如果出逃落点已有实体占位，就不会攻击；不应因落点占用而永久卡住索敌，而是应选择可用落点或恢复攻击行为。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / D-02-107 波迪（目标规则待确认） #2","bucket":"稳定复现","section":"D-02-107 波迪（目标规则待确认）","number":2,"report":"当前波迪会主动攻击异想体；不应将异想体加入其主动追击和攻击目标，而是应按原版只从附近的 `WorkerModel`（员工/文职）中选目标，攻击阶段也只对同通道内符合距离、方向条件的 `WorkerModel` 造成伤害。原反馈的“不确定”已由此候选原版脚本消除，Minecraft 玩家/AI 员工/文职须分别映射到人员类目标。[源码：Ppodae.cs](../LobotomyCorp-Decompiled-20260911/basemod-backup-main/Ppodae.cs)","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / T-01-54 被遗弃的杀人魔 #1","bucket":"稳定复现","section":"T-01-54 被遗弃的杀人魔","number":1,"report":"当前图鉴缺少压迫偏好Ⅰ、Ⅱ级概率，且各工作偏好Ⅰ—Ⅴ级的概率呈反序；不应缺项或把Ⅰ—Ⅴ级填成Ⅴ—Ⅰ级，而是应补齐压迫Ⅰ、Ⅱ级并按原版各等级对应顺序显示概率（具体百分比待核对）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / T-01-68 亡蝶礼仪 #1","bucket":"稳定复现","section":"T-01-68 亡蝶礼仪","number":1,"report":"当前大招释放的蝴蝶不限制高度，会跨楼层伤害目标；不应让不在技能垂直范围内的目标受伤，而是应增加与技能预期一致的高度/楼层判定（精确范围待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / T-01-68 亡蝶礼仪 #2","bucket":"稳定复现","section":"T-01-68 亡蝶礼仪","number":2,"report":"当前图鉴的 E.G.O 饰品部位文本错误；不应显示其他部位，而是应标为**右背**。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-98 棘刺公交 #1","bucket":"稳定复现","section":"O-02-98 棘刺公交","number":1,"report":"当前棘刺公交无法对大鸟与惩戒鸟造成伤害；不应让有效攻击无故失效，而是应在符合双方目标和受伤规则时正常结算伤害（能否主动索敌待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-02-98 棘刺公交 #2","bucket":"稳定复现","section":"O-02-98 棘刺公交","number":2,"report":"当前棘刺公交会受到其攻击范围外的伤害，与管理须知Ⅴ不符；不应在超出该须知规定范围时受伤，而是应按须知Ⅴ限定的有效攻击范围判定伤害（具体边界待核对）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-06-20 一无所有（战斗） #1","bucket":"稳定复现","section":"O-06-20 一无所有（战斗）","number":1,"report":"当前一无所有不会攻击大鸟与“小鸟”；不应在二者属于合法目标时忽略它们，而是应按出逃异想体的阵营及主动索敌规则决定是否攻击（“小鸟”是否指惩戒鸟，以及这两种目标是否应被主动攻击，待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / S-03-07 浊心斯卡蒂 #1","bucket":"稳定复现","section":"S-03-07 浊心斯卡蒂","number":1,"report":"当前图鉴中饰品获取信息无法解锁；不应在满足解锁条件后仍锁定，而是应正常解锁并显示饰品获取信息（具体前置条件待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / S-03-07 浊心斯卡蒂 #2","bucket":"稳定复现","section":"S-03-07 浊心斯卡蒂","number":2,"report":"当前 **S-03-07-1** 人形态转龙形态前，**伊莎玛拉之泪**及人形态受到玩家近战攻击或单独武器技能攻击后，仍不会积累仇恨或咆哮；玩家用远程武器攻击人形态时也不会正常反应，即使最后一段伤害由其他效果造成，仇恨表现亦不一致；不应因武器类别、伤害归属或形态切换丢失有效攻击记录，而是应在确认合法攻击者后正确建立仇恨并触发相应咆哮（远程间接伤害的归属规则待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / S-03-07 浊心斯卡蒂 #3","bucket":"稳定复现","section":"S-03-07 浊心斯卡蒂","number":3,"report":"当前**伊莎玛拉之泪**生成时可能嵌入墙内；不应在实体占位与墙体相交的位置生成，而是应选取无碰撞、可活动的安全落点。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / S-03-07 浊心斯卡蒂 #4","bucket":"稳定复现","section":"S-03-07 浊心斯卡蒂","number":4,"report":"当前 **S-03-07-1** 龙形态咆哮攻击只朝地面；不应始终锁定地面方向，而是应朝符合咆哮技能条件的实际目标方向攻击。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / D-01-106 深黯军团 #1","bucket":"稳定复现","section":"D-01-106 深黯军团","number":1,"report":"当前从**安保部上方**出逃后，不乘电梯到大厅，而是停在大厅上方走廊中央；不应在走廊中断寻路，而是应下电梯前往安保部大厅。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / D-01-106 深黯军团 #2","bucket":"稳定复现","section":"D-01-106 深黯军团","number":2,"report":"当前从**控制部下方**出逃后前往控制部与情报部大厅之间的走廊；不应以该走廊作为最终目的地，而是应前往其应到达的大厅或目标点（具体目标待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / D-01-106 深黯军团 #3","bucket":"稳定复现","section":"D-01-106 深黯军团","number":3,"report":"当前图鉴中深黯军团 E.G.O 饰品部位文本错误；不应显示错误部位，而是应标为**头饰**。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / D-01-106 深黯军团 #4","bucket":"稳定复现","section":"D-01-106 深黯军团","number":4,"report":"当前图鉴某项 E.G.O 的灵魂抗性显示错误；不应显示错误数值，而是应显示原版值 **1.0**（具体是哪件装备待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / D-01-106 深黯军团 #5","bucket":"稳定复现","section":"D-01-106 深黯军团","number":5,"report":"当前 E.G.O 饰品实际可装备位置错误；不应装在其他部位，而是应装备在**头饰**位。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / D-01-106 深黯军团 #6","bucket":"稳定复现","section":"D-01-106 深黯军团","number":6,"report":"当前图鉴中另一组 E.G.O 抗性描述错误；不应沿用错误数值，而是应分别显示物理 **1.2**、侵蚀 **1.0**、灵魂 **0.8**（与第 4 条“灵魂 1.0”可能涉及不同装备，原文未区分，需先确定对象）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / D-01-106 深黯军团 #7","bucket":"稳定复现","section":"D-01-106 深黯军团","number":7,"report":"当前图鉴的伤害类型显示错误；不应显示其他类型，而是应显示**精神伤害**（WHITE）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-04-08 红舞鞋 #1","bucket":"稳定复现","section":"O-04-08 红舞鞋","number":1,"report":"当前被红舞鞋控制的人员优先攻击最近实体，连未出逃的异想体和红舞鞋本体也会攻击；不应只按距离攻击任何实体，而是应按原版仅从当前通道里**可被攻击的单位**中选最近者，排除自身；未出逃异想体若按原版不可被攻击，就不得入选。需复核红舞鞋本体在当前形态是否可被攻击，不能只按实体名称硬编码排除。[源码：Uncontrollable_RedShoes.cs](../LobotomyCorp-Decompiled-20260911/basemod-backup-main/Uncontrollable_RedShoes.cs)","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-04-08 红舞鞋 #2","bucket":"稳定复现","section":"O-04-08 红舞鞋","number":2,"report":"当前图鉴中 E.G.O 饰品部位显示错误；不应标为其他部位，而是应标为**口部**。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-04-08 红舞鞋 #3","bucket":"稳定复现","section":"O-04-08 红舞鞋","number":3,"report":"当前图鉴中红舞鞋 E.G.O 护甲的四色抗性错误；不应显示错误数值，而是应分别显示物理/RED **0.5**、精神/WHITE **1.2**、侵蚀/BLACK **0.8**、灵魂/PALE **1.5**。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-01-55 银河之子 #1","bucket":"稳定复现","section":"O-01-55 银河之子","number":1,"report":"当前玩家首次取得友谊之证后仍显示Ⅰ级，即使再次对银河之子工作也不更新；由 AI 员工先提高计数器后，另一玩家首次取得时却按更高计数显示；不应把友谊之证理解成“每做一次工作自身升级一级”，而是应按原版让**已持有友谊之证者完成对银河之子的工作时提高银河之子的计数器**，并让所有持有者的恢复强度实时读取该**共享计数器**（原版上限 5）。Minecraft 的效果等级如用于展示该强度，也应随共享计数同步，而不是只在首次领取时快照等级。[源码：GalaxyBoy.cs](../LobotomyCorp-Decompiled-20260911/basemod-backup-main/GalaxyBoy.cs)、[FriendTokenBuf.cs](../LobotomyCorp-Decompiled-20260911/basemod-backup-main/FriendTokenBuf.cs)","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / F-02-58 又大又可能很坏的狼 #1","bucket":"稳定复现","section":"F-02-58 又大又可能很坏的狼","number":1,"report":"当前吞下 AI 员工的狼出逃后，被吞员工变成观察者状态并追杀狼，直到被救出；不应让被吞员工仍作为可行动的追击者，而是应按原版使其失去控制、暂时无敌且隐藏模型，获救或死亡时再解除状态。Minecraft 中观察者模式/镜头跟随属适配实现，原版不要求“员工以观察者视角追杀狼”。[源码：Uncontrollable_WolfEaten.cs](../LobotomyCorp-Decompiled-20260911/basemod-backup-main/Uncontrollable_WolfEaten.cs)","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / F-02-58 又大又可能很坏的狼 #2","bucket":"稳定复现","section":"F-02-58 又大又可能很坏的狼","number":2,"report":"当前反馈观察到“小红帽造成流血的单位进入狼的收容单元才立即出逃”，并认为管理须知Ⅳ写的“经过单元前走廊使计数器减少”是错的；不应把“进入单元立刻出逃”直接当原版规则，而是应按原版监视狼收容室**入口所连接的走廊**：被小红帽施加流血的合法单位进入该通道时累计一次计数器减少；小红帽本人进入时设置两次减少，狼不在工作状态时结算，归零后再触发出逃。Minecraft 的通道/门槛范围要另与设施结构对齐。[源码：BigBadWolf.cs](../LobotomyCorp-Decompiled-20260911/basemod-backup-main/BigBadWolf.cs)","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / F-02-58 又大又可能很坏的狼 #3","bucket":"稳定复现","section":"F-02-58 又大又可能很坏的狼","number":3,"report":"当前图鉴的 E.G.O 饰品部位文本错误；不应显示其他部位，而是应标为**面部**。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / F-02-58 又大又可能很坏的狼 #4","bucket":"稳定复现","section":"F-02-58 又大又可能很坏的狼","number":4,"report":"当前图鉴灵魂抗性描述错误；不应显示错误数值，而是应显示原版值 **1.0**（装备或本体的具体条目待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / F-01-57 小红帽雇佣兵 #1","bucket":"稳定复现","section":"F-01-57 小红帽雇佣兵","number":1,"report":"当前肚中吞有员工的狼出逃后被镇压，小红帽雇佣兵会出逃并狂暴；不应仅因为“小红帽出逃并狂暴”就判定是 Bug，而是应按原版区分**最后镇压者**：狼被小红帽以外的攻击者镇压时，小红帽进入狂暴；由小红帽本人完成镇压时则不走该狂暴分支。是否吞有人类不是这一原版分支的必要条件；需记录最终伤害来源后再判断当前现象是否异常。[源码：BigBadWolf.cs](../LobotomyCorp-Decompiled-20260911/basemod-backup-main/BigBadWolf.cs)、[RedHood.cs](../LobotomyCorp-Decompiled-20260911/basemod-backup-main/RedHood.cs)","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / F-01-57 小红帽雇佣兵 #2","bucket":"稳定复现","section":"F-01-57 小红帽雇佣兵","number":2,"report":"当前图鉴的 E.G.O 饰品部位文本错误；不应显示其他部位，而是应标为**口罩**。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / T-04-06 快乐泰迪 #1","bucket":"稳定复现","section":"T-04-06 快乐泰迪","number":1,"report":"当前图鉴的 E.G.O 饰品部位文本错误；不应显示其他部位，而是应标为**头部**。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / T-04-06 快乐泰迪 #2","bucket":"稳定复现","section":"T-04-06 快乐泰迪","number":2,"report":"当前 E.G.O 饰品自身的部位描述错误；不应显示其他部位，而是应标为**头部**。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-01-67 蕾蒂希娅 #1","bucket":"稳定复现","section":"O-01-67 蕾蒂希娅","number":1,"report":"当前 E.G.O 饰品实际可装备部位错误；不应装在其他部位，而是应装备在**头饰**位。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-03 一罪与百善 #1","bucket":"稳定复现","section":"O-03-03 一罪与百善","number":1,"report":"当前 E.G.O 饰品的部位描述错误；不应显示其他部位，而是应标为**头部**。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-03-03 一罪与百善 #2","bucket":"稳定复现","section":"O-03-03 一罪与百善","number":2,"report":"当前图鉴的管理须知内容语义混乱、难以理解；不应保留无法解释的文本，而是应依正确机制重写每一条管理须知（正确原文/逐条规则待提供）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / T-04-50 蜂后 #1","bucket":"稳定复现","section":"T-04-50 蜂后","number":1,"report":"当前图鉴的 E.G.O 饰品部位文本错误；不应显示其他部位，而是应标为**头部**。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / T-05-41 小帮手 #1","bucket":"稳定复现","section":"T-05-41 小帮手","number":1,"report":"当前图鉴中洞察工作偏好Ⅲ、Ⅳ、Ⅴ级没有显示概率；不应缺失这三个等级的概率，而是应逐级显示对应成功率（具体百分比待核对）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-06-20 一无所有（管理须知） #1","bucket":"稳定复现","section":"O-06-20 一无所有（管理须知）","number":1,"report":"当前管理须知Ⅰ所述“勇气等级越低，对一无所有工作成功率越低”未生效；不应对不同勇气等级使用相同成功率，而是应按原版在工作者存在时将原始工作概率乘以 `勇气等级 × 0.2`（勇气Ⅰ为 0.2 倍、Ⅴ为 1 倍）；对无工作者上下文的查询保留基础概率。此规则是持续修正工作概率，不是一次性入室事件。[源码：Nothing.cs](../LobotomyCorp-Decompiled-20260911/basemod-backup-main/Nothing.cs)","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / O-05-30 歌唱机 #1","bucket":"稳定复现","section":"O-05-30 歌唱机","number":1,"report":"当前被蛊惑的文职难以定位；不应让玩家无法辨认或找到正在受控的文职，而是应提供能识别其位置/状态的清晰反馈（期望的标记方式待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"稳定复现 / F-01-02 焦化少女 #1","bucket":"稳定复现","section":"F-01-02 焦化少女","number":1,"report":"当前收容单元内的员工找不到；不应让已在单元内的员工丢失显示或定位，而是应在对应收容单元/员工界面正常显示其所在位置（具体出现问题的界面待确认）。","after":"未复测；修复后填写实际表现与验证证据"},{"id":"非常难复现 / O-02-56 惩戒鸟 #1","bucket":"非常难复现","section":"O-02-56 惩戒鸟","number":1,"report":"当前惩戒鸟首次返回时约有 `1/50` 的低概率卡入地下；不应在返回时与地形重叠，而是应落在安全、可通行的位置（频率为原反馈估算，尚未复测）。","after":"未复测；修复后填写实际表现与验证证据"}]</script>
+  <script>
+  (() => {
+    "use strict";
+    const STORAGE_KEY = "lobotocraft.bug-tracker.v1";
+    const implementationOptions = ["未核实", "未改", "修复中", "已改", "无需改"];
+    const verificationOptions = ["未验证", "自动测试通过", "实机通过", "未通过"];
+    const defaultProgress = { implementation: "未核实", verification: "未验证", owner: "", note: "", evidence: "", updatedAt: "" };
+    const $ = id => document.getElementById(id);
+    const supplemental = [
+      {
+        id: "代码审查 / 异想体图鉴伤害图标 #1", bucket: "代码审查",
+        section: "异想体图鉴伤害图标", number: 1,
+        report: "当前图鉴的 PALE（灵魂）伤害图标与颜色分别识别 BLUE、PALE，E.G.O 页面和物品栏还各自映射；不应让同一伤害类型因输入别名而变成 WHITE 图标或灰色文字，而是应在展示时统一显示 PALE 名称、颜色和原版 GUI 图标，保留内部 blue 伤害 ID。",
+        after: "2026-09-28 已统一图鉴、E.G.O 分配页与抗性 HUD 的展示映射；BLUE/PALE 映射及贴图资源定向单测 3/3 通过。客户端图片像素与各版式尚待实机验收；不代表原反馈中每个异想体的图片都已逐一核对。"
+      },
+      {
+        id: "代码审查 / AI 员工恐慌救助 #1", bucket: "代码审查",
+        section: "AI 员工恐慌救助", number: 1,
+        report: "当前 AI 员工救助 PRUDENCE 恐慌同事时，曾用 E.G.O 展示后备表的静态 WHITE 标签决定索敌；不应在粉红军备低血量改为 BLACK、圣宣切黑枪或白枪冷却时仍依展示标签攻击，而是应按实际选中的可用武器及当前形态判定，并在出手前复查，避免圣宣满套装追加 PALE 伤害。",
+        after: "2026-09-28 已移除战斗对展示表的读取；粉红军备 50% 血线、圣宣黑白形态、黑色副手回退及 AI 救助时的 PALE 附伤已处理。员工决策单测 4/4、附伤定向单测 1/1、含真实物品的新 GameTest 均通过；本次 GameTest 89/89 必需项通过，3 项既有 optional 观察失败。客户端白枪冷却与实际命中仍待实机验收。"
+      },
+      {
+        id: "代码审查 / E.G.O 库存展示 #1", bucket: "代码审查",
+        section: "E.G.O 库存展示", number: 1,
+        report: "当前镇压奖励 S-03-07“必须开辟的道路”可进入 AI E.G.O 库存，但实体未加载时展示后备表缺此条；不应将其伤害类型、攻击力、速度和射程显示为未知，而是应提供与实体武器数据一致的 RED／27–32／0.6／不变摘要。",
+        after: "2026-09-28 已补 S-03-07 的未加载实体展示摘要，定向数据单测 1/1 通过；含奖励库存流程的本次 GameTest 89/89 必需项通过。实体未加载时的客户端 E.G.O 详情仍待实机验收。"
+      }
+    ];
+    const gameTestLog = "D:\\GongzuotaiD\\CodexDesk\\2026-09-12\\d-mcmodfolder-lobotocraft-integration-9d26841-docx\\work\\run-panic-rescue-20260928-c\\gradle.log";
+    const junitRoot = "D:\\GongzuotaiD\\CodexDesk\\2026-09-12\\d-mcmodfolder-lobotocraft-integration-9d26841-docx\\work\\b\\test-results\\test\\";
+    const unitEvidence = {
+      "异想体图鉴伤害图标": ["com.wzz.lobotocraft.client.screen.DamageTypeDisplayTest"],
+      "AI 员工恐慌救助": ["com.wzz.lobotocraft.employee.EmployeeRuntimeManagerTest",
+        "com.wzz.lobotocraft.event.listener.ButterflyFuneralEventsTest"],
+      "E.G.O 库存展示": ["com.wzz.lobotocraft.entity.data.EgoWeaponDisplayCatalogTest"]
+    };
+    const supplementalProgress = Object.fromEntries(supplemental.map(issue => [issue.id, {
+      implementation: "已改", verification: "自动测试通过",
+      owner: "", note: "代码与自动测试已确认；客户端实机验收未完成。",
+      evidence: [gameTestLog, ...unitEvidence[issue.section].map(name =>
+        `${junitRoot}TEST-${name}.xml`)].join("\n"),
+      updatedAt: ""
+    }]));
+    const originalFeedback = JSON.parse($("seed").textContent);
+    const censoredSection = "O-03-89 数据删除（原反馈误写为 O-03-98）";
+    const censoredFixes = {
+      [`稳定复现 / ${censoredSection} #1`]: {
+        after: "2026-09-28 核查：收容态模型已请求现有的 textures/entities/abnormality/o_03_89.png；出逃态使用 censored.png。两张 PNG 内容相同，原复查指出的路径缺失已在本轮之前的工作区改动中解决。本次资源 GameTest 随 55/55 必需项通过；仍未实机确认待机贴图在模型上的最终显示，不能写成实机验收通过。",
+        note: "已核对代码路径与实际文件；本轮没有重复修改贴图或模型。若客户端仍显示错误，需要待机状态截图和具体模型部位以区分 UV/几何与路径问题。",
+        evidence: "src/main/java/com/wzz/lobotocraft/client/model/entity/CensoredModel.java\nsrc/main/java/com/wzz/lobotocraft/entity/abnormality/CensoredTextureResourcesGameTests.java\nD:\\GongzuotaiD\\CodexDesk\\2026-09-12\\d-mcmodfolder-lobotocraft-integration-9d26841-docx\\work\\run-censored-sound-green-20260928-b\\gradle.log"
+      },
+      [`稳定复现 / ${censoredSection} #2`]: {
+        after: "2026-09-28 已移除攻击起手时的音效调用；第 25 tick 命中事件中，目标仍有效且伤害被接受时才播攻击音。命中与空挥两条 GameTest 先红后绿，本次 55/55 必需项通过；客户端实际听感待实机复核。",
+        note: "原版候选 Censored.cs 在 OnAttackDamageTimeCalled 播 attack 音；Minecraft 实现进一步按实际伤害成功与否决定是否播声。没有改动献祭/特殊攻击音效。",
+        evidence: "src/main/java/com/wzz/lobotocraft/entity/abnormality/EntityCensored.java\nsrc/main/java/com/wzz/lobotocraft/entity/abnormality/CensoredLifecycleGameTests.java\nD:\\GongzuotaiD\\CodexDesk\\2026-09-12\\d-mcmodfolder-lobotocraft-integration-9d26841-docx\\work\\run-censored-sound-red-20260928-b\\gradle.log\nD:\\GongzuotaiD\\CodexDesk\\2026-09-12\\d-mcmodfolder-lobotocraft-integration-9d26841-docx\\work\\run-censored-sound-green-20260928-b\\gradle.log"
+      }
+    };
+    const bundled = [...originalFeedback.map(issue => ({
+      ...issue, after: censoredFixes[issue.id]?.after || issue.after
+    })), ...supplemental];
+    const copy = value => JSON.parse(JSON.stringify(value));
+    const known = {
+      "O-03-89 数据删除（原反馈误写为 O-03-98）": {
+        1: ["已改", "自动测试通过"],
+        2: ["已改", "自动测试通过"],
+        3: ["已改", "自动测试通过"],
+        4: ["已改", "未验证"],
+        7: ["已改", "自动测试通过"],
+        9: ["已改", "自动测试通过"]
+      }
+    };
+    let issues = copy(bundled), progress = {}, selectedId = null, dirty = false;
+    let sourceLabel = "内置反馈快照", imported = false;
+    let noticeTimer;
+
+    function applyFeedbackFixes(items) {
+      const originals = new Map(originalFeedback.map(issue => [issue.id, issue]));
+      return items.map(issue => {
+        const fix = censoredFixes[issue.id];
+        const original = originals.get(issue.id);
+        return fix && original && issue.after === original.after
+          ? { ...issue, after: fix.after } : issue;
+      });
+    }
+    function mergeSupplemental(items) {
+      const ids = new Set(items.map(issue => issue.id));
+      for (const issue of supplemental) {
+        if (!ids.has(issue.id)) items.push(copy(issue));
+      }
+      return applyFeedbackFixes(items);
+    }
+    function mergeBundled(items) {
+      const ids = new Set(items.map(issue => issue.id));
+      for (const issue of bundled) {
+        if (!ids.has(issue.id)) items.push(copy(issue));
+      }
+      return applyFeedbackFixes(items);
+    }
+    function initialProgress(issue) {
+      const pair = known[issue.section]?.[issue.number];
+      return { ...defaultProgress, ...(pair ? { implementation: pair[0], verification: pair[1] } : {}),
+        ...(censoredFixes[issue.id] ? {
+          note: censoredFixes[issue.id].note, evidence: censoredFixes[issue.id].evidence
+        } : {}),
+        ...(supplementalProgress[issue.id] || {}) };
+    }
+    function mergeProgress(issue, savedProgress) {
+      const previous = savedProgress || {};
+      const untouched = censoredFixes[issue.id]
+        && previous.implementation === "未核实" && previous.verification === "未验证"
+        && !previous.owner && !previous.note && !previous.evidence && !previous.updatedAt;
+      return { ...initialProgress(issue), ...(untouched ? {} : previous) };
+    }
+    function getProgress(issue) { return { ...initialProgress(issue), ...(progress[issue.id] || {}) }; }
+    function plain(value) {
+      return String(value || "").replace(/<\/?mark>/g, "").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+        .replace(/\*\*/g, "").replace(/`/g, "");
+    }
+    function setNotice(message, error = false) {
+      $("notice").textContent = message;
+      $("notice").style.color = error ? "var(--danger)" : "var(--warning)";
+      clearTimeout(noticeTimer);
+      noticeTimer = setTimeout(() => { $("notice").textContent = ""; }, 6500);
+    }
+    function persist() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ schema: 1, issues, progress, sourceLabel, imported }));
+        $("save-state").textContent = "已保存到此浏览器";
+      } catch (error) {
+        setNotice("本地保存失败。请立即使用“备份 JSON”保存工作。", true);
+      }
+    }
+    function restore() {
+      for (const issue of issues) progress[issue.id] = initialProgress(issue);
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+        if (!saved || saved.schema !== 1 || !Array.isArray(saved.issues) || !saved.progress) return;
+        // Keep locally edited feedback and manually added issues. Only add newly
+        // bundled IDs; replacing all 107 rows here would discard user text edits.
+        issues = saved.imported ? mergeSupplemental(copy(saved.issues))
+          : mergeBundled(copy(saved.issues));
+        progress = {};
+        for (const issue of issues) progress[issue.id] = mergeProgress(issue, saved.progress[issue.id]);
+        sourceLabel = saved.sourceLabel || sourceLabel;
+        imported = Boolean(saved.imported);
+      } catch (error) {
+        setNotice("本地记录无法读取，已展示内置快照。请检查备份。", true);
+      }
+    }
+    function badge(text, type) {
+      const span = document.createElement("span");
+      span.className = "badge " + type;
+      span.textContent = text;
+      return span;
+    }
+    function implementationBadge(value) {
+      return value === "已改" ? "done" : value === "修复中" ? "working" :
+        value === "未核实" ? "unknown" : value === "无需改" ? "passed" : "failed";
+    }
+    function verificationBadge(value) {
+      return value === "实机通过" || value === "自动测试通过" ? "passed" :
+        value === "未通过" ? "failed" : "unknown";
+    }
+    function renderMetrics() {
+      const values = issues.map(getProgress);
+      $("count-all").textContent = issues.length;
+      $("count-implemented").textContent = values.filter(p => p.implementation === "已改").length;
+      $("count-automated").textContent = values.filter(p => p.verification === "自动测试通过" || p.verification === "实机通过").length;
+      $("count-accepted").textContent = values.filter(p => p.verification === "实机通过").length;
+      $("count-unknown").textContent = values.filter(p => p.implementation === "未核实").length;
+    }
+    function options(select, values, allLabel) {
+      const old = select.value;
+      select.replaceChildren(new Option(allLabel, ""));
+      for (const value of values) select.add(new Option(value, value));
+      select.value = values.includes(old) ? old : "";
+    }
+    function renderFilterOptions() {
+      options($("filter-implementation"), implementationOptions, "全部实施状态");
+      options($("filter-verification"), verificationOptions, "全部验证状态");
+      options($("filter-bucket"), [...new Set(issues.map(i => i.bucket))], "全部分类");
+      options($("filter-section"), [...new Set(issues.map(i => i.section))], "全部对象");
+    }
+    function filteredIssues() {
+      const query = $("search").value.trim().toLocaleLowerCase();
+      return issues.filter(issue => {
+        const p = getProgress(issue);
+        return (!$("filter-implementation").value || p.implementation === $("filter-implementation").value)
+          && (!$("filter-verification").value || p.verification === $("filter-verification").value)
+          && (!$("filter-bucket").value || issue.bucket === $("filter-bucket").value)
+          && (!$("filter-section").value || issue.section === $("filter-section").value)
+          && (!query || [issue.section, issue.report, issue.after, p.note, p.evidence, p.owner, issue.number]
+            .some(value => plain(value).toLocaleLowerCase().includes(query)));
+      });
+    }
+    function selectIssue(id) {
+      if (dirty && !confirm("当前详情有未保存修改，确定放弃吗？")) return;
+      selectedId = id;
+      dirty = false;
+      renderList();
+      renderDetail();
+    }
+    function renderList() {
+      const container = $("issue-list");
+      container.replaceChildren();
+      const filtered = filteredIssues();
+      $("shown").textContent = `显示 ${filtered.length} / ${issues.length} 条`;
+      $("source").textContent = sourceLabel;
+      let lastSection = "";
+      for (const issue of filtered) {
+        const group = `${issue.bucket} / ${issue.section}`;
+        if (group !== lastSection) {
+          const title = document.createElement("div");
+          title.className = "group-title";
+          title.textContent = group;
+          container.append(title);
+          lastSection = group;
+        }
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "issue" + (issue.id === selectedId ? " active" : "");
+        button.setAttribute("aria-current", issue.id === selectedId ? "true" : "false");
+        const top = document.createElement("div");
+        top.className = "issue-top";
+        const code = document.createElement("span");
+        code.className = "code";
+        code.textContent = `${issue.section} · ${issue.number}`;
+        top.append(code);
+        const excerpt = document.createElement("div");
+        excerpt.className = "excerpt";
+        excerpt.textContent = plain(issue.report);
+        const badges = document.createElement("div");
+        badges.className = "badges";
+        const p = getProgress(issue);
+        badges.append(badge(p.implementation, implementationBadge(p.implementation)),
+          badge(p.verification, verificationBadge(p.verification)));
+        button.append(top, excerpt, badges);
+        button.addEventListener("click", () => selectIssue(issue.id));
+        container.append(button);
+      }
+      if (!filtered.length) {
+        const empty = document.createElement("p");
+        empty.className = "empty";
+        empty.textContent = "没有匹配的问题。试试清空搜索或切换筛选。";
+        container.append(empty);
+      }
+    }
+    function field(labelText, type, key, value, extraClass = "") {
+      const label = document.createElement("label");
+      label.textContent = labelText;
+      const control = type === "textarea" ? document.createElement("textarea") : document.createElement(type);
+      control.id = "edit-" + key;
+      control.value = value || "";
+      if (type === "textarea") control.className = extraClass;
+      control.addEventListener("input", () => { dirty = true; $("save-state").textContent = "有未保存修改"; });
+      label.append(control);
+      return label;
+    }
+    function dropdown(labelText, key, value, list) {
+      const label = document.createElement("label");
+      label.textContent = labelText;
+      const control = document.createElement("select");
+      control.id = "edit-" + key;
+      for (const item of list) control.add(new Option(item, item));
+      control.value = list.includes(value) ? value : list[0];
+      control.addEventListener("change", () => { dirty = true; $("save-state").textContent = "有未保存修改"; });
+      label.append(control);
+      return label;
+    }
+    function renderDetail() {
+      const root = $("detail");
+      root.replaceChildren();
+      const issue = issues.find(item => item.id === selectedId);
+      if (!issue) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "从左侧选一条反馈，查看全文并记录修复与验证。";
+        root.append(empty);
+        return;
+      }
+      const p = getProgress(issue);
+      const title = document.createElement("h2");
+      title.textContent = `${issue.section} · 第 ${issue.number} 条`;
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = `${issue.bucket} · ${p.updatedAt ? "上次保存 " + new Date(p.updatedAt).toLocaleString("zh-CN") :
+        supplementalProgress[issue.id] || censoredFixes[issue.id]
+          ? "内置核查记录 · 2026-09-28" : "尚未记录更新时间"}`;
+      const textFields = document.createElement("section");
+      textFields.className = "stack";
+      textFields.append(
+        field("问题与预期（可编辑）", "textarea", "report", issue.report, "long"),
+        field("原反馈中的修复后记录（可编辑）", "textarea", "after", issue.after, "medium")
+      );
+      const stateTitle = document.createElement("h3");
+      stateTitle.textContent = "实施与验证";
+      const state = document.createElement("section");
+      state.className = "detail-grid";
+      state.append(dropdown("是否动过代码", "implementation", p.implementation, implementationOptions),
+        dropdown("验证到了哪一步", "verification", p.verification, verificationOptions));
+      const other = document.createElement("section");
+      other.className = "stack";
+      other.append(field("负责人（可选）", "input", "owner", p.owner),
+        field("修复记录 / 复现结果", "textarea", "note", p.note, "medium"),
+        field("证据（日志路径、测试名、提交号或截图说明）", "textarea", "evidence", p.evidence, "medium"));
+      const footer = document.createElement("div");
+      footer.className = "footer-actions";
+      const save = document.createElement("button");
+      save.type = "button";
+      save.className = "button primary";
+      save.textContent = "保存此条";
+      save.addEventListener("click", saveSelected);
+      const stateLabel = document.createElement("span");
+      stateLabel.id = "save-state";
+      stateLabel.textContent = "修改后点击保存";
+      footer.append(save, stateLabel);
+      root.append(title, meta, textFields, stateTitle, state, other, footer);
+    }
+    function saveSelected() {
+      const issue = issues.find(item => item.id === selectedId);
+      if (!issue) return;
+      const report = $("edit-report").value.trim();
+      if (!report) return setNotice("问题与预期不能为空。", true);
+      issue.report = report;
+      issue.after = $("edit-after").value.trim();
+      progress[issue.id] = {
+        implementation: $("edit-implementation").value,
+        verification: $("edit-verification").value,
+        owner: $("edit-owner").value.trim(),
+        note: $("edit-note").value.trim(),
+        evidence: $("edit-evidence").value.trim(),
+        updatedAt: new Date().toISOString()
+      };
+      dirty = false;
+      persist();
+      renderMetrics();
+      renderList();
+      renderDetail();
+      setNotice("已保存这条问题。");
+    }
+    function makeId(bucket, section, number) { return `${bucket} / ${section} #${number}`; }
+    function parseMarkdown(text) {
+      const result = [];
+      let bucket = "稳定复现", section = "";
+      for (const line of text.split(/\r?\n/)) {
+        const main = line.match(/^##\s+(.+)$/);
+        if (main) { if (/非常难复现/.test(main[1])) bucket = "非常难复现";
+          else if (/代码审查/.test(main[1])) bucket = "代码审查";
+          else if (/稳定复现/.test(main[1])) bucket = "稳定复现"; continue; }
+        const sub = line.match(/^###\s+(.+)$/);
+        if (sub) { section = sub[1].trim(); continue; }
+        const row = line.match(/^\|\s*(\d+)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|$/);
+        if (row && section) {
+          const number = Number(row[1]);
+          result.push({ id: makeId(bucket, section, number), bucket, section, number, report: row[2], after: row[3] });
+          continue;
+        }
+        // Also accept the previous numbered-list version of the feedback document.
+        const bullet = line.match(/^(\d+)\.\s+(.+)$/);
+        if (bullet && section) {
+          const number = Number(bullet[1]);
+          result.push({ id: makeId(bucket, section, number), bucket, section, number, report: bullet[2], after: "" });
+        }
+      }
+      if (!result.length || new Set(result.map(item => item.id)).size !== result.length) {
+        throw new Error("未找到有效问题，或存在相同分类／对象／编号的重复条目。");
+      }
+      return result;
+    }
+    function download(name, contents, type) {
+      const url = URL.createObjectURL(new Blob([contents], { type }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = name;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    function markdownCell(text) { return String(text || "").replace(/\|/g, "\\|").replace(/\r?\n/g, "<br>"); }
+    function exportMarkdown() {
+      if (dirty && !confirm("当前详情尚未保存。导出的交接文档不会包含这些输入，仍要导出吗？")) return;
+      const lines = ["# Lobotocraft Bug 修复交接", "", `导出时间：${new Date().toLocaleString("zh-CN")}`, "", "说明：由独立台账导出，不覆盖原反馈文档。状态仅表示记录的验证范围。", ""];
+      let lastBucket = "", lastSection = "";
+      for (const issue of issues) {
+        if (issue.bucket !== lastBucket) { lines.push(`## ${issue.bucket}`, ""); lastBucket = issue.bucket; lastSection = ""; }
+        if (issue.section !== lastSection) {
+          lines.push(`### ${issue.section}`, "", "| 编号 | 当前／不应／而是 | 修复后（复测记录） |", "|---:|---|---|");
+          lastSection = issue.section;
+        }
+        const p = getProgress(issue);
+        const record = [issue.after, `实施：${p.implementation}；验证：${p.verification}`,
+          p.owner ? `负责人：${p.owner}` : "", p.note ? `记录：${p.note}` : "",
+          p.evidence ? `证据：${p.evidence}` : ""].filter(Boolean).join("；");
+        lines.push(`| ${issue.number} | ${markdownCell(issue.report)} | ${markdownCell(record)} |`);
+        const next = issues[issues.indexOf(issue) + 1];
+        if (!next || next.section !== issue.section || next.bucket !== issue.bucket) lines.push("");
+      }
+      download("lobotocraft-bug-handoff.md", lines.join("\n"), "text/markdown;charset=utf-8");
+    }
+    function renderAll() {
+      renderFilterOptions();
+      renderMetrics();
+      renderList();
+      renderDetail();
+    }
+    async function loadFile(input, kind) {
+      const file = input.files?.[0];
+      input.value = "";
+      if (!file) return;
+      if (dirty && !confirm("当前详情尚未保存，继续导入会丢弃这些输入，确定吗？")) return;
+      try {
+        const raw = await file.text();
+        if (kind === "md") {
+          const parsed = parseMarkdown(raw);
+          if (!confirm(`从 ${file.name} 找到 ${parsed.length} 条问题。导入会更新问题文本，现有同编号的状态将保留；缺失的内置代码审查条目会补充。继续吗？`)) return;
+          const next = {};
+          issues = mergeSupplemental(parsed);
+          for (const issue of issues) next[issue.id] = mergeProgress(issue, progress[issue.id]);
+          progress = next;
+          sourceLabel = file.name;
+          imported = true;
+        } else {
+          const saved = JSON.parse(raw);
+          if (saved.schema !== 1 || !Array.isArray(saved.issues) || !saved.progress ||
+              saved.issues.some(item => !item.id || !item.section || typeof item.report !== "string")) {
+            throw new Error("JSON 格式不符合本工具的台账备份格式。");
+          }
+          if (!confirm(`将用 ${file.name} 中的 ${saved.issues.length} 条问题及状态替换当前台账。继续吗？`)) return;
+          issues = mergeSupplemental(copy(saved.issues));
+          progress = {};
+          for (const issue of issues) progress[issue.id] = mergeProgress(issue, saved.progress[issue.id]);
+          sourceLabel = saved.sourceLabel || file.name;
+          imported = Boolean(saved.imported);
+        }
+        selectedId = issues[0]?.id || null;
+        dirty = false;
+        persist();
+        renderAll();
+        setNotice(`已导入 ${issues.length} 条问题。`);
+      } catch (error) {
+        setNotice(`导入失败：${error.message}`, true);
+      }
+    }
+    restore();
+    selectedId = issues[0]?.id || null;
+    renderAll();
+    for (const name of ["search", "filter-implementation", "filter-verification", "filter-bucket", "filter-section"]) {
+      $(name).addEventListener(name === "search" ? "input" : "change", renderList);
+    }
+    $("import-md").addEventListener("click", () => $("md-file").click());
+    $("import-json").addEventListener("click", () => $("json-file").click());
+    $("md-file").addEventListener("change", () => loadFile($("md-file"), "md"));
+    $("json-file").addEventListener("change", () => loadFile($("json-file"), "json"));
+    $("export-json").addEventListener("click", () => {
+      if (dirty && !confirm("当前详情尚未保存。JSON 备份不会包含这些输入，仍要导出吗？")) return;
+      download("lobotocraft-bug-ledger.json", JSON.stringify({ schema: 1, issues, progress, sourceLabel, imported: true }, null, 2), "application/json;charset=utf-8");
+    });
+    $("export-md").addEventListener("click", exportMarkdown);
+    $("add").addEventListener("click", () => {
+      if (dirty && !confirm("当前详情尚未保存，新增问题前请先保存。确定放弃这些输入吗？")) return;
+      dirty = false;
+      $("add-dialog").showModal();
+    });
+    $("cancel-add").addEventListener("click", () => $("add-dialog").close());
+    $("add-form").addEventListener("submit", event => {
+      event.preventDefault();
+      const data = new FormData(event.currentTarget);
+      const bucket = String(data.get("bucket")).trim();
+      const section = String(data.get("section")).trim();
+      const report = String(data.get("report")).trim();
+      if (!bucket || !section || !report) return;
+      const numbers = issues.filter(issue => issue.bucket === bucket && issue.section === section).map(issue => issue.number);
+      const number = Math.max(0, ...numbers) + 1;
+      const issue = { id: makeId(bucket, section, number), bucket, section, number, report, after: "" };
+      issues.push(issue);
+      progress[issue.id] = initialProgress(issue);
+      selectedId = issue.id;
+      dirty = false;
+      event.currentTarget.reset();
+      $("add-dialog").close();
+      persist();
+      renderAll();
+      setNotice("新问题已加入台账。");
+    });
+  })();
+  </script>
+</body>
+</html>

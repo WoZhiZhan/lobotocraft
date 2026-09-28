@@ -1,10 +1,16 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
-import com.wzz.lobotocraft.entity.base.BaseGeoEntity;
+import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.base.EscapeTracker;
+import com.wzz.lobotocraft.entity.data.RiskLevel;
+import com.wzz.lobotocraft.entity.ai.AbnormalityFearResponse;
+import com.wzz.lobotocraft.entity.ai.AbnormalityFearService;
+import com.wzz.lobotocraft.entity.ai.AbnormalityFearSource;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.TamableAnimal;
@@ -14,9 +20,11 @@ import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
+import com.wzz.lobotocraft.work.WorkType;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
 import software.bernie.geckolib.core.animation.AnimationState;
@@ -25,9 +33,10 @@ import software.bernie.geckolib.core.object.PlayState;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 
 /** CENSORED-1 spawned after CENSORED consumes a victim or tombstone. */
-public class EntityCensoredMinion extends BaseGeoEntity {
+public class EntityCensoredMinion extends AbstractAbnormality implements AbnormalityFearSource {
     private static final int DAMAGE_INTERVAL_TICKS = 50;
     private static final double DAMAGE_RANGE = 2.0D;
     private static final double TARGET_SCAN_RANGE = 24.0D;
@@ -35,8 +44,9 @@ public class EntityCensoredMinion extends BaseGeoEntity {
 
     private int damageCooldown;
     private int targetScanCooldown;
-    private Player cachedTarget;
+    private LivingEntity cachedTarget;
     private boolean playedSpawnSound;
+    private UUID parentCensoredUuid;
 
     public EntityCensoredMinion(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -44,13 +54,35 @@ public class EntityCensoredMinion extends BaseGeoEntity {
     }
 
     @Override
+    protected void initializeAbnormality() {
+        abnormalityCode = "O-03-89-1";
+        abnormalityName = "CENSORED-1";
+        riskLevel = RiskLevel.HE;
+        damageType = "BLACK";
+        maxPEOutput = 0;
+        initializeWorkPreferences(new float[]{0.0F, 0.0F, 0.0F, 0.0F});
+        initializeQliphothCounter();
+    }
+
+    @Override
     public String name() {
         return "censored1";
     }
 
+    public void setParentCensoredUuid(UUID parentCensoredUuid) {
+        this.parentCensoredUuid = parentCensoredUuid;
+    }
+
+    public boolean isChildOf(EntityCensored parent) {
+        return parent != null && parentCensoredUuid != null
+                && parentCensoredUuid.equals(parent.getUUID());
+    }
+
     @Override
     protected void registerGoals() {
+        super.registerGoals();
         goalSelector.addGoal(0, new FloatGoal(this));
+        addFacilityRoamingGoals(1, 4, 0.9D);
         goalSelector.addGoal(4, new WaterAvoidingRandomStrollGoal(this, 0.7D));
         goalSelector.addGoal(5, new LookAtPlayerGoal(this, Player.class, 8.0F));
         goalSelector.addGoal(6, new RandomLookAroundGoal(this));
@@ -61,19 +93,28 @@ public class EntityCensoredMinion extends BaseGeoEntity {
         super.tick();
         if (level().isClientSide) return;
 
+        if (!hasEscape()) {
+            setEscape(true);
+            EscapeTracker.getInstance().onEscapeStart(this);
+        }
+
         if (!playedSpawnSound && tickCount >= 2) {
             playedSpawnSound = true;
             level().playSound(null, getX(), getY(), getZ(),
-                    ModSounds.CENSORED_MINION_SPAWN.get(), SoundSource.HOSTILE, 1.0F, 1.0F);
+                    ModSounds.CENSORED_MINION_SPAWN.get(), SoundSource.HOSTILE, 0.7F, 1.0F);
         }
         if (damageCooldown > 0) damageCooldown--;
+        AbnormalityFearService.tickEncounter(this, this);
 
-        Player target = findTarget();
+        LivingEntity target = findTarget();
         if (target == null) {
             cachedTarget = null;
+            setTarget(null);
             getNavigation().stop();
             return;
         }
+        setTarget(target);
+        if (Math.abs(target.getY() - getY()) > 5.0D) return;
         if (distanceToSqr(target) > DAMAGE_RANGE * DAMAGE_RANGE) {
             getNavigation().moveTo(target, 1.0D);
             return;
@@ -89,7 +130,7 @@ public class EntityCensoredMinion extends BaseGeoEntity {
         }
     }
 
-    private Player findTarget() {
+    private LivingEntity findTarget() {
         if (cachedTarget != null
                 && cachedTarget.isAlive()
                 && !cachedTarget.isRemoved()
@@ -105,12 +146,55 @@ public class EntityCensoredMinion extends BaseGeoEntity {
         targetScanCooldown = TARGET_SCAN_INTERVAL;
 
         AABB box = getBoundingBox().inflate(TARGET_SCAN_RANGE);
-        List<Player> players = level().getEntitiesOfClass(Player.class, box,
-                player -> player.isAlive() && !player.isCreative() && !player.isSpectator());
-        cachedTarget = players.stream()
+        List<LivingEntity> employees = level().getEntitiesOfClass(LivingEntity.class, box,
+                EntityCensored::isEmployeeTarget);
+        cachedTarget = employees.stream()
                 .min(Comparator.comparingDouble(this::distanceToSqr))
                 .orElse(null);
         return cachedTarget;
+    }
+
+    @Override
+    public AbnormalityFearResponse encounterFear(net.minecraft.server.level.ServerPlayer employee) {
+        return AbnormalityFearService.employeeLevel(employee) < 5
+                ? AbnormalityFearResponse.forcedPanic() : AbnormalityFearResponse.level(3);
+    }
+
+    @Override
+    protected boolean usesContainmentReturnOnDeath() {
+        return false;
+    }
+
+    @Override
+    public void attackPlayerOnFailure(Player player, WorkType workType) {
+        // Spawned breach-only children cannot be assigned containment work.
+    }
+
+    @Override
+    protected AbstractAbnormality createNewInstance(net.minecraft.server.level.ServerLevel serverLevel) {
+        return new EntityCensoredMinion((EntityType<? extends TamableAnimal>) getType(), serverLevel);
+    }
+
+    @Override
+    public void stopEscape() {
+        // Spawned children have no containment room; stopping their breach suppresses the entity.
+        if (level() instanceof net.minecraft.server.level.ServerLevel serverLevel && hasEscape()) {
+            EscapeTracker.getInstance().onEscapeStop(serverLevel.getServer(), getUUID());
+        }
+        discard();
+    }
+
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        if (parentCensoredUuid != null) tag.putUUID("ParentCensored", parentCensoredUuid);
+    }
+
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        parentCensoredUuid = tag.hasUUID("ParentCensored")
+                ? tag.getUUID("ParentCensored") : null;
     }
 
     @Override

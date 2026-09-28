@@ -180,7 +180,10 @@ public class EntityApprovalBird extends AbstractAbnormality {
     private List<LivingEntity> findRoomTargets() {
         return EntityUtil.findLivingEntitiesAround(this, ROOM_Y_RANGE, ROOM_HORIZONTAL)
                 .stream()
-                .filter(e -> e.isAlive() && (e instanceof Player player && (!player.isSpectator() || player.isCreative()) || e instanceof Villager))
+                .filter(e -> e.isAlive() && (e instanceof Player player
+                        && (!player.isSpectator() || player.isCreative())
+                        || e instanceof Villager
+                        || QueenOfHatredCombat.isQueenOfHatredCombatTarget(e)))
                 .collect(Collectors.toList());
     }
 

@@ -2,9 +2,12 @@ package com.wzz.lobotocraft.work;
 
 import com.wzz.lobotocraft.block.entity.RoomMarkerBlockEntity;
 import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
+import com.wzz.lobotocraft.entity.abnormality.EntitySnowQueen;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.control.HostileControlState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -26,7 +29,8 @@ public final class AbnormalityWorkRules {
 
     /** Returns whether the target is currently registered by its containment marker. */
     public static boolean isRegistered(AbstractAbnormality abnormality) {
-        if (abnormality == null || abnormality.isRemoved() || abnormality.level() == null) return false;
+        if (abnormality == null || abnormality.isRemoved() || abnormality.level() == null
+                || !abnormality.canBeContained()) return false;
         ResourceLocation dimension = abnormality.getHomeRoomDimension();
         BlockPos markerPos = abnormality.getHomeRoomMarker();
         if (dimension == null || markerPos == null || abnormality.getServer() == null) return false;
@@ -53,6 +57,20 @@ public final class AbnormalityWorkRules {
     public static String registrationDenial(AbstractAbnormality abnormality) {
         return isRegistered(abnormality)
                 ? null : "该异想体尚未登记，无法进行工作。";
+    }
+
+    /** Returns the authoritative denial for transient states that forbid work. */
+    public static Component controlStateDenial(ServerPlayer player) {
+        if (UniqueWorkRequest.isControlled(player)) {
+            return Component.translatable("message.lobotocraft.sacrifice.busy");
+        }
+        if (EntitySnowQueen.isFrozen(player)) {
+            return Component.translatable("message.lobotocraft.work.reason.frozen");
+        }
+        if (HostileControlState.isActive(player)) {
+            return Component.translatable("message.lobotocraft.work.reason.red_shoes");
+        }
+        return null;
     }
 
     /** Only AI employees participate in the one-AI-per-abnormality reservation. */

@@ -79,6 +79,7 @@ public class ModCommonEvent {
 		event.put(ModEntities.wingbeat.get(), EntityWingBeat.createAttributes().build());
 		event.put(ModEntities.queen_bee.get(), EntityQueenBee.createAttributes().build());
 		event.put(ModEntities.red_shoes.get(), EntityRedShoes.createAttributes().build());
+		event.put(ModEntities.singing_machine.get(), EntitySingingMachine.createAttributes().build());
 		event.put(ModEntities.worker_bee.get(), EntityWorkerBee.createAttributes().build());
 		event.put(ModEntities.snowqueen.get(), EntitySnowQueen.createAttributes().build());
 		event.put(ModEntities.ppodae.get(), EntityPpodae.createAttributes().build());

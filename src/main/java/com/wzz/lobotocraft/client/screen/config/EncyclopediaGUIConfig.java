@@ -1,5 +1,7 @@
 package com.wzz.lobotocraft.client.screen.config;
 
+import com.wzz.lobotocraft.client.ui.DamageTypeVisual;
+
 /**
  * 异想体图鉴GUI配置类
  * 用于解决硬编码问题，集中管理所有GUI相关的常量
@@ -37,13 +39,7 @@ public class EncyclopediaGUIConfig {
 
         // 伤害类型颜色
         public static int getDamageTypeColor(String damageType) {
-            return switch (damageType) {
-                case "WHITE" -> 0xFFFFFFFF;
-                case "RED" -> 0xFFFF0000;
-                case "BLACK" -> 0xFFAA00AA;
-                case "PALE" -> 0xFF00FFFF;
-                default -> 0xFFCCCCCC;
-            };
+            return DamageTypeVisual.from(damageType).color();
         }
 
         // 工作效率颜色

@@ -1,0 +1,1270 @@
+{
+  "format": "vibe-architecture-graph",
+  "version": 2,
+  "project": {
+    "name": "Lobotocraft Integration",
+    "subtitle": "Minecraft Forge 1.20.1 mod: Lobotomy Corporation style facility simulation",
+    "description": "基于当前工作树静态分析生成的架构地图，覆盖设施日程/熔毁、异想体生命周期、员工与工作、核心抑制、客户端表现与网络同步、E.G.O 与基础设施八大领域。工作树含大量未提交改动，图谱描述的是当前文件内容而非 HEAD 提交。"
+  },
+  "meta": {
+    "sourceRepository": "D:/mcmodfolder/lobotocraft-integration-9d26841",
+    "sourceCommit": "292a53f (working tree, contains uncommitted changes)",
+    "generatedAt": "2026-09-04",
+    "updatedAt": "2026-09-04",
+    "generatedBy": "opencode parallel subagent analysis (6 domains, read-only)"
+  },
+  "domains": [
+    { "id": "facility", "label": "设施与日程", "color": "#4CAF7D" },
+    { "id": "abnormality", "label": "异想体", "color": "#E37467" },
+    { "id": "employee", "label": "员工与工作", "color": "#5B8DEF" },
+    { "id": "suppression", "label": "核心抑制", "color": "#C87DB9" },
+    { "id": "client", "label": "客户端表现", "color": "#E69B4B" },
+    { "id": "network", "label": "网络同步", "color": "#62A6EF" },
+    { "id": "item-ego", "label": "E.G.O 与物品", "color": "#D4B04A" },
+    { "id": "infra", "label": "基础设施与注册", "color": "#8A8F98" }
+  ],
+  "relations": [
+    { "id": "calls", "label": "调用", "color": "#62A6EF", "style": "solid" },
+    { "id": "event", "label": "事件", "color": "#E69B4B", "style": "dashed" },
+    { "id": "data", "label": "数据流", "color": "#69C77F", "style": "solid" },
+    { "id": "dependency", "label": "依赖", "color": "#AF83E6", "style": "dotted" },
+    { "id": "risk", "label": "风险捷径", "color": "#E05252", "style": "dotted" }
+  ],
+  "nodes": [
+    {
+      "id": "facility-manager",
+      "label": "设施管理器",
+      "domain": "facility",
+      "risk": "high",
+      "owner": true,
+      "layer": 2,
+      "shape": "box",
+      "ports": [
+        { "id": "dayCommand", "label": "换天命令", "direction": "input", "type": "FacilityCommand", "color": "#2E8B57" },
+        { "id": "gate", "label": "抑制闸门", "direction": "input", "type": "FacilityCommand", "color": "#2E8B57" },
+        { "id": "roomSnapshot", "label": "房间快照", "direction": "input", "type": "RoomSnapshot", "color": "#7BC8A4" },
+        { "id": "daySnapshot", "label": "设施快照", "direction": "input", "type": "FacilityState", "color": "#4CAF7D" },
+        { "id": "dayAccess", "label": "读写设施状态", "direction": "output", "type": "FacilityState", "color": "#4CAF7D" },
+        { "id": "meltdownCmd", "label": "熔毁驱动", "direction": "output", "type": "FacilityCommand", "color": "#2E8B57" },
+        { "id": "dayEvent", "label": "部门日启", "direction": "output", "type": "DayEvent", "color": "#E69B4B" },
+        { "id": "correction", "label": "玩家日校正", "direction": "output", "type": "DailyState", "color": "#6BBF59" },
+        { "id": "broadcast", "label": "全员同步", "direction": "output", "type": "FacilityState", "color": "#4CAF7D" },
+        { "id": "meltdownEvent", "label": "熔毁广播", "direction": "output", "type": "MeltdownEvent", "color": "#D9534F" }
+      ],
+      "summary": "服务端全局 tick 与工作/熔毁/考验编排中枢，所有入站事件汇于此。",
+      "note": "静态门面类，直接依赖约 30 个 wzz 包类型，耦合最重；WorkManagerMixin/ServerPlayerDeathMixin 等 mixin 也汇入。每 20 tick 强制同步设施状态（gameTime%20==0）。",
+      "files": [
+        "src/main/java/com/lobotocraft/facility/FacilityManager.java",
+        "src/main/java/com/lobotocraft/facility/FacilityEvents.java",
+        "src/main/java/com/lobotocraft/facility/FacilityPauseState.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "FacilityManager.java:214-227 beginDay、:382-425 tick、:838-843 syncAll 已核对"
+    },
+    {
+      "id": "facility-day-data",
+      "label": "设施日权威状态",
+      "domain": "facility",
+      "risk": "high",
+      "owner": true,
+      "layer": 4,
+      "shape": "database",
+      "ports": [
+        { "id": "command", "label": "状态变更", "direction": "input", "type": "FacilityCommand", "color": "#2E8B57" },
+        { "id": "merge", "label": "熔毁表写回", "direction": "input", "type": "FacilityState", "color": "#4CAF7D" },
+        { "id": "snapshot", "label": "权威快照", "direction": "output", "type": "FacilityState", "color": "#4CAF7D" }
+      ],
+      "summary": "挂主世界 DataStorage 的 SavedData（lobotocraft_facility_day），日数/能源/熔毁表/考验计划的唯一权威。",
+      "note": "注释明确权威状态、玩家 capability 陈旧不得快进全局。NBT 序列化含版本迁移；50 天配额/过载表硬编码。",
+      "files": [
+        "src/main/java/com/lobotocraft/facility/data/FacilityDayData.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "FacilityDayData.java:53-56 存储访问、:90-185 NBT 读写已核对"
+    },
+    {
+      "id": "meltdown-lifecycle",
+      "label": "熔毁生命周期状态机",
+      "domain": "facility",
+      "risk": "medium",
+      "owner": true,
+      "layer": 3,
+      "shape": "box",
+      "ports": [
+        { "id": "command", "label": "生命周期命令", "direction": "input", "type": "FacilityCommand", "color": "#2E8B57" },
+        { "id": "state", "label": "活跃熔毁写回", "direction": "output", "type": "FacilityState", "color": "#4CAF7D" }
+      ],
+      "summary": "start/resolve/end/advance/setTimeRate 的无状态 seam，按 MeltdownCause 决定堆叠/解除/失败策略。",
+      "note": "拥有因果规则不变量，运行时持久化归 FacilityDayData（类注释 :8-12）。75s 默认时长、千分比时间速率、抑制绑定熔毁回收。",
+      "files": [
+        "src/main/java/com/lobotocraft/facility/data/MeltdownLifecycle.java",
+        "src/main/java/com/lobotocraft/facility/data/MeltdownPolicy.java",
+        "src/main/java/com/lobotocraft/facility/data/MeltdownDefinition.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "MeltdownLifecycle.java:57,95 写回活跃熔毁已核对"
+    },
+    {
+      "id": "day-transition",
+      "label": "日切换与投票服务",
+      "domain": "facility",
+      "risk": "high",
+      "owner": true,
+      "layer": 2,
+      "shape": "box",
+      "ports": [
+        { "id": "vote", "label": "投票命令", "direction": "input", "type": "DayVoteCommand", "color": "#F0AD4E" },
+        { "id": "suppressStart", "label": "抑制换天", "direction": "input", "type": "FacilityCommand", "color": "#2E8B57" },
+        { "id": "debug", "label": "调试命令", "direction": "input", "type": "FacilityCommand", "color": "#2E8B57" },
+        { "id": "commit", "label": "提交设施日", "direction": "output", "type": "FacilityCommand", "color": "#2E8B57" },
+        { "id": "dayEvent", "label": "换天广播", "direction": "output", "type": "DayEvent", "color": "#E69B4B" },
+        { "id": "dailyReset", "label": "玩家日推进", "direction": "output", "type": "DailyState", "color": "#6BBF59" }
+      ],
+      "summary": "资格校验、多人投票、事务性提交：先 tryAdvanceToNextDay 再调 FacilityManager.beginDay，失败回滚 capability。",
+      "note": "提交后发布 FacilityDayCommittedEvent/PlayerEnteredFacilityDayEvent 并广播 CompanyDailySyncPacket（走 wzz 主通道）。",
+      "files": [
+        "src/main/java/com/lobotocraft/facility/day/DayTransitionService.java",
+        "src/main/java/com/lobotocraft/facility/day/DayVoteState.java",
+        "src/main/java/com/lobotocraft/facility/api/DayCompletionRequirements.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "DayTransitionService.java:164-196 提交链已核对"
+    },    {
+      "id": "company-daily",
+      "label": "玩家公司日常数据",
+      "domain": "facility",
+      "risk": "medium",
+      "owner": false,
+      "layer": 4,
+      "shape": "database",
+      "ports": [
+        { "id": "advance", "label": "日推进", "direction": "input", "type": "DailyState", "color": "#6BBF59" },
+        { "id": "correction", "label": "权威校正", "direction": "input", "type": "DailyState", "color": "#6BBF59" },
+        { "id": "workCount", "label": "今日计数", "direction": "output", "type": "DailyState", "color": "#6BBF59" }
+      ],
+      "summary": "玩家 attachment 存 currentDay/todayWorkCount/armorLocked/sleep；tryAdvanceToNextDay 可取消事务。",
+      "note": "每玩家镜像，日数权威在 FacilityDayData；漂移由 FacilityManager.syncDay 单向校正。经 mixin accessor 暴露给 facility 包。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/capability/CompanyDailyData.java",
+        "src/main/java/com/lobotocraft/facility/mixin/CompanyDailyDataMixin.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "CompanyDailyData.java:96-113 tryAdvanceToNextDay 已核对"
+    },
+    {
+      "id": "room-registry",
+      "label": "房间快照与布局登记",
+      "domain": "facility",
+      "risk": "medium",
+      "owner": true,
+      "layer": 4,
+      "shape": "database",
+      "ports": [
+        { "id": "layoutMerge", "label": "固定布局合并", "direction": "input", "type": "WorldLayout", "color": "#6AA84F" },
+        { "id": "snapshot", "label": "房间快照", "direction": "output", "type": "RoomSnapshot", "color": "#7BC8A4" }
+      ],
+      "summary": "SavedData lobotocraft_company_rooms：信标上报的房间快照（RoomEntry），FacilityWorldLayout 从 JSON 合并固定布局并回填 departmentId。",
+      "note": "FacilityManager 借它做熔毁目标重定位/部门免疫/保护判定；findAbnormality 会强制加载区块（性能敏感）。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/world/data/CompanyRoomData.java",
+        "src/main/java/com/wzz/lobotocraft/world/data/RoomEntry.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "RoomMarkerBlockEntity.java:55-62,216-224 周期扫描写入 RoomEntry 已核对"
+    },
+    {
+      "id": "dept-access",
+      "label": "部门进度与设施准入",
+      "domain": "employee",
+      "risk": "medium",
+      "owner": true,
+      "layer": 3,
+      "shape": "box",
+      "ports": [
+        { "id": "dayStart", "label": "部门日启", "direction": "input", "type": "DayEvent", "color": "#E69B4B" },
+        { "id": "layout", "label": "布局读取", "direction": "input", "type": "WorldLayout", "color": "#6AA84F" },
+        { "id": "confirm", "label": "扩张确认", "direction": "input", "type": "FacilityCommand", "color": "#2E8B57" },
+        { "id": "personnel", "label": "人事迁移", "direction": "input", "type": "PersonnelStore", "color": "#8E7CC3" },
+        { "id": "access", "label": "准入判定", "direction": "output", "type": "AccessDecision", "color": "#38761D" }
+      ],
+      "summary": "DepartmentProgressData（SavedData）+ 服务层 + FacilityAccessService：部门等级、解锁链、fail-closed 准入唯一权威。",
+      "note": "get() 内跑 migrateLegacyAssignments 迁移副作用；tryExpand 原子但依赖权限(>=2)校验；全部方法 synchronized。员工容量 min(5, 2+level)、收容槽按等级解锁。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/employee/DepartmentProgressData.java",
+        "src/main/java/com/wzz/lobotocraft/employee/DepartmentProgressService.java",
+        "src/main/java/com/wzz/lobotocraft/employee/FacilityAccessService.java",
+        "src/main/java/com/wzz/lobotocraft/employee/EmployeeDepartment.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "FacilityAccessService.java:120-132 containmentAccess fail-closed 已核对"
+    },
+    {
+      "id": "player-status",
+      "label": "玩家状态采集",
+      "domain": "network",
+      "risk": "low",
+      "owner": false,
+      "layer": 1,
+      "shape": "box",
+      "ports": [
+        { "id": "forge", "label": "Forge 事件", "direction": "input", "type": "ForgeEvent", "color": "#666666" },
+        { "id": "status", "label": "状态推送", "direction": "output", "type": "PlayerStatus", "color": "#62A6EF" }
+      ],
+      "summary": "从 Forge 事件采集战斗/工作/寻路/恐慌/被控状态，每 10 tick 经 PlayerStatusPacket 推送客户端。",
+      "note": "状态优先级 CONTROLLED>PANIC>WORKING>NAVIGATING>COMBAT；EmployeeServerPlayer 被排除。",
+      "files": [
+        "src/main/java/com/lobotocraft/facility/player/PlayerStatusEvents.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "PlayerStatusEvents.java SYNC_INTERVAL_TICKS=10 已核对"
+    },
+    {
+      "id": "facility-sync",
+      "label": "设施专用网络通道",
+      "domain": "network",
+      "risk": "medium",
+      "owner": false,
+      "layer": 1,
+      "shape": "box",
+      "ports": [
+        { "id": "state", "label": "设施状态入", "direction": "input", "type": "FacilityState", "color": "#4CAF7D" },
+        { "id": "playerStatus", "label": "玩家状态入", "direction": "input", "type": "PlayerStatus", "color": "#62A6EF" },
+        { "id": "dayVote", "label": "投票包入", "direction": "input", "type": "DayVoteCommand", "color": "#F0AD4E" },
+        { "id": "s2c", "label": "设施状态出", "direction": "output", "type": "FacilityState", "color": "#4CAF7D" },
+        { "id": "statusS2c", "label": "玩家状态出", "direction": "output", "type": "PlayerStatus", "color": "#62A6EF" },
+        { "id": "voteDispatch", "label": "投票分发", "direction": "output", "type": "DayVoteCommand", "color": "#F0AD4E" }
+      ],
+      "summary": "独立 SimpleChannel facility:facility（协议 6）：4 条 S2C + 1 条 C2S，与主通道完全分离。",
+      "note": "FacilityStatePacket 全量广播（每秒至少 1 次），非增量。通道版本与包 codec 必须同步 bump。",
+      "files": [
+        "src/main/java/com/lobotocraft/facility/network/FacilityNetwork.java",
+        "src/main/java/com/lobotocraft/facility/network/FacilityStatePacket.java",
+        "src/main/java/com/lobotocraft/facility/network/DayVoteActionPacket.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "FacilityNetwork.java:15-42 通道与方向已核对"
+    },
+    {
+      "id": "client-hud",
+      "label": "设施客户端 HUD",
+      "domain": "client",
+      "risk": "low",
+      "owner": false,
+      "layer": 0,
+      "shape": "box",
+      "ports": [
+        { "id": "sync", "label": "设施快照", "direction": "input", "type": "FacilityState", "color": "#4CAF7D" },
+        { "id": "status", "label": "玩家状态", "direction": "input", "type": "PlayerStatus", "color": "#62A6EF" },
+        { "id": "vote", "label": "投票发包", "direction": "output", "type": "DayVoteCommand", "color": "#F0AD4E" }
+      ],
+      "summary": "消费 S2C 包写入客户端静态状态并渲染能源/熔毁/反应堆/考验 HUD 与 Carmen 对话浮层。",
+      "note": "纯镜像；每帧字符串缓存优化；mixin 扩展原生 UI（WorkProgressHudMixin、PlayerTabOverlayMixin）。两次同步间用 remainingTicks 本地倒数。",
+      "files": [
+        "src/main/java/com/lobotocraft/facility/client/FacilityHud.java",
+        "src/main/java/com/lobotocraft/facility/client/ClientFacilityState.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "FacilityHud.java:68-89 渲染与 tick 已核对"
+    },    {
+      "id": "abnormality-lifecycle",
+      "label": "异想体生命周期基类",
+      "domain": "abnormality",
+      "risk": "high",
+      "owner": true,
+      "layer": 3,
+      "shape": "box",
+      "ports": [
+        { "id": "escapeCmd", "label": "出逃钩子", "direction": "input", "type": "EscapeCommand", "color": "#E37467" },
+        { "id": "layout", "label": "布局查询", "direction": "input", "type": "WorldLayout", "color": "#6AA84F" },
+        { "id": "damageCheck", "label": "处决门控", "direction": "input", "type": "DamageClassify", "color": "#DD7E6B" },
+        { "id": "combatRules", "label": "战斗规则", "direction": "input", "type": "DamageClassify", "color": "#DD7E6B" },
+        { "id": "registration", "label": "出逃登记", "direction": "output", "type": "EscapeRegistration", "color": "#CC4125" },
+        { "id": "roamMount", "label": "挂载巡游", "direction": "output", "type": "GoalMount", "color": "#A2C4C9" }
+      ],
+      "summary": "AbstractAbnormality（1469 行）承载出逃、游荡、镇压/收容返回全闭环；QliphothCounterPolicy 纯函数判定 firstMeltdown。",
+      "note": "unregisteredReturnInProgress 标志未写入 NBT（save/read 缺失），未登记体延迟回收跨存档会走错分支；ensureAccessors 反射取实体 DATA；EscapeBlock 搜索含超大范围档；tick 内监测设施日变更自动回收出逃体。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/entity/base/AbstractAbnormality.java",
+        "src/main/java/com/wzz/lobotocraft/entity/base/ContainmentReturnPolicy.java",
+        "src/main/java/com/wzz/lobotocraft/entity/base/QliphothCounterPolicy.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "AbstractAbnormality.java:564-590 beginEscape、:737-759 stopEscape、:1024-1038 返回重置计数器、:1407-1468 NBT 已核对"
+    },
+    {
+      "id": "escape-tracker",
+      "label": "出逃登记与警报",
+      "domain": "abnormality",
+      "risk": "medium",
+      "owner": true,
+      "layer": 3,
+      "shape": "box",
+      "ports": [
+        { "id": "registration", "label": "出逃登记", "direction": "input", "type": "EscapeRegistration", "color": "#CC4125" },
+        { "id": "access", "label": "开放部门", "direction": "input", "type": "AccessDecision", "color": "#38761D" },
+        { "id": "forge", "label": "服务器事件", "direction": "input", "type": "ForgeEvent", "color": "#666666" },
+        { "id": "alertPacket", "label": "警报包发送", "direction": "output", "type": "Packet", "color": "#5C9BD6" },
+        { "id": "alertLevel", "label": "警报等级", "direction": "output", "type": "AlertLevel", "color": "#E06666" }
+      ],
+      "summary": "单例紧急度控制器：Map<MinecraftServer, EmergencyState> 按 server 键隔离；ServerStarted 重建、EntityJoinLevel 重登记、ServerStopped 清理。",
+      "note": "状态纯内存不持久化（重启后分数/恢复计时重置）；评分经 EmergencyAlarmPolicy（风险分/开放部门数/恢复周期，alertLevel -1~2）。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/entity/base/EscapeTracker.java",
+        "src/main/java/com/wzz/lobotocraft/entity/base/EmergencyAlarmPolicy.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "EscapeTracker.java:39,176 按 server 隔离、:146-164 部门读取已核对"
+    },
+    {
+      "id": "abnormality-entities",
+      "label": "异想体实体实现群",
+      "domain": "abnormality",
+      "risk": "high",
+      "owner": true,
+      "layer": 3,
+      "shape": "box",
+      "ports": [
+        { "id": "workHooks", "label": "工作回调", "direction": "input", "type": "WorkEvent", "color": "#E69B4B" },
+        { "id": "hurt", "label": "受击入口", "direction": "input", "type": "DamageSource", "color": "#CC0000" },
+        { "id": "reg", "label": "注册句柄", "direction": "input", "type": "RegistryObject", "color": "#999999" },
+        { "id": "lifecycle", "label": "基类钩子", "direction": "output", "type": "EscapeCommand", "color": "#E37467" },
+        { "id": "fear", "label": "恐惧判定", "direction": "output", "type": "FearQuery", "color": "#C27BA0" },
+        { "id": "timers", "label": "技能计时", "direction": "output", "type": "TimerSchedule", "color": "#45818E" }
+      ],
+      "summary": "约 60 个异想体实体：Censored 双形态一体、QueenOfHatred 自有状态机、BigBadWolf 雾/红帽联动、BlueStar 处决计时等，各自重写出逃钩子。",
+      "note": "多数实体活动计时器未完整持久化（Censored 无自定义 NBT、Butterfly 只存 skillPhase、Fragment 只存 transformed）；Queen completedWork Map 不持久化；Censored 墓碑 41x41x13 周期扫描有缓存。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/entity/abnormality/EntityCensored.java",
+        "src/main/java/com/wzz/lobotocraft/entity/abnormality/EntityQueenOfHatred.java",
+        "src/main/java/com/wzz/lobotocraft/entity/abnormality/EntityBigBadWolf.java",
+        "src/main/java/com/wzz/lobotocraft/entity/abnormality/EntityBlueStar.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "代表性实体全文精读；NBT 缺口由 save/read 方法核对"
+    },
+    {
+      "id": "fear-service",
+      "label": "恐惧遭遇服务",
+      "domain": "abnormality",
+      "risk": "medium",
+      "owner": false,
+      "layer": 2,
+      "shape": "box",
+      "ports": [
+        { "id": "query", "label": "遭遇判定", "direction": "input", "type": "FearQuery", "color": "#C27BA0" },
+        { "id": "packet", "label": "反馈包发送", "direction": "output", "type": "Packet", "color": "#5C9BD6" }
+      ],
+      "summary": "tickEncounter 每 5t 扫描同维玩家，50 格+视线+视角点积 0.5 判定首见；遭遇标记存威胁实体 PersistentData；强恐慌直接清空理智。",
+      "note": "resetEncounter（玩家重生）遍历所有维度所有实体，O(n) 扫描；静态无状态工具类，标记随实体持久化。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/entity/ai/AbnormalityFearService.java",
+        "src/main/java/com/wzz/lobotocraft/entity/ai/AbnormalityFearSource.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "AbnormalityFearService.java:27-40 tickEncounter、:70-85 resetEncounter、:98-106 标记已核对"
+    },
+    {
+      "id": "facility-navigator",
+      "label": "设施 A* 导航执行器",
+      "domain": "abnormality",
+      "risk": "medium",
+      "owner": false,
+      "layer": 2,
+      "shape": "box",
+      "ports": [
+        { "id": "nav", "label": "导航命令", "direction": "input", "type": "NavCommand", "color": "#76A5AF" },
+        { "id": "geometry", "label": "几何快照", "direction": "input", "type": "NavGeometry", "color": "#45818E" },
+        { "id": "layout", "label": "布局查询", "direction": "input", "type": "WorldLayout", "color": "#6AA84F" }
+      ],
+      "summary": "出逃地面实体专用 A* 执行：DIRECT/TO_ELEVATOR/WAITING_ELEVATOR 状态机，异步规划（65536 节点预算），电梯腿经 ElevatorRegistry，卡死 4 次判 unreachable。",
+      "note": "PATH_EXECUTOR 为 static 2 线程守护池，未按 server 键隔离（双开服共享）；AI 线程内直接改方块状态（开门）；强引用 mob。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/entity/ai/FacilityMobNavigator.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "FacilityMobNavigator.java:47-49 线程池、:221-238 电梯、:287-315 布局已核对"
+    },
+    {
+      "id": "facility-roam-goal",
+      "label": "巡游/追击 Goal 适配",
+      "domain": "abnormality",
+      "risk": "low",
+      "owner": false,
+      "layer": 1,
+      "shape": "box",
+      "ports": [
+        { "id": "mount", "label": "Goal 挂载", "direction": "input", "type": "GoalMount", "color": "#A2C4C9" },
+        { "id": "nav", "label": "导航请求", "direction": "output", "type": "NavCommand", "color": "#76A5AF" }
+      ],
+      "summary": "FacilityRoamGoal 仅在 LOBOTO 维、无仇恨目标时从 roamingAreas 采样 96 列/12 候选巡逻；MoveToBlockPosWithElevatorGoal 供跨层追击。",
+      "note": "目标筛选统一走 FacilityAbnormalityTargetPolicy.isPersonnel（非创造/旁观玩家、EntityClerk、红鞋职员）；硬依赖 FacilityWorldLayout/FacilityAccessService。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/entity/ai/goal/FacilityRoamGoal.java",
+        "src/main/java/com/wzz/lobotocraft/entity/ai/goal/MoveToBlockPosWithElevatorGoal.java",
+        "src/main/java/com/wzz/lobotocraft/entity/ai/FacilityAbnormalityTargetPolicy.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "FacilityRoamGoal.java:32-55 导航调用、Policy 全文已核对"
+    },    {
+      "id": "work-session-engine",
+      "label": "工作会话引擎",
+      "domain": "employee",
+      "risk": "high",
+      "owner": true,
+      "layer": 2,
+      "shape": "box",
+      "ports": [
+        { "id": "command", "label": "工作命令", "direction": "input", "type": "WorkCommand", "color": "#3F7FBF" },
+        { "id": "daily", "label": "今日计数", "direction": "input", "type": "DailyState", "color": "#6BBF59" },
+        { "id": "stats", "label": "员工属性", "direction": "input", "type": "EmployeeState", "color": "#9FC5E8" },
+        { "id": "query", "label": "控制校验", "direction": "input", "type": "WorkState", "color": "#6FA8DC" },
+        { "id": "mutate", "label": "属性成长", "direction": "output", "type": "StatMutation", "color": "#B4A7D6" },
+        { "id": "workState", "label": "会话状态", "direction": "output", "type": "WorkState", "color": "#6FA8DC" },
+        { "id": "hooks", "label": "实体回调", "direction": "output", "type": "WorkEvent", "color": "#E69B4B" },
+        { "id": "progress", "label": "进度包发送", "direction": "output", "type": "Packet", "color": "#5C9BD6" }
+      ],
+      "summary": "WorkManager 静态单例：startWork 校验、会话构造（成功率/提取间隔）、onServerTick 驱动抽取、completeWork/cancelWork 全生命周期。",
+      "note": "activeWorks ConcurrentHashMap + 快照迭代防回调重入；回调后 validateAfterCallback 复检；连续工作完成即重启（递归 startWork）；静态可变 suppressionWorkCooldowns。生命周期 onWorkStart(:395) -> applyDamage(:757) -> onWorkComplete(:812) 闭环已确认。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/work/WorkManager.java",
+        "src/main/java/com/wzz/lobotocraft/work/AbnormalityWorkRules.java",
+        "src/main/java/com/wzz/lobotocraft/work/WorkFailureDamagePolicy.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "WorkManager.java 全文精读，生命周期逐行确认"
+    },
+    {
+      "id": "employee-runtime",
+      "label": "AI 员工运行时",
+      "domain": "employee",
+      "risk": "high",
+      "owner": true,
+      "layer": 2,
+      "shape": "box",
+      "ports": [
+        { "id": "access", "label": "准入校验", "direction": "input", "type": "AccessDecision", "color": "#38761D" },
+        { "id": "freeze", "label": "抑制冻结", "direction": "input", "type": "EmployeeCommand", "color": "#789DE8" },
+        { "id": "hodPenalty", "label": "Hod 罚款", "direction": "input", "type": "StatMutation", "color": "#B4A7D6" },
+        { "id": "alert", "label": "警报等级", "direction": "input", "type": "AlertLevel", "color": "#E06666" },
+        { "id": "statsIn", "label": "属性读取", "direction": "input", "type": "EmployeeState", "color": "#9FC5E8" },
+        { "id": "work", "label": "派工命令", "direction": "output", "type": "WorkCommand", "color": "#3F7FBF" },
+        { "id": "nav", "label": "导航命令", "direction": "output", "type": "NavCommand", "color": "#76A5AF" },
+        { "id": "personnel", "label": "档案读写", "direction": "output", "type": "PersonnelStore", "color": "#8E7CC3" },
+        { "id": "mutate", "label": "属性注入", "direction": "output", "type": "StatMutation", "color": "#B4A7D6" },
+        { "id": "stateOut", "label": "占用状态", "direction": "output", "type": "EmployeeState", "color": "#9FC5E8" }
+      ],
+      "summary": "AI 员工生成/退休/持久化 + 每 tick 订单调度（MOVE/WORK/TOOL_USE/SUPPRESS/FOLLOW）+ 威胁选择 + 恐慌狂暴战斗。",
+      "note": "EmployeeServerPlayer 继承 ServerPlayer 伪造玩家（假连接 EmployeePacketListener）；每 100t 全量 saveRuntime；死亡转墓碑强制落盘；威胁选择按设施区域组扫描 AABB（L1190-1219）。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/employee/EmployeeRuntimeManager.java",
+        "src/main/java/com/wzz/lobotocraft/employee/EmployeeServerPlayer.java",
+        "src/main/java/com/wzz/lobotocraft/employee/EmployeePacketListener.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "EmployeeRuntimeManager.java 全文精读，tick 顺序确认"
+    },
+    {
+      "id": "employee-navigation",
+      "label": "员工导航与几何缓存",
+      "domain": "employee",
+      "risk": "medium",
+      "owner": false,
+      "layer": 1,
+      "shape": "box",
+      "ports": [
+        { "id": "nav", "label": "导航命令", "direction": "input", "type": "NavCommand", "color": "#76A5AF" },
+        { "id": "layout", "label": "结构元数据", "direction": "input", "type": "WorldLayout", "color": "#6AA84F" },
+        { "id": "worldEvents", "label": "方块事件", "direction": "input", "type": "ForgeEvent", "color": "#666666" },
+        { "id": "geometry", "label": "几何快照", "direction": "output", "type": "NavGeometry", "color": "#45818E" }
+      ],
+      "summary": "FacilityNavigationCache 异步解码结构基底层 + 每 tick 刷方块 overlay（每 512 格），EmployeeNavigator 消费快照输出合成移动输入。",
+      "note": "缓存纯内存不落盘；单线程后台解码 + 主线程 liveOverrides 叠加（跨线程 Map.copyOf 快照）；StructureUpdater 运行期间拒发快照。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/employee/navigation/FacilityNavigationCache.java",
+        "src/main/java/com/wzz/lobotocraft/employee/EmployeeNavigator.java",
+        "src/main/java/com/wzz/lobotocraft/employee/navigation/AStarPathfinder.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "FacilityNavigationCache.java:284-308 overlay、:327-377 基底层解码已核对"
+    },
+    {
+      "id": "employee-stats",
+      "label": "员工属性能力",
+      "domain": "employee",
+      "risk": "low",
+      "owner": true,
+      "layer": 4,
+      "shape": "database",
+      "ports": [
+        { "id": "mutate", "label": "属性变更", "direction": "input", "type": "StatMutation", "color": "#B4A7D6" },
+        { "id": "state", "label": "属性查询", "direction": "output", "type": "EmployeeState", "color": "#9FC5E8" }
+      ],
+      "summary": "Forge Capability EMPLOYEE_STATS：四维属性（20-110 钳制）+ 风险等级工作计数 + 等级换算，随玩家实体 NBT 序列化。",
+      "note": "读接口返回 effective(base)=base-hodPenalty（Hod 抑制叠加层）；hodPenalty 有意不序列化防抑制永久化；copyFrom 会复制 hodPenalty（死亡重建路径需注意）。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/capability/EmployeeStats.java",
+        "src/main/java/com/wzz/lobotocraft/capability/EmployeeStatsProvider.java",
+        "src/main/java/com/wzz/lobotocraft/capability/EmployeeLevelCalculator.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "EmployeeStats.java:210-238 NBT、EmployeeStatsProvider.java:41-56 已核对"
+    },
+    {
+      "id": "personnel-persistence",
+      "label": "人事档案持久化",
+      "domain": "employee",
+      "risk": "medium",
+      "owner": true,
+      "layer": 4,
+      "shape": "database",
+      "ports": [
+        { "id": "store", "label": "档案读写", "direction": "input", "type": "PersonnelStore", "color": "#8E7CC3" },
+        { "id": "records", "label": "在职记录", "direction": "output", "type": "PersonnelStore", "color": "#8E7CC3" }
+      ],
+      "summary": "FacilityPersonnelData（SavedData）+ EmployeeRecord：员工档案（四维/外观/位置/任务/退休墓碑）服务端全局持久化。",
+      "note": "EmployeeRecord 内嵌完整 AI 玩家 playerData NBT（saveWithoutId 全量），每 100t changed() 强标脏写盘；退休墓碑 retire 标志防崩溃复活。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/employee/FacilityPersonnelData.java",
+        "src/main/java/com/wzz/lobotocraft/employee/EmployeeRecord.java",
+        "src/main/java/com/wzz/lobotocraft/employee/PlayerFacilityProfileData.java"
+      ],
+      "confidence": "inferred",
+      "evidence": "依据 EmployeeRuntimeManager/DepartmentProgressData/菜单等全部调用点推断，FacilityPersonnelData 未逐行精读"
+    },
+    {
+      "id": "monitor-ui-services",
+      "label": "监控/管理快照服务",
+      "domain": "employee",
+      "risk": "medium",
+      "owner": false,
+      "layer": 1,
+      "shape": "box",
+      "ports": [
+        { "id": "requests", "label": "UI 请求", "direction": "input", "type": "Packet", "color": "#5C9BD6" },
+        { "id": "access", "label": "准入过滤", "direction": "input", "type": "AccessDecision", "color": "#38761D" },
+        { "id": "work", "label": "会话状态", "direction": "input", "type": "WorkState", "color": "#6FA8DC" },
+        { "id": "employee", "label": "员工状态", "direction": "input", "type": "EmployeeState", "color": "#9FC5E8" },
+        { "id": "workCmd", "label": "派工请求", "direction": "output", "type": "WorkCommand", "color": "#3F7FBF" },
+        { "id": "snapshots", "label": "快照下发", "direction": "output", "type": "Packet", "color": "#5C9BD6" }
+      ],
+      "summary": "RoomEmployeeSnapshotService + FacilityManagementService：聚合员工/玩家/异想体/E.G.O/部门进度为 NBT 快照推给客户端屏幕。",
+      "note": "snapshot() 内 new WorkManager.WorkSession 做预览（构造读能力+算加成），耦合深；loadedAbnormalities 扫全维度实体（性能）；是 UI 包处理器与领域层的唯一汇聚点。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/employee/RoomEmployeeSnapshotService.java",
+        "src/main/java/com/wzz/lobotocraft/employee/FacilityManagementService.java",
+        "src/main/java/com/wzz/lobotocraft/network/packet/OpenRoomMapPacket.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "RoomEmployeeSnapshotService.java:184-204 预览、FacilityManagementService.java:90-191 已核对"
+    },
+    {
+      "id": "menu-ui",
+      "label": "员工容器菜单",
+      "domain": "client",
+      "risk": "low",
+      "owner": false,
+      "layer": 0,
+      "shape": "box",
+      "ports": [
+        { "id": "store", "label": "仓库/落盘", "direction": "output", "type": "PersonnelStore", "color": "#8E7CC3" },
+        { "id": "deny", "label": "控制校验", "direction": "output", "type": "WorkState", "color": "#6FA8DC" }
+      ],
+      "summary": "EmployeeInventoryMenu（AI 员工背包+饰品栏）+ EmployeeWarehouseMenu（死亡掉落仓库，分页+一键回收）。",
+      "note": "双构造路径（fromNetwork 解码受 PacketDecodeLimits 限长）；stillValid 权限+维度双重校验；槽位变更后 persistNow 立即落盘；受控员工禁操作。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/menu/EmployeeInventoryMenu.java",
+        "src/main/java/com/wzz/lobotocraft/menu/EmployeeWarehouseMenu.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "EmployeeInventoryMenu.java:210,242-246、EmployeeWarehouseMenu.java:37,73 已核对"
+    },    {
+      "id": "core-suppression-core",
+      "label": "核心抑制调度中枢",
+      "domain": "suppression",
+      "risk": "high",
+      "owner": true,
+      "layer": 2,
+      "shape": "box",
+      "ports": [
+        { "id": "meltdown", "label": "熔毁广播", "direction": "input", "type": "MeltdownEvent", "color": "#D9534F" },
+        { "id": "result", "label": "遭遇结果", "direction": "input", "type": "SuppressionResult", "color": "#674EA7" },
+        { "id": "command", "label": "抑制命令", "direction": "input", "type": "SuppressionCommand", "color": "#8E63CE" },
+        { "id": "route", "label": "生命周期路由", "direction": "output", "type": "EncounterLifecycle", "color": "#C87DB9" },
+        { "id": "suppressDay", "label": "抑制换天", "direction": "output", "type": "FacilityCommand", "color": "#2E8B57" },
+        { "id": "gate", "label": "换天闸门", "direction": "output", "type": "FacilityCommand", "color": "#2E8B57" },
+        { "id": "hodPenalty", "label": "Hod 罚款", "direction": "output", "type": "StatMutation", "color": "#B4A7D6" },
+        { "id": "sync", "label": "状态同步包", "direction": "output", "type": "Packet", "color": "#5C9BD6" }
+      ],
+      "summary": "全局挑战准入（26天/26观察/26异想体）、待定投票、开始/失败/完成状态机、奖励增益、Hod 罚款、每秒 tick 驱动。",
+      "note": "约 1100 行 God-class；applyPendingMeltdownPenalty 存在死代码（:529-530 if(pending!=null) return 后永不执行）；完成条件对 GEBURAH/BINAH 由遭遇服务改写；缺 GameTest（仅 5 个 JUnit policy 测试）。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/core_suppression/CoreSuppressionManager.java",
+        "src/main/java/com/wzz/lobotocraft/core_suppression/CoreSuppressionType.java",
+        "src/main/java/com/wzz/lobotocraft/core_suppression/CoreSuppressionDamageHooks.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "CoreSuppressionManager.java:113-1000 全文精读"
+    },
+    {
+      "id": "encounter-registry",
+      "label": "遭遇注册路由 SPI",
+      "domain": "suppression",
+      "risk": "low",
+      "owner": false,
+      "layer": 2,
+      "shape": "box",
+      "ports": [
+        { "id": "route", "label": "钩子转发", "direction": "input", "type": "EncounterLifecycle", "color": "#C87DB9" },
+        { "id": "chesed", "label": "Chesed 路由", "direction": "output", "type": "EncounterLifecycle", "color": "#C87DB9" },
+        { "id": "geburah", "label": "Geburah 路由", "direction": "output", "type": "EncounterLifecycle", "color": "#C87DB9" }
+      ],
+      "summary": "EnumMap<CoreSuppressionType, CoreSuppressionEncounter> 静态注册 Chesed/Geburah，13 个生命周期钩子统一转发。",
+      "note": "未注册的 7 种类型全部静默降级返回默认值；onServerStartup 遍历全部遭遇做清理，与其他单播钩子不对称。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/core_suppression/CoreSuppressionEncounterRegistry.java",
+        "src/main/java/com/wzz/lobotocraft/core_suppression/CoreSuppressionEncounter.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "CoreSuppressionEncounterRegistry.java 全文（104 行）已核对"
+    },
+    {
+      "id": "chesed-suppression",
+      "label": "Chesed 抑制（伤害掩码）",
+      "domain": "suppression",
+      "risk": "medium",
+      "owner": true,
+      "layer": 3,
+      "shape": "box",
+      "ports": [
+        { "id": "lifecycle", "label": "生命周期", "direction": "input", "type": "EncounterLifecycle", "color": "#C87DB9" },
+        { "id": "state", "label": "熔毁状态", "direction": "input", "type": "FacilityState", "color": "#4CAF7D" },
+        { "id": "damageQuery", "label": "倍率查询", "direction": "input", "type": "DamageQuery", "color": "#990000" }
+      ],
+      "summary": "规则型抑制：按熔毁等级重掷被放大伤害种类掩码（1 到 3 种），被选中伤害对设施维度玩家 x5。",
+      "note": "演出经 CoreSuppressionManager 的 visualStage/mechanicState 通道；实际放大入口在 MentalValueEventHandler.onLivingHurt:151，跨包隐式耦合。SavedData lobotocraft_chesed_encounter。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/core_suppression/chesed/ChesedEncounterService.java",
+        "src/main/java/com/wzz/lobotocraft/core_suppression/chesed/ChesedEncounterData.java",
+        "src/main/java/com/wzz/lobotocraft/core_suppression/chesed/ChesedDamagePolicy.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "chesed 包 4 文件全文 + ChesedDamagePolicyTest/ChesedEncounterDataTest 已核对"
+    },
+    {
+      "id": "geburah-encounter",
+      "label": "Geburah 遭遇服务",
+      "domain": "suppression",
+      "risk": "high",
+      "owner": true,
+      "layer": 2,
+      "shape": "box",
+      "ports": [
+        { "id": "lifecycle", "label": "生命周期", "direction": "input", "type": "EncounterLifecycle", "color": "#C87DB9" },
+        { "id": "participant", "label": "参与者校验", "direction": "input", "type": "ParticipantQuery", "color": "#B088C8" },
+        { "id": "phase", "label": "战斗阶段", "direction": "input", "type": "PostureState", "color": "#D5A6BD" },
+        { "id": "spawn", "label": "实体生成/清理", "direction": "output", "type": "SpawnCommand", "color": "#FF9900" },
+        { "id": "result", "label": "胜负结果", "direction": "output", "type": "SuppressionResult", "color": "#674EA7" },
+        { "id": "freeze", "label": "员工冻结", "direction": "output", "type": "EmployeeCommand", "color": "#789DE8" }
+      ],
+      "summary": "生成/清理 EntityGeburah、参与者名单+共享复活池、死亡旁观、维度锁双向强制传送、AI 员工无敌冻结、BossBar、重启 reconcile。",
+      "note": "登录/登出/崩溃恢复路径多；设计文档要求默认最大生命 6000，实现 DEFAULT_MAX_HEALTH=3000 冲突待确认；持久化 overworld SavedData lobotocraft_geburah_encounter；缺端到端 GameTest。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/core_suppression/geburah/GeburahEncounterService.java",
+        "src/main/java/com/wzz/lobotocraft/core_suppression/geburah/GeburahEncounterData.java",
+        "src/main/java/com/wzz/lobotocraft/core_suppression/geburah/GeburahSpawnLocator.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "GeburahEncounterService.java 全文 + GeburahEncounterDataTest 已核对"
+    },
+    {
+      "id": "geburah-combat-state",
+      "label": "Geburah 战斗状态机",
+      "domain": "suppression",
+      "risk": "medium",
+      "owner": true,
+      "layer": 3,
+      "shape": "box",
+      "ports": [
+        { "id": "finalDamage", "label": "最终伤害", "direction": "input", "type": "FinalDamageCommand", "color": "#A64D79" },
+        { "id": "postureCmd", "label": "架势命令", "direction": "input", "type": "PostureState", "color": "#D5A6BD" },
+        { "id": "phase", "label": "阶段/架势", "direction": "output", "type": "PostureState", "color": "#D5A6BD" }
+      ],
+      "summary": "纯 Java 状态机：两管血、EGO 满血重置 50%、衰竭 75s 循环；架势 100、动作窗口倍率削架势、破防 8s、保护 2s、抗性矩阵。",
+      "note": "数值与设计文档多处冲突：失衡 8s/恢复满 100 vs 设计 3s/恢复 50（GeburahCombatState.java:12,115-117）；单次削架势 6+20t 窗口 vs 设计 15；默认血 3000 vs 设计 6000。12 个测试类以实现值为准。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/core_suppression/geburah/GeburahCombatState.java",
+        "src/main/java/com/wzz/lobotocraft/core_suppression/geburah/GeburahPosturePolicy.java",
+        "src/main/java/com/wzz/lobotocraft/core_suppression/geburah/GeburahOutgoingDamagePolicy.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "GeburahCombatState.java 全文 + 对应测试类已核对"
+    },
+    {
+      "id": "geburah-move-system",
+      "label": "Geburah 招式控制器",
+      "domain": "suppression",
+      "risk": "medium",
+      "owner": false,
+      "layer": 3,
+      "shape": "box",
+      "ports": [
+        { "id": "move", "label": "招式命令", "direction": "input", "type": "MoveCommand", "color": "#AD7FA8" },
+        { "id": "posture", "label": "架势消耗/返还", "direction": "output", "type": "PostureState", "color": "#D5A6BD" },
+        { "id": "combatEvent", "label": "命中帧事件", "direction": "output", "type": "CombatEvent", "color": "#E06699" }
+      ],
+      "summary": "Combo（普通 1-3/EGO 3-6 段）、Special（安全落点瞬移斩）、Major（Cue 驱动帧命中）三套 WINDUP-STRIKE-RECOVERY 控制器 + 动态评分选招 + 后发制人 + 卡位看门狗。",
+      "note": "冷却记录在 EntityGeburah.debugCooldowns（命名含 debug 实为运行时冷却，易误导）；段数/30%消耗/10%返还与设计 #22/#23 一致。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/core_suppression/geburah/GeburahComboController.java",
+        "src/main/java/com/wzz/lobotocraft/core_suppression/geburah/GeburahComboPlanner.java",
+        "src/main/java/com/wzz/lobotocraft/core_suppression/geburah/GeburahMajorAttackController.java",
+        "src/main/java/com/wzz/lobotocraft/core_suppression/geburah/GeburahCounterPassive.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "ComboController/ComboTactics/MajorAttack/Special 对应测试类已核对"
+    },
+    {
+      "id": "geburah-entity",
+      "label": "EntityGeburah 实体门面",
+      "domain": "suppression",
+      "risk": "high",
+      "owner": false,
+      "layer": 1,
+      "shape": "box",
+      "ports": [
+        { "id": "spawn", "label": "生成命令", "direction": "input", "type": "SpawnCommand", "color": "#FF9900" },
+        { "id": "phase", "label": "阶段同步", "direction": "input", "type": "PostureState", "color": "#D5A6BD" },
+        { "id": "combatEvent", "label": "招式事件", "direction": "input", "type": "CombatEvent", "color": "#E06699" },
+        { "id": "finalDamage", "label": "伤害上报", "direction": "output", "type": "FinalDamageCommand", "color": "#A64D79" },
+        { "id": "move", "label": "招式编排", "direction": "output", "type": "MoveCommand", "color": "#AD7FA8" },
+        { "id": "participant", "label": "参与者查询", "direction": "output", "type": "ParticipantQuery", "color": "#B088C8" },
+        { "id": "abnAttack", "label": "攻击异想体", "direction": "output", "type": "DamageSource", "color": "#CC0000" },
+        { "id": "damageQuery", "label": "伤害构造", "direction": "output", "type": "DamageQuery", "color": "#990000" },
+        { "id": "fx", "label": "表现包发送", "direction": "output", "type": "SyncState", "color": "#E69B4B" }
+      ],
+      "summary": "1400+ 行 God-entity：tick 编排、目标选择（出逃异想体优先）、hurt 白名单（近战蓄力 0.9/5 格外后发制人）、NBT、SynchedEntityData、相机震动/流血 HUD。",
+      "note": "entity 向 service 反向依赖 GeburahEncounterService.INSTANCE 单例；与普通异想体交互四条路径全在实体内（EGO 击杀叠 5 伤害、异想体不恢复架势等）。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/entity/EntityGeburah.java",
+        "src/main/java/com/wzz/lobotocraft/core_suppression/geburah/GeburahDamageEvents.java",
+        "src/main/java/com/wzz/lobotocraft/core_suppression/geburah/GeburahBleedSync.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "EntityGeburah.java 全文 1429 行已核对"
+    },    {
+      "id": "network-packet-core",
+      "label": "主网络通道与包注册",
+      "domain": "network",
+      "risk": "high",
+      "owner": false,
+      "layer": 1,
+      "shape": "box",
+      "ports": [
+        { "id": "serverbound", "label": "客户端入站", "direction": "input", "type": "Packet", "color": "#5C9BD6" },
+        { "id": "publish", "label": "服务端发布", "direction": "input", "type": "Packet", "color": "#5C9BD6" },
+        { "id": "clientbound", "label": "客户端出站", "direction": "output", "type": "Packet", "color": "#5C9BD6" },
+        { "id": "dispatch", "label": "服务端分发", "direction": "output", "type": "Packet", "color": "#5C9BD6" }
+      ],
+      "summary": "单一 SimpleChannel lobotocraft:main（协议 36）信封协议：varint 包 id + 延迟解码；PacketRegistry 白名单顺序即 id，方向由 sendToClient/sendToServer 声明反射探测，run() 解码前 accepts() 门禁。",
+      "note": "id 即数组下标，中间插包会静默错位（注释明示）；信封上限 4MiB；编码失败兜底 Unsafe.allocateInstance 绕过构造器；协议号 36 必须与 registry 变更同步 bump。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/network/PacketRegistry.java",
+        "src/main/java/com/wzz/lobotocraft/network/MessageLoader.java",
+        "src/main/java/com/wzz/lobotocraft/network/MessageCreater.java",
+        "src/main/java/com/wzz/lobotocraft/network/PacketDecodeLimits.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "PacketRegistry.java:236-277、MessageCreater.java:41-53 已核对"
+    },
+    {
+      "id": "room-monitor-view",
+      "label": "监控视角客户端",
+      "domain": "client",
+      "risk": "medium",
+      "owner": false,
+      "layer": 0,
+      "shape": "box",
+      "ports": [
+        { "id": "sync", "label": "快照接收", "direction": "input", "type": "Packet", "color": "#5C9BD6" },
+        { "id": "poll", "label": "快照轮询", "direction": "output", "type": "Packet", "color": "#5C9BD6" },
+        { "id": "screen", "label": "界面切换", "direction": "output", "type": "ScreenAction", "color": "#E69B4B" }
+      ],
+      "summary": "状态机 IDLE-ENTERING(22t)-VIEWING-EXITING(14t)；VIEWING 期每 40t 发 RequestRoomDataPacket 刷新，带去重与 200t 超时；固定监控相机经 ViewportEvent 插值。",
+      "note": "客户端始终渲染不超过 40t+RTT 的旧快照，传送/派遣基于过期数据，靠服务端 result 包回正；refreshPending 防请求堆积。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/client/room/RoomViewClient.java",
+        "src/main/java/com/wzz/lobotocraft/client/room/RoomMapViewState.java",
+        "src/main/java/com/wzz/lobotocraft/client/room/RoomMapViewport.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "RoomViewClient.java:53-65,250-259,273-277 已核对"
+    },
+    {
+      "id": "management-screens",
+      "label": "管理界面群",
+      "domain": "client",
+      "risk": "medium",
+      "owner": false,
+      "layer": 0,
+      "shape": "box",
+      "ports": [
+        { "id": "open", "label": "界面打开", "direction": "input", "type": "ScreenAction", "color": "#E69B4B" },
+        { "id": "sync", "label": "快照接收", "direction": "input", "type": "Packet", "color": "#5C9BD6" },
+        { "id": "action", "label": "动作发包", "direction": "output", "type": "Packet", "color": "#5C9BD6" },
+        { "id": "workCmd", "label": "工作请求", "direction": "output", "type": "WorkCommand", "color": "#3F7FBF" },
+        { "id": "confirmDept", "label": "扩张确认", "direction": "output", "type": "FacilityCommand", "color": "#2E8B57" }
+      ],
+      "summary": "RoomMapScreen（3589 行平面图/框选/派遣/传送）、FacilityManagementScreen（1093 行员工/EGO/暂停）、Encyclopedia（2711 行）、DepartmentExpansion（服务端权威快照）。",
+      "note": "纯快照渲染+动作发包；服务端必须重校验所有 screen 动作（RequestThrottle + 服务端 handler 承担）；快照滞后同监控视角。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/client/screen/RoomMapScreen.java",
+        "src/main/java/com/wzz/lobotocraft/client/screen/FacilityManagementScreen.java",
+        "src/main/java/com/wzz/lobotocraft/client/screen/AbnormalityEncyclopediaScreen.java",
+        "src/main/java/com/wzz/lobotocraft/client/screen/DepartmentExpansionScreen.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "imports 与构造签名、逐包方向已核对 registry"
+    },
+    {
+      "id": "core-suppression-visual",
+      "label": "核心抑制表现链",
+      "domain": "client",
+      "risk": "medium",
+      "owner": false,
+      "layer": 0,
+      "shape": "box",
+      "ports": [
+        { "id": "sync", "label": "状态同步", "direction": "input", "type": "Packet", "color": "#5C9BD6" },
+        { "id": "choice", "label": "视觉选择上报", "direction": "output", "type": "Packet", "color": "#5C9BD6" }
+      ],
+      "summary": "后处理链：SyncPacket -> ClientState.tick -> PostProcessor（按抑制类型 loadEffect，失败 40t 重试）-> MixinGameRenderer 每帧注入 uniform -> Overlay/Audio 分流。",
+      "note": "PostChain 为全局单例，loadEffect 会顶掉原版/其他 mod 效果，clear 时机依赖 ClientState；Geburah 由 EffectCompositor 合成；抑制期挂起三处音乐。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/client/core/CoreSuppressionClientState.java",
+        "src/main/java/com/wzz/lobotocraft/client/core/CoreSuppressionPostProcessor.java",
+        "src/main/java/com/wzz/lobotocraft/client/core/CoreSuppressionOverlay.java",
+        "src/main/java/com/wzz/lobotocraft/client/core/CoreSuppressionAudio.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "ClientState.java:71-76、PostProcessor.java:18,118-138、MixinGameRenderer.java:38 已核对"
+    },
+    {
+      "id": "fear-mental-client",
+      "label": "恐惧/精神客户端表现",
+      "domain": "client",
+      "risk": "low",
+      "owner": false,
+      "layer": 0,
+      "shape": "box",
+      "ports": [
+        { "id": "sync", "label": "状态同步", "direction": "input", "type": "Packet", "color": "#5C9BD6" }
+      ],
+      "summary": "恐慌时锁移动输入、低头抖动姿态、相机 roll；状态源为服务端同步的 MentalValueSyncPacket 与 FearClientState；ClientVisualConfig 提供 4 个客户端开关。",
+      "note": "纯客户端欺骗面：改客户端可关掉恐慌锁与恐惧表现（仅自体验），服务端权威值不受影响；登出复位姿态。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/event/listener/MentalValueClientEventHandler.java",
+        "src/main/java/com/wzz/lobotocraft/client/config/ClientVisualConfig.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "全文件已核对"
+    },
+    {
+      "id": "misc-hud-effects",
+      "label": "杂项 HUD/警报/相机",
+      "domain": "client",
+      "risk": "low",
+      "owner": false,
+      "layer": 0,
+      "shape": "box",
+      "ports": [
+        { "id": "sync", "label": "表现包接收", "direction": "input", "type": "Packet", "color": "#5C9BD6" },
+        { "id": "fx", "label": "战斗表现", "direction": "input", "type": "SyncState", "color": "#E69B4B" }
+      ],
+      "summary": "EscapeAlertPacket 警报（EscapeAlertManager+AlertBGM+Overlay/Countdown）、ElevatorTeleportPacket 电梯相机动画、Shockwave/ScreenDistortion/OrdealTitle 等表现落点。",
+      "note": "均为服务端推送到客户端表现的单向流；状态类多为 static 单例，依赖登出/切世界复位；抑制期被 CoreSuppressionAudio 挂起。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/client/alert/EscapeAlertManager.java",
+        "src/main/java/com/wzz/lobotocraft/network/ClientPacketHandler.java",
+        "src/main/java/com/wzz/lobotocraft/client/ScreenDistortionEffect.java"
+      ],
+      "confidence": "inferred",
+      "evidence": "EscapeAlertManager 未逐文件精读，接口面由调用点推断"
+    },    {
+      "id": "ego-weapon",
+      "label": "E.G.O 武器与生成蛋",
+      "domain": "item-ego",
+      "risk": "medium",
+      "owner": false,
+      "layer": 3,
+      "shape": "box",
+      "ports": [
+        { "id": "classify", "label": "蓄力标记回查", "direction": "input", "type": "DamageClassify", "color": "#DD7E6B" },
+        { "id": "loadout", "label": "装配识别", "direction": "input", "type": "EgoLoadout", "color": "#D4B04A" },
+        { "id": "reg", "label": "注册句柄", "direction": "input", "type": "RegistryObject", "color": "#999999" },
+        { "id": "query", "label": "伤害构造", "direction": "output", "type": "DamageQuery", "color": "#990000" },
+        { "id": "spawnEgg", "label": "anchor 生成", "direction": "output", "type": "SpawnRequest", "color": "#F6B26B" }
+      ],
+      "summary": "BaseEgoWeapon 基类 + 约 30 套具名武器（SnowQueen 白伤+Kiss 冰冻、NothingThere 红伤+吸血）+ TextSpawnEggItem 对 EscapeBlock 的 anchor 生成。",
+      "note": "武器与套装联动靠字符串 set-id（如 snowqueen）散落在事件处理器中，stringly-typed 分发；类高度复制粘贴。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/item/ego/base/BaseEgoWeapon.java",
+        "src/main/java/com/wzz/lobotocraft/item/ego/snowqueen/SnowQueenWeapon.java",
+        "src/main/java/com/wzz/lobotocraft/item/ego/nothing_there/NothingThereWeapon.java",
+        "src/main/java/com/wzz/lobotocraft/item/base/TextSpawnEggItem.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "SnowQueenWeapon.java:87、NothingThereWeapon.java:64、TextSpawnEggItem.java:74-88 已核对"
+    },
+    {
+      "id": "ego-loadout",
+      "label": "E.G.O 装配与特殊服务",
+      "domain": "item-ego",
+      "risk": "medium",
+      "owner": true,
+      "layer": 2,
+      "shape": "box",
+      "ports": [
+        { "id": "reconcile", "label": "投影对账", "direction": "input", "type": "EgoLoadout", "color": "#D4B04A" },
+        { "id": "debug", "label": "调试入口", "direction": "input", "type": "EgoLoadout", "color": "#D4B04A" },
+        { "id": "recognize", "label": "武器识别", "direction": "output", "type": "EgoLoadout", "color": "#D4B04A" }
+      ],
+      "summary": "EgoLoadoutService（712 行）将个人/AI/特殊 EGO 以投影 ItemStack 注入背包+饰品栏；SpecialEgoRegistryData（SavedData）管解锁/独占槽位。",
+      "note": "直接操纵 Inventory/Curios 槽位，投影协议全靠 NBT 字符串 key；syncEquipmentState 静态耦合 EgoArmorHelper。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/ego/EgoLoadoutService.java",
+        "src/main/java/com/wzz/lobotocraft/ego/SpecialEgoService.java",
+        "src/main/java/com/wzz/lobotocraft/ego/SpecialEgoRegistryData.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "EgoLoadoutService.java:581 识别、:593,661 依赖已核对"
+    },
+    {
+      "id": "damage-helper",
+      "label": "伤害类型总线",
+      "domain": "infra",
+      "risk": "high",
+      "owner": false,
+      "layer": 1,
+      "shape": "box",
+      "ports": [
+        { "id": "query", "label": "构造/判定请求", "direction": "input", "type": "DamageQuery", "color": "#990000" },
+        { "id": "classify", "label": "类型判定", "direction": "output", "type": "DamageClassify", "color": "#DD7E6B" }
+      ],
+      "summary": "定义 lobotocraft red/white/black/blue 四系 DamageType；getDamage() 构造 AttackDamage 经 IDamageSource mixin 注入标记；isKill/isExecution 是绕过收容免伤的唯一合法通道。",
+      "note": "全 mod 100+ 调用点的事实伤害总线；msgId 字符串回退与第三方 mod 兼容脆弱；resourceKeys 懒填充非线程安全；DamageHelper 反向依赖武器蓄力标记形成循环。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/util/DamageHelper.java",
+        "src/main/java/com/wzz/lobotocraft/damagetype/AttackDamage.java",
+        "src/main/java/com/wzz/lobotocraft/mixinaccess/IDamageSource.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "DamageHelper.java 全文 326 行已核对"
+    },
+    {
+      "id": "spawn-combat-util",
+      "label": "生成与战斗规则工具",
+      "domain": "infra",
+      "risk": "medium",
+      "owner": false,
+      "layer": 2,
+      "shape": "box",
+      "ports": [
+        { "id": "spawn", "label": "anchor 生成", "direction": "input", "type": "SpawnRequest", "color": "#F6B26B" },
+        { "id": "access", "label": "落点校验", "direction": "input", "type": "AccessDecision", "color": "#38761D" },
+        { "id": "reg", "label": "实体工厂", "direction": "input", "type": "RegistryObject", "color": "#999999" },
+        { "id": "rules", "label": "战斗许可", "direction": "output", "type": "DamageClassify", "color": "#DD7E6B" }
+      ],
+      "summary": "AbnormalitySpawnHelper.spawnPersistentFromAnchor（6 格环形搜点+视线 clip+开放区校验）+ FacilityCombatRules（员工友伤/受保护单位）+ AbnormalityCombatUtil。",
+      "note": "anchor 生成仅 TextSpawnEgg/BlackForestDoor/GameTests 三个调用方；FacilityCombatRules 是员工互伤/受控目标/异想体保护的核心许可层。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/util/AbnormalitySpawnHelper.java",
+        "src/main/java/com/wzz/lobotocraft/util/FacilityCombatRules.java",
+        "src/main/java/com/wzz/lobotocraft/util/AbnormalityCombatUtil.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "AbnormalitySpawnHelper.java:151,244,263-273、FacilityCombatRules.java:19-65 已核对"
+    },
+    {
+      "id": "timer-entry",
+      "label": "墙钟计时器基础设施",
+      "domain": "infra",
+      "risk": "medium",
+      "owner": false,
+      "layer": 4,
+      "shape": "box",
+      "ports": [
+        { "id": "schedule", "label": "计时登记", "direction": "input", "type": "TimerSchedule", "color": "#45818E" },
+        { "id": "lifecycle", "label": "停服关停", "direction": "input", "type": "TimerCommand", "color": "#134F5C" }
+      ],
+      "summary": "泛型 TimerEntry：类级 x UUID 双 Map 登记，ScheduledExecutor 50ms 轮询、gameTime 到期判定、回调切主线程；shutdown(entity) 登出清理。",
+      "note": "墙钟调度 vs gameTime 到期——暂停/卡顿时回调堆积补发；静态全局 Map 未按 server 键隔离；非持久化（重载即丢）；TimerState 强引用实体直至取消。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/util/TimerEntry.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "TimerEntry.java:15-16,51-56,156-161,211-219 已核对"
+    },
+    {
+      "id": "event-core",
+      "label": "Forge 事件中枢",
+      "domain": "infra",
+      "risk": "high",
+      "owner": false,
+      "layer": 1,
+      "shape": "box",
+      "ports": [
+        { "id": "forge", "label": "Forge 事件", "direction": "input", "type": "ForgeEvent", "color": "#666666" },
+        { "id": "dayEvent", "label": "换天事件", "direction": "input", "type": "DayEvent", "color": "#E69B4B" },
+        { "id": "dispatch", "label": "监听器分发", "direction": "output", "type": "ForgeEvent", "color": "#666666" },
+        { "id": "dayDispatch", "label": "换天分发", "direction": "output", "type": "DayEvent", "color": "#E69B4B" },
+        { "id": "timerShutdown", "label": "计时器关停", "direction": "output", "type": "TimerCommand", "color": "#134F5C" }
+      ],
+      "summary": "ForgeModEvent（1186 行）聚合 LivingAttack/Hurt/Death、PlayerTick、Interact、捕获单元、DayAdvance 等 20+ 监听；ModCommonEvent 注册 97 个实体 Attributes。",
+      "note": "God class：武器特效外溢至此（instanceof 特判 + stringly set-id）；onLivingHurt 内两段重复的抗性属性读取；玩家状态存 persistentData 字符串 flag；new Random()。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/event/ForgeModEvent.java",
+        "src/main/java/com/wzz/lobotocraft/event/ModCommonEvent.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "ForgeModEvent.java:1088 onDayAdvance、:1168 shutdownAll 已核对"
+    },
+    {
+      "id": "event-listeners",
+      "label": "具名监听器群",
+      "domain": "infra",
+      "risk": "medium",
+      "owner": false,
+      "layer": 1,
+      "shape": "box",
+      "ports": [
+        { "id": "dispatch", "label": "事件入口", "direction": "input", "type": "ForgeEvent", "color": "#666666" },
+        { "id": "dayEvent", "label": "换天事件", "direction": "input", "type": "DayEvent", "color": "#E69B4B" },
+        { "id": "layout", "label": "布局查询", "direction": "input", "type": "WorldLayout", "color": "#6AA84F" },
+        { "id": "direct", "label": "外部直调", "direction": "input", "type": "ForgeEvent", "color": "#666666" },
+        { "id": "damageQuery", "label": "伤害判定", "direction": "output", "type": "DamageQuery", "color": "#990000" },
+        { "id": "chesedQuery", "label": "Chesed 倍率", "direction": "output", "type": "DamageQuery", "color": "#990000" },
+        { "id": "reconcile", "label": "EGO 对账", "direction": "output", "type": "EgoLoadout", "color": "#D4B04A" }
+      ],
+      "summary": "80+ 监听器：WeaponBuffEvent、EgoEquipmentEventHandler（投影防丢）、ClerkEvent（换天重置职员+墓碑）、MentalValueEventHandler、BlackForestEvent（三鸟捕获）等。",
+      "note": "监听器过多且平铺；包内混入纯客户端渲染器（ResistanceHudRenderer 等）；监听器间互相 static 调用形成隐式网。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/event/listener/WeaponBuffEvent.java",
+        "src/main/java/com/wzz/lobotocraft/event/listener/EgoEquipmentEventHandler.java",
+        "src/main/java/com/wzz/lobotocraft/event/listener/ClerkEvent.java",
+        "src/main/java/com/wzz/lobotocraft/event/listener/MentalValueEventHandler.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "WeaponBuffEvent.java:44-66、EgoEquipmentEventHandler.java:34-97、ClerkEvent.java:48、MentalValueEventHandler.java:151,192-286 已核对"
+    },    {
+      "id": "world-facility",
+      "label": "世界布局/结构/世界生成",
+      "domain": "infra",
+      "risk": "medium",
+      "owner": true,
+      "layer": 4,
+      "shape": "database",
+      "ports": [
+        { "id": "layout", "label": "布局提供", "direction": "output", "type": "WorldLayout", "color": "#6AA84F" }
+      ],
+      "summary": "FacilityWorldLayout 静态加载 world_layout.json（areas+containments）；LobotoChunkGenerator/BiomeSource 世界生成；StructureLoader/StructureUpdater 结构放置与旧档迁移。",
+      "note": "world_layout.json 类初始化一次性读入；解析失败 catch-all 后静默返回空布局，难诊断；67 处跨包直接消费无门面（employee/entity/core_suppression/network 都直接读）。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/world/data/FacilityWorldLayout.java",
+        "src/main/java/com/wzz/lobotocraft/world/worldgen/LobotoChunkGenerator.java",
+        "src/main/java/com/wzz/lobotocraft/world/structure/StructureLoader.java",
+        "src/main/java/com/wzz/lobotocraft/world/structure/StructureUpdater.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "FacilityWorldLayout.java:36,38,230,265-268 已核对"
+    },
+    {
+      "id": "init-registry",
+      "label": "Forge 注册表",
+      "domain": "infra",
+      "risk": "low",
+      "owner": false,
+      "layer": 0,
+      "shape": "box",
+      "ports": [
+        { "id": "registry", "label": "注册句柄", "direction": "output", "type": "RegistryObject", "color": "#999999" }
+      ],
+      "summary": "ModItems（379 行武器/护甲/饰品/功能物）、ModSounds、ModBlocks + ModEntities/ModAttributes/ModDimensions/ModWorldGen 等 18 个 DeferredRegister 注册类。",
+      "note": "常规 Forge 注册层，低风险；ModItems 是所有模块的公共依赖汇点；实体 id 即存档 NBT 引用键，改名会毁存档实体。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/init/ModItems.java",
+        "src/main/java/com/wzz/lobotocraft/init/ModEntities.java",
+        "src/main/java/com/wzz/lobotocraft/init/ModSounds.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "ModEntities.java 前 120 行 + 注册模式一致"
+    },
+    {
+      "id": "command-debug",
+      "label": "指令/调试入口",
+      "domain": "infra",
+      "risk": "low",
+      "owner": false,
+      "layer": 0,
+      "shape": "box",
+      "ports": [
+        { "id": "work", "label": "工作调试", "direction": "output", "type": "WorkCommand", "color": "#3F7FBF" },
+        { "id": "suppress", "label": "抑制调试", "direction": "output", "type": "SuppressionCommand", "color": "#8E63CE" },
+        { "id": "ego", "label": "EGO 调试", "direction": "output", "type": "EgoLoadout", "color": "#D4B04A" },
+        { "id": "day", "label": "设施调试", "direction": "output", "type": "FacilityCommand", "color": "#2E8B57" }
+      ],
+      "summary": "DebugCommand（约 1485 行）暴露设施/EGO/职员/抑制/灾变调试子命令；CommandRegistry 收纳约 18 个命令；ExhibitionCommand 切换展示模式。",
+      "note": "DebugCommand 单类直连 employee/core_suppression/ego/work 全部服务，是万物直达的横向切口——应视为可选入口边而非核心模块。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/command/DebugCommand.java",
+        "src/main/java/com/wzz/lobotocraft/command/CommandRegistry.java",
+        "src/main/java/com/wzz/lobotocraft/command/ExhibitionCommand.java"
+      ],
+      "confidence": "confirmed",
+      "evidence": "DebugCommand.java:29,529 已核对"
+    },
+    {
+      "id": "exhibition-integration",
+      "label": "展示模式与集成测试",
+      "domain": "infra",
+      "risk": "low",
+      "owner": false,
+      "layer": 0,
+      "shape": "box",
+      "ports": [
+        { "id": "safety", "label": "安全直调", "direction": "output", "type": "ForgeEvent", "color": "#666666" }
+      ],
+      "summary": "ExhibitionSafetyService（公开演示服安全开关+一键恢复）+ integration 下 GameTests（RepairPlayerFlowGameTests 覆盖红鞋审判/回血/员工流）+ jade 集成。",
+      "note": "ExhibitionSafetyService 深入引用监听器内部静态方法（MentalValueEventHandler/PlayerControlLock/TeddyExecutionManager），测试代码成为耦合证据源。",
+      "files": [
+        "src/main/java/com/wzz/lobotocraft/exhibition/ExhibitionSafetyService.java",
+        "src/main/java/com/wzz/lobotocraft/integration/RepairPlayerFlowGameTests.java",
+        "src/main/java/com/wzz/lobotocraft/integration/jade/LobotocraftJadePlugin.java"
+      ],
+      "confidence": "inferred",
+      "evidence": "exhibition 部分仅读文件头 55 行，调用点静态确认但完整影响未逐行核对"
+    }
+  ],
+  "edges": [
+    { "id": "e1", "from": "day-transition", "fromPort": "commit", "to": "facility-manager", "toPort": "dayCommand", "relation": "calls", "label": "提交并推进设施日", "note": "DayTransitionService.java:174 -> FacilityManager.beginDay", "confidence": "confirmed" },
+    { "id": "e2", "from": "facility-manager", "fromPort": "dayAccess", "to": "facility-day-data", "toPort": "merge", "relation": "data", "label": "读写日数/能源/熔毁表", "note": "FacilityManager.java:214-227", "confidence": "confirmed" },
+    { "id": "e3", "from": "facility-day-data", "fromPort": "snapshot", "to": "facility-manager", "toPort": "daySnapshot", "relation": "data", "label": "提供权威设施快照", "note": "FacilityStatePacket.from 读取 activeMeltdowns", "confidence": "confirmed" },
+    { "id": "e4", "from": "facility-manager", "fromPort": "meltdownCmd", "to": "meltdown-lifecycle", "toPort": "command", "relation": "calls", "label": "驱动熔毁 start/advance/end", "note": "FacilityManager.java:409,518", "confidence": "confirmed" },
+    { "id": "e5", "from": "meltdown-lifecycle", "fromPort": "state", "to": "facility-day-data", "toPort": "merge", "relation": "data", "label": "写回活跃熔毁表", "note": "MeltdownLifecycle.java:57,95", "confidence": "confirmed" },
+    { "id": "e6", "from": "facility-manager", "fromPort": "dayEvent", "to": "dept-access", "toPort": "dayStart", "relation": "calls", "label": "换天驱动部门日启", "note": "FacilityManager.java:221 -> DepartmentProgressService.onDayStarted", "confidence": "confirmed" },
+    { "id": "e7", "from": "facility-manager", "fromPort": "correction", "to": "company-daily", "toPort": "correction", "relation": "data", "label": "syncDay 单向校正玩家日", "note": "权威回写，不反向快进（FacilityManager 注释）", "confidence": "confirmed" },
+    { "id": "e8", "from": "facility-manager", "fromPort": "broadcast", "to": "facility-sync", "toPort": "state", "relation": "calls", "label": "每 20tick 全员同步", "note": "FacilityManager.java:387,838-844", "confidence": "confirmed" },
+    { "id": "e9", "from": "facility-manager", "fromPort": "meltdownEvent", "to": "core-suppression-core", "toPort": "meltdown", "relation": "event", "label": "Qliphoth 熔毁广播", "note": "CoreSuppressionManager.java:464-478", "confidence": "confirmed" },
+    { "id": "e10", "from": "facility-sync", "fromPort": "voteDispatch", "to": "day-transition", "toPort": "vote", "relation": "calls", "label": "投票包分发", "note": "DayVoteActionPacket.java:26-28", "confidence": "confirmed" },
+    { "id": "e11", "from": "day-transition", "fromPort": "dailyReset", "to": "company-daily", "toPort": "advance", "relation": "data", "label": "推进玩家日并批量重置", "note": "DayTransitionService.java:164,179-187", "confidence": "confirmed" },
+    { "id": "e12", "from": "day-transition", "fromPort": "dayEvent", "to": "event-core", "toPort": "dayEvent", "relation": "event", "label": "FacilityDayCommittedEvent 广播", "note": "DayTransitionService.java:174-191", "confidence": "confirmed" },
+    { "id": "e13", "from": "core-suppression-core", "fromPort": "suppressDay", "to": "day-transition", "toPort": "suppressStart", "relation": "calls", "label": "抑制开始原子换天", "note": "CoreSuppressionManager.java:244 -> beginSuppressionDay", "confidence": "confirmed" },
+    { "id": "e14", "from": "core-suppression-core", "fromPort": "gate", "to": "facility-manager", "toPort": "gate", "relation": "dependency", "label": "抑制目标拦截换天", "note": "CoreSuppressionManager.java:742-756 requirementsMet", "confidence": "confirmed" },
+    { "id": "e15", "from": "player-status", "fromPort": "status", "to": "facility-sync", "toPort": "playerStatus", "relation": "calls", "label": "每 10tick 推送玩家状态", "note": "PlayerStatusEvents.java", "confidence": "confirmed" },
+    { "id": "e16", "from": "facility-sync", "fromPort": "statusS2c", "to": "client-hud", "toPort": "status", "relation": "event", "label": "PlayerStatusPacket", "note": "FacilityNetwork.java:27-38", "confidence": "confirmed" },
+    { "id": "e17", "from": "facility-sync", "fromPort": "s2c", "to": "client-hud", "toPort": "sync", "relation": "event", "label": "FacilityStatePacket 推送", "note": "FacilityNetwork.java:27-38", "confidence": "confirmed" },
+    { "id": "e18", "from": "client-hud", "fromPort": "vote", "to": "facility-sync", "toPort": "dayVote", "relation": "calls", "label": "投票按键发包", "note": "FacilityHud -> FacilityNetwork.sendToServer", "confidence": "confirmed" },
+    { "id": "e19", "from": "room-registry", "fromPort": "snapshot", "to": "facility-manager", "toPort": "roomSnapshot", "relation": "data", "label": "熔毁部门判定/目标重定位", "note": "FacilityManager.java:732,769", "confidence": "confirmed" },
+    { "id": "e20", "from": "world-facility", "fromPort": "layout", "to": "room-registry", "toPort": "layoutMerge", "relation": "data", "label": "固定布局合并回填 departmentId", "note": "FacilityWorldLayout.java:57-60", "confidence": "confirmed" },
+    { "id": "e21", "from": "company-daily", "fromPort": "workCount", "to": "work-session-engine", "toPort": "daily", "relation": "data", "label": "提供今日工作计数", "note": "WorkManager 读写 COMPANY_DAILY_DATA", "confidence": "confirmed" },
+    { "id": "e22", "from": "core-suppression-core", "fromPort": "route", "to": "encounter-registry", "toPort": "route", "relation": "calls", "label": "路由生命周期钩子", "note": "CoreSuppressionManager.java:588,798,841", "confidence": "confirmed" },    { "id": "e23", "from": "encounter-registry", "fromPort": "chesed", "to": "chesed-suppression", "toPort": "lifecycle", "relation": "calls", "label": "Chesed 生命周期转发", "note": "CoreSuppressionEncounterRegistry.java:17-20,35-53", "confidence": "confirmed" },
+    { "id": "e24", "from": "encounter-registry", "fromPort": "geburah", "to": "geburah-encounter", "toPort": "lifecycle", "relation": "calls", "label": "Geburah 生命周期转发", "note": "CoreSuppressionEncounterRegistry.java:17-20,35-53", "confidence": "confirmed" },
+    { "id": "e25", "from": "event-listeners", "fromPort": "chesedQuery", "to": "chesed-suppression", "toPort": "damageQuery", "relation": "calls", "label": "受伤 x5 查询（跨包隐式耦合）", "note": "MentalValueEventHandler.java:151 实际放大入口", "confidence": "confirmed" },
+    { "id": "e26", "from": "facility-day-data", "fromPort": "snapshot", "to": "chesed-suppression", "toPort": "state", "relation": "data", "label": "读取熔毁等级重掷掩码", "note": "ChesedEncounterService.java:48-52", "confidence": "confirmed" },
+    { "id": "e27", "from": "geburah-encounter", "fromPort": "result", "to": "core-suppression-core", "toPort": "result", "relation": "calls", "label": "合法击杀完成抑制", "note": "GeburahEncounterService.java:301-309 -> completeChallenge", "confidence": "confirmed" },
+    { "id": "e28", "from": "geburah-encounter", "fromPort": "spawn", "to": "geburah-entity", "toPort": "spawn", "relation": "calls", "label": "生成/清理 EntityGeburah", "note": "GeburahEncounterService.java:324-332", "confidence": "confirmed" },
+    { "id": "e29", "from": "geburah-encounter", "fromPort": "freeze", "to": "employee-runtime", "toPort": "freeze", "relation": "data", "label": "AI 员工无敌冻结/恢复", "note": "GeburahEncounterService.java:334-355", "confidence": "confirmed" },
+    { "id": "e30", "from": "geburah-entity", "fromPort": "participant", "to": "geburah-encounter", "toPort": "participant", "relation": "calls", "label": "参与者校验/击杀上报", "note": "EntityGeburah.java:999,1156", "confidence": "confirmed" },
+    { "id": "e31", "from": "geburah-entity", "fromPort": "finalDamage", "to": "geburah-combat-state", "toPort": "finalDamage", "relation": "calls", "label": "最终伤害/架势结算", "note": "EntityGeburah.java:1135-1159；GeburahDamageEvents.java:16-23 LivingDamageEvent", "confidence": "confirmed" },
+    { "id": "e32", "from": "geburah-entity", "fromPort": "move", "to": "geburah-move-system", "toPort": "move", "relation": "calls", "label": "tick 编排招式", "note": "EntityGeburah.java:303-426", "confidence": "confirmed" },
+    { "id": "e33", "from": "geburah-move-system", "fromPort": "posture", "to": "geburah-combat-state", "toPort": "postureCmd", "relation": "calls", "label": "消耗/返还架势", "note": "GeburahComboPlanner.java:16-24", "confidence": "confirmed" },
+    { "id": "e34", "from": "geburah-combat-state", "fromPort": "phase", "to": "geburah-encounter", "toPort": "phase", "relation": "data", "label": "战斗阶段供 visualStage", "note": "GeburahEncounterService.java:170-179", "confidence": "confirmed" },
+    { "id": "e35", "from": "geburah-combat-state", "fromPort": "phase", "to": "geburah-entity", "toPort": "phase", "relation": "data", "label": "阶段/抗性同步查询", "note": "SynchedEntityData PHASE/POSTURE/EGO", "confidence": "confirmed" },
+    { "id": "e36", "from": "geburah-move-system", "fromPort": "combatEvent", "to": "geburah-entity", "toPort": "combatEvent", "relation": "event", "label": "动画/命中帧事件", "note": "EntityGeburah.java:565-622 消费", "confidence": "confirmed" },
+    { "id": "e37", "from": "core-suppression-core", "fromPort": "hodPenalty", "to": "employee-runtime", "toPort": "hodPenalty", "relation": "data", "label": "Hod 罚款写入 AI 员工属性", "note": "CoreSuppressionManager.java:639-662 reconcileHodEmployees", "confidence": "confirmed" },
+    { "id": "e38", "from": "core-suppression-core", "fromPort": "sync", "to": "network-packet-core", "toPort": "publish", "relation": "data", "label": "抑制状态同步包", "note": "CoreSuppressionSyncPacket.java:42", "confidence": "confirmed" },
+    { "id": "e39", "from": "network-packet-core", "fromPort": "clientbound", "to": "core-suppression-visual", "toPort": "sync", "relation": "event", "label": "抑制/流血状态同步", "note": "CoreSuppressionClientState.java:71-76", "confidence": "confirmed" },
+    { "id": "e40", "from": "core-suppression-visual", "fromPort": "choice", "to": "network-packet-core", "toPort": "serverbound", "relation": "calls", "label": "视觉选择上报", "note": "CoreSuppressionVisualChoicePacket SERVERBOUND", "confidence": "confirmed" },
+    { "id": "e41", "from": "geburah-entity", "fromPort": "fx", "to": "misc-hud-effects", "toPort": "fx", "relation": "event", "label": "相机震动/流血 HUD 包", "note": "GeburahBleedSync.java:29-34", "confidence": "confirmed" },
+    { "id": "e42", "from": "geburah-entity", "fromPort": "abnAttack", "to": "abnormality-entities", "toPort": "hurt", "relation": "calls", "label": "攻击出逃异想体（5x 红伤）", "note": "EntityGeburah.java:893-908,1027-1032 仅出逃异想体为合法目标", "confidence": "confirmed" },
+    { "id": "e43", "from": "geburah-entity", "fromPort": "damageQuery", "to": "damage-helper", "toPort": "query", "relation": "calls", "label": "构造红伤", "note": "EntityGeburah.java:893-902", "confidence": "confirmed" },
+    { "id": "e44", "from": "employee-runtime", "fromPort": "work", "to": "work-session-engine", "toPort": "command", "relation": "calls", "label": "AI 派工/取消", "note": "EmployeeRuntimeManager.java:782,637", "confidence": "confirmed" },
+    { "id": "e45", "from": "monitor-ui-services", "fromPort": "workCmd", "to": "work-session-engine", "toPort": "command", "relation": "calls", "label": "候选派工请求", "note": "AssignRoomEmployeeWorkPacket 处理链", "confidence": "confirmed" },
+    { "id": "e46", "from": "management-screens", "fromPort": "workCmd", "to": "work-session-engine", "toPort": "command", "relation": "calls", "label": "开始工作包直达 WorkManager", "note": "StartWorkPacket.java:82", "confidence": "confirmed" },
+    { "id": "e47", "from": "command-debug", "fromPort": "work", "to": "work-session-engine", "toPort": "command", "relation": "calls", "label": "调试 startWork", "note": "DebugCommand.java:529", "confidence": "confirmed" },
+    { "id": "e48", "from": "work-session-engine", "fromPort": "hooks", "to": "abnormality-entities", "toPort": "workHooks", "relation": "calls", "label": "onWorkStart/Tick/Complete 回调", "note": "WorkManager.java:395,758,812", "confidence": "confirmed" },    { "id": "e49", "from": "employee-stats", "fromPort": "state", "to": "work-session-engine", "toPort": "stats", "relation": "data", "label": "提供四维/等级", "note": "WorkManager.java:140-163 会话构造", "confidence": "confirmed" },
+    { "id": "e50", "from": "work-session-engine", "fromPort": "mutate", "to": "employee-stats", "toPort": "mutate", "relation": "data", "label": "属性成长写入", "note": "WorkManager.java:922-971", "confidence": "confirmed" },
+    { "id": "e51", "from": "employee-stats", "fromPort": "state", "to": "employee-runtime", "toPort": "statsIn", "relation": "data", "label": "读取 base 属性持久化", "note": "EmployeeRuntimeManager.java:1342-1350", "confidence": "confirmed" },
+    { "id": "e52", "from": "employee-runtime", "fromPort": "mutate", "to": "employee-stats", "toPort": "mutate", "relation": "data", "label": "spawn 注入四维", "note": "EmployeeRuntimeManager.java:150-156", "confidence": "confirmed" },
+    { "id": "e53", "from": "employee-runtime", "fromPort": "personnel", "to": "personnel-persistence", "toPort": "store", "relation": "data", "label": "创建/退休/每100t保存", "note": "EmployeeRuntimeManager.java:1336-1352", "confidence": "confirmed" },
+    { "id": "e54", "from": "employee-runtime", "fromPort": "nav", "to": "employee-navigation", "toPort": "nav", "relation": "calls", "label": "订单驱动导航", "note": "EmployeeRuntimeManager.java:168,222,726-777", "confidence": "confirmed" },
+    { "id": "e55", "from": "employee-navigation", "fromPort": "geometry", "to": "facility-navigator", "toPort": "geometry", "relation": "data", "label": "复用 A* 快照", "note": "FacilityMobNavigator.java:167", "confidence": "confirmed" },
+    { "id": "e56", "from": "world-facility", "fromPort": "layout", "to": "employee-navigation", "toPort": "layout", "relation": "data", "label": "结构基底层元数据", "note": "FacilityNavigationCache.java:327-377 StructureLoader.loadMetadata", "confidence": "confirmed" },
+    { "id": "e57", "from": "dept-access", "fromPort": "access", "to": "employee-runtime", "toPort": "access", "relation": "data", "label": "派单/招聘前准入校验", "note": "EmployeeRuntimeManager.java:120,212", "confidence": "confirmed" },
+    { "id": "e58", "from": "dept-access", "fromPort": "access", "to": "monitor-ui-services", "toPort": "access", "relation": "data", "label": "房间/工作候选准入过滤", "note": "OpenRoomMapPacket.java:111-161", "confidence": "confirmed" },
+    { "id": "e59", "from": "dept-access", "fromPort": "access", "to": "spawn-combat-util", "toPort": "access", "relation": "data", "label": "生成落点开放校验", "note": "AbnormalitySpawnHelper.java:244", "confidence": "confirmed" },
+    { "id": "e60", "from": "dept-access", "fromPort": "access", "to": "escape-tracker", "toPort": "access", "relation": "data", "label": "开放部门数评分", "note": "EscapeTracker.java:146-164", "confidence": "confirmed" },
+    { "id": "e61", "from": "personnel-persistence", "fromPort": "records", "to": "dept-access", "toPort": "personnel", "relation": "data", "label": "迁移读取在职记录", "note": "DepartmentProgressData.java:216-232 migrateLegacyAssignments", "confidence": "confirmed" },
+    { "id": "e62", "from": "menu-ui", "fromPort": "store", "to": "personnel-persistence", "toPort": "store", "relation": "data", "label": "仓库数据/立即落盘", "note": "EmployeeInventoryMenu.java:242 persistNow", "confidence": "confirmed" },
+    { "id": "e63", "from": "menu-ui", "fromPort": "deny", "to": "work-session-engine", "toPort": "query", "relation": "calls", "label": "受控员工禁操作校验", "note": "EmployeeInventoryMenu.java:246 controlStateDenial", "confidence": "confirmed" },
+    { "id": "e64", "from": "work-session-engine", "fromPort": "workState", "to": "monitor-ui-services", "toPort": "work", "relation": "data", "label": "提供会话/预览", "note": "RoomEmployeeSnapshotService.java:184-204", "confidence": "confirmed" },
+    { "id": "e65", "from": "employee-runtime", "fromPort": "stateOut", "to": "monitor-ui-services", "toPort": "employee", "relation": "data", "label": "提供占用/订单状态", "note": "RoomEmployeeSnapshotService.java:136-140", "confidence": "confirmed" },
+    { "id": "e66", "from": "network-packet-core", "fromPort": "dispatch", "to": "monitor-ui-services", "toPort": "requests", "relation": "event", "label": "UI 请求分发到适配服务", "note": "服务端包处理器聚合点", "confidence": "inferred", "evidence": "PacketRegistry 方向门禁后各 Open*/Request* 处理器调用快照服务；逐包未全读" },
+    { "id": "e67", "from": "monitor-ui-services", "fromPort": "snapshots", "to": "network-packet-core", "toPort": "publish", "relation": "data", "label": "监控/管理快照下发", "note": "FacilityManagementService.java / OpenRoomMapPacket.java:91-171", "confidence": "confirmed" },
+    { "id": "e68", "from": "work-session-engine", "fromPort": "progress", "to": "network-packet-core", "toPort": "publish", "relation": "data", "label": "工作进度 UI 包", "note": "WorkManager OpenWorkProgress/Extraction/Complete 包", "confidence": "confirmed" },
+    { "id": "e69", "from": "abnormality-entities", "fromPort": "lifecycle", "to": "abnormality-lifecycle", "toPort": "escapeCmd", "relation": "dependency", "label": "继承基类并重写钩子", "note": "EntityCensored.java:425-465、EntityQueenOfHatred stopEscape 重写", "confidence": "confirmed" },
+    { "id": "e70", "from": "abnormality-lifecycle", "fromPort": "registration", "to": "escape-tracker", "toPort": "registration", "relation": "calls", "label": "登记/注销出逃", "note": "AbstractAbnormality.java:589,1018,1037", "confidence": "confirmed" },
+    { "id": "e71", "from": "abnormality-lifecycle", "fromPort": "roamMount", "to": "facility-roam-goal", "toPort": "mount", "relation": "calls", "label": "挂载巡游/电梯追击 Goal", "note": "AbstractAbnormality.java:180-186 addFacilityRoamingGoals", "confidence": "confirmed" },
+    { "id": "e72", "from": "facility-roam-goal", "fromPort": "nav", "to": "facility-navigator", "toPort": "nav", "relation": "calls", "label": "游荡/追击导航请求", "note": "FacilityRoamGoal.java:32-55", "confidence": "confirmed" },
+    { "id": "e73", "from": "abnormality-entities", "fromPort": "fear", "to": "fear-service", "toPort": "query", "relation": "calls", "label": "首见恐惧判定", "note": "EntityCensored tick tickEncounter、Queen/Censored 重写 encounterFear", "confidence": "confirmed" },
+    { "id": "e74", "from": "fear-service", "fromPort": "packet", "to": "network-packet-core", "toPort": "publish", "relation": "calls", "label": "发送 FearFeedbackPacket", "note": "AbnormalityFearService.java:87-96", "confidence": "confirmed" },    { "id": "e75", "from": "network-packet-core", "fromPort": "clientbound", "to": "fear-mental-client", "toPort": "sync", "relation": "event", "label": "恐惧/精神值同步", "note": "MentalValueSyncPacket/FearFeedbackPacket", "confidence": "confirmed" },
+    { "id": "e76", "from": "abnormality-entities", "fromPort": "timers", "to": "timer-entry", "toPort": "schedule", "relation": "calls", "label": "处决/技能计时", "note": "EntityBlueStar.java:247-299、SnowQueen/EndBird/ThornBus", "confidence": "confirmed" },
+    { "id": "e77", "from": "event-core", "fromPort": "timerShutdown", "to": "timer-entry", "toPort": "lifecycle", "relation": "calls", "label": "停服全局关停", "note": "ForgeModEvent.java:1168 shutdownAll、:1174 reinitializeScheduler", "confidence": "confirmed" },
+    { "id": "e78", "from": "world-facility", "fromPort": "layout", "to": "abnormality-lifecycle", "toPort": "layout", "relation": "data", "label": "出口/绑定查询", "note": "AbstractAbnormality.java:616-705 escape 目的地", "confidence": "confirmed" },
+    { "id": "e79", "from": "world-facility", "fromPort": "layout", "to": "facility-navigator", "toPort": "layout", "relation": "data", "label": "fixedAreas/roamingAreas", "note": "FacilityMobNavigator.java:221-238", "confidence": "confirmed" },
+    { "id": "e80", "from": "world-facility", "fromPort": "layout", "to": "event-listeners", "toPort": "layout", "relation": "data", "label": "灾变生成点查询", "note": "OrdealSpawnPointService.java:60 areaAt", "confidence": "confirmed" },
+    { "id": "e81", "from": "world-facility", "fromPort": "layout", "to": "dept-access", "toPort": "layout", "relation": "data", "label": "区域/绑定读取", "note": "FacilityAccessService.java:31-121 containmentBindings", "confidence": "confirmed" },
+    { "id": "e82", "from": "damage-helper", "fromPort": "classify", "to": "abnormality-lifecycle", "toPort": "damageCheck", "relation": "data", "label": "出逃前 isKill 门控", "note": "AbstractAbnormality.java:921 hurt 免伤例外", "confidence": "confirmed" },
+    { "id": "e83", "from": "spawn-combat-util", "fromPort": "rules", "to": "abnormality-lifecycle", "toPort": "combatRules", "relation": "data", "label": "受保护战斗单位规则", "note": "FacilityCombatRules.java:19-65 canDamageProtectedCombatant", "confidence": "confirmed" },
+    { "id": "e84", "from": "escape-tracker", "fromPort": "alertPacket", "to": "network-packet-core", "toPort": "publish", "relation": "calls", "label": "广播逃逸警报包", "note": "EscapeAlertPacket.java:43", "confidence": "confirmed" },
+    { "id": "e85", "from": "escape-tracker", "fromPort": "alertLevel", "to": "employee-runtime", "toPort": "alert", "relation": "event", "label": "警报等级供秩序/威胁", "note": "EscapeTracker.java:146-164", "confidence": "confirmed" },
+    { "id": "e86", "from": "network-packet-core", "fromPort": "clientbound", "to": "misc-hud-effects", "toPort": "sync", "relation": "event", "label": "EscapeAlert/电梯相机等表现包", "note": "ClientPacketHandler.java:12-18", "confidence": "confirmed" },
+    { "id": "e87", "from": "ego-weapon", "fromPort": "query", "to": "damage-helper", "toPort": "query", "relation": "calls", "label": "构造四色伤害", "note": "SnowQueenWeapon.java:87、NothingThereWeapon.java:64", "confidence": "confirmed" },
+    { "id": "e88", "from": "damage-helper", "fromPort": "classify", "to": "ego-weapon", "toPort": "classify", "relation": "risk", "label": "反向依赖武器蓄力标记（循环依赖）", "note": "DamageHelper.java:120 isUnchargedEgoWeaponMelee -> BaseEgoWeapon.isMarkedPartialAttack", "confidence": "confirmed" },
+    { "id": "e89", "from": "ego-loadout", "fromPort": "recognize", "to": "ego-weapon", "toPort": "loadout", "relation": "dependency", "label": "识别/装配 EGO 武器", "note": "EgoLoadoutService.java:581 isEgoWeaponItem", "confidence": "confirmed" },
+    { "id": "e90", "from": "event-listeners", "fromPort": "reconcile", "to": "ego-loadout", "toPort": "reconcile", "relation": "calls", "label": "每 tick 投影 reconcile", "note": "EgoEquipmentEventHandler.java:34-97", "confidence": "confirmed" },
+    { "id": "e91", "from": "ego-weapon", "fromPort": "spawnEgg", "to": "spawn-combat-util", "toPort": "spawn", "relation": "calls", "label": "生物蛋 anchor 生成", "note": "TextSpawnEggItem.java:74-88 spawnPersistentFromAnchor", "confidence": "confirmed" },
+    { "id": "e92", "from": "init-registry", "fromPort": "registry", "to": "abnormality-entities", "toPort": "reg", "relation": "dependency", "label": "实体类型/属性注册", "note": "ModEntities.java DeferredRegister + createAttributes", "confidence": "confirmed" },
+    { "id": "e93", "from": "init-registry", "fromPort": "registry", "to": "spawn-combat-util", "toPort": "reg", "relation": "dependency", "label": "生成实体工厂", "note": "AbnormalitySpawnHelper EntityType.create", "confidence": "confirmed" },
+    { "id": "e94", "from": "init-registry", "fromPort": "registry", "to": "ego-weapon", "toPort": "reg", "relation": "dependency", "label": "物品注册句柄", "note": "ModItems.java", "confidence": "confirmed" },
+    { "id": "e95", "from": "room-monitor-view", "fromPort": "poll", "to": "network-packet-core", "toPort": "serverbound", "relation": "calls", "label": "40t 轮询房间快照", "note": "RoomViewClient.java:250-259", "confidence": "confirmed" },
+    { "id": "e96", "from": "network-packet-core", "fromPort": "clientbound", "to": "room-monitor-view", "toPort": "sync", "relation": "event", "label": "推送房间地图快照", "note": "OpenRoomMapPacket.java:298-302 onRoomData", "confidence": "confirmed" },
+    { "id": "e97", "from": "room-monitor-view", "fromPort": "screen", "to": "management-screens", "toPort": "open", "relation": "calls", "label": "打开/回接监控界面", "note": "RoomViewClient.java:273-277 setScreen", "confidence": "confirmed" },
+    { "id": "e98", "from": "network-packet-core", "fromPort": "clientbound", "to": "management-screens", "toPort": "sync", "relation": "event", "label": "打开界面/快照包", "note": "各 Open*Packet 客户端处理", "confidence": "confirmed" },
+    { "id": "e99", "from": "management-screens", "fromPort": "action", "to": "network-packet-core", "toPort": "serverbound", "relation": "calls", "label": "派遣/传送/确认/请求发包", "note": "RoomMapScreen.java:15-25 imports 11 个 packet", "confidence": "confirmed" },
+    { "id": "e100", "from": "management-screens", "fromPort": "confirmDept", "to": "dept-access", "toPort": "confirm", "relation": "calls", "label": "确认部门扩张", "note": "ConfirmDepartmentExpansionPacket -> DepartmentProgressService.confirm 权限校验", "confidence": "confirmed" },    { "id": "e101", "from": "event-core", "fromPort": "dispatch", "to": "event-listeners", "toPort": "dispatch", "relation": "event", "label": "转发到具名监听器", "note": "ForgeModEvent 调用 WeaponBuffEvent/ClerkEvent/RedShoesBleedHandler 等", "confidence": "confirmed" },
+    { "id": "e102", "from": "event-core", "fromPort": "dayDispatch", "to": "event-listeners", "toPort": "dayEvent", "relation": "event", "label": "换天事件分发", "note": "ClerkEvent.java:47-57 FacilityDayCommittedEvent 重置职员+墓碑", "confidence": "confirmed" },
+    { "id": "e103", "from": "event-listeners", "fromPort": "damageQuery", "to": "damage-helper", "toPort": "query", "relation": "calls", "label": "四色抗性/判定", "note": "MentalValueEventHandler.java:192-286、EgoArmorHandler.java:60-66", "confidence": "confirmed" },
+    { "id": "e104", "from": "exhibition-integration", "fromPort": "safety", "to": "event-listeners", "toPort": "direct", "relation": "risk", "label": "演示服务直调监听器内部", "note": "绕过事件总线直接调用监听器静态方法", "confidence": "inferred", "evidence": "ExhibitionSafetyService.java:24-28 直调静态方法，完整影响未逐行核对" },
+    { "id": "e105", "from": "command-debug", "fromPort": "suppress", "to": "core-suppression-core", "toPort": "command", "relation": "calls", "label": "调试抑制入口", "note": "DebugCommand requestChallenge/debugStartChallenge", "confidence": "confirmed" },
+    { "id": "e106", "from": "command-debug", "fromPort": "ego", "to": "ego-loadout", "toPort": "debug", "relation": "calls", "label": "调试 EGO 装配", "note": "DebugCommand.java:29", "confidence": "confirmed" },
+    { "id": "e107", "from": "command-debug", "fromPort": "day", "to": "day-transition", "toPort": "debug", "relation": "calls", "label": "/facility expansion 等调试", "note": "DebugCommand -> DepartmentProgressService", "confidence": "confirmed" }
+  ],
+  "positions": {
+    "A": {},
+    "B": {},
+    "C": {}
+  },
+  "preferences": {
+    "snapToGrid": true,
+    "gridSize": 24,
+    "edgeLabels": "auto",
+    "edgeStyle": "curved",
+    "showGroups": true,
+    "showMinimap": true,
+    "doubleClickCreates": true,
+    "defaultDomain": "infra",
+    "defaultRisk": "medium",
+    "defaultLayer": 2,
+    "defaultOwner": true
+  }
+}

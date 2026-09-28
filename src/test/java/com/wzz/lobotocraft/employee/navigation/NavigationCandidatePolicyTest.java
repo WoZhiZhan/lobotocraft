@@ -18,6 +18,24 @@ final class NavigationCandidatePolicyTest {
                 current -> chainTransitions(current, 12)));
     }
 
+    @Test
+    void facilityConnectedRegionRejectsSealedIslandsBelowProbeCap() {
+        NavigationNode start = node(0);
+        assertFalse(NavigationCandidatePolicy.isFacilityConnectedRegion(start,
+                current -> chainTransitions(current,
+                        NavigationCandidatePolicy.FACILITY_REGION_PROBE_CAP - 1)));
+        assertTrue(NavigationCandidatePolicy.isFacilityConnectedRegion(start,
+                current -> chainTransitions(current,
+                        NavigationCandidatePolicy.FACILITY_REGION_PROBE_CAP)));
+    }
+
+    @Test
+    void facilityConnectedRegionAcceptsRegionsLargerThanTheProbeCap() {
+        NavigationNode start = node(0);
+        assertTrue(NavigationCandidatePolicy.isFacilityConnectedRegion(start,
+                current -> chainTransitions(current, Integer.MAX_VALUE)));
+    }
+
     private static List<NavigationTransition> chainTransitions(NavigationNode current,
                                                                int length) {
         int x = current.feetPosition().getX();

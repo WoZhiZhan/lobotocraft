@@ -39,6 +39,8 @@ public final class FacilityDayData extends SavedData {
     private boolean noonTriggered;
     /** Server-global TT2 protocol switch, controlled from the facility monitor. */
     private boolean tt2ProtocolEnabled;
+    /** Server-global simulation pause switch controlled from the facility monitor. */
+    private boolean paused;
     /** Daily ordeal schedule. Index is the meltdown stage (I..IX). */
     private final OrdealTier[] scheduledTiers = new OrdealTier[10];
     private final int[] scheduledColors = new int[10];
@@ -71,6 +73,7 @@ public final class FacilityDayData extends SavedData {
         data.dawnTriggered = tag.getBoolean("DawnTriggered");
         data.noonTriggered = tag.getBoolean("NoonTriggered");
         data.tt2ProtocolEnabled = tag.getBoolean("TT2ProtocolEnabled");
+        data.paused = tag.getBoolean("Paused");
         data.schedulePrepared = tag.getBoolean("SchedulePrepared")
                 && tag.getInt("ScheduleVersion") >= SCHEDULE_VERSION;
         for (int i = 0; i < data.scheduledTiers.length; i++) {
@@ -137,6 +140,7 @@ public final class FacilityDayData extends SavedData {
         tag.putBoolean("DawnTriggered", dawnTriggered);
         tag.putBoolean("NoonTriggered", noonTriggered);
         tag.putBoolean("TT2ProtocolEnabled", tt2ProtocolEnabled);
+        tag.putBoolean("Paused", paused);
         tag.putBoolean("SchedulePrepared", schedulePrepared);
         tag.putInt("ScheduleVersion", SCHEDULE_VERSION);
         for (int i = 0; i < scheduledTiers.length; i++) {
@@ -202,6 +206,7 @@ public final class FacilityDayData extends SavedData {
         noonStage = 0;
         dawnTriggered = false;
         noonTriggered = false;
+        paused = false;
         clearSchedule();
         MeltdownLifecycle.clear(this, MeltdownEndReason.DAY_CHANGED);
         consecutiveWorks.clear();
@@ -223,6 +228,14 @@ public final class FacilityDayData extends SavedData {
     public boolean isDawnTriggered() { return dawnTriggered; }
     public boolean isNoonTriggered() { return noonTriggered; }
     public boolean isTt2ProtocolEnabled() { return tt2ProtocolEnabled; }
+
+    public boolean isPaused() { return paused; }
+
+    public void setPaused(boolean paused) {
+        if (this.paused == paused) return;
+        this.paused = paused;
+        setDirty();
+    }
 
     public void setTt2ProtocolEnabled(boolean enabled) {
         if (tt2ProtocolEnabled == enabled) return;
@@ -505,15 +518,21 @@ public final class FacilityDayData extends SavedData {
         }
 
         public ActiveMeltdown advance(long gameTime) {
+            return advance(gameTime, false);
+        }
+
+        /** Facility pause rebases the clock without replacing the per-target work/time rate. */
+        public ActiveMeltdown advance(long gameTime, boolean paused) {
             long now = Math.max(0L, gameTime);
             long remaining = remainingTimeUnits;
             long created = createdTick;
             long last = lastProcessedTick;
             if (!usesDynamicClock()) {
+                // Legacy saves have no pause origin; migrate at the first known server tick.
                 remaining = saturatedMultiply(Math.max(0L, deadline - now), TIME_UNITS_PER_TICK);
                 created = now;
                 last = now;
-            } else if (now > last && remaining > 0L && timeRatePermille > 0) {
+            } else if (!paused && now > last && remaining > 0L && timeRatePermille > 0) {
                 long consumed = saturatedMultiply(now - last, timeRatePermille);
                 remaining = Math.max(0L, remaining - Math.min(remaining, consumed));
                 last = now;

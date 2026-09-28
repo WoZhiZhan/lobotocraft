@@ -11,7 +11,7 @@ import java.util.UUID;
  * cause-specific invariants used by creation and ticking.
  */
 public final class MeltdownLifecycle {
-    public static final int DEFAULT_DURATION_TICKS = 20 * 60;
+    public static final int DEFAULT_DURATION_TICKS = 20 * 75;
     public static final int NORMAL_TIME_RATE_PERMILLE = 1000;
     public static final int MAX_TIME_RATE_PERMILLE = 16_000;
 
@@ -80,17 +80,18 @@ public final class MeltdownLifecycle {
     /** Advances every active instance and returns targets whose time reached zero. */
     public static List<UUID> advance(FacilityDayData data, long gameTime) {
         if (data == null || data.getActiveMeltdowns().isEmpty()) return List.of();
+        boolean paused = data.isPaused();
         List<UUID> expired = new ArrayList<>();
         boolean changed = false;
         for (Map.Entry<UUID, FacilityDayData.ActiveMeltdown> entry
                 : data.getActiveMeltdowns().entrySet()) {
             FacilityDayData.ActiveMeltdown previous = entry.getValue();
-            FacilityDayData.ActiveMeltdown advanced = previous.advance(gameTime);
+            FacilityDayData.ActiveMeltdown advanced = previous.advance(gameTime, paused);
             if (!advanced.equals(previous)) {
                 entry.setValue(advanced);
                 changed = true;
             }
-            if (advanced.expired()) expired.add(entry.getKey());
+            if (!paused && advanced.expired()) expired.add(entry.getKey());
         }
         if (changed) data.setDirty();
         return List.copyOf(expired);

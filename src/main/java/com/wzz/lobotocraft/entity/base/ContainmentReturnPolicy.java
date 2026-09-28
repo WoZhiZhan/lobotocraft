@@ -11,6 +11,10 @@ final class ContainmentReturnPolicy {
         return pending && interval > 0 && Math.floorMod(tickCount, interval) == 0;
     }
 
+    static boolean returnsToEscapeOrigin(boolean registered) {
+        return !registered;
+    }
+
     static float healthAfterDeferredSuppression(float maxHealth) {
         return validMaxHealth(maxHealth);
     }

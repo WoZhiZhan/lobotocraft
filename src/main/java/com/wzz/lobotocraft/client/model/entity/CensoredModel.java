@@ -18,7 +18,8 @@ public class CensoredModel extends GeoModel<EntityCensored> {
     @Override
     public ResourceLocation getTextureResource(EntityCensored entity) {
         return ResourceUtil.createInstance(
-                "textures/entities/" + resourceName(entity) + ".png");
+                entity.hasEscape() ? "textures/entities/censored.png"
+                        : "textures/entities/abnormality/o_03_89.png");
     }
 
     @Override

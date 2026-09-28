@@ -6,12 +6,47 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.contents.LiteralContents;
 import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class RoomEntryTest {
+
+    @Test
+    void boundIdentitySurvivesPersistenceAndNetworkWithoutInventingALegacyBinding() {
+        RoomEntry room = new RoomEntry(
+                ResourceLocation.fromNamespaceAndPath("lobotocraft", "loboto"), BlockPos.ZERO);
+        room.boundAbnormality = new UUID(1, 2);
+        room.meltdownActive = true;
+        room.meltdownRemainingTicks = 119;
+        room.floorName = "floor tail";
+        room.floorY = 72;
+        room.uniqueWorkBusy = true;
+
+        assertEquals(room.boundAbnormality, RoomEntry.load(room.save()).boundAbnormality);
+        org.junit.jupiter.api.Assertions.assertFalse(RoomEntry.load(room.save()).uniqueWorkBusy,
+                "runtime reservation must not survive a server restart");
+        net.minecraft.nbt.CompoundTag legacy = room.save();
+        legacy.remove("BoundAbnormality");
+        assertNull(RoomEntry.load(legacy).boundAbnormality);
+
+        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+        try {
+            room.write(buffer);
+            RoomEntry restored = RoomEntry.read(buffer);
+            assertEquals(room.boundAbnormality, restored.boundAbnormality);
+            assertEquals(119, restored.meltdownRemainingTicks);
+            assertEquals("floor tail", restored.floorName);
+            assertEquals(72, restored.floorY);
+            assertTrue(restored.uniqueWorkBusy);
+            assertEquals(0, buffer.readableBytes());
+        } finally {
+            buffer.release();
+        }
+    }
 
     @Test
     void unexpandedStatusOverridesStaleOccupantTitleAndSurvivesSave() {

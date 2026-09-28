@@ -135,6 +135,24 @@ public final class FacilityWorldLayout {
                 .toList();
     }
 
+    /** Fixed rooms and passages suitable for escaped ground mobs to patrol. */
+    public static List<AreaDefinition> roamingAreas(ResourceLocation dimension) {
+        if (dimension == null) return List.of();
+        return DATA.areas.stream()
+                .filter(area -> area.dimension.equals(dimension))
+                .filter(area -> area.type == FacilityAreaType.CORRIDOR
+                        || area.type == FacilityAreaType.REST_ROOM
+                        || area.type == FacilityAreaType.ELEVATOR)
+                .toList();
+    }
+
+    public static List<AreaDefinition> fixedAreas(ResourceLocation dimension) {
+        if (dimension == null) return List.of();
+        return DATA.areas.stream()
+                .filter(area -> area.dimension.equals(dimension))
+                .toList();
+    }
+
     /** Resolves a schematic node back to every real cuboid represented by it. */
     public static List<AreaDefinition> targetAreas(ServerLevel level, String groupId) {
         if (level == null || groupId == null || groupId.isBlank()) return List.of();
@@ -165,6 +183,24 @@ public final class FacilityWorldLayout {
                                 FacilityAreaSelection.typePriority(area.type))
                         .thenComparingLong(AreaDefinition::volume)
                         .thenComparing(AreaDefinition::id));
+    }
+
+    /**
+     * Resolves a position against complete facility geometry: fixed passages
+     * plus dynamic containment-room cuboids.
+     */
+    public static Optional<FacilityAreaEntry> facilityAreaAt(ServerLevel level, BlockPos pos) {
+        if (level == null || pos == null) return Optional.empty();
+        ResourceLocation dimension = level.dimension().location();
+        return facilityAreaAt(dimension,
+                CompanyRoomData.get(level).getAreas(dimension), pos);
+    }
+
+    static Optional<FacilityAreaEntry> facilityAreaAt(ResourceLocation dimension,
+                                                       List<FacilityAreaEntry> dynamicAreas,
+                                                       BlockPos pos) {
+        return FacilityAreaSelection.containing(
+                mergeAreas(dimension, dynamicAreas), dimension, pos);
     }
 
     private static void bindDynamicArea(FacilityAreaEntry area) {

@@ -2,7 +2,7 @@ package com.wzz.lobotocraft.util;
 
 import com.wzz.lobotocraft.effect.KissEffect;
 import com.wzz.lobotocraft.entity.abnormality.EntityLargeBird;
-import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
+import com.wzz.lobotocraft.entity.control.HostileControlState;
 import com.wzz.lobotocraft.event.listener.PlayerControlLock;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.GameType;
@@ -15,7 +15,7 @@ public final class ControlStateRecoveryService {
         if (player == null) return;
         TimerEntry.shutdown(player);
         PlayerControlLock.unlock(player);
-        EntityRedShoes.clearControlForRecovery(player);
+        HostileControlState.clearForRecovery(player);
         EntityLargeBird.clearLargeBirdCharm(player);
         BuffUtil.removeKiss(player);
         KissEffect.clearFreezeState(player);

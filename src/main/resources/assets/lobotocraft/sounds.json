@@ -1672,6 +1672,9 @@
   "qoh_hero_panic_loop": {
     "sounds": [{"name": "lobotocraft:qoh_hero_panic_loop", "stream": false}]
   },
+  "fear_tinnitus": {
+    "sounds": [{"name": "lobotocraft:fear_tinnitus", "stream": false}]
+  },
   "qoh_hero_skill_start": {
     "sounds": [{"name": "lobotocraft:qoh_hero_skill_start", "stream": false}]
   },

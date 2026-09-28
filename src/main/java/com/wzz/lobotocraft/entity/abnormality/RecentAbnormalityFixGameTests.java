@@ -22,6 +22,7 @@ import com.wzz.lobotocraft.item.CaptureUnitItem;
 import com.wzz.lobotocraft.item.ego.blue_star.BlueStarWeapon;
 import com.wzz.lobotocraft.item.ego.red_shoes.RedShoesDamagePolicy;
 import com.wzz.lobotocraft.item.ego.snowqueen.SnowQueenWeapon;
+import com.wzz.lobotocraft.menu.EmployeeInventoryMenu;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.FacilityCombatRules;
@@ -50,12 +51,15 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.common.util.FakePlayerFactory;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
@@ -571,6 +575,122 @@ public final class RecentAbnormalityFixGameTests {
     }
 
     @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 40, required = true, batch = "recent_red_shoes_rescue_targets")
+    public static void redShoesControlledClerkAndOrdinaryPlayerAreAiThreats(GameTestHelper helper) {
+        EmployeeServerPlayer rescuer = spawnEmployee(helper, new BlockPos(2, 1, 2),
+                "red_shoes_rescue_target_rescuer", 45);
+        EntityClerk clerk = ModEntities.clerk.get().create(helper.getLevel());
+        ServerPlayer ordinaryPlayer = FakePlayerFactory.get(helper.getLevel(),
+                new GameProfile(UUID.randomUUID(), "red_shoes_controlled_human"));
+        if (clerk == null) {
+            rescuer.kill();
+            helper.fail("clerk could not be created");
+            return;
+        }
+        moveTo(helper, clerk, new BlockPos(3, 1, 2));
+        helper.getLevel().addFreshEntity(clerk);
+        clerk.getPersistentData().putBoolean(CHARMED_TAG, true);
+        ordinaryPlayer.getPersistentData().putBoolean(CHARMED_TAG, true);
+
+        try {
+            boolean clerkThreat = isThreatForEmployee(rescuer, clerk);
+            boolean playerThreat = isThreatForEmployee(rescuer, ordinaryPlayer);
+            helper.assertTrue(clerkThreat && playerThreat,
+                    "AI threat selection ignored Red Shoes controlled rescue targets: clerk="
+                            + clerkThreat + ", ordinaryPlayer=" + playerThreat);
+            helper.succeed();
+        } finally {
+            EntityRedShoes.clearControlForRecovery(clerk);
+            EntityRedShoes.clearControlForRecovery(ordinaryPlayer);
+            clerk.discard();
+            rescuer.kill();
+        }
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 80, required = true, batch = "recent_red_shoes_work_lock")
+    public static void redShoesControlledPlayerCannotStartWork(GameTestHelper helper) {
+        ServerLevel facility = helper.getLevel().getServer().getLevel(ModDimensions.LOBOTO_KEY);
+        if (facility == null) {
+            helper.fail("facility dimension was not loaded");
+            return;
+        }
+        BlockPos markerPos = new BlockPos(231, 270, 30);
+        prepareContainmentFixture(facility, markerPos);
+        EntityRedShoes redShoes = ModEntities.red_shoes.get().create(facility);
+        if (redShoes == null) {
+            clearContainmentFixture(facility, markerPos);
+            helper.fail("red shoes could not be created");
+            return;
+        }
+        redShoes.absMoveTo(markerPos.getX() + 2.5D, markerPos.getY(),
+                markerPos.getZ() + 0.5D, 0.0F, 0.0F);
+        facility.addFreshEntity(redShoes);
+        RoomMarkerBlockEntity marker = facility.getBlockEntity(markerPos)
+                instanceof RoomMarkerBlockEntity room ? room : null;
+        if (marker == null || !marker.bindByUuid(facility, redShoes.getUUID())) {
+            redShoes.discard();
+            clearContainmentFixture(facility, markerPos);
+            helper.fail("containment fixture rejected the red shoes binding");
+            return;
+        }
+
+        ServerPlayer player = FakePlayerFactory.get(facility,
+                new GameProfile(UUID.randomUUID(), "red_shoes_working_human"));
+        player.absMoveTo(markerPos.getX() + 1.5D, markerPos.getY(),
+                markerPos.getZ() + 0.5D, 0.0F, 0.0F);
+        player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(stats -> {
+            stats.setFortitude(100);
+            stats.setPrudence(100);
+            stats.setTemperance(100);
+            stats.setJustice(100);
+        });
+
+        try {
+            helper.assertTrue(WorkManager.startWork(player, redShoes, WorkType.INSTINCT),
+                    "valid ordinary-player work fixture was rejected before control");
+            WorkManager.cancelWork(player, "GameTest Red Shoes work-lock baseline");
+            player.getPersistentData().putBoolean(CHARMED_TAG, true);
+            helper.assertFalse(WorkManager.startWork(player, redShoes, WorkType.INSTINCT),
+                    "Red Shoes controlled player still established a work session");
+            helper.succeed();
+        } finally {
+            WorkManager.cancelWork(player, "GameTest Red Shoes work-lock cleanup");
+            EntityRedShoes.clearControlForRecovery(player);
+            redShoes.discard();
+            clearContainmentFixture(facility, markerPos);
+        }
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 40, required = true, batch = "recent_red_shoes_inventory_lock")
+    public static void redShoesControlledEmployeeEquipmentCannotBeTaken(GameTestHelper helper) {
+        EmployeeServerPlayer employee = spawnEmployee(helper, new BlockPos(3, 1, 2),
+                "red_shoes_inventory_target", 20);
+        ServerPlayer viewer = FakePlayerFactory.get(helper.getLevel(),
+                new GameProfile(UUID.randomUUID(), "red_shoes_inventory_viewer"));
+        employee.getInventory().setItem(0, new ItemStack(Items.IRON_AXE));
+        employee.getPersistentData().putBoolean(CHARMED_TAG, true);
+        EmployeeInventoryMenu menu = new EmployeeInventoryMenu(
+                1, viewer.getInventory(), employee, List.of());
+        int employeeHotbarSlotZero = 27;
+
+        try {
+            helper.assertFalse(menu.getSlot(employeeHotbarSlotZero).mayPickup(viewer),
+                    "controlled employee main-hand slot still allowed ordinary pickup");
+            helper.assertTrue(menu.quickMoveStack(viewer, employeeHotbarSlotZero).isEmpty(),
+                    "controlled employee main-hand item was shift-click transferred");
+            helper.assertTrue(employee.getInventory().getItem(0).is(Items.IRON_AXE),
+                    "controlled employee lost the forced iron axe");
+            helper.succeed();
+        } finally {
+            menu.removed(viewer);
+            EntityRedShoes.clearControlForRecovery(employee);
+            employee.kill();
+        }
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
             timeoutTicks = 40, required = true, batch = "recent_red_shoes_targeting")
     public static void redShoesPrefersClerkThenLowestTemperance(GameTestHelper helper) {
         EntityRedShoes redShoes = spawnRedShoes(helper, new BlockPos(4, 1, 2));
@@ -825,21 +945,27 @@ public final class RecentAbnormalityFixGameTests {
                 new GameProfile(operator.getUUID(), replacementRecord.name()), replacementRecord);
         replacement.setId(operator.getId());
 
-        try {
-            helper.assertTrue(ironMaiden.isUsing(operator),
-                    "iron maiden lost the original operator session");
-            MinecraftForge.EVENT_BUS.post(new LivingDeathEvent(
-                    operator, operator.damageSources().genericKill()));
-            helper.assertFalse(ironMaiden.isUsing(operator),
-                    "player death did not terminate the Iron Maiden session");
-            helper.assertFalse(ironMaiden.isUsing(replacement),
-                    "same-UUID and same-ID respawn entity inherited the dead operator's session");
-            helper.succeed();
-        } finally {
-            ironMaiden.discard();
-            operator.kill();
-            replacement.discard();
-        }
+        helper.runAfterDelay(1, () -> {
+            try {
+                helper.assertTrue(helper.getLevel().getEntity(ironMaiden.getId()) == ironMaiden,
+                        "iron maiden was not visible in the server entity index");
+                helper.assertTrue(ironMaiden.isUsing(operator),
+                        "iron maiden lost the original operator session");
+                LivingDeathEvent death = new LivingDeathEvent(
+                        operator, operator.damageSources().genericKill());
+                helper.assertFalse(MinecraftForge.EVENT_BUS.post(death) || death.isCanceled(),
+                        "synthetic operator death was cancelled by another listener");
+                helper.assertFalse(ironMaiden.isUsing(operator),
+                        "player death did not terminate the Iron Maiden session");
+                helper.assertFalse(ironMaiden.isUsing(replacement),
+                        "same-UUID and same-ID respawn entity inherited the dead operator's session");
+                helper.succeed();
+            } finally {
+                ironMaiden.discard();
+                operator.kill();
+                replacement.discard();
+            }
+        });
     }
 
     @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
@@ -995,6 +1121,11 @@ public final class RecentAbnormalityFixGameTests {
             fragment.absMoveTo(markerPos.getX() + 48.5D, markerPos.getY(),
                     markerPos.getZ() + 0.5D, 0.0F, 0.0F);
             fragment.setEscape(true);
+            CompoundTag legacy = new CompoundTag();
+            fragment.addAdditionalSaveData(legacy);
+            legacy.remove("EscapeRegistrationRecorded");
+            legacy.remove("EscapedFromRegisteredContainment");
+            fragment.readAdditionalSaveData(legacy);
             marker.clearBinding();
             helper.assertTrue(marker.getBoundAbnormality() == null,
                     "test precondition did not clear the escaped abnormality binding");
@@ -1009,6 +1140,44 @@ public final class RecentAbnormalityFixGameTests {
                     "containment return did not restore the room UUID binding");
             helper.assertTrue(AbnormalityWorkRules.isRegistered(fragment),
                     "returned abnormality still failed the server work-registration rule");
+            helper.succeed();
+        } finally {
+            fragment.discard();
+            clearContainmentFixture(facility, markerPos);
+        }
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 80, required = true, batch = "recent_containment_binding")
+    public static void unregisteredEscapeWithStaleHomeDoesNotClaimRoom(GameTestHelper helper) {
+        ServerLevel facility = helper.getLevel().getServer().getLevel(ModDimensions.LOBOTO_KEY);
+        if (facility == null) throw new IllegalStateException("facility dimension unavailable");
+        BlockPos markerPos = new BlockPos(160, 270, 30);
+        prepareContainmentFixture(facility, markerPos);
+        EntityFragmentOfUniverse fragment = ModEntities.fragment_of_the_universe.get().create(facility);
+        if (fragment == null) throw new IllegalStateException("fragment unavailable");
+        try {
+            fragment.moveTo(markerPos.getX() + 48.5D, markerPos.getY(),
+                    markerPos.getZ() + 0.5D, 0.0F, 0.0F);
+            facility.addFreshEntity(fragment);
+            fragment.bindHomeRoom(facility.dimension().location(), markerPos);
+            RoomMarkerBlockEntity marker = (RoomMarkerBlockEntity) facility.getBlockEntity(markerPos);
+            helper.assertFalse(AbnormalityWorkRules.isRegistered(fragment),
+                    "stale-home fixture must not be registered");
+            fragment.triggerEscape();
+            CompoundTag saved = new CompoundTag();
+            fragment.addAdditionalSaveData(saved);
+            helper.assertTrue(saved.getBoolean("EscapeRegistrationRecorded")
+                            && !saved.getBoolean("EscapedFromRegisteredContainment"),
+                    "fixture did not record an explicitly unregistered escape");
+            fragment.die(fragment.damageSources().genericKill());
+            helper.assertTrue(fragment.isAlive() && !fragment.hasEscape(),
+                    "unregistered stale-home entity did not recover");
+            helper.assertFalse(fragment.getUUID().equals(marker.getBoundAbnormality()),
+                    "explicitly unregistered escape claimed the stale home slot: entity="
+                            + fragment.getUUID() + ", bound=" + marker.getBoundAbnormality());
+            helper.assertFalse(AbnormalityWorkRules.isRegistered(fragment),
+                    "stale home was mistaken for an authoritative escape registration");
             helper.succeed();
         } finally {
             fragment.discard();
@@ -1077,13 +1246,17 @@ public final class RecentAbnormalityFixGameTests {
         }
         BlockPos markerPos = new BlockPos(160, 270, 30);
         BlockPos inside = markerPos.offset(2, 0, 0);
+        BlockPos lowerSupport = inside.below(3);
         BlockPos staleNest = markerPos.offset(0, 0, 8);
-        List<BlockPos> staleFixture = List.of(staleNest.below(), staleNest,
+        List<BlockPos> staleFixture = List.of(lowerSupport, staleNest.below(), staleNest,
                 staleNest.above(), staleNest.above(2));
         Map<BlockPos, net.minecraft.world.level.block.state.BlockState> previousStates =
                 staleFixture.stream().collect(java.util.stream.Collectors.toMap(
                         BlockPos::immutable, facility::getBlockState));
         prepareContainmentFixture(facility, markerPos);
+        // Keep a second solid support layer below the room floor. The old
+        // recovery scan preferred this lower pocket over the real anchor.
+        facility.setBlockAndUpdate(lowerSupport, Blocks.STONE.defaultBlockState());
         facility.setBlockAndUpdate(staleNest.below(), Blocks.STONE.defaultBlockState());
         facility.setBlockAndUpdate(staleNest, ModBlocks.PUNISHING_BIRD.get().defaultBlockState());
         facility.setBlockAndUpdate(staleNest.above(), Blocks.AIR.defaultBlockState());
@@ -1113,6 +1286,8 @@ public final class RecentAbnormalityFixGameTests {
             helper.assertTrue(new AABB(inside).inflate(3.0D).contains(bird.position()),
                     "stale nest overrode the original containment return position: "
                             + bird.blockPosition());
+            helper.assertTrue(bird.getY() >= inside.getY(),
+                    "punishing bird returned below the containment floor: " + bird.blockPosition());
             helper.assertTrue(facility.noCollision(bird),
                     "punishing bird returned with a colliding bounding box");
             helper.succeed();
@@ -1164,12 +1339,13 @@ public final class RecentAbnormalityFixGameTests {
         return redShoes;
     }
 
-    private static boolean isThreatForEmployee(EmployeeServerPlayer observer, EmployeeServerPlayer target) {
+    private static boolean isThreatForEmployee(EmployeeServerPlayer observer, LivingEntity target) {
         try {
             Method method = EmployeeRuntimeManager.class.getDeclaredMethod(
-                    "isThreatFor", EmployeeServerPlayer.class, net.minecraft.world.entity.LivingEntity.class);
+                    "isThreatFor", EmployeeServerPlayer.class,
+                    net.minecraft.world.entity.LivingEntity.class, boolean.class);
             method.setAccessible(true);
-            return (boolean) method.invoke(null, observer, target);
+            return (boolean) method.invoke(null, observer, target, false);
         } catch (ReflectiveOperationException exception) {
             throw new IllegalStateException("Unable to inspect employee threat selection", exception);
         }

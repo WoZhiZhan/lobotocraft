@@ -4,6 +4,10 @@ import com.lobotocraft.facility.client.ClientFacilityState;
 import com.lobotocraft.facility.data.FacilityDayData;
 import com.lobotocraft.facility.data.OrdealTier;
 import com.lobotocraft.facility.day.DayTransitionService;
+import com.wzz.lobotocraft.network.PacketDecodeLimits;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
 import java.util.function.Supplier;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
@@ -33,14 +37,20 @@ public record FacilityStatePacket(
     int voteApprovals,
     int voteRejects,
     int voteRequired,
-    int ownVote
+    int ownVote,
+    boolean paused,
+    int pauseCooldownTicks,
+    Map<UUID, Integer> meltdownRemainingTicks
 ) {
+    static final int MAX_MELTDOWNS = 1024;
+
+    public FacilityStatePacket {
+        meltdownRemainingTicks = Map.copyOf(meltdownRemainingTicks);
+    }
+
     public static FacilityStatePacket from(FacilityDayData data, long gameTime, ServerPlayer player) {
-        long earliestRemaining = data.getActiveMeltdowns().values().stream()
-            .mapToLong(meltdown -> meltdown.projectedRemainingTicks(gameTime))
-            .min().orElse(0L);
-        int remaining = data.getActiveMeltdowns().isEmpty() ? 0
-            : (int) Math.max(0, Math.min(Integer.MAX_VALUE, earliestRemaining));
+        Map<UUID, Integer> meltdowns = snapshotMeltdowns(data, gameTime);
+        int remaining = meltdowns.values().stream().mapToInt(Integer::intValue).min().orElse(0);
         DayTransitionService.VoteView vote = DayTransitionService.viewFor(player, gameTime);
         return new FacilityStatePacket(data.getDay(), data.getEnergy(), data.getEnergyQuota(),
             data.getMeltdownLevel(), data.getMeltdownGauge(), data.getMeltdownThreshold(),
@@ -48,7 +58,21 @@ public record FacilityStatePacket(
             data.getNextOrdealColor(), packScheduleTiers(data), packScheduleColors(data),
             data.getNotificationSerial(), data.getNotificationType(),
             DayTransitionService.isReady(player, data), vote.active(), vote.remainingTicks(),
-            vote.eligible(), vote.approvals(), vote.rejects(), vote.required(), vote.ownVote());
+            vote.eligible(), vote.approvals(), vote.rejects(), vote.required(), vote.ownVote(),
+            com.lobotocraft.facility.FacilityPauseState.isPaused(player.server),
+            com.lobotocraft.facility.FacilityPauseState.cooldownTicks(player.server), meltdowns);
+    }
+
+    public static Map<UUID, Integer> snapshotMeltdowns(FacilityDayData data, long gameTime) {
+        Map<UUID, Integer> remaining = new LinkedHashMap<>();
+        // Keep the earliest targets if a malformed/oversized save exceeds the wire limit.
+        data.getActiveMeltdowns().entrySet().stream()
+            .sorted(java.util.Comparator.comparingLong(entry ->
+                entry.getValue().projectedRemainingTicks(gameTime)))
+            .limit(MAX_MELTDOWNS)
+            .forEach(entry -> remaining.put(entry.getKey(), (int) Math.max(0L,
+                Math.min(Integer.MAX_VALUE, entry.getValue().projectedRemainingTicks(gameTime)))));
+        return Map.copyOf(remaining);
     }
 
     public static void encode(FacilityStatePacket packet, FriendlyByteBuf buffer) {
@@ -74,6 +98,16 @@ public record FacilityStatePacket(
         buffer.writeVarInt(packet.voteRejects);
         buffer.writeVarInt(packet.voteRequired);
         buffer.writeByte(packet.ownVote);
+        buffer.writeBoolean(packet.paused);
+        buffer.writeVarInt(packet.pauseCooldownTicks);
+        int count = Math.min(packet.meltdownRemainingTicks.size(), MAX_MELTDOWNS);
+        buffer.writeVarInt(count);
+        int written = 0;
+        for (Map.Entry<UUID, Integer> entry : packet.meltdownRemainingTicks.entrySet()) {
+            if (written++ >= count) break;
+            buffer.writeUUID(entry.getKey());
+            buffer.writeVarInt(Math.max(0, entry.getValue()));
+        }
     }
 
     public static FacilityStatePacket decode(FriendlyByteBuf buffer) {
@@ -82,7 +116,20 @@ public record FacilityStatePacket(
             buffer.readVarInt(), buffer.readVarInt(), buffer.readInt(), buffer.readLong(), buffer.readLong(),
             buffer.readLong(), buffer.readVarInt(),
             buffer.readBoolean(), buffer.readBoolean(), buffer.readVarInt(), buffer.readVarInt(),
-            buffer.readVarInt(), buffer.readVarInt(), buffer.readVarInt(), buffer.readByte());
+            buffer.readVarInt(), buffer.readVarInt(), buffer.readVarInt(), buffer.readByte(),
+            buffer.readBoolean(), buffer.readVarInt(), readMeltdowns(buffer));
+    }
+
+    private static Map<UUID, Integer> readMeltdowns(FriendlyByteBuf buffer) {
+        int count = PacketDecodeLimits.readVarIntCount(buffer, MAX_MELTDOWNS, "facility meltdown");
+        Map<UUID, Integer> remaining = new LinkedHashMap<>(count);
+        for (int index = 0; index < count; index++) {
+            UUID target = buffer.readUUID();
+            if (remaining.put(target, Math.max(0, buffer.readVarInt())) != null) {
+                throw new IllegalArgumentException("Duplicate facility meltdown target: " + target);
+            }
+        }
+        return remaining;
     }
 
     public static void handle(FacilityStatePacket packet, Supplier<NetworkEvent.Context> contextSupplier) {

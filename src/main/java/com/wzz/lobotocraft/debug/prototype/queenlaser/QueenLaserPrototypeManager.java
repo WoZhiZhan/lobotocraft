@@ -20,12 +20,18 @@ public final class QueenLaserPrototypeManager {
     }
 
     public static void start(Vec3 start, Vec3 end, int mode, int castTicks, int durationTicks) {
+        start(start, end, mode, castTicks, durationTicks, 0);
+    }
+
+    public static void start(Vec3 start, Vec3 end, int mode, int castTicks, int durationTicks,
+                             int ageTicks) {
         if (!finite(start) || !finite(end) || start.distanceToSqr(end) < 0.01D) return;
         int safeMode = mode == QueenLaserPrototypePacket.MODE_MAX
                 ? QueenLaserPrototypePacket.MODE_MAX : QueenLaserPrototypePacket.MODE_PREVIEW;
         int safeDuration = Mth.clamp(durationTicks, 20, 20 * 30);
         int safeCastTicks = Mth.clamp(castTicks, 1, Math.max(1, safeDuration - 1));
         active = new Beam(start, end, safeMode, safeCastTicks, safeDuration);
+        active.ageTicks = Mth.clamp(ageTicks, 0, Math.max(0, safeDuration - 1));
     }
 
     public static void clear() {

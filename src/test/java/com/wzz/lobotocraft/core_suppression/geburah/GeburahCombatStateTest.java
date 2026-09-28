@@ -16,16 +16,17 @@ final class GeburahCombatStateTest {
         assertTrue(result.changedPhase());
         assertFalse(result.defeated());
         assertEquals(GeburahPhase.EGO, state.phase());
-        assertEquals(3000.0F, state.health());
+        assertEquals(1500.0F, state.health());
+        assertEquals(3000.0F, state.maxHealth());
         assertEquals(100.0F, state.ego());
     }
 
     @Test
     void laterHealthDepletionIsFinalDefeat() {
         GeburahCombatState state = new GeburahCombatState();
-        state.applyHealthDamage(6000.0F);
+        state.applyHealthDamage(3000.0F);
 
-        GeburahCombatState.DamageResult result = state.applyHealthDamage(3000.0F);
+        GeburahCombatState.DamageResult result = state.applyHealthDamage(1500.0F);
 
         assertTrue(result.defeated());
         assertEquals(GeburahPhase.DEFEATED, state.phase());

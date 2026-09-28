@@ -37,6 +37,10 @@ public class ClientPacketHandler {
         }
     }
 
+    public static void clear() {
+        currentAnimation = null;
+    }
+
     public static boolean isAnimating() {
         return currentAnimation != null;
     }

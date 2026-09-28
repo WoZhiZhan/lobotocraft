@@ -77,7 +77,7 @@ minecraft {
             workingDirectory project.file(System.getenv('LOBOTOCRAFT_GAMETEST_DIR') ?: 'run-gametest')
             property 'forge.enabledGameTestNamespaces',
                     System.getenv('LOBOTOCRAFT_GAMETEST_NAMESPACES')
-                            ?: "${mod_id},${mod_id}_navigation,${mod_id}_recent_fixes,${mod_id}_lumberjack,${mod_id}_must_open_path,${mod_id}_review_flows,${mod_id}_meltdown,${mod_id}_queen_of_hatred,${mod_id}_blue_star_lifecycle,${mod_id}_mob_ai_lock"
+                             ?: "${mod_id},${mod_id}_navigation,${mod_id}_recent_fixes,${mod_id}_lumberjack,${mod_id}_must_open_path,${mod_id}_review_flows,${mod_id}_meltdown,${mod_id}_queen_of_hatred,${mod_id}_blue_star_lifecycle,${mod_id}_mob_ai_lock"
         }
 
         data {

@@ -341,7 +341,7 @@ public final class MustOpenPathMechanics {
                 || MentalValueUtil.isPanic(player)
                 || event.getAmount() >= player.getHealth()) return;
         float preHitHealth = player.getHealth();
-        player.heal(preHitHealth < player.getMaxHealth() * 0.5F ? 22.0F : 15.0F);
+        player.heal(preHitHealth < player.getMaxHealth() * 0.5F ? 12.0F : 7.0F);
     }
 
     @SubscribeEvent

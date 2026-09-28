@@ -5,9 +5,9 @@ import com.lobotocraft.facility.network.PlayerStatusPacket;
 import com.wzz.lobotocraft.employee.EmployeeRuntimeManager;
 import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
 import com.wzz.lobotocraft.employee.EmployeeTaskType;
-import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
 import com.wzz.lobotocraft.entity.abnormality.EntitySnowQueen;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
+import com.wzz.lobotocraft.entity.control.HostileControlState;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.work.WorkManager;
 import java.util.ArrayList;
@@ -152,6 +152,6 @@ public final class PlayerStatusEvents {
     }
 
     private static boolean isControlled(ServerPlayer player) {
-        return EntitySnowQueen.isFrozen(player) || EntityRedShoes.isRedShoesControlled(player);
+        return EntitySnowQueen.isFrozen(player) || HostileControlState.isActive(player);
     }
 }

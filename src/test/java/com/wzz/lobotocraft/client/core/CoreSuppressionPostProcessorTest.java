@@ -22,6 +22,10 @@ final class CoreSuppressionPostProcessorTest {
     @Test
     void chesedRunsBeforeGuiLikeTheOriginalMainCameraEffect() {
         assertFalse(CoreSuppressionPostProcessor.shouldRenderAfterGui(CoreSuppressionType.CHESED));
+        assertTrue(CoreSuppressionPostProcessor.shouldRenderAfterGui(
+                CoreSuppressionType.CHESED, true, false));
+        assertTrue(CoreSuppressionPostProcessor.shouldRenderAfterGui(
+                CoreSuppressionType.CHESED, false, true));
         assertTrue(CoreSuppressionPostProcessor.shouldRenderAfterGui(CoreSuppressionType.GEBURAH));
     }
 }

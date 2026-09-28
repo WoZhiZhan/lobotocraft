@@ -57,6 +57,11 @@ public class EntityChildrenGalaxy extends AbstractAbnormality {
     }
 
     @Override
+    protected void resetForNewDay() {
+        qliphothCounter = 1;
+    }
+
+    @Override
     public ObservationLevelBonus[] getObservationBonuses() {
         return new ObservationLevelBonus[] {
                 new ObservationLevelBonus(0.0f, 4, false, true, false),

@@ -11,6 +11,10 @@ import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
 import com.wzz.lobotocraft.command.KillCommand;
 import com.wzz.lobotocraft.employee.EmployeeRuntimeManager;
+import com.wzz.lobotocraft.employee.EmployeeDepartment;
+import com.wzz.lobotocraft.employee.EmployeeRecord;
+import com.wzz.lobotocraft.employee.FacilityPersonnelData;
+import com.wzz.lobotocraft.employee.DepartmentProgressService;
 import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
 import com.wzz.lobotocraft.entity.abnormality.EntityDarkSkadi;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
@@ -142,6 +146,9 @@ public final class CoreSuppressionManager {
             return Component.translatable("message.lobotocraft.core_suppression.denial.observation",
                     observed, REQUIRED_FULL_OBSERVATIONS);
         }
+
+        Component staffingDenial = getAiStaffingDenial(player.getServer());
+        if (staffingDenial != null) return staffingDenial;
 
         MinecraftServer server = player.getServer();
         ServerLevel companyLevel = server.getLevel(ModDimensions.LOBOTO_KEY);
@@ -285,6 +292,12 @@ public final class CoreSuppressionManager {
         MinecraftServer server = player.getServer();
         CoreSuppressionData state = CoreSuppressionData.get(server.overworld());
         if (state.isActive() || PENDING_CHALLENGES.containsKey(server)) return false;
+        Component staffingDenial = getAiStaffingDenial(server);
+        if (staffingDenial != null) {
+            player.sendSystemMessage(Component.translatable(
+                    "message.lobotocraft.core_suppression.debug_start_failed", staffingDenial));
+            return false;
+        }
 
         Set<UUID> participants = new HashSet<>();
         for (ServerPlayer participant : server.getPlayerList().getPlayers()) {
@@ -311,6 +324,8 @@ public final class CoreSuppressionManager {
                     Component.translatable("core_suppression.lobotocraft."
                             + state.getActiveType().getId())));
         }
+        Component staffingDenial = getAiStaffingDenial(server);
+        if (staffingDenial != null) return failDebugStart(player, staffingDenial);
         CompanyDailyData daily = getDailyData(player);
         if (daily == null) {
             return failDebugStart(player, Component.translatable(
@@ -1047,6 +1062,31 @@ public final class CoreSuppressionManager {
         return player.getCapability(PlayerAbnormalityDataProvider.PLAYER_ABNORMALITY_DATA)
                 .map(data -> data.countFullyObservedAbnormalities())
                 .orElse(0);
+    }
+
+    private static Component getAiStaffingDenial(MinecraftServer server) {
+        if (server == null) return Component.translatable(
+                "message.lobotocraft.core_suppression.denial.ai_staffing_unavailable");
+        FacilityPersonnelData personnel = FacilityPersonnelData.get(server);
+        Map<EmployeeDepartment, Integer> counts = new HashMap<>();
+        for (EmployeeRecord record : personnel.employees()) {
+            EmployeeDepartment department = record.department();
+            if (department != null && department != EmployeeDepartment.UNASSIGNED
+                    && DepartmentProgressService.isOpen(server, department)) {
+                counts.merge(department, 1, Integer::sum);
+            }
+        }
+        for (EmployeeDepartment department : EmployeeDepartment.values()) {
+            if (department == EmployeeDepartment.UNASSIGNED
+                    || !DepartmentProgressService.isOpen(server, department)) continue;
+            int count = counts.getOrDefault(department, 0);
+            if (count < 3) {
+                return Component.translatable(
+                        "message.lobotocraft.core_suppression.denial.ai_staffing",
+                        Component.translatable(department.translationKey()), count, 3);
+            }
+        }
+        return null;
     }
 
     private static void syncDaily(ServerPlayer player, CompanyDailyData daily) {

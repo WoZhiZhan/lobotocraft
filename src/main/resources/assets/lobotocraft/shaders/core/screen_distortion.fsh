@@ -44,5 +44,18 @@ void main() {
     distort *= intensity;
 
     vec2 bentUV = clamp(uv + distort, 0.001, 0.999);
-    fragColor = texture(Sampler0, bentUV);
+    vec2 fromCenter = abs(uv - vec2(0.5));
+    float edge = max(fromCenter.x, fromCenter.y) * 2.0;
+    float corner = smoothstep(0.28, 1.0, edge);
+    float separation = intensity * (0.0015 + corner * 0.0105);
+    vec2 redUV = clamp(bentUV + vec2(separation, separation * 0.18), 0.001, 0.999);
+    vec2 blueUV = clamp(bentUV - vec2(separation, separation * 0.18), 0.001, 0.999);
+    vec4 redSample = texture(Sampler0, redUV);
+    vec4 greenSample = texture(Sampler0, bentUV);
+    vec4 blueSample = texture(Sampler0, blueUV);
+    vec3 separated = vec3(redSample.r, greenSample.g, blueSample.b);
+    float vignette = corner * intensity * 0.78;
+    vec3 darkened = separated * (1.0 - vignette * 0.72);
+    darkened.r += vignette * 0.025;
+    fragColor = vec4(darkened, greenSample.a);
 }

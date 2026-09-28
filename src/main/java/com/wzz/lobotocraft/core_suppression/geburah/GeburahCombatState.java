@@ -1,7 +1,7 @@
 package com.wzz.lobotocraft.core_suppression.geburah;
 
 public final class GeburahCombatState {
-    public static final float DEFAULT_MAX_HEALTH = 6000.0F;
+    public static final float DEFAULT_MAX_HEALTH = 3000.0F;
     public static final float MAX_POSTURE = 100.0F;
     public static final float MAX_EGO = 100.0F;
     public static final float COMBO_POSTURE_COST = 30.0F;

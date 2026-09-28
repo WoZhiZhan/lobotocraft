@@ -296,9 +296,11 @@ public final class DebugCommand implements ICommand {
                                 .then(Commands.argument("amount", IntegerArgumentType.integer(1, 1000))
                                         .executes(context -> facilityGaugeAdd(context.getSource(),
                                                 IntegerArgumentType.getInteger(context, "amount"))))))
-                .then(Commands.literal("trigger-stage")
-                        .executes(context -> facilityTriggerStage(context.getSource())))
-                .then(Commands.literal("stage")
+                 .then(Commands.literal("trigger-stage")
+                         .executes(context -> facilityTriggerStage(context.getSource())))
+                 .then(Commands.literal("clear-meltdowns")
+                         .executes(context -> facilityClearMeltdowns(context.getSource())))
+                 .then(Commands.literal("stage")
                         .then(Commands.literal("add")
                                 .then(Commands.argument("amount", IntegerArgumentType.integer(1, 10))
                                         .executes(context -> facilityStageAdd(context.getSource(),
@@ -1011,6 +1013,12 @@ public final class DebugCommand implements ICommand {
         source.sendSuccess(() -> Component.literal(changed
                 ? "§a已执行当前融毁阶段的正式触发流程。"
                 : "§e触发流程已执行，但阶段未变化（可能没有可用目标或考验未完工）。"), true);
+        return 1;
+    }
+
+    private int facilityClearMeltdowns(CommandSourceStack source) {
+        int cleared = FacilityManager.debugClearMeltdowns(source.getLevel());
+        source.sendSuccess(() -> Component.literal("§a已解决所有现有融毁，共 " + cleared + " 个。"), true);
         return 1;
     }
 

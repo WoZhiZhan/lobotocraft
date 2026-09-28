@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.network.packet;
 
 import com.wzz.lobotocraft.world.data.RoomEmployeeSnapshot;
+import com.wzz.lobotocraft.world.data.RoomEntry;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
@@ -17,8 +18,39 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 final class RoomSnapshotPacketBoundsTest {
+    @Test
+    void monitorRoundTripKeepsBoundAndUnboundRoomsAlignedWithTrailingState() {
+        ResourceLocation dimension = ResourceLocation.fromNamespaceAndPath("lobotocraft", "loboto");
+        RoomEntry bound = new RoomEntry(dimension, new BlockPos(1, 70, 2));
+        bound.boundAbnormality = new UUID(1, 2);
+        RoomEntry unbound = new RoomEntry(dimension, new BlockPos(3, 70, 4));
+        OpenRoomMapPacket source = new OpenRoomMapPacket(
+                List.of(bound, unbound), List.of(), List.of(), List.of(), Set.of("danger"),
+                12345L, true, true, dimension);
+        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+        try {
+            source.toBytes(buffer);
+            OpenRoomMapPacket decoded = new OpenRoomMapPacket();
+            decoded.fromBytes(buffer);
+
+            assertEquals(2, decoded.getRooms().size());
+            assertEquals(bound.boundAbnormality, decoded.getRooms().get(0).boundAbnormality);
+            assertNull(decoded.getRooms().get(1).boundAbnormality);
+            assertEquals(unbound.pos, decoded.getRooms().get(1).pos);
+            assertEquals(Set.of("danger"), decoded.getDangerousAreaIds());
+            assertEquals(12345L, decoded.getServerGameTime());
+            assertTrue(decoded.isGlobalTt2Enabled());
+            assertTrue(decoded.isRefresh());
+            assertEquals(dimension, decoded.getDimension());
+            assertEquals(0, buffer.readableBytes());
+        } finally {
+            buffer.release();
+        }
+    }
+
     @Test
     void suppressionCandidatesAreTruncatedWithoutCorruptingTrailingMessage() {
         List<RoomEmployeeSnapshot> employees = snapshots(513);

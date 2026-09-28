@@ -1,5 +1,6 @@
 package com.wzz.lobotocraft.client.screen;
 
+import com.lobotocraft.facility.client.ClientFacilityState;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.wzz.lobotocraft.client.performance.ClientPerformanceMonitor;
 import com.wzz.lobotocraft.client.core.CoreSuppressionClientState;
@@ -9,6 +10,7 @@ import com.wzz.lobotocraft.client.room.RoomMapViewport;
 import com.wzz.lobotocraft.client.room.RoomMapViewState;
 import com.wzz.lobotocraft.client.room.RoomViewClient;
 import com.wzz.lobotocraft.client.ui.LobotomyUiTheme;
+import com.wzz.lobotocraft.client.ui.FacilityPauseButton;
 import com.wzz.lobotocraft.employee.EmployeeDepartment;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
 import com.wzz.lobotocraft.network.MessageLoader;
@@ -129,7 +131,8 @@ public class RoomMapScreen extends Screen {
     private static final int MINIMAP_MIN_SIZE = 72;
     private static final int MINIMAP_MARGIN = 8;
     private static final int MINIMAP_INSET = 5;
-    private static final double VIEWPORT_EDGE_PADDING = 10.0D;
+    /** Keep a small safety margin while allowing the map to reach the viewport edge. */
+    private static final double VIEWPORT_EDGE_PADDING = 2.0D;
 
     /** 没有楼层标记方块时，自动分层用的 Y 容差 */
     private static final int AUTO_FLOOR_TOLERANCE = 6;
@@ -189,7 +192,6 @@ public class RoomMapScreen extends Screen {
     private Set<String> dangerousAreaIds;
     private long serverGameTime;
     private boolean globalTt2Enabled;
-    private long snapshotReceivedAtMillis;
     private final ResourceLocation dimension;
 
     private final List<Floor> floors = new ArrayList<>();
@@ -272,7 +274,6 @@ public class RoomMapScreen extends Screen {
         this.dangerousAreaIds = Set.copyOf(dangerousAreaIds);
         this.serverGameTime = serverGameTime;
         this.globalTt2Enabled = globalTt2Enabled;
-        this.snapshotReceivedAtMillis = Util.getMillis();
         this.dimension = dimension;
         this.selectedLabel = RoomMapViewState.getLastFloorLabel();
     }
@@ -291,6 +292,9 @@ public class RoomMapScreen extends Screen {
         buildFloors();
         restoreOrFitView();
         rebuildEmployeeMarkers();
+        ScreenBounds pause = pauseButtonBounds();
+        addRenderableWidget(new FacilityPauseButton(
+                pause.left(), pause.top(), pause.width(), pause.height()));
     }
 
     // ------------------------------------------------------------ 楼层分组
@@ -700,7 +704,6 @@ public class RoomMapScreen extends Screen {
         this.dangerousAreaIds = Set.copyOf(newDangerousAreaIds);
         this.serverGameTime = newServerGameTime;
         this.globalTt2Enabled = newGlobalTt2Enabled;
-        this.snapshotReceivedAtMillis = Util.getMillis();
 
         if (layoutChanged) {
             buildFloors();
@@ -717,6 +720,11 @@ public class RoomMapScreen extends Screen {
             }
         }
         if (selectedRoom == null) selectedWork = -1;
+        else if (selectedRoom.uniqueWorkBusy) {
+            selectedWork = -1;
+            workCandidates = List.of();
+            candidatePages = List.of();
+        }
         else if (isSuppressionSelection() && selectedRoom.status != RoomEntry.STATUS_ESCAPED) {
             selectedWork = -1;
             workCandidates = List.of();
@@ -798,6 +806,7 @@ public class RoomMapScreen extends Screen {
     private static void copyRoomSnapshot(RoomEntry target, RoomEntry source) {
         target.dimension = source.dimension;
         target.pos = source.pos;
+        target.boundAbnormality = source.boundAbnormality;
         target.departmentId = source.departmentId;
         target.abnormalityCode = source.abnormalityCode;
         target.abnormalityName = source.abnormalityName;
@@ -805,6 +814,7 @@ public class RoomMapScreen extends Screen {
         target.riskName = source.riskName;
         target.riskColor = source.riskColor;
         target.toolType = source.toolType;
+        target.uniqueWorkBusy = source.uniqueWorkBusy;
         target.status = source.status;
         target.qliphoth = source.qliphoth;
         target.maxQliphoth = source.maxQliphoth;
@@ -1272,7 +1282,8 @@ public class RoomMapScreen extends Screen {
             graphics.renderComponentTooltip(this.font, buildEmployeeTooltip(hoveredMapEmployee), mouseX, mouseY);
         } else if (hoveredWork >= 0) {
             graphics.renderTooltip(this.font, Component.literal(
-                    CoreSuppressionClientState.isActive(CoreSuppressionType.MALKUTH)
+                    uniqueAction(hoveredWork) != null ? tr(uniqueAction(hoveredWork).labelKey)
+                            : CoreSuppressionClientState.isActive(CoreSuppressionType.MALKUTH)
                             ? "???" : tr(WORK_NAME_KEYS[hoveredWork])), mouseX, mouseY);
         } else if (hovered != null) {
             graphics.renderComponentTooltip(this.font, buildTooltip(hovered), mouseX, mouseY);
@@ -1518,6 +1529,12 @@ public class RoomMapScreen extends Screen {
             return;
         }
 
+        if (selectedRoom.uniqueWorkBusy) {
+            drawCentered(graphics, tr("screen.lobotocraft.unique_work.busy"),
+                    left + panel.width() / 2, dividerY + 35,
+                    withAlpha(LobotomyUiTheme.ALERT_RED, alpha));
+            return;
+        }
         if (selectedRoom.toolType) {
             drawCentered(graphics, tr("screen.lobotocraft.monitor.select_tool_employee"), left + panel.width() / 2,
                     dividerY + 35, withAlpha(LobotomyUiTheme.GOLD, alpha));
@@ -1540,6 +1557,15 @@ public class RoomMapScreen extends Screen {
             boolean iconHovered = mouseX >= iconX && mouseX < iconX + WORK_ICON_SIZE
                     && mouseY >= iconY && mouseY < iconY + WORK_ICON_SIZE;
             if (iconHovered) hoveredWork = i;
+            var action = uniqueAction(i);
+            if (action != null) {
+                com.wzz.lobotocraft.client.ui.LobotomyUiRenderer.drawButton(graphics, font,
+                        iconX, iconY, WORK_ICON_SIZE, WORK_ICON_SIZE, Component.literal(action.symbol),
+                        iconHovered
+                                ? com.wzz.lobotocraft.client.ui.LobotomyUiRenderer.ButtonState.HOVER
+                                : com.wzz.lobotocraft.client.ui.LobotomyUiRenderer.ButtonState.DANGER);
+                continue;
+            }
             if (selectedWork == i || iconHovered) {
                 graphics.fill(iconX - 2, iconY - 2,
                         iconX + WORK_ICON_SIZE + 2, iconY + WORK_ICON_SIZE + 2,
@@ -1743,7 +1769,7 @@ public class RoomMapScreen extends Screen {
     }
 
     private int detailsWorkIconAt(double mouseX, double mouseY) {
-        if (selectedRoom == null || selectedRoom.toolType || selectedRoom.status == RoomEntry.STATUS_UNEXPANDED
+        if (selectedRoom == null || selectedRoom.uniqueWorkBusy || selectedRoom.toolType || selectedRoom.status == RoomEntry.STATUS_UNEXPANDED
                 || selectedRoom.status == RoomEntry.STATUS_ESCAPED || isSuppressionSelection()) return -1;
         ScreenBounds panel = detailsBounds();
         int barTop = panel.top() + 14 + 42 + 6;
@@ -2435,14 +2461,13 @@ public class RoomMapScreen extends Screen {
 
     private void renderMeltdownFrame(GuiGraphics graphics, RoomEntry entry,
                                      int left, int top, int width, int height, float alpha) {
-        if (!entry.meltdownActive) return;
+        int remainingTicks = ClientFacilityState.roomMeltdownTicks(entry);
+        if (remainingTicks < 0) return;
         float pulse = 0.78F + 0.22F * Mth.sin((Util.getMillis() % 800L) / 800.0F
                 * (float) Math.PI * 2.0F);
         int red = withAlpha(0xFFFF3B3B, alpha * pulse);
         drawBorder(graphics, left, top, width, height, red);
-        int remainingTicks = remainingMeltdownTicks(entry.meltdownRemainingTicks,
-                Util.getMillis() - snapshotReceivedAtMillis);
-        int seconds = (remainingTicks + 19) / 20;
+        int seconds = ClientFacilityState.meltdownSeconds(remainingTicks);
         String timer = seconds + "s";
         int timerX = left + width + 3;
         if (timerX + this.font.width(timer) > this.width) {
@@ -2450,11 +2475,6 @@ public class RoomMapScreen extends Screen {
         }
         int timerY = Math.max(HEADER_H + 1, top + 2);
         graphics.drawString(this.font, timer, timerX, timerY, red, true);
-    }
-
-    static int remainingMeltdownTicks(int snapshotTicks, long elapsedMillis) {
-        long elapsedTicks = Math.max(0L, elapsedMillis) / 50L;
-        return (int) Math.max(0L, (long) Math.max(0, snapshotTicks) - elapsedTicks);
     }
 
     private RoomEmployeeSnapshot roomWorkSnapshot(RoomEntry room) {
@@ -2807,7 +2827,8 @@ public class RoomMapScreen extends Screen {
         graphics.fill(0, HEADER_H, this.width, HEADER_H + 1, withAlpha(COLOR_ACCENT, alpha));
 
         String title = tr("screen.lobotocraft.monitor.header");
-        graphics.drawString(this.font, title, 12, 11, withAlpha(COLOR_TEXT, alpha), false);
+        drawFittedString(graphics, title, 12, 11, Math.max(1, pauseButtonBounds().left() - 20),
+                withAlpha(COLOR_TEXT, alpha));
         int x = 12 + this.font.width(title) + 14;
 
         int escaped = 0;
@@ -2820,7 +2841,7 @@ public class RoomMapScreen extends Screen {
         String stats = tr("screen.lobotocraft.monitor.stats",
                 rooms.size(), contained, escaped, floors.size());
         ScreenBounds tt2 = tt2ButtonBounds();
-        int statsWidth = Math.max(0, tt2.left() - x - 10);
+        int statsWidth = Math.max(0, pauseButtonBounds().left() - x - 10);
         if (statsWidth > 12) {
             drawFittedString(graphics, stats, x, 11, statsWidth,
                     withAlpha(escaped > 0 ? STATUS_ESCAPED : COLOR_TEXT_DIM, alpha));
@@ -2843,17 +2864,24 @@ public class RoomMapScreen extends Screen {
                 tt2.left() + tt2.width() / 2, tt2.top() + 6,
                 withAlpha(globalTt2Enabled ? LobotomyUiTheme.ENERGY_GREEN : COLOR_TEXT_DIM, alpha));
 
-        String facilityName = tr("screen.lobotocraft.monitor.facility_name");
-        graphics.drawString(this.font, facilityName,
-                this.width - this.font.width(facilityName) - 12, 11,
-                withAlpha(COLOR_TEXT, alpha), false);
+        if (this.width >= 480) {
+            String facilityName = tr("screen.lobotocraft.monitor.facility_name");
+            graphics.drawString(this.font, facilityName,
+                    this.width - this.font.width(facilityName) - 12, 11,
+                    withAlpha(COLOR_TEXT, alpha), false);
+        }
 
     }
 
     private ScreenBounds tt2ButtonBounds() {
         int companyLeft = this.width - this.font.width(
                 tr("screen.lobotocraft.monitor.facility_name")) - 12;
-        int right = companyLeft - 12;
+        int right = this.width >= 480 ? companyLeft - 12 : this.width - 8;
+        return new ScreenBounds(right - 94, 6, right, HEADER_H - 6);
+    }
+
+    private ScreenBounds pauseButtonBounds() {
+        int right = tt2ButtonBounds().left() - 6;
         return new ScreenBounds(right - 94, 6, right, HEADER_H - 6);
     }
 
@@ -2898,9 +2926,10 @@ public class RoomMapScreen extends Screen {
                         entry.qliphoth, entry.maxQliphoth));
             }
         }
-        if (entry.meltdownActive) {
+        int meltdownTicks = ClientFacilityState.roomMeltdownTicks(entry);
+        if (meltdownTicks >= 0) {
             lines.add(Component.translatable("screen.lobotocraft.monitor.tooltip.meltdown",
-                    Math.max(0, (entry.meltdownRemainingTicks + 19) / 20)));
+                    ClientFacilityState.meltdownSeconds(meltdownTicks)));
         }
         RoomEmployeeSnapshot activeWork = roomWorkSnapshot(entry);
         if (activeWork != null) {
@@ -3102,6 +3131,10 @@ public class RoomMapScreen extends Screen {
             confirmRename();
             return true;
         }
+        if (button == 0 && pauseButtonBounds().contains(mouseX, mouseY)) {
+            FacilityPauseButton.requestToggle();
+            return true;
+        }
         if (button == 0 && tt2ButtonBounds().contains(mouseX, mouseY)) {
             MessageLoader.getLoader().sendToServer(new ToggleGlobalTT2Packet());
             playUiSound(globalTt2Enabled ? 0.95F : 1.15F);
@@ -3183,6 +3216,15 @@ public class RoomMapScreen extends Screen {
             if (button == 0) {
                 int work = detailsWorkIconAt(mouseX, mouseY);
                 if (work >= 0) {
+                    var action = uniqueAction(work);
+                    if (action != null
+                            && action != com.wzz.lobotocraft.work.AbnormalityCommandPolicy.Action.PROTECTION) {
+                        selectedWork = -1;
+                        MessageLoader.getLoader().sendToServer(
+                                new com.wzz.lobotocraft.network.packet.RequestUniqueRoomWorkPacket(
+                                        selectedRoom.dimension, selectedRoom.pos, work));
+                        return true;
+                    }
                     selectedWork = work;
                     workSelectedAt = Util.getMillis();
                     workCandidates = List.of();
@@ -3465,6 +3507,10 @@ public class RoomMapScreen extends Screen {
         }
 
         switch (keyCode) {
+            case GLFW.GLFW_KEY_SPACE -> {
+                FacilityPauseButton.requestToggle();
+                return true;
+            }
             case GLFW.GLFW_KEY_R -> {
                 fitToView();
                 return true;
@@ -3517,6 +3563,19 @@ public class RoomMapScreen extends Screen {
             case RoomEntry.STATUS_UNEXPANDED -> STATUS_UNEXPANDED;
             default -> STATUS_EMPTY;
         };
+    }
+
+    private com.wzz.lobotocraft.work.AbnormalityCommandPolicy.Action uniqueAction(int slot) {
+        return selectedRoom == null ? null : com.wzz.lobotocraft.work.AbnormalityCommandPolicy
+                .action(selectedRoom.abnormalityCode, slot);
+    }
+
+    public void refreshSharedKnowledge() {
+        if (selectedRoom != null && !selectedRoom.uniqueWorkBusy && selectedWork >= 0
+                && selectedWork < WorkType.values().length && uniqueAction(selectedWork) == null) {
+            MessageLoader.getLoader().sendToServer(new RequestRoomWorkCandidatesPacket(
+                    selectedRoom.dimension, selectedRoom.pos, WorkType.values()[selectedWork]));
+        }
     }
 
     private static boolean hasActiveOccupant(RoomEntry entry) {

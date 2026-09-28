@@ -38,17 +38,11 @@ public final class RoomMapViewport {
                                     double requestedPan, double padding) {
         double baseMin = (contentMin - centerWorld) * zoom + screenCenter;
         double baseMax = (contentMax - centerWorld) * zoom + screenCenter;
-        double contentPixels = baseMax - baseMin;
-        double usablePixels = Math.max(0.0D, viewportMax - viewportMin - padding * 2.0D);
-
-        if (contentPixels <= usablePixels) {
-            double contentCenter = (baseMin + baseMax) * 0.5D;
-            double viewportCenter = (viewportMin + viewportMax) * 0.5D;
-            return viewportCenter - contentCenter;
-        }
-
-        double minimumPan = viewportMax - padding - baseMax;
-        double maximumPan = viewportMin + padding - baseMin;
+        // Permit every part of the map to cross the viewport, even at overview zoom.
+        // Keep a small strip reachable at either extreme rather than locking small maps in place.
+        double overlap = Math.min(padding, (baseMax - baseMin) * 0.5D);
+        double minimumPan = viewportMin + overlap - baseMax;
+        double maximumPan = viewportMax - overlap - baseMin;
         return Math.max(minimumPan, Math.min(maximumPan, requestedPan));
     }
 

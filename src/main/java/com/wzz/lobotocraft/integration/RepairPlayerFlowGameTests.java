@@ -11,6 +11,7 @@ import com.wzz.lobotocraft.employee.EmployeeRecord;
 import com.wzz.lobotocraft.employee.EmployeeRuntimeManager;
 import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
 import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
+import com.wzz.lobotocraft.event.ForgeModEvent;
 import com.wzz.lobotocraft.entity.ordeal.EntityGreenDawn;
 import com.wzz.lobotocraft.event.listener.PlayerControlLock;
 import com.wzz.lobotocraft.exhibition.ExhibitionSafetyService;
@@ -216,6 +217,53 @@ public final class RepairPlayerFlowGameTests {
             EntityRedShoes.clearControlForRecovery(employee);
             redShoes.discard();
             EmployeeRuntimeManager.remove(helper.getLevel().getServer(), record);
+        }
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 40, required = true, batch = "review_login_control_recovery")
+    public static void loginClearsTransientControlAndPanicStates(GameTestHelper helper) {
+        EmployeeServerPlayer player = spawnEmployee(helper, "login_control_recovery",
+                new BlockPos(2, 1, 2));
+        player.getPersistentData().putBoolean("lobotocraft_red_shoes_charmed", true);
+        player.getPersistentData().putBoolean("isSnowQueen", true);
+        player.getPersistentData().putBoolean("isSnowQueenDuel", true);
+        player.addEffect(new MobEffectInstance(ModMobEffects.KISS.get(), 200, 2));
+        player.setTicksFrozen(120);
+        player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
+            mental.setPanicType(PanicType.BERSERK);
+            mental.setMentalValue(0.0F);
+        });
+
+        try {
+            helper.assertTrue(EntityRedShoes.isRedShoesControlled(player),
+                    "red shoes login fixture was not controlled");
+            helper.assertTrue(BuffUtil.hasKiss(player), "kiss login fixture was not applied");
+            helper.assertTrue(MentalValueUtil.isPanic(player), "panic login fixture was not applied");
+
+            ForgeModEvent.onPlayerLoggedIn(
+                    new net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent(player));
+
+            helper.assertFalse(EntityRedShoes.isRedShoesControlled(player),
+                    "red shoes control survived login recovery");
+            helper.assertFalse(BuffUtil.hasKiss(player), "kiss survived login recovery");
+            helper.assertFalse(player.getPersistentData().getBoolean("isSnowQueen"),
+                    "snow queen marker survived login recovery");
+            helper.assertFalse(player.getPersistentData().getBoolean("isSnowQueenDuel"),
+                    "snow queen duel marker survived login recovery");
+            helper.assertTrue(player.getTicksFrozen() == 0,
+                    "vanilla frozen ticks survived login recovery");
+            helper.assertFalse(MentalValueUtil.isPanic(player),
+                    "panic survived login recovery");
+            float partialMental = MentalValueUtil.getEffectiveMaxMentalValue(player) * 0.5F;
+            MentalValueUtil.setMentalValue(player, partialMental);
+            ForgeModEvent.onPlayerLoggedIn(
+                    new net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent(player));
+            helper.assertTrue(Math.abs(MentalValueUtil.getMentalValue(player) - partialMental) < 0.001F,
+                    "non-panicking player restored mental value by reconnecting");
+            helper.succeed();
+        } finally {
+            player.kill();
         }
     }
 

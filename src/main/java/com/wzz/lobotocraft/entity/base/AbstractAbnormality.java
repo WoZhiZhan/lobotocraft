@@ -8,7 +8,12 @@ import com.wzz.lobotocraft.block.entity.RoomMarkerBlockEntity;
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
 import com.wzz.lobotocraft.entity.EntityRedShoesClerk;
+import com.wzz.lobotocraft.entity.ai.AbnormalityFearResponse;
+import com.wzz.lobotocraft.entity.ai.AbnormalityFearService;
+import com.wzz.lobotocraft.entity.ai.AbnormalityFearSource;
 import com.wzz.lobotocraft.entity.ai.goal.MoveToBlackForestDoorGoal;
+import com.wzz.lobotocraft.entity.ai.goal.FacilityRoamGoal;
+import com.wzz.lobotocraft.entity.ai.goal.MoveToBlockPosWithElevatorGoal;
 import com.wzz.lobotocraft.entity.abnormality.EntityIsharmla;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.employee.FacilityAccessService;
@@ -19,10 +24,12 @@ import com.wzz.lobotocraft.event.definition.abnormality.QliphothCounterEvent;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
 import com.wzz.lobotocraft.init.ModMobEffects;
+import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.FacilityCombatRules;
 import com.wzz.lobotocraft.util.MethodHandleUtils;
+import com.wzz.lobotocraft.work.AbnormalityWorkRules;
 import com.wzz.lobotocraft.work.WorkType;
 import com.wzz.lobotocraft.world.data.CompanyRoomData;
 import com.wzz.lobotocraft.world.data.FacilityWorldLayout;
@@ -63,7 +70,7 @@ import java.util.*;
 /**
  * 异想体抽象基类
  */
-public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbnormality, NameProvider {
+public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbnormality, NameProvider, AbnormalityFearSource {
     private enum ContainmentReturnResult {
         COMPLETED,
         TRANSFERRED,
@@ -102,6 +109,9 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
     private boolean pendingContainmentReturn;
     private boolean pendingStopEscapeEvent;
     private boolean containmentReturnWasSuppression;
+    private boolean escapeRegistrationRecorded;
+    private boolean escapedFromRegisteredContainment;
+    private boolean unregisteredReturnInProgress;
     private int lastFacilityDaySeen = -1;
     private int lastHurtTimestamp = -10000; // 记录上次受伤的时刻（tick）
 
@@ -164,6 +174,40 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
 
     public String getAbnormalityJadeName() {
         return this.entityData.get(DATA_JADE_NAME);
+    }
+
+    /** Explicit opt-in for ordinary escaped ground abnormalities. */
+    protected final void addFacilityRoamingGoals(int elevatorPriority, int roamingPriority,
+                                                 double speed) {
+        this.goalSelector.addGoal(elevatorPriority, new MoveToBlockPosWithElevatorGoal(
+                this, speed, this::facilityPursuitTargetPosition,
+                this::shouldUseFacilityElevatorPursuit, () -> { }));
+        this.goalSelector.addGoal(roamingPriority, new FacilityRoamGoal(this, speed));
+    }
+
+    /** Special attacks and return states can suspend both patrol and elevator pursuit. */
+    protected boolean isFacilityMovementBlocked() {
+        return false;
+    }
+
+    public final boolean canUseFacilityRoaming() {
+        return hasEscape() && !isContainmentReturnPending() && !isFacilityMovementBlocked();
+    }
+
+    private BlockPos facilityPursuitTargetPosition() {
+        LivingEntity target = getTarget();
+        return isValidFacilityPursuitTarget(target) ? target.blockPosition() : null;
+    }
+
+    private boolean shouldUseFacilityElevatorPursuit() {
+        LivingEntity target = getTarget();
+        return canUseFacilityRoaming() && isValidFacilityPursuitTarget(target)
+                && Math.abs(target.getY() - getY()) > 5.0D;
+    }
+
+    private boolean isValidFacilityPursuitTarget(@Nullable LivingEntity target) {
+        return target != null && target.isAlive() && !target.isRemoved()
+                && target.level() == level();
     }
 
     public Component getLocalizedAbnormalityName() {
@@ -233,6 +277,22 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         return pendingContainmentReturn;
     }
 
+    /** Shared by the loaded-entity snapshot, reload catch-up and migrated replacements. */
+    public final void recoverForNewFacilityDay() {
+        if (!(level() instanceof ServerLevel serverLevel) || isRemoved() || !isAlive()) return;
+        int facilityDay = FacilityDayData.get(serverLevel).getDay();
+        if (lastFacilityDaySeen == facilityDay || pendingContainmentReturn) return;
+        if (hasEscape()) stopEscape();
+        // Deferred returns retain the old persisted day; transferred sources must never initialize.
+        if (isRemoved() || hasEscape() || pendingContainmentReturn) return;
+        resetForNewDay();
+        lastFacilityDaySeen = facilityDay;
+    }
+
+    protected void resetForNewDay() {
+        qliphothCounter = maxQliphothCounter;
+    }
+
     /**
      * 判断当前异想体是否为黑森林三鸟
      */
@@ -260,22 +320,12 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
             this.stopRiding();
         }
         if (!this.level().isClientSide) {
-            if (this.level() instanceof ServerLevel serverLevel) {
-                int facilityDay = FacilityDayData.get(serverLevel).getDay();
-                if (lastFacilityDaySeen != facilityDay) {
-                    lastFacilityDaySeen = facilityDay;
-                    // FacilityManager performs the first day-change recovery
-                    // from a stable entity snapshot. If that return had to be
-                    // deferred, wait for the normal retry loop instead of
-                    // invoking stopEscape a second time in the same transition.
-                    if (hasEscape() && !pendingContainmentReturn) stopEscape();
-                }
-            }
             if (ContainmentReturnPolicy.shouldRetry(pendingContainmentReturn, this.tickCount,
                     CONTAINMENT_RETURN_RETRY_INTERVAL)) {
                 // Dynamic dispatch is required so subtype cleanup runs after a deferred return succeeds.
                 stopEscape();
             }
+            recoverForNewFacilityDay();
             if (this.tickCount == 1 || this.tickCount % 100 == 0) {
                 syncNearbyPlayers();
             }
@@ -524,6 +574,8 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
     /** Starts the common escape lifecycle, preferring a subtype-specific spawn anchor when supplied. */
     protected final boolean beginEscape(@Nullable BlockPos preferredDestination) {
         if (hasEscape() || this.level().isClientSide || !canEscape()) return false;
+        escapeRegistrationRecorded = true;
+        escapedFromRegisteredContainment = AbnormalityWorkRules.isRegistered(this);
         BlockPos teleportTarget = preferredDestination == null
                 ? null : findSafeEscapePosition(preferredDestination);
         if (teleportTarget == null) teleportTarget = findAvailableEscapePosition();
@@ -689,6 +741,10 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
     }
 
     public void stopEscape() {
+        if (unregisteredReturnInProgress) {
+            completeUnregisteredReturn(blockPosition(), true);
+            return;
+        }
         if (!hasEscape()) return;
         ContainmentReturnResult result = level() instanceof ServerLevel serverLevel
                 ? returnSameEntityToContainment(serverLevel)
@@ -838,6 +894,11 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
     }
 
     @Override
+    public AbnormalityFearResponse encounterFear(ServerPlayer employee) {
+        return AbnormalityFearService.defaultResponse(this, employee);
+    }
+
+    @Override
     public String getDamageType() {
         return damageType;
     }
@@ -899,6 +960,13 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
     }
 
     private ContainmentReturnResult returnSameEntityToContainment(ServerLevel currentLevel) {
+        boolean registeredAtEscape = escapeRegistrationRecorded
+                ? escapedFromRegisteredContainment
+                : AbnormalityWorkRules.isRegistered(this) || hasRecoverableLegacyHome(currentLevel);
+        if (ContainmentReturnPolicy.returnsToEscapeOrigin(registeredAtEscape)) {
+            return returnUnregisteredToEscapeOrigin(currentLevel);
+        }
+        repairLostContainmentBinding(currentLevel);
         prepareForContainmentReturn();
         clearContainmentCombatState();
         ResourceLocation targetDimension = ContainmentReturnPolicy.selectTargetDimension(
@@ -951,6 +1019,7 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
             returned.stopEscape();
             if (!returned.hasEscape() && !returned.pendingContainmentReturn) {
                 restoreContainmentBinding(targetLevel, marker, returned);
+                returned.recoverForNewFacilityDay();
             }
             // Forge normally preserves UUID across dimensions. If another teleporter replaces it,
             // the known source UUID is still the only additional identity that belongs here.
@@ -975,6 +1044,174 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         restoreContainmentBinding(targetLevel, marker, this);
         EscapeTracker.getInstance().onEscapeStop(this);
         return ContainmentReturnResult.COMPLETED;
+    }
+
+    private boolean hasRecoverableLegacyHome(ServerLevel currentLevel) {
+        // Old saves predate escape-registration snapshots. Retain their known home,
+        // but never use this migration to claim a different entity's room.
+        if (homeRoomDimension == null || homeRoomMarker == null
+                || FacilityWorldLayout.containmentAt(homeRoomDimension, homeRoomMarker).isEmpty()) {
+            return false;
+        }
+        ServerLevel home = currentLevel.getServer().getLevel(
+                ResourceKey.create(Registries.DIMENSION, homeRoomDimension));
+        if (home == null) return false;
+        if (!home.hasChunkAt(homeRoomMarker)) home.getChunkAt(homeRoomMarker);
+        if (!(home.getBlockEntity(homeRoomMarker) instanceof RoomMarkerBlockEntity marker)) return false;
+        UUID bound = marker.getBoundAbnormality();
+        return bound == null || getUUID().equals(bound);
+    }
+
+    /**
+     * An abnormality that had no authoritative room binding before escaping must not claim a
+     * different containment slot when suppression ends. Return it to the recorded pre-escape
+     * position instead, otherwise a full facility can leave it permanently pending.
+     */
+    private ContainmentReturnResult returnUnregisteredToEscapeOrigin(ServerLevel currentLevel) {
+        prepareForContainmentReturn();
+        clearContainmentCombatState();
+
+        ResourceLocation originDimension = escapeDimension != null
+                ? escapeDimension : currentLevel.dimension().location();
+        ServerLevel originLevel = currentLevel.getServer().getLevel(ResourceKey.create(
+                Registries.DIMENSION, originDimension));
+        BlockPos origin = escapePosition != null ? escapePosition : blockPosition();
+
+        if (originLevel != null && isValidContainmentAnchor(originLevel, origin)) {
+            if (!originLevel.hasChunkAt(origin)) originLevel.getChunkAt(origin);
+            BlockPos safe = findSafeContainmentPosition(originLevel, null, origin);
+            if (safe != null) {
+                if (originLevel != currentLevel) {
+                    return transferUnregisteredReturn(currentLevel, originLevel, safe);
+                }
+                completeUnregisteredReturn(safe, false);
+                return ContainmentReturnResult.COMPLETED;
+            }
+        }
+
+        // The original location may have been edited or its dimension may be unavailable. Do
+        // not keep a defeated unregistered entity in the pending state forever; finish it at its
+        // current position as the last-resort normal-state fallback.
+        BlockPos current = blockPosition();
+        if (!currentLevel.hasChunkAt(current)) currentLevel.getChunkAt(current);
+        BlockPos safeCurrent = findSafeContainmentPosition(currentLevel, null, current);
+        completeUnregisteredReturn(safeCurrent != null ? safeCurrent : current, false);
+        return ContainmentReturnResult.COMPLETED;
+    }
+
+    private ContainmentReturnResult transferUnregisteredReturn(ServerLevel currentLevel,
+                                                                ServerLevel originLevel,
+                                                                BlockPos destination) {
+        boolean suppression = containmentReturnWasSuppression;
+        Entity moved = changeDimension(originLevel, new ITeleporter() {
+            @Override
+            public Entity placeEntity(Entity entity, ServerLevel source, ServerLevel destinationLevel,
+                                      float yaw, java.util.function.Function<Boolean, Entity> repositionEntity) {
+                Entity replacement = repositionEntity.apply(false);
+                if (replacement != null) {
+                    replacement.moveTo(destination.getX() + 0.5D, destination.getY(),
+                            destination.getZ() + 0.5D, entity.getYRot(), entity.getXRot());
+                }
+                return replacement;
+            }
+        });
+        if (!(moved instanceof AbstractAbnormality returned) || returned.level() != originLevel) {
+            // The transfer failed after the origin was confirmed. Finish locally rather than
+            // re-entering the old deferred-return loop.
+            completeUnregisteredReturn(blockPosition(), false);
+            return ContainmentReturnResult.COMPLETED;
+        }
+        returned.containmentReturnWasSuppression = suppression;
+        returned.pendingContainmentReturn = false;
+        returned.pendingStopEscapeEvent = false;
+        returned.unregisteredReturnInProgress = true;
+        // Dynamic dispatch preserves subtype-specific escape cleanup after migration.
+        returned.stopEscape();
+        returned.recoverForNewFacilityDay();
+        EscapeTracker.getInstance().onEscapeStop(currentLevel.getServer(), getUUID());
+        return ContainmentReturnResult.TRANSFERRED;
+    }
+
+    private void completeUnregisteredReturn(BlockPos destination, boolean postStopEvent) {
+        moveTo(destination.getX() + 0.5D, destination.getY(), destination.getZ() + 0.5D,
+                getYRot(), getXRot());
+        setDeltaMovement(Vec3.ZERO);
+        setTarget(null);
+        getNavigation().stop();
+        hurtMarked = true;
+        pendingContainmentReturn = false;
+        pendingStopEscapeEvent = false;
+        unregisteredReturnInProgress = false;
+        escapeRegistrationRecorded = false;
+        escapedFromRegisteredContainment = false;
+        escapePosition = null;
+        escapeDimension = null;
+        setEscape(false);
+        qliphothCounter = maxQliphothCounter;
+        setHealth(getMaxHealth());
+        EscapeTracker.getInstance().onEscapeStop(this);
+        if (postStopEvent) {
+            MinecraftForge.EVENT_BUS.post(new AbnormalityEscapeStopEvent(
+                    this, containmentReturnWasSuppression));
+            containmentReturnWasSuppression = false;
+        }
+    }
+
+    /**
+     * Repairs a missing room binding before the normal containment return lookup.
+     * Only unlocked, physically present and currently unoccupied slots are eligible.
+     */
+    private void repairLostContainmentBinding(ServerLevel currentLevel) {
+        if (!isContainmentBindingLost(currentLevel)
+                || currentLevel.getServer() == null) return;
+
+        ServerLevel facility = currentLevel.getServer().getLevel(ModDimensions.LOBOTO_KEY);
+        if (facility == null) return;
+        ResourceLocation dimension = facility.dimension().location();
+        List<FacilityWorldLayout.ContainmentBinding> bindings =
+                FacilityWorldLayout.containmentBindings(dimension).stream()
+                        .sorted(Comparator.comparingDouble(binding ->
+                                currentLevel.dimension().location().equals(dimension)
+                                        ? distanceToSqr(Vec3.atCenterOf(binding.markerPos())) : 0.0D))
+                        .toList();
+
+        for (FacilityWorldLayout.ContainmentBinding binding : bindings) {
+            BlockPos markerPos = binding.markerPos();
+            if (FacilityAccessService.containmentAccess(currentLevel.getServer(),
+                    dimension, markerPos) != FacilityAccessService.ContainmentAccess.OPEN) {
+                continue;
+            }
+            if (!facility.hasChunkAt(markerPos)) facility.getChunkAt(markerPos);
+            if (!(facility.getBlockEntity(markerPos) instanceof RoomMarkerBlockEntity marker)) {
+                continue;
+            }
+            if (marker.getBoundAbnormality() != null || !marker.getBoundCode().isBlank()) {
+                continue;
+            }
+            BlockPos nearby = EntityUtil.findSafeEntityPositionInCompany(
+                    facility, this, markerPos, 4, 2);
+            if (nearby == null) continue;
+
+            bindHomeRoom(dimension, markerPos);
+            escapeDimension = dimension;
+            escapePosition = nearby.immutable();
+            if (facility == currentLevel) {
+                marker.bindByUuid(facility, getUUID());
+            }
+            return;
+        }
+    }
+
+    private boolean isContainmentBindingLost(ServerLevel currentLevel) {
+        if (homeRoomDimension == null || homeRoomMarker == null) return true;
+        Optional<FacilityWorldLayout.ContainmentBinding> binding =
+                FacilityWorldLayout.containmentAt(homeRoomDimension, homeRoomMarker);
+        if (binding.isEmpty()) return true;
+        ServerLevel homeLevel = currentLevel.getServer().getLevel(ResourceKey.create(
+                Registries.DIMENSION, homeRoomDimension));
+        if (homeLevel == null) return true;
+        if (!homeLevel.hasChunkAt(homeRoomMarker)) homeLevel.getChunkAt(homeRoomMarker);
+        return !(homeLevel.getBlockEntity(homeRoomMarker) instanceof RoomMarkerBlockEntity);
     }
 
     private void clearContainmentCombatState() {
@@ -1007,8 +1244,14 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
     private BlockPos findSafeContainmentPosition(ServerLevel level, @Nullable RoomMarkerBlockEntity marker, BlockPos center) {
         AABB roomBounds = marker == null ? null : marker.getScanBox();
         int maxRadius = marker == null ? 4 : Math.min(32, Math.max(0, marker.getRadiusXZ()));
+        // The containment anchor stores the entity's feet position. Searching
+        // below it first can select a perfectly collision-free pocket beneath
+        // a room's floor when the generated structure has multiple support
+        // layers. That is outside the containment room, so only search at the
+        // anchor height or above while a room marker is authoritative.
+        int minDy = marker == null ? -2 : 0;
         for (int radius = 0; radius <= maxRadius; radius++) {
-            for (int dy = -2; dy <= 3; dy++) {
+            for (int dy = minDy; dy <= 3; dy++) {
                 for (int dx = -radius; dx <= radius; dx++) {
                     for (int dz = -radius; dz <= radius; dz++) {
                         if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
@@ -1207,6 +1450,9 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         homeRoomDimension = ResourceLocation.tryParse(tag.getString("HomeRoomDimension"));
         if (tag.contains("HomeRoomMarker")) homeRoomMarker = BlockPos.of(tag.getLong("HomeRoomMarker"));
         pendingContainmentReturn = tag.getBoolean("PendingContainmentReturn");
+        escapeRegistrationRecorded = tag.contains("EscapeRegistrationRecorded")
+                && tag.getBoolean("EscapeRegistrationRecorded");
+        escapedFromRegisteredContainment = tag.getBoolean("EscapedFromRegisteredContainment");
         ContainmentReturnPolicy.LoadedState loadedReturn = ContainmentReturnPolicy.normalizeLoadedState(
                 this.entityData.get(DATA_ESCAPED), pendingContainmentReturn,
                 tag.getBoolean("ContainmentReturnWasSuppression"), getHealth(), getMaxHealth());
@@ -1239,6 +1485,8 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         if (homeRoomDimension != null) tag.putString("HomeRoomDimension", homeRoomDimension.toString());
         if (homeRoomMarker != null) tag.putLong("HomeRoomMarker", homeRoomMarker.asLong());
         tag.putBoolean("PendingContainmentReturn", pendingContainmentReturn);
+        tag.putBoolean("EscapeRegistrationRecorded", escapeRegistrationRecorded);
+        tag.putBoolean("EscapedFromRegisteredContainment", escapedFromRegisteredContainment);
         tag.putBoolean("PendingStopEscapeEvent", pendingStopEscapeEvent);
         tag.putBoolean("ContainmentReturnWasSuppression", containmentReturnWasSuppression);
         tag.putInt("LastFacilityDaySeen", lastFacilityDaySeen);

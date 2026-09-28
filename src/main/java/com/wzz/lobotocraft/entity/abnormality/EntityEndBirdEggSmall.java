@@ -60,6 +60,11 @@ public class EntityEndBirdEggSmall extends AbstractAbnormality {
     }
 
     @Override
+    public boolean canBeContained() {
+        return false;
+    }
+
+    @Override
     public void defineSynchedData() {
         super.defineSynchedData();
     }
@@ -146,7 +151,8 @@ public class EntityEndBirdEggSmall extends AbstractAbnormality {
 
     @Override
     public void remove(net.minecraft.world.entity.Entity.RemovalReason reason) {
-        if (!level().isClientSide && reason.shouldDestroy() && !isDeadOrDying()) {
+        if (!level().isClientSide && reason.shouldDestroy() && !isDeadOrDying()
+                && !EntityEndBird.isDayRecoveryRemoval(this)) {
             EntityEndBird.endBirdEggDie(level(), getUUID(),
                     com.wzz.lobotocraft.world.data.EndBirdEggTracker.EGG_SMALL, null);
         }

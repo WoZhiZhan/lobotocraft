@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<creature>
+  <info id="100089">
+    <narration action="move">
+      #0被分配到“$0”的收容单元中
+    </narration>
+    <narration action="start">
+      [
+      {没有人知道“$0”的真实面目。},
+      {它的外形和存在本身都会使人感到不适。}
+      ]
+    </narration>
+    <narration action="dead">
+      [
+      {收容单元内只剩下无法辨认的残骸。},
+      {“$0”正在制造新的子体。}
+      ]
+    </narration>
+    <narration action="panic">
+      [
+      {#0无法承受“$0”的存在，已经陷入恐慌。}
+      ]
+    </narration>
+  </info>
+  <observe level="4">
+    <collection>
+      <codeNo openLevel="0">O-03-89</codeNo>
+      <portrait openLevel="1">Sprites/Unit/creature/Censored</portrait>
+      <name openLevel="1">数据删除</name>
+      <riskLevel openLevel="1">ALEPH</riskLevel>
+      <openText>不要试图理解它。</openText>
+    </collection>
+    <desc id="1" openLevel="0">
+      [
+      {该异想体的资料已被删除。}
+      ]
+    </desc>
+    <desc id="2" openLevel="1">
+      [
+      {它会在收容单元内等待，并对进入其中的员工产生影响。}
+      ]
+    </desc>
+    <desc id="3" openLevel="2">
+      [
+      {当员工无法承受它的存在时，员工会陷入恐慌，逆卡巴拉计数器也会减少。}
+      ]
+    </desc>
+    <desc id="4" openLevel="3">
+      [
+      {当逆卡巴拉计数器归零时，它会突破收容并在设施内寻找员工。}
+      ]
+    </desc>
+    <desc id="5" openLevel="4">
+      [
+      {它会攻击员工。杀死员工后，它会前往尸体并生成新的子体。}
+      ]
+    </desc>
+    <specialTipSize size="6">
+      <specialTip openLevel="1" key="1">当员工进入“$0”的收容单元时，低等级员工会直接陷入恐慌。</specialTip>
+      <specialTip openLevel="1" key="2">工作结束时，精神值耗尽的员工会使“$0”的逆卡巴拉计数器减少。</specialTip>
+      <specialTip openLevel="1" key="3">工作结果为差时，“$0”的逆卡巴拉计数器会再次减少。</specialTip>
+      <specialTip openLevel="2" key="4">当“$0”的逆卡巴拉计数器归零时，它会突破收容。</specialTip>
+      <specialTip openLevel="3" key="5">突破收容后，“$0”会攻击员工；每个子体都会独立寻找并攻击员工。</specialTip>
+      <specialTip openLevel="4" key="6">“$0”处理墓碑时会暂时无法受到伤害，并在处理结束后生成子体。</specialTip>
+    </specialTipSize>
+  </observe>
+</creature>

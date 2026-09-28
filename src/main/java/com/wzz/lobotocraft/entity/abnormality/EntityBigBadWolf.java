@@ -92,7 +92,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
     private LivingEntity pendingTarget = null;
     private int howlTimer = 0;    // 嚎叫阶段计时
     private int howlPhase = 0;    // 0无 1=skill1前摇 2=skill12嚎叫中 3=skill2收尾
-    private float lastFogHealth = -1; // 上次进入黑雾时的血量基准
+    private float damageSinceLastFog;
     private boolean inFog = false;
     private int fogTimer = 0;
     private BlockPos fogTargetReactor = null;
@@ -179,7 +179,6 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         float[] basePreferences = {0.40f, 0.30f, 0.45f, 0.0f};
         initializeWorkPreferences(basePreferences);
         initializeQliphothCounter(2);
-        this.lastFogHealth = 2000f;
     }
 
     @Override
@@ -347,6 +346,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         boolean was = hasEscape();
         super.triggerEscape();
         if (!was && hasEscape()) {
+            damageSinceLastFog = 0.0F;
             setTexture("bigbadwolf_big");
             setAnimation("idle");
             syncMovementSpeed();
@@ -405,7 +405,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         fogTimer = 0;
         fogTargetReactor = null;
         killedByRedHood = false;
-        lastFogHealth = getHealth();
+        damageSinceLastFog = 0.0F;
         this.removeEffect(MobEffects.INVISIBILITY);
         this.removeEffect(MobEffects.GLOWING);
         this.getNavigation().stop();
@@ -444,10 +444,13 @@ public class EntityBigBadWolf extends AbstractAbnormality {
                 killedByRedHood = true;
             }
         }
+        float healthBefore = getHealth();
         boolean result = super.hurt(source, amount);
-        // 机制7:累计损失300血进入黑雾转移
-        if (result && hasEscape() && !inFog && lastFogHealth - this.getHealth() >= 300f) {
-            enterFog();
+        // Count actual health damage, not net loss since the last howl/heal.
+        float damage = healthBefore - getHealth();
+        if (damage > 0.0F && hasEscape() && isAlive() && !isContainmentReturnPending() && !inFog) {
+            damageSinceLastFog += damage;
+            if (damageSinceLastFog >= 300.0F) enterFog();
         }
         return result;
     }
@@ -457,7 +460,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         clearHowlState(true);
         inFog = true;
         fogTimer = 8 * 20;
-        lastFogHealth = this.getHealth();
+        damageSinceLastFog = 0.0F;
         this.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, fogTimer + 20, 0, false, false));
         this.addEffect(new MobEffectInstance(MobEffects.GLOWING, fogTimer + 20, 0, false, false));
         if (this.level() instanceof ServerLevel level) {
@@ -780,7 +783,8 @@ public class EntityBigBadWolf extends AbstractAbnormality {
     private boolean isValidTarget(LivingEntity e) {
         if (e == this || !e.isAlive()) return false;
         if (e instanceof Player p) return !p.isCreative() && !p.isSpectator();
-        if (e instanceof AbstractAbnormality) return e instanceof EntityRedHoodMercenary; // 异想体里只与小红帽为敌
+        if (e instanceof EntityRedHoodMercenary) return true;
+        if (e instanceof AbstractAbnormality abnormality) return abnormality.isAbnormalityCombatTarget();
         return true;
     }
 
@@ -863,7 +867,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putBoolean("CollisionEscaped", this.entityData.get(DATA_COLLISION_ESCAPED));
-        tag.putFloat("LastFogHealth", lastFogHealth);
+        tag.putFloat("DamageSinceLastFog", damageSinceLastFog);
         tag.putBoolean("InFog", inFog);
         CompoundTag list = new CompoundTag();
         int i = 0;
@@ -879,8 +883,12 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         this.entityData.set(DATA_COLLISION_ESCAPED, collisionEscaped);
         this.refreshDimensions();
         this.setNoAi(collisionEscaped != hasEscape());
-        lastFogHealth = tag.contains("LastFogHealth") ? tag.getFloat("LastFogHealth") : this.getMaxHealth();
         inFog = tag.getBoolean("InFog");
+        // Legacy saves only retain net health loss, a lower bound after healing.
+        float savedDamage = tag.contains("DamageSinceLastFog") ? tag.getFloat("DamageSinceLastFog")
+                : tag.contains("LastFogHealth") ? tag.getFloat("LastFogHealth") - getHealth() : 0.0F;
+        damageSinceLastFog = hasEscape() && !inFog && Float.isFinite(savedDamage)
+                ? Math.max(0.0F, savedDamage) : 0.0F;
         swallowedPlayers.clear();
         if (tag.contains("Swallowed")) {
             CompoundTag list = tag.getCompound("Swallowed");

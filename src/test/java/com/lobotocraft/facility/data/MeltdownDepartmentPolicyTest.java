@@ -37,6 +37,8 @@ class MeltdownDepartmentPolicyTest {
             CoreSuppressionType.GEBURAH, 0, true));
         assertTrue(MeltdownDepartmentPolicy.isProtected("disciplinary",
             CoreSuppressionType.GEBURAH, 0, false));
+        assertFalse(MeltdownDepartmentPolicy.hasCompletedRewardImmunity("disciplinary",
+            CoreSuppressionType.GEBURAH, 0, true));
     }
 
     @Test

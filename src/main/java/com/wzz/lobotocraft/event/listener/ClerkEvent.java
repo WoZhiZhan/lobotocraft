@@ -22,6 +22,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -68,12 +69,13 @@ public class ClerkEvent {
 
     @SubscribeEvent
     public static void onClerkDeath(LivingDeathEvent event) {
-        if (!(event.getEntity() instanceof EntityClerk clerk)) return;
-        if (clerk.level().isClientSide || !clerk.shouldCreateTombstone()) return;
-        if (isSpecialDeath(event.getSource())) return;
-        if (!(clerk.level() instanceof ServerLevel level)) return;
-
-        placeTombstone(level, clerk.blockPosition());
+        if (!(event.getEntity() instanceof EntityClerk) && !(event.getEntity() instanceof Player)) return;
+        if (!(event.getEntity().level() instanceof ServerLevel level)
+                || level.dimension() != ModDimensions.LOBOTO_KEY) return;
+        if (event.getEntity() instanceof EntityClerk clerk) {
+            if (!clerk.shouldCreateTombstone() || isSpecialDeath(event.getSource())) return;
+        }
+        placeTombstone(level, event.getEntity().blockPosition());
     }
 
     private static int clearTombstones(ServerLevel level) {
@@ -268,7 +270,7 @@ public class ClerkEvent {
                 || source.getEntity() instanceof EntityCleaner;
     }
 
-    private static void placeTombstone(ServerLevel level, BlockPos deathPos) {
+    public static void placeTombstone(ServerLevel level, BlockPos deathPos) {
         BlockPos.MutableBlockPos cursor = deathPos.mutable();
         for (int i = 0; i < 4; i++) {
             BlockState state = level.getBlockState(cursor);

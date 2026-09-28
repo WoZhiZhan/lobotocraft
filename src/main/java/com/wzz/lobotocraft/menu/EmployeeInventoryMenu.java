@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.employee.EmployeeRuntimeManager;
 import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
 import com.wzz.lobotocraft.init.ModMenus;
 import com.wzz.lobotocraft.network.PacketDecodeLimits;
+import com.wzz.lobotocraft.work.AbnormalityWorkRules;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
@@ -205,6 +206,7 @@ public final class EmployeeInventoryMenu extends AbstractContainerMenu {
                 && !employee.isRemoved()
                 && employee.employeeRecord().deployed()
                 && !employee.employeeRecord().retired()
+                && !isTargetEquipmentLocked()
                 && EmployeeRuntimeManager.activePlayer(employeeId) == employee;
     }
 
@@ -238,6 +240,10 @@ public final class EmployeeInventoryMenu extends AbstractContainerMenu {
 
     private void persistTarget() {
         if (employee != null) EmployeeRuntimeManager.persistNow(employeeId);
+    }
+
+    private boolean isTargetEquipmentLocked() {
+        return employee != null && AbnormalityWorkRules.controlStateDenial(employee) != null;
     }
 
     public UUID employeeId() {
@@ -295,7 +301,14 @@ public final class EmployeeInventoryMenu extends AbstractContainerMenu {
 
         @Override
         public boolean mayPlace(ItemStack stack) {
-            return EmployeeItemWarehouseData.isTransferable(stack) && super.mayPlace(stack);
+            return !isTargetEquipmentLocked()
+                    && EmployeeItemWarehouseData.isTransferable(stack)
+                    && super.mayPlace(stack);
+        }
+
+        @Override
+        public boolean mayPickup(Player player) {
+            return !isTargetEquipmentLocked() && super.mayPickup(player);
         }
 
         @Override
@@ -316,6 +329,16 @@ public final class EmployeeInventoryMenu extends AbstractContainerMenu {
         public void setChanged() {
             super.setChanged();
             persistTarget();
+        }
+
+        @Override
+        public boolean mayPlace(ItemStack stack) {
+            return !isTargetEquipmentLocked() && super.mayPlace(stack);
+        }
+
+        @Override
+        public boolean mayPickup(Player player) {
+            return !isTargetEquipmentLocked() && super.mayPickup(player);
         }
 
         @Override

@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.client.ui.LobotomyButton;
 import com.wzz.lobotocraft.client.ui.EmployeeDollRenderer;
 import com.wzz.lobotocraft.client.ui.LobotomyUiRenderer;
 import com.wzz.lobotocraft.client.ui.LobotomyUiTheme;
+import com.wzz.lobotocraft.client.ui.DamageTypeVisual;
 import com.wzz.lobotocraft.employee.EmployeeDepartment;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.network.MessageLoader;
@@ -65,9 +66,9 @@ public final class EgoAssignmentScreen extends Screen {
     private static final ResourceLocation RISK_SLOT = texture("risk_slot.png");
     private static final ResourceLocation AGENT_SLOT = texture("agent_slot.png");
     private static final ResourceLocation DEPARTMENT_BAR = texture("department_bar.png");
-    private static final ResourceLocation[] DAMAGE_ICONS = {
-            texture("damage_red.png"), texture("damage_white.png"),
-            texture("damage_black.png"), texture("damage_pale.png")
+    private static final DamageTypeVisual[] DAMAGE_TYPES = {
+            DamageTypeVisual.RED, DamageTypeVisual.WHITE,
+            DamageTypeVisual.BLACK, DamageTypeVisual.PALE
     };
 
     private static final String[] AREA_NAMES = {"ASIYAH", "BRIAH", "ATZILUTH"};
@@ -447,12 +448,11 @@ public final class EgoAssignmentScreen extends Screen {
             String range = blankAsUnknown(stock.getString("AttackRange"));
             int iconIndex = damageIndex(damage);
             if (iconIndex >= 0 && width >= 90) {
-                LobotomyUiRenderer.blitScaled(graphics, DAMAGE_ICONS[iconIndex], x, y, 10, 10,
-                        iconTextureWidth(iconIndex), iconTextureHeight(iconIndex));
+                renderDamageIcon(graphics, DAMAGE_TYPES[iconIndex], x, y);
                 x += 13;
                 width -= 13;
             }
-            graphics.drawString(font, fit(damage + "  " + power + "  " + speed + "  " + range, width),
+            graphics.drawString(font, fit(DamageTypeVisual.label(damage) + "  " + power + "  " + speed + "  " + range, width),
                     x, y + 1, damageColor(damage), false);
         } else if (stock.contains("RedResistance", Tag.TAG_FLOAT)) {
             renderArmorResistances(graphics, stock, x, y, width);
@@ -466,13 +466,11 @@ public final class EgoAssignmentScreen extends Screen {
                 stock.getFloat("BlackResistance"), stock.getFloat("PaleResistance")};
         int columns = 4;
         int cellWidth = Math.max(18, width / columns);
-        int[] colors = {0xFFFF4141, 0xFFF2F0D0, 0xFFC363D8, 0xFF55BFFF};
         for (int i = 0; i < columns; i++) {
             int cellX = x + i * cellWidth;
-            LobotomyUiRenderer.blitScaled(graphics, DAMAGE_ICONS[i], cellX, y, 10, 10,
-                    iconTextureWidth(i), iconTextureHeight(i));
+            renderDamageIcon(graphics, DAMAGE_TYPES[i], cellX, y);
             String value = String.format(Locale.ROOT, "%.1f", values[i]);
-            graphics.drawString(font, fit(value, cellWidth - 12), cellX + 12, y, colors[i], false);
+            graphics.drawString(font, fit(value, cellWidth - 12), cellX + 12, y, DAMAGE_TYPES[i].color(), false);
             graphics.drawString(font, fit(resistanceLabel(values[i]), cellWidth - 12),
                     cellX + 12, y + 10, TEXT_DIM, false);
         }
@@ -703,7 +701,7 @@ public final class EgoAssignmentScreen extends Screen {
             String power = blankAsUnknown(stock.getString("AttackPower"));
             String speed = blankAsUnknown(stock.getString("AttackSpeed"));
             String range = blankAsUnknown(stock.getString("AttackRange"));
-            String details = damageType + " " + power + "  ·  " + speed + "  ·  " + range;
+            String details = DamageTypeVisual.label(damageType) + " " + power + "  ·  " + speed + "  ·  " + range;
             drawMarqueeText(graphics, details, x + 5, y + 33,
                     width - 10, damageColor(damageType));
         } else if (stock.contains("RedResistance")) {
@@ -841,7 +839,7 @@ public final class EgoAssignmentScreen extends Screen {
             if (lines.isEmpty()) lines.add(Component.literal(displayName(assigned)));
             if ("weapon".equals(assigned.getString("Type"))) {
                 lines.add(Component.translatable("screen.lobotocraft.ego_assignment.weapon_stats",
-                        blankAsUnknown(assigned.getString("DamageType")),
+                        DamageTypeVisual.label(blankAsUnknown(assigned.getString("DamageType"))),
                         blankAsUnknown(assigned.getString("AttackPower")),
                         blankAsUnknown(assigned.getString("AttackSpeed")),
                         blankAsUnknown(assigned.getString("AttackRange"))));
@@ -1382,39 +1380,21 @@ public final class EgoAssignmentScreen extends Screen {
     }
 
     private static int damageColor(String type) {
-        return switch (type.toUpperCase(Locale.ROOT)) {
-            case "RED" -> 0xFFFF4141;
-            case "WHITE" -> 0xFFF2F0D0;
-            case "BLACK" -> 0xFFC363D8;
-            case "PALE", "BLUE" -> 0xFF55BFFF;
-            default -> TEXT_DIM;
-        };
+        DamageTypeVisual visual = DamageTypeVisual.from(type);
+        return visual == DamageTypeVisual.UNKNOWN ? TEXT_DIM : visual.color();
     }
 
     private static int damageIndex(String type) {
-        return switch (type.toUpperCase(Locale.ROOT)) {
-            case "RED" -> 0;
-            case "WHITE" -> 1;
-            case "BLACK" -> 2;
-            case "PALE", "BLUE" -> 3;
-            default -> -1;
-        };
+        DamageTypeVisual visual = DamageTypeVisual.from(type);
+        for (int i = 0; i < DAMAGE_TYPES.length; i++) {
+            if (DAMAGE_TYPES[i] == visual) return i;
+        }
+        return -1;
     }
 
-    private static int iconTextureWidth(int index) {
-        return switch (index) {
-            case 0 -> 122;
-            case 1, 3 -> 116;
-            default -> 124;
-        };
-    }
-
-    private static int iconTextureHeight(int index) {
-        return switch (index) {
-            case 0, 3 -> 120;
-            case 1 -> 122;
-            default -> 123;
-        };
+    private static void renderDamageIcon(GuiGraphics graphics, DamageTypeVisual visual, int x, int y) {
+        LobotomyUiRenderer.blitScaled(graphics, visual.icon(), x, y, 10, 10,
+                visual.textureWidth(), visual.textureHeight());
     }
 
     private static String resistanceLabel(float value) {

@@ -22,7 +22,7 @@ public class ScreenDistortionEffect {
         poseStack.pushPose();
 
         try {
-            ModShaders.screenDistortionIntensity.set(Math.max(0.1f, intensity));
+            ModShaders.screenDistortionIntensity.set(Math.max(0.0f, intensity));
 
             RenderSystem.disableDepthTest();
             RenderSystem.enableBlend();

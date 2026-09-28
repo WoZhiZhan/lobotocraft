@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.employee.EmployeeRuntimeManager;
 import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
 import com.wzz.lobotocraft.menu.EmployeeInventoryMenu;
 import com.wzz.lobotocraft.network.IMessage;
+import com.wzz.lobotocraft.work.AbnormalityWorkRules;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -53,6 +54,11 @@ public final class OpenEmployeeInventoryPacket implements IMessage {
                 || !employee.employeeRecord().deployed() || employee.employeeRecord().retired()) {
             sender.sendSystemMessage(Component.translatable(
                     "message.lobotocraft.employee_inventory.unavailable"));
+            return;
+        }
+        Component controlStateDenial = AbnormalityWorkRules.controlStateDenial(employee);
+        if (controlStateDenial != null) {
+            sender.sendSystemMessage(controlStateDenial);
             return;
         }
 

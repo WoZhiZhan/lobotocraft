@@ -111,6 +111,11 @@ public class AssignRoomEmployeeWorkPacket implements IMessage {
             return EmployeeRuntimeManager.assignToolUse(record, abnormality)
                     ? null : "message.lobotocraft.monitor.dispatch.tool_failed";
         }
+        var action = com.wzz.lobotocraft.work.AbnormalityCommandPolicy.action(
+                abnormality.getAbnormalityCode(), workType.ordinal());
+        if (action != null && action != com.wzz.lobotocraft.work.AbnormalityCommandPolicy.Action.PROTECTION) {
+            return "message.lobotocraft.unique_work.use_command";
+        }
         if (employee.level() != abnormality.level()) {
             return "message.lobotocraft.monitor.dispatch.wrong_facility";
         }
@@ -123,6 +128,10 @@ public class AssignRoomEmployeeWorkPacket implements IMessage {
 
         boolean mentalBroken = MentalValueUtil.isPanic(employee);
         if (mentalBroken) return "message.lobotocraft.monitor.dispatch.employee_panicking";
+        if (action == com.wzz.lobotocraft.work.AbnormalityCommandPolicy.Action.PROTECTION
+                && abnormality instanceof com.wzz.lobotocraft.entity.abnormality.EntityArmyInBlack army) {
+            return com.wzz.lobotocraft.work.UniqueWorkRequest.startProtection(sender, army, employee);
+        }
         int employeeLevel = employee.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS)
                 .map(value -> value.getEmployeeLevel()).orElse(1);
         if (employeeLevel < abnormality.getRequiredEmployeeLevel()) {

@@ -103,6 +103,11 @@ public interface IAbnormality {
         return true;
     }
 
+    /** Encounter bodies such as Apocalypse Bird eggs must never occupy a containment unit. */
+    default boolean canBeContained() {
+        return true;
+    }
+
     // 为true时正在出逃
     boolean hasEscape();
 

@@ -80,6 +80,7 @@ public final class FacilityHud {
         GuiGraphics graphics = event.getGuiGraphics();
         FacilityStatePacket state = ClientFacilityState.get();
         renderEnergy(graphics, minecraft, state);
+        renderPauseState(graphics, minecraft, state);
         renderDayTransition(graphics, minecraft, state);
         renderMeltdown(graphics, minecraft, state);
         renderOrdeal(graphics, minecraft, state);
@@ -169,6 +170,19 @@ public final class FacilityHud {
         RenderSystem.disableBlend();
     }
 
+    private static void renderPauseState(GuiGraphics graphics, Minecraft minecraft,
+                                         FacilityStatePacket state) {
+        if (!state.paused()) return;
+        Component label = Component.translatable("hud.lobotocraft.facility.paused");
+        int x = 8;
+        int y = hasUpcomingOrdeal(state) ? 117 : 79;
+        int width = minecraft.font.width(label) + 12;
+        graphics.fill(x, y, x + width, y + 16, 0xE7132434);
+        graphics.fill(x, y, x + width, y + 1, 0xFF69BEEB);
+        graphics.fill(x, y + 15, x + width, y + 16, 0xFF69BEEB);
+        graphics.drawString(minecraft.font, label, x + 6, y + 4, 0xFFEAF8FF, false);
+    }
+
     private static void renderDayTransition(GuiGraphics graphics, Minecraft minecraft,
                                             FacilityStatePacket state) {
         if (!state.dayReady() && !state.voteActive()) return;
@@ -221,7 +235,7 @@ public final class FacilityHud {
         }
         graphics.drawCenteredString(minecraft.font, roman(state.meltdownLevel()), x + 13, y + 7, 0xFFF0E5B5);
         if (state.activeMeltdowns() > 0) {
-            int seconds = Math.max(0, state.earliestRemainingTicks() / 20);
+            int seconds = ClientFacilityState.meltdownSeconds(state.earliestRemainingTicks());
             if (state.activeMeltdowns() != meltdownCountCache || seconds != meltdownSecondsCache) {
                 meltdownCountCache = state.activeMeltdowns();
                 meltdownSecondsCache = seconds;
@@ -301,7 +315,7 @@ public final class FacilityHud {
     private static void renderWarning(GuiGraphics graphics, Minecraft minecraft, FacilityStatePacket state) {
         // Meltdown is already identified by text and countdown in the upper-left
         // status area; do not add the generic centered warning artwork.
-        if (state.notificationType() == 2) return;
+        if (!shouldRenderWarning(state.notificationType())) return;
         int screenWidth = graphics.guiWidth();
         int center = screenWidth / 2;
         int y = 28;
@@ -328,6 +342,12 @@ public final class FacilityHud {
         }
         graphics.drawCenteredString(minecraft.font, title, center, y + 17, ALERT_TEXT_BRIGHT);
         graphics.drawCenteredString(minecraft.font, warningSubtitleText, center, y + 35, LobotomyUiTheme.TEXT_TITLE);
+    }
+
+    static boolean shouldRenderWarning(int notificationType) {
+        // Type 3 is the post-failure notification; the failure is already visible
+        // in the reactor status and must not create a second top-screen alert.
+        return notificationType != 2 && notificationType != 3;
     }
 
     private static ResourceLocation texture(String name) {

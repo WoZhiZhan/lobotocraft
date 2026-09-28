@@ -50,6 +50,10 @@ public final class GeburahDamageTuning {
                 ? 1.0D : normalResistance;
     }
 
+    public static boolean shouldNeutralizePlayerRed(GeburahPhase phase) {
+        return phase == GeburahPhase.EGO;
+    }
+
     public static <T> T withNeutralPlayerRed(java.util.function.Supplier<T> action) {
         int previousDepth = NEUTRAL_PLAYER_RED_DEPTH.get();
         NEUTRAL_PLAYER_RED_DEPTH.set(previousDepth + 1);

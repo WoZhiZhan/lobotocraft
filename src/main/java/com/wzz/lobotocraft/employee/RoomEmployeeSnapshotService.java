@@ -7,8 +7,8 @@ import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
-import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
 import com.wzz.lobotocraft.entity.abnormality.EntitySnowQueen;
+import com.wzz.lobotocraft.entity.control.HostileControlState;
 import com.wzz.lobotocraft.ego.AiEgoRepositoryData;
 import com.wzz.lobotocraft.ego.EgoLoadoutService;
 import com.wzz.lobotocraft.llm.LlmDepartmentAccessData;
@@ -123,7 +123,10 @@ public final class RoomEmployeeSnapshotService {
         String reasonKey = "";
         float successRate = -1.0F;
         int estimatedSeconds = 0;
-        boolean malkuthScramble = CoreSuppressionManager.isMalkuthWorkScrambled(viewer.level());
+        boolean uniqueWork = abnormality != null && workType != null
+                && com.wzz.lobotocraft.work.AbnormalityCommandPolicy.action(
+                        abnormality.getAbnormalityCode(), workType.ordinal()) != null;
+        boolean malkuthScramble = !uniqueWork && CoreSuppressionManager.isMalkuthWorkScrambled(viewer.level());
         boolean workInfoUnlocked = abnormality == null || workType == null;
         if (!workInfoUnlocked) {
             workInfoUnlocked = !malkuthScramble
@@ -157,11 +160,12 @@ public final class RoomEmployeeSnapshotService {
                 eligible = false;
                 reason = "被冰雪女皇冰封";
                 reasonKey = "screen.lobotocraft.monitor.employee.unavailable.frozen";
-            } else if (EntityRedShoes.isRedShoesControlled(employee)) {
+            } else if (HostileControlState.isActive(employee)
+                    || com.wzz.lobotocraft.work.UniqueWorkRequest.isControlled(employee)) {
                 eligible = false;
                 reason = "被红舞鞋控制";
                 reasonKey = "screen.lobotocraft.monitor.employee.unavailable.red_shoes";
-            } else if (!suppression && stats[4] < abnormality.getRequiredEmployeeLevel()) {
+            } else if (!suppression && !uniqueWork && stats[4] < abnormality.getRequiredEmployeeLevel()) {
                 eligible = false;
                 reason = "员工等级不足";
                 reasonKey = "screen.lobotocraft.monitor.employee.unavailable.level";
@@ -180,7 +184,7 @@ public final class RoomEmployeeSnapshotService {
                 reasonKey = "screen.lobotocraft.monitor.employee.unavailable.no_weapon";
             }
 
-            if (!suppression && workInfoUnlocked) {
+            if (!suppression && !uniqueWork && workInfoUnlocked) {
                 WorkManager.WorkSession preview = new WorkManager.WorkSession(
                         employee, abnormality, workType, false);
                 successRate = preview.actualSuccessRate
@@ -248,7 +252,8 @@ public final class RoomEmployeeSnapshotService {
     }
 
     private static boolean isControlled(ServerPlayer player) {
-        return EntitySnowQueen.isFrozen(player) || EntityRedShoes.isRedShoesControlled(player);
+        return EntitySnowQueen.isFrozen(player) || HostileControlState.isActive(player)
+                || com.wzz.lobotocraft.work.UniqueWorkRequest.isControlled(player);
     }
 
     static String monitoredPlayerDepartment(PlayerFacilityProfileData profiles, UUID playerId) {

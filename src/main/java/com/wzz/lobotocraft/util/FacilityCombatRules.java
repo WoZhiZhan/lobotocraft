@@ -1,7 +1,7 @@
 package com.wzz.lobotocraft.util;
 
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
-import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
+import com.wzz.lobotocraft.entity.control.HostileControlState;
 import com.wzz.lobotocraft.entity.ordeal.OrdealEntity;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import net.minecraft.tags.DamageTypeTags;
@@ -50,7 +50,7 @@ public final class FacilityCombatRules {
     public static boolean blocksEmployeeFriendlyFire(Entity victim, DamageSource source) {
         // Controlled employees are rescue targets; normal employee friendly-fire
         // protection must not prevent players or other employees from hitting them.
-        if (victim instanceof LivingEntity living && EntityRedShoes.isRedShoesControlled(living)) {
+        if (victim instanceof LivingEntity living && HostileControlState.isActive(living)) {
             return false;
         }
         Player attacker = resolvePlayerAttacker(source);
@@ -59,7 +59,7 @@ public final class FacilityCombatRules {
         if (!(victim instanceof net.minecraft.server.level.ServerPlayer target)
                 || !(attacker instanceof net.minecraft.server.level.ServerPlayer sourcePlayer)) return false;
         boolean attackerHostile = MentalValueUtil.isPanic(sourcePlayer)
-                || EntityRedShoes.isRedShoesControlled(sourcePlayer);
+                || HostileControlState.isActive(sourcePlayer);
         return blocksEmployeeFriendlyFire(victimKind, attackerKind, target == sourcePlayer,
                 attackerHostile, MentalValueUtil.isPanic(target));
     }

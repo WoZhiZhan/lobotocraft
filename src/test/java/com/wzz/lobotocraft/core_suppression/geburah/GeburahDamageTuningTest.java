@@ -23,6 +23,9 @@ final class GeburahDamageTuningTest {
     @Test
     void playerResistanceOverrideIsScopedToTheDirectAttackCall() {
         assertEquals(0.4D, GeburahDamageTuning.effectivePlayerRedMultiplier(true, 0.4D));
+        double positiveDuring = GeburahDamageTuning.withNeutralPlayerRed(() ->
+                GeburahDamageTuning.effectivePlayerRedMultiplier(true, 0.4D));
+        assertEquals(1.0D, positiveDuring);
         double during = GeburahDamageTuning.withNeutralPlayerRed(() ->
                 GeburahDamageTuning.effectivePlayerRedMultiplier(true, -0.5D));
         assertEquals(1.0D, during);
@@ -34,5 +37,15 @@ final class GeburahDamageTuningTest {
         GeburahDamageTuning.configureAbnormalityOverride(false, 5.0D, 2.0D);
         assertEquals(0.3D,
                 GeburahDamageTuning.effectiveRedMultiplier(true, true, 0.3D));
+    }
+
+    @Test
+    void onlyEgoAttacksNeutralizePlayerRedResistance() {
+        assertEquals(false,
+                GeburahDamageTuning.shouldNeutralizePlayerRed(GeburahPhase.NORMAL));
+        assertEquals(true,
+                GeburahDamageTuning.shouldNeutralizePlayerRed(GeburahPhase.EGO));
+        assertEquals(false,
+                GeburahDamageTuning.shouldNeutralizePlayerRed(GeburahPhase.EXHAUSTED));
     }
 }

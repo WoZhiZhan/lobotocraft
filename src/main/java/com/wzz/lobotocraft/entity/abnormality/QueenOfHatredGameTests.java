@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.entity.abnormality;
 
 import com.mojang.authlib.GameProfile;
 import com.wzz.lobotocraft.ModMain;
+import com.lobotocraft.facility.data.FacilityDayData;
 import com.wzz.lobotocraft.employee.EmployeeDepartment;
 import com.wzz.lobotocraft.employee.EmployeeRecord;
 import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
@@ -13,16 +14,22 @@ import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
+import com.wzz.lobotocraft.world.data.GenerationBiggerData;
+import com.wzz.lobotocraft.world.structure.Structures;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.gametest.GameTestHolder;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @GameTestHolder(ModMain.MODID + "_queen_of_hatred")
@@ -151,6 +158,32 @@ public final class QueenOfHatredGameTests {
     }
 
     @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 40, required = true, batch = "queen_day_recovery")
+    public static void newDayClearsContainedHysteria(GameTestHelper helper) {
+        EntityQueenOfHatred queen = spawnQueen(helper, new BlockPos(4, 1, 4));
+        FacilityDayData dayData = FacilityDayData.get(helper.getLevel());
+        int originalDay = dayData.getDay();
+        try {
+            queen.tick();
+            queen.decreaseQliphothCounter(1);
+            helper.assertTrue("CONTAINED_HYSTERIA_START".equals(queen.stateNameForTest()),
+                    "counter reduction did not enter contained hysteria");
+
+            dayData.beginDay(originalDay + 1);
+            queen.tick();
+
+            helper.assertTrue("CONTAINED".equals(queen.stateNameForTest()),
+                    "contained hysteria survived the new day");
+            helper.assertTrue(queen.getQliphothCounter() == queen.getMaxQliphothCounter(),
+                    "new day did not restore the Queen of Hatred counter");
+            helper.succeed();
+        } finally {
+            dayData.beginDay(originalDay);
+            queen.discard();
+        }
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
             timeoutTicks = 170, required = true, batch = "queen_return")
     public static void snakeDeathPlaysBothReturnFormsBeforeContainment(GameTestHelper helper) {
         EntityQueenOfHatred queen = spawnQueen(helper, new BlockPos(4, 1, 4));
@@ -242,12 +275,310 @@ public final class QueenOfHatredGameTests {
         }
     }
 
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 40, required = true, batch = "queen_compatibility_matrix")
+    public static void abnormalityCompatibilityMatrixUsesCombatTargetContract(GameTestHelper helper) {
+        EntityQueenOfHatred hero = spawnQueen(helper, new BlockPos(4, 1, 4));
+        EntityQueenOfHatred villain = spawnQueen(helper, new BlockPos(6, 1, 4));
+        EntityRedHoodMercenary redHood = spawn(helper, ModEntities.redhat_mercenary.get(),
+                new BlockPos(8, 1, 4));
+        EntityLargeBird largeBird = spawn(helper, ModEntities.large_bird.get(),
+                new BlockPos(10, 1, 4));
+        EntityPunishingBird punishingBird = spawn(helper, ModEntities.punishing_bird.get(),
+                new BlockPos(12, 1, 4));
+        EntityApprovalBird judgementBird = spawn(helper, ModEntities.approval_bird.get(),
+                new BlockPos(14, 1, 4));
+        EntityBigBadWolf wolf = spawn(helper, ModEntities.bigbadwolf.get(),
+                new BlockPos(16, 1, 4));
+        EntityBlueStar unrelatedEscaped = spawn(helper, ModEntities.blue_star.get(),
+                new BlockPos(18, 1, 4));
+        try {
+            hero.setHeroDamageStateForTest(false);
+            villain.triggerEscape();
+            redHood.triggerEscape();
+            largeBird.triggerEscape();
+            punishingBird.triggerEscape();
+            judgementBird.triggerEscape();
+            wolf.triggerEscape();
+            unrelatedEscaped.triggerEscape();
+
+            List<String> failures = new ArrayList<>();
+            if (!invokeTargetPredicate(redHood, "isValidTarget", hero)) {
+                failures.add("小红帽不承认魔法少女为攻击目标");
+            }
+
+            float largeBirdHealth = largeBird.getHealth();
+            if (!QueenOfHatredCombat.damageBlack(hero, largeBird, 20, 20)
+                    || largeBird.getHealth() >= largeBirdHealth) {
+                failures.add("魔法少女无法伤害大鸟");
+            }
+
+            if (!punishingBird.hurt(DamageHelper.getDamage(hero, "black"), 20.0F)
+                    || punishingBird.getHealth() >= punishingBird.getMaxHealth()) {
+                failures.add("魔法少女无法伤害惩戒鸟");
+            }
+            if (!punishingBird.isAngry() || punishingBird.getTarget() != hero) {
+                failures.add("惩戒鸟被魔法少女攻击后未产生攻击意图");
+            }
+
+            if (!invokeTargetList(judgementBird, "findRoomTargets").contains(hero)
+                    || !invokeTargetList(judgementBird, "findRoomTargets").contains(villain)) {
+                failures.add("审判鸟没有将魔法少女和憎恶女王纳入攻击范围");
+            }
+
+            if (!invokeTargetPredicate(wolf, "isValidTarget", hero)
+                    || !invokeTargetPredicate(wolf, "isValidTarget", villain)) {
+                failures.add("狼没有将魔法少女和憎恶女王视为敌人");
+            }
+
+            if (!invokeTargetPredicate(wolf, "isValidTarget", unrelatedEscaped)) {
+                failures.add("wolf did not recognize another escaped abnormality as a combat target");
+            }
+            if (invokeTargetPredicate(punishingBird, "shouldAttackEntity", unrelatedEscaped)
+                    || invokeTargetList(judgementBird, "findRoomTargets").contains(unrelatedEscaped)) {
+                failures.add("QOH 兼容错误地放宽为攻击所有出逃异想体");
+            }
+
+            if (failures.isEmpty()) {
+                helper.succeed();
+            } else {
+                helper.fail(String.join("；", failures));
+            }
+        } finally {
+            hero.discard();
+            villain.stopEscape();
+            villain.discard();
+            redHood.stopEscape();
+            redHood.discard();
+            largeBird.stopEscape();
+            largeBird.discard();
+            punishingBird.stopEscape();
+            punishingBird.discard();
+            judgementBird.stopEscape();
+            judgementBird.discard();
+            wolf.stopEscape();
+            wolf.discard();
+            unrelatedEscaped.stopEscape();
+            unrelatedEscaped.discard();
+        }
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 150, required = true, batch = "queen_compatibility_matrix")
+    public static void blueStarPeriodicAttackDamagesHeroQueen(GameTestHelper helper) {
+        EntityQueenOfHatred hero = spawnQueen(helper, new BlockPos(5, 1, 4));
+        EntityBlueStar blueStar = spawn(helper, ModEntities.blue_star.get(),
+                new BlockPos(8, 1, 4));
+        hero.setHeroDamageStateForTest(false);
+        blueStar.triggerEscape();
+        float health = hero.getHealth();
+
+        helper.runAfterDelay(125, () -> {
+            try {
+                helper.assertTrue(hero.getHealth() < health,
+                        "碧蓝新星周期攻击未能伤害魔法少女");
+                helper.succeed();
+            } finally {
+                blueStar.stopEscape();
+                hero.discard();
+                blueStar.discard();
+            }
+        });
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 70, required = true, batch = "queen_compatibility_matrix")
+    public static void thornBusExecutesItsAttackAgainstHeroQueen(GameTestHelper helper) {
+        EntityQueenOfHatred hero = spawnQueen(helper, new BlockPos(5, 1, 4));
+        EntityThornBus thornBus = spawn(helper, ModEntities.thorn_bus.get(),
+                new BlockPos(4, 1, 4));
+        hero.setHeroDamageStateForTest(false);
+        thornBus.triggerEscape();
+        float health = hero.getHealth();
+
+        helper.runAfterDelay(45, () -> {
+            try {
+                helper.assertTrue(hero.getHealth() < health,
+                        "棘刺公交锁定魔法少女后没有执行攻击");
+                helper.succeed();
+            } finally {
+                hero.discard();
+                thornBus.stopEscape();
+                thornBus.discard();
+            }
+        });
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 40, required = true, batch = "queen_compatibility_matrix")
+    public static void heroTeleportFallsBackToGroundBelowFlyingTarget(GameTestHelper helper) {
+        EntityQueenOfHatred hero = spawnQueen(helper, new BlockPos(3, 1, 3));
+        EntityPunishingBird target = spawn(helper, ModEntities.punishing_bird.get(),
+                new BlockPos(8, 20, 3));
+        try {
+            hero.setHeroDamageStateForTest(false);
+            invokeTeleportNear(hero, helper.getLevel(), target);
+            helper.assertTrue(hero.getY() < target.getY() - 5.0D,
+                    "飞行目标附近找不到落脚点时，魔法少女被传送到了高空");
+            helper.succeed();
+        } finally {
+            hero.discard();
+            target.discard();
+        }
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 40, required = true, batch = "queen_teleport_safety")
+    public static void heroWithoutLegalTeleportDestinationRemainsInPlace(GameTestHelper helper) {
+        EntityQueenOfHatred hero = spawnQueen(helper, new BlockPos(3, 1, 3));
+        EntityPunishingBird target = spawn(helper, ModEntities.punishing_bird.get(),
+                new BlockPos(20, 20, 3));
+        GenerationBiggerData original = GenerationBiggerData.get(helper.getLevel());
+        GenerationBiggerData isolated = GenerationBiggerData.load(original.save(new CompoundTag()));
+        GenerationBiggerData.Entry bounds = isolated.getOrCreate(Structures.LOBOTO.name());
+        bounds.generated = true;
+        bounds.centerX = hero.blockPosition().getX();
+        bounds.centerZ = hero.blockPosition().getZ();
+        bounds.currentRadius = 2;
+        helper.getLevel().getServer().overworld().getDataStorage().set(GenerationBiggerData.ID, isolated);
+        try {
+            hero.setHeroDamageStateForTest(false);
+            Vec3 before = hero.position();
+            invokeTeleportNear(hero, helper.getLevel(), target);
+            helper.assertTrue(hero.position().distanceToSqr(before) < 0.0001D,
+                    "no legal company landing point: teleport must not use the raw target position");
+            helper.succeed();
+        } finally {
+            helper.getLevel().getServer().overworld().getDataStorage().set(GenerationBiggerData.ID, original);
+            hero.discard();
+            target.discard();
+        }
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 40, required = true, batch = "queen_nbt_resume")
+    public static void nbtReloadPreservesLaserAndWeakStates(GameTestHelper helper) {
+        List<String> failures = new ArrayList<>();
+        for (String state : List.of("HERO_LASER_CAST", "HERO_LASER_FIRE", "HERO_WEAK",
+                "VILLAIN_CHARGE_1", "VILLAIN_CHARGE_2", "VILLAIN_CHARGE_3",
+                "VILLAIN_LASER", "VILLAIN_WEAK")) {
+            EntityQueenOfHatred original = spawnQueen(helper, new BlockPos(4, 1, 4));
+            EntityQueenOfHatred loaded = ModEntities.queen_of_hatred.get().create(helper.getLevel());
+            if (loaded == null) throw new IllegalStateException("queen could not be re-created");
+            try {
+                setSavedState(original, state, 73,
+                        new Vec3(4.5D, 2.5D, 4.5D), new Vec3(18.5D, 2.5D, 4.5D));
+                CompoundTag tag = new CompoundTag();
+                original.addAdditionalSaveData(tag);
+                loaded.readAdditionalSaveData(tag);
+                if (!state.equals(loaded.stateNameForTest())) {
+                    failures.add(state + " 重载后变成 " + loaded.stateNameForTest());
+                }
+                if ((state.contains("LASER") || state.startsWith("VILLAIN_CHARGE"))
+                        && !beamSaved(loaded)) {
+                    failures.add(state + " 重载后丢失光束坐标");
+                }
+                if (original.laserVisualAgeTicksForTest() != loaded.laserVisualAgeTicksForTest()) {
+                    failures.add(state + " 重载后的激光时间轴位置错误");
+                }
+            } finally {
+                original.discard();
+                loaded.discard();
+            }
+        }
+        if (failures.isEmpty()) {
+            helper.succeed();
+        } else {
+            helper.fail(String.join("；", failures));
+        }
+    }
+
     private static EntityQueenOfHatred spawnQueen(GameTestHelper helper, BlockPos relative) {
         EntityQueenOfHatred queen = ModEntities.queen_of_hatred.get().create(helper.getLevel());
         if (queen == null) throw new IllegalStateException("queen could not be created");
         move(helper, queen, relative);
         helper.getLevel().addFreshEntity(queen);
         return queen;
+    }
+
+    private static <T extends LivingEntity> T spawn(GameTestHelper helper,
+                                                     net.minecraft.world.entity.EntityType<T> type,
+                                                     BlockPos relative) {
+        T entity = type.create(helper.getLevel());
+        if (entity == null) throw new IllegalStateException("test entity could not be created");
+        move(helper, entity, relative);
+        helper.getLevel().addFreshEntity(entity);
+        return entity;
+    }
+
+    private static boolean invokeTargetPredicate(Object owner, String methodName, LivingEntity target) {
+        try {
+            Method method = owner.getClass().getDeclaredMethod(methodName, LivingEntity.class);
+            method.setAccessible(true);
+            return (boolean) method.invoke(owner, target);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("could not invoke " + methodName, exception);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<LivingEntity> invokeTargetList(Object owner, String methodName) {
+        try {
+            Method method = owner.getClass().getDeclaredMethod(methodName);
+            method.setAccessible(true);
+            return (List<LivingEntity>) method.invoke(owner);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("could not invoke " + methodName, exception);
+        }
+    }
+
+    private static void invokeTeleportNear(EntityQueenOfHatred queen,
+                                           net.minecraft.server.level.ServerLevel level,
+                                           LivingEntity target) {
+        try {
+            Method method = EntityQueenOfHatred.class.getDeclaredMethod("teleportNear",
+                    net.minecraft.server.level.ServerLevel.class, LivingEntity.class, boolean.class);
+            method.setAccessible(true);
+            method.invoke(queen, level, target, false);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("could not invoke teleportNear", exception);
+        }
+    }
+
+    private static void setSavedState(EntityQueenOfHatred queen, String stateName, int actionTicks,
+                                      Vec3 beamStart, Vec3 beamEnd) {
+        try {
+            Field stateField = EntityQueenOfHatred.class.getDeclaredField("state");
+            stateField.setAccessible(true);
+            @SuppressWarnings({"unchecked", "rawtypes"})
+            Object state = Enum.valueOf((Class<? extends Enum>) stateField.getType(), stateName);
+            stateField.set(queen, state);
+            setField(queen, "actionTicks", actionTicks);
+            setField(queen, "actionElapsed", 19);
+            setField(queen, "beamStart", beamStart);
+            setField(queen, "beamEnd", beamEnd);
+            queen.setEscape(stateName.startsWith("VILLAIN"));
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("could not prepare saved queen state", exception);
+        }
+    }
+
+    private static boolean beamSaved(EntityQueenOfHatred queen) {
+        try {
+            Field start = EntityQueenOfHatred.class.getDeclaredField("beamStart");
+            Field end = EntityQueenOfHatred.class.getDeclaredField("beamEnd");
+            start.setAccessible(true);
+            end.setAccessible(true);
+            return start.get(queen) instanceof Vec3 && end.get(queen) instanceof Vec3;
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("could not inspect queen beam", exception);
+        }
+    }
+
+    private static void setField(Object owner, String name, Object value) throws ReflectiveOperationException {
+        Field field = owner.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        field.set(owner, value);
     }
 
     private static EntityClerk clerk(GameTestHelper helper, BlockPos relative) {

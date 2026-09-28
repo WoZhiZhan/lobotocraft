@@ -75,14 +75,21 @@ public final class CoreSuppressionPostProcessor {
     }
 
     public static boolean shouldRenderAfterGui() {
+        Minecraft minecraft = Minecraft.getInstance();
         return loadedChain != null && CoreSuppressionClientState.isActive()
-                && shouldRenderAfterGui(CoreSuppressionClientState.getType())
+                && shouldRenderAfterGui(CoreSuppressionClientState.getType(),
+                minecraft.options.renderDebug, minecraft.screen != null)
                 && !shouldSkipForReadableChat()
-                && Minecraft.getInstance().gameRenderer.currentEffect() == loadedChain;
+                && minecraft.gameRenderer.currentEffect() == loadedChain;
     }
 
     static boolean shouldRenderAfterGui(CoreSuppressionType type) {
         return type != CoreSuppressionType.CHESED;
+    }
+
+    static boolean shouldRenderAfterGui(CoreSuppressionType type,
+                                        boolean renderDebug, boolean screenOpen) {
+        return type != CoreSuppressionType.CHESED || renderDebug || screenOpen;
     }
 
     public static boolean shouldSkipForReadableChat() {

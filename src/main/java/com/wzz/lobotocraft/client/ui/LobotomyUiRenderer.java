@@ -341,6 +341,11 @@ public final class LobotomyUiRenderer {
         return TEXTURE_CACHE.computeIfAbsent(tex, ResourceUtil::exists);
     }
 
+    /** Resource packs can add or remove optional theme textures at runtime. */
+    public static void clearTextureCache() {
+        TEXTURE_CACHE.clear();
+    }
+
     private static void drawOutline(GuiGraphics g, int x, int y, int w, int h, int color) {
         g.fill(x, y, x + w, y + 1, color);
         g.fill(x, y + h - 1, x + w, y + h, color);

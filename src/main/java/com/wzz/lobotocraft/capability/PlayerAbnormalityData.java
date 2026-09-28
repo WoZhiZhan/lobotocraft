@@ -105,6 +105,35 @@ public class PlayerAbnormalityData {
         unlockedManuals.computeIfAbsent(abnormalityCode, k -> new HashSet<>()).add(entryIndex);
     }
 
+    /** Union knowledge only; personal research, equipment and balances are not shared. */
+    public boolean mergeKnowledge(PlayerAbnormalityData source) {
+        boolean changed = false;
+        for (var entry : source.unlockedManuals.entrySet()) {
+            changed |= unlockedManuals.computeIfAbsent(entry.getKey(), key -> new HashSet<>())
+                    .addAll(entry.getValue());
+        }
+        return changed;
+    }
+
+    public CompoundTag knowledgeSnapshot() {
+        ListTag entries = new ListTag();
+        unlockedManuals.forEach((code, unlocked) -> {
+            CompoundTag entry = new CompoundTag();
+            entry.putString("AbnormalityCode", code);
+            entry.putIntArray("Unlocked", unlocked.stream().mapToInt(Integer::intValue).toArray());
+            entries.add(entry);
+        });
+        CompoundTag result = new CompoundTag();
+        result.put("UnlockedManuals", entries);
+        return result;
+    }
+
+    public boolean mergeKnowledge(CompoundTag snapshot) {
+        PlayerAbnormalityData source = new PlayerAbnormalityData();
+        source.loadNBTData(snapshot);
+        return mergeKnowledge(source);
+    }
+
     /**
      * 获取已解锁的管理须知数量
      */

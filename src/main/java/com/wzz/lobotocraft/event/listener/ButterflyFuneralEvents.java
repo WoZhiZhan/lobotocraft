@@ -1,6 +1,8 @@
 package com.wzz.lobotocraft.event.listener;
 
 import com.wzz.lobotocraft.ModMain;
+import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
+import com.wzz.lobotocraft.entity.control.HostileControlState;
 import com.wzz.lobotocraft.item.ego.butterfly_funeral.ButterflyFuneralWeapon;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EgoArmorHelper;
@@ -60,7 +62,14 @@ public class ButterflyFuneralEvents {
 
         // 2. 5 层蝶引 + 50 层救赎 -> 额外 1 点蓝色伤害
         //    延迟到本 tick 末执行，避免在 hurt() 内部递归调用 hurt()
-        if (ButterflyFuneralWeapon.getButterflyLayers(player) >= MAX_BUTTERFLY_FULL_EGO
+        // The WHITE funeral gun can also trigger a PALE set bonus; do not turn
+        // an autonomous panic rescue into health damage.
+        boolean prudenceRescueTarget = target instanceof EmployeeServerPlayer employee
+                && MentalValueEventHandler.isPrudencePanic(employee)
+                && !HostileControlState.isActive(employee);
+        if (mayAddPaleBonus(player instanceof EmployeeServerPlayer, prudenceRescueTarget,
+                HostileControlState.isActive(player))
+                && ButterflyFuneralWeapon.getButterflyLayers(player) >= MAX_BUTTERFLY_FULL_EGO
                 && redemption >= MAX_REDEMPTION) {
             EntityUtil.clearHurtTime(target, () -> {
                 processingBonusDamage = true;
@@ -74,6 +83,11 @@ public class ButterflyFuneralEvents {
 
         // 3. 每次造成伤害为目标叠加一层救赎（已满则刷新时间）
         ButterflyFuneralWeapon.addRedemptionLayer(target);
+    }
+
+    static boolean mayAddPaleBonus(boolean aiAttacker, boolean prudenceRescueTarget,
+                                   boolean attackerControlled) {
+        return !aiAttacker || !prudenceRescueTarget || attackerControlled;
     }
 
     /* ---------------- 宣判：死亡退出 ---------------- */

@@ -15,9 +15,9 @@ import com.wzz.lobotocraft.entity.abnormality.EntityEndBirdEggEye;
 import com.wzz.lobotocraft.entity.abnormality.EntityEndBirdEggHigh;
 import com.wzz.lobotocraft.entity.abnormality.EntityEndBirdEggSmall;
 import com.wzz.lobotocraft.entity.abnormality.EntityPunishingBird;
-import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
 import com.wzz.lobotocraft.entity.abnormality.EntitySnowQueen;
-import com.wzz.lobotocraft.entity.data.EgoWeaponDisplayCatalog;
+import com.wzz.lobotocraft.entity.control.HostileControlState;
+import com.wzz.lobotocraft.entity.control.SingingMachineControl;
 import com.wzz.lobotocraft.entity.ordeal.OrdealEntity;
 import com.wzz.lobotocraft.event.listener.EmployeeStatsApplier;
 import com.wzz.lobotocraft.event.listener.EgoAttackOwnershipPolicy;
@@ -25,10 +25,18 @@ import com.wzz.lobotocraft.item.ego.base.AiCombatModeEgoWeapon;
 import com.wzz.lobotocraft.item.ego.base.AiRangedEgoWeapon;
 import com.wzz.lobotocraft.item.ego.base.AiSpecialEgoWeapon;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
+import com.wzz.lobotocraft.item.ego.army_in_black.ArmyInBlackWeapon;
+import com.wzz.lobotocraft.item.ego.blue_star.BlueStarWeapon;
+import com.wzz.lobotocraft.item.ego.butterfly_funeral.ButterflyFuneralWeapon;
+import com.wzz.lobotocraft.item.ego.happy_teddy.HappyTeddyWeapon;
+import com.wzz.lobotocraft.item.ego.repentance.RepentanceWeapon;
+import com.wzz.lobotocraft.item.ego.snowqueen.SnowQueenWeapon;
+import com.wzz.lobotocraft.item.ego.the_lady_facing_the_wall.LadyFacingWallWeapon;
 import com.wzz.lobotocraft.world.data.CompanyRoomData;
 import com.wzz.lobotocraft.world.data.FacilityAreaEntry;
 import com.wzz.lobotocraft.world.data.FacilityAreaGroup;
 import com.wzz.lobotocraft.world.data.FacilityWorldLayout;
+import com.lobotocraft.facility.FacilityPauseState;
 import com.wzz.lobotocraft.util.FacilityCombatRules;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.work.WorkManager;
@@ -55,6 +63,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.ForgeMod;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
@@ -141,6 +150,7 @@ public final class EmployeeRuntimeManager {
         }
         boolean ysmPrepared = YsmEmployeeCompat.preparePlayerData(record, saved);
         if (restored || ysmPrepared) employee.load(saved);
+        com.wzz.lobotocraft.work.UniqueWorkRequest.recoverTransientState(employee);
         employee.absMoveTo(record.x(), record.y(), record.z(), 0.0F, 0.0F);
         employee.setCustomName(departmentDisplayName(record));
         employee.setCustomNameVisible(true);
@@ -174,6 +184,10 @@ public final class EmployeeRuntimeManager {
     public static boolean remove(MinecraftServer server, EmployeeRecord record) {
         RuntimeEmployee runtime = ACTIVE.remove(record.id());
         if (runtime != null) {
+            // Cancel pending asynchronous path planning before the entity leaves
+            // the world; otherwise its callback can consume the next order's
+            // planning budget after this runtime has been removed.
+            runtime.navigator.stop();
             runtime.player.serverLevel().removePlayerImmediately(runtime.player, Entity.RemovalReason.DISCARDED);
         }
         ClientboundPlayerInfoRemovePacket remove = new ClientboundPlayerInfoRemovePacket(List.of(record.id()));
@@ -271,7 +285,8 @@ public final class EmployeeRuntimeManager {
 
     /** Checks only AI reservations; a pending order from {@code requesterId} may be replaced. */
     public static boolean isWorkTargetReserved(AbstractAbnormality abnormality, UUID requesterId) {
-        if (abnormality == null || WorkManager.isAiEmployeeWorking(abnormality)) return true;
+        if (abnormality == null || WorkManager.isAiEmployeeWorking(abnormality)
+                || com.wzz.lobotocraft.work.UniqueWorkRequest.isBusy(abnormality)) return true;
         UUID targetId = abnormality.getUUID();
         for (RuntimeEmployee runtime : ACTIVE.values()) {
             EmployeeOrder order = runtime.order;
@@ -320,6 +335,7 @@ public final class EmployeeRuntimeManager {
         if (record == null) return false;
         RuntimeEmployee runtime = ACTIVE.get(record.id());
         if (runtime == null || !runtime.player.isAlive() || runtime.player.isRemoved()
+                || com.wzz.lobotocraft.work.UniqueWorkRequest.isControlled(runtime.player)
                 || WorkManager.isPlayerWorking(runtime.player)) return false;
         fail(runtime, reason == null || reason.isBlank() ? "调试命令取消任务" : reason);
         return true;
@@ -332,8 +348,9 @@ public final class EmployeeRuntimeManager {
      */
     private static boolean canAcceptNewOrder(RuntimeEmployee runtime) {
         if (runtime == null || !runtime.player.isAlive() || runtime.player.isRemoved()) return false;
-        if (EntitySnowQueen.isFrozen(runtime.player)
-                || EntityRedShoes.isRedShoesControlled(runtime.player)) return false;
+        if (com.wzz.lobotocraft.work.UniqueWorkRequest.isControlled(runtime.player)
+                || EntitySnowQueen.isFrozen(runtime.player)
+                || HostileControlState.isActive(runtime.player)) return false;
         if (runtime.order != null && runtime.order.type == EmployeeTaskType.WORK
                 && CoreSuppressionManager.isMalkuthWorkCancellationLocked(runtime.player.level())) {
             return false;
@@ -345,6 +362,21 @@ public final class EmployeeRuntimeManager {
     public static EmployeeServerPlayer activePlayer(UUID employeeId) {
         RuntimeEmployee runtime = ACTIVE.get(employeeId);
         return runtime == null ? null : runtime.player;
+    }
+
+    public static boolean canAllocateUniqueWork(EmployeeServerPlayer player) {
+        RuntimeEmployee runtime = ACTIVE.get(player.getUUID());
+        return runtime != null && runtime.player == player && canAcceptNewOrder(runtime);
+    }
+
+    static String testNavigationDiagnostics(EmployeeRecord record) {
+        if (record == null) return "runtime=missing-record";
+        RuntimeEmployee runtime = ACTIVE.get(record.id());
+        if (runtime == null) return "runtime=missing";
+        EmployeeOrder order = runtime.order;
+        return runtime.navigator.testFailureDiagnostics()
+                + ", orderTarget=" + (order == null ? null : order.targetPos)
+                + ", orderAlternative=" + (order != null && order.hasMoveTargetAlternative());
     }
 
     public static void refreshDepartmentAppearance(EmployeeRecord record) {
@@ -375,6 +407,7 @@ public final class EmployeeRuntimeManager {
         }
         EmployeeServerPlayer player = runtime.player;
         if (player.isRemoved() || !player.isAlive() || runtime.order != null
+                || com.wzz.lobotocraft.work.UniqueWorkRequest.isControlled(player)
                 || runtime.panicking || MentalValueUtil.isPanic(player)
                 || WorkManager.isPlayerWorking(player)) {
             return AppearanceChangeResult.BUSY;
@@ -589,11 +622,22 @@ public final class EmployeeRuntimeManager {
             return;
         }
 
+        boolean facilityPaused = FacilityPauseState.isPaused(player.server);
+        if (facilityPaused) {
+            player.clearNavigationInput();
+            player.setDeltaMovement(Vec3.ZERO);
+        }
         player.doTick();
         // doTick() 内部可能触发死亡（此时 onEmployeeDeath 已将其移出 ACTIVE 并安排移除），
         // 继续跑下面的订单/存档逻辑等于操作一个已死实体，故在此复查一次
         if (player.isRemoved() || !player.isAlive()) {
             retireDead(runtime);
+            return;
+        }
+        if (facilityPaused) {
+            player.clearNavigationInput();
+            player.setDeltaMovement(Vec3.ZERO);
+            if (runtime.navigator.target() != null) runtime.navigator.tick(false);
             return;
         }
         if (CoreSuppressionManager.areAiEmployeesFrozen(player.level())) {
@@ -610,6 +654,11 @@ public final class EmployeeRuntimeManager {
             }
             return;
         }
+        if (com.wzz.lobotocraft.work.UniqueWorkRequest.tickEmployee(player, runtime.navigator)) {
+            clearAutonomousCombat(runtime);
+            runtime.idleMoving = false;
+            return;
+        }
         if (EntitySnowQueen.isFrozen(player)) {
             if (runtime.order != null) {
                 fail(runtime, "被冰雪女皇冰封，工作中断");
@@ -623,7 +672,8 @@ public final class EmployeeRuntimeManager {
             }
             return;
         }
-        if (EntityRedShoes.isRedShoesControlled(player)) {
+        if (HostileControlState.isActive(player)) {
+            SingingMachineControl.tickControlled(player);
             if (runtime.order != null) {
                 fail(runtime, "被红舞鞋控制，工作中断");
             } else {
@@ -932,7 +982,10 @@ public final class EmployeeRuntimeManager {
         InteractionResult result = useAiRangedHand(player, stack, InteractionHand.MAIN_HAND,
                 profile.requiresCrouch, target, (AiRangedEgoWeapon) stack.getItem());
         ItemStack offhand = player.getOffhandItem();
-        if (result == InteractionResult.PASS && !offhand.isEmpty()
+        // A WHITE funeral gun on cooldown must not fall through to its BLACK offhand
+        // while rescuing a PRUDENCE-panicked coworker.
+        if (result == InteractionResult.PASS && !isPrudenceRescueTarget(target)
+                && !offhand.isEmpty()
                 && offhand.getItem() == stack.getItem()
                 && offhand.getItem() instanceof AiRangedEgoWeapon offhandWeapon) {
             useAiRangedHand(player, offhand, InteractionHand.OFF_HAND,
@@ -1062,13 +1115,13 @@ public final class EmployeeRuntimeManager {
             return;
         }
         // Prefer assigned E.G.O, but an unarmed employee still defends against hostile mobs.
-        selectAssignedEgoWeapon(player);
+        boolean assignedWeaponReady = selectAssignedEgoWeapon(player);
 
-        LivingEntity target = autonomousTarget(runtime, groupId, groupAreas);
+        LivingEntity target = autonomousTarget(runtime, groupId, groupAreas, assignedWeaponReady);
         long now = player.serverLevel().getGameTime();
         if (target == null && now >= runtime.nextAutonomousTargetScanAt) {
             runtime.nextAutonomousTargetScanAt = now + COMBAT_TARGET_SCAN_INTERVAL;
-            target = nearestThreat(player, groupId, groupAreas);
+            target = nearestThreat(player, groupId, groupAreas, assignedWeaponReady);
             runtime.autonomousTarget = target == null ? null : target.getUUID();
             runtime.autonomousArea = target == null ? "" : groupId;
             if (target != null) {
@@ -1090,6 +1143,11 @@ public final class EmployeeRuntimeManager {
         float pitch = player.getXRot();
         RangedProfile ranged = rangedProfile(player.getMainHandItem());
         prepareWeaponForCombat(player);
+        if (isPrudenceRescueTarget(target)
+                && !shouldCounterPanickingEmployee(PanicType.PRUDENCE, player, assignedWeaponReady)) {
+            clearAutonomousCombat(runtime);
+            return;
+        }
         if (trySpecialSuppress(runtime, target)) {
             // The special path owns movement and attack timing while it is ready.
         } else if (ranged != null) tickRangedSuppress(runtime, target, ranged);
@@ -1149,22 +1207,24 @@ public final class EmployeeRuntimeManager {
     }
 
     private static LivingEntity autonomousTarget(RuntimeEmployee runtime, String groupId,
-                                                   List<FacilityAreaEntry> groupAreas) {
+                                                   List<FacilityAreaEntry> groupAreas,
+                                                   boolean assignedWeaponReady) {
         if (runtime.autonomousTarget == null || !groupId.equals(runtime.autonomousArea)) return null;
         Entity entity = findEntity(runtime.player.server, runtime.autonomousTarget);
-        if (!(entity instanceof LivingEntity living) || !isThreatFor(runtime.player, living)
+        if (!(entity instanceof LivingEntity living) || !isThreatFor(runtime.player, living, assignedWeaponReady)
                 || living.level() != runtime.player.level()
                 || !FacilityAreaGroup.contains(groupAreas, groupId, living.blockPosition())) return null;
         return living;
     }
 
     private static LivingEntity nearestThreat(EmployeeServerPlayer player, String groupId,
-                                               List<FacilityAreaEntry> groupAreas) {
+                                               List<FacilityAreaEntry> groupAreas,
+                                               boolean assignedWeaponReady) {
         Map<UUID, LivingEntity> threats = new HashMap<>();
         for (FacilityAreaEntry area : groupAreas) {
             AABB bounds = new AABB(area.minPos, area.maxPos.offset(1, 1, 1));
             for (LivingEntity entity : player.serverLevel().getEntitiesOfClass(
-                    LivingEntity.class, bounds, target -> isThreatFor(player, target))) {
+                    LivingEntity.class, bounds, target -> isThreatFor(player, target, assignedWeaponReady))) {
                 if (FacilityAreaGroup.contains(groupAreas, groupId, entity.blockPosition())) {
                     threats.put(entity.getUUID(), entity);
                 }
@@ -1174,14 +1234,14 @@ public final class EmployeeRuntimeManager {
                 .min(Comparator.comparingDouble(player::distanceToSqr)).orElse(null);
     }
 
-    private static boolean isThreatFor(EmployeeServerPlayer observer, LivingEntity entity) {
+    private static boolean isThreatFor(EmployeeServerPlayer observer, LivingEntity entity,
+                                       boolean assignedWeaponReady) {
         if (!entity.isAlive() || entity.isRemoved() || entity instanceof EntityPunishingBird) return false;
-        if (entity instanceof EmployeeServerPlayer
-                && EntityRedShoes.isRedShoesControlled(entity)) return true;
+        if (HostileControlState.isActive(entity)) return true;
         if (entity instanceof EmployeeServerPlayer employee && MentalValueUtil.isPanic(employee)) {
             PanicType panicType = employee.getCapability(MentalValueProvider.MENTAL_VALUE)
                     .map(mental -> mental.getPanicType()).orElse(PanicType.NONE);
-            return shouldCounterPanickingEmployee(panicType, assignedWeaponDamageType(observer));
+            return shouldCounterPanickingEmployee(panicType, observer, assignedWeaponReady);
         }
         if (isEndBirdEgg(entity)) return true;
         if (entity instanceof AbstractAbnormality abnormality) return abnormality.hasEscape();
@@ -1196,15 +1256,45 @@ public final class EmployeeRuntimeManager {
                 || entity instanceof EntityEndBirdEggEye;
     }
 
-    static boolean shouldCounterPanickingEmployee(PanicType panicType, String weaponDamageType) {
-        if (panicType == PanicType.BERSERK) return true;
-        return panicType == PanicType.PRUDENCE && "WHITE".equalsIgnoreCase(weaponDamageType);
+    private static boolean shouldCounterPanickingEmployee(PanicType panicType,
+                                                          EmployeeServerPlayer observer,
+                                                          boolean assignedWeaponReady) {
+        float maxHealth = observer.getMaxHealth();
+        return shouldCounterPanickingEmployee(panicType, observer.getMainHandItem(),
+                assignedWeaponReady, maxHealth > 0.0F ? observer.getHealth() / maxHealth : 0.0F);
     }
 
-    private static String assignedWeaponDamageType(EmployeeServerPlayer player) {
-        String code = AiEgoRepositoryData.get(player.server).assignedCode(player.getUUID(), "weapon");
-        EgoWeaponDisplayCatalog.WeaponSummary summary = EgoWeaponDisplayCatalog.find(code);
-        return summary == null ? "" : summary.damageType();
+    static boolean shouldCounterPanickingEmployee(PanicType panicType, ItemStack held,
+                                                   boolean assignedWeaponReady, float healthFraction) {
+        return shouldCounterPanickingEmployee(panicType, held.getItem().getClass(), assignedWeaponReady,
+                held.getItem() instanceof ButterflyFuneralWeapon
+                        && ButterflyFuneralWeapon.isBlack(held),
+                healthFraction);
+    }
+
+    static boolean shouldCounterPanickingEmployee(PanicType panicType, Class<?> weaponClass,
+                                                   boolean assignedWeaponReady, boolean blackVariant,
+                                                   float healthFraction) {
+        if (panicType == PanicType.BERSERK) return true;
+        if (panicType != PanicType.PRUDENCE || !assignedWeaponReady) return false;
+        // Use the selected weapon's actual WHITE attack mode, not the facility
+        // screen's static E.G.O summary (Army in Black changes mode at half HP).
+        if (weaponClass == ArmyInBlackWeapon.class) return healthFraction > 0.5F;
+        if (weaponClass == ButterflyFuneralWeapon.class) return !blackVariant;
+        return weaponClass == BlueStarWeapon.class
+                || weaponClass == HappyTeddyWeapon.class
+                || weaponClass == RepentanceWeapon.class
+                || weaponClass == SnowQueenWeapon.class
+                || weaponClass == LadyFacingWallWeapon.class;
+    }
+
+    private static boolean isPrudenceRescueTarget(LivingEntity target) {
+        if (!(target instanceof EmployeeServerPlayer employee)
+                || HostileControlState.isActive(employee) || !MentalValueUtil.isPanic(employee)) {
+            return false;
+        }
+        return employee.getCapability(MentalValueProvider.MENTAL_VALUE)
+                .map(mental -> mental.getPanicType() == PanicType.PRUDENCE).orElse(false);
     }
 
     private static List<FacilityAreaEntry> currentFacilityAreas(EmployeeServerPlayer player) {

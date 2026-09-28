@@ -334,6 +334,10 @@ public class EntityThornBus extends AbstractAbnormality {
                         attackMob(player);
                         break;
                     }
+                    if (e instanceof AbstractAbnormality abnormality && abnormality.isAbnormalityCombatTarget()) {
+                        attackMob(e);
+                        break;
+                    }
                 }
             }
         }

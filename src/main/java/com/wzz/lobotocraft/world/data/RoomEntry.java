@@ -5,6 +5,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import java.util.UUID;
 
 /**
  * 一个"收容间"的数据快照。
@@ -36,6 +37,8 @@ public class RoomEntry {
     public ResourceLocation dimension;
     /** 标记方块坐标（同时也是传送目标基准点） */
     public BlockPos pos;
+    /** Server-bound occupant identity used to join live facility state, never the display code. */
+    public UUID boundAbnormality;
     /** 所属部门；空串表示尚未分配。 */
     public String departmentId = "";
 
@@ -51,6 +54,8 @@ public class RoomEntry {
     public int riskColor = 0xFFAAAAAA;
     /** Snapshot-only classification used by monitor dispatch UI. */
     public boolean toolType;
+    /** Transient command reservation; rebuilt by the live room scan, never restored from disk. */
+    public boolean uniqueWorkBusy;
 
     public int status = STATUS_EMPTY;
 
@@ -66,7 +71,7 @@ public class RoomEntry {
 
     /** Core-suppression Qliphoth meltdown state for this containment unit. */
     public boolean meltdownActive = false;
-    /** Remaining server ticks; clients render this as a rounded-up second count. */
+    /** Last scanned value; the monitor uses the live facility state packet instead. */
     public int meltdownRemainingTicks = 0;
     /** Repeated-work penalty for this containment unit, in percentage points. */
     public int repeatedWorkPenaltyPercent = 0;
@@ -122,6 +127,7 @@ public class RoomEntry {
         CompoundTag tag = new CompoundTag();
         tag.putString("Dim", dimension.toString());
         tag.putLong("Pos", pos.asLong());
+        if (boundAbnormality != null) tag.putUUID("BoundAbnormality", boundAbnormality);
         tag.putString("Department", departmentId);
         tag.putString("Code", abnormalityCode);
         tag.putString("AbName", abnormalityName);
@@ -146,6 +152,7 @@ public class RoomEntry {
         RoomEntry entry = new RoomEntry();
         entry.dimension = ResourceLocation.tryParse(tag.getString("Dim"));
         entry.pos = BlockPos.of(tag.getLong("Pos"));
+        entry.boundAbnormality = tag.hasUUID("BoundAbnormality") ? tag.getUUID("BoundAbnormality") : null;
         entry.departmentId = tag.getString("Department");
         entry.abnormalityCode = tag.getString("Code");
         entry.abnormalityName = tag.getString("AbName");
@@ -171,6 +178,8 @@ public class RoomEntry {
     public void write(FriendlyByteBuf buf) {
         buf.writeResourceLocation(dimension);
         buf.writeBlockPos(pos);
+        buf.writeBoolean(boundAbnormality != null);
+        if (boundAbnormality != null) buf.writeUUID(boundAbnormality);
         buf.writeUtf(departmentId, FacilityAreaEntry.MAX_DEPARTMENT_LENGTH);
         buf.writeUtf(abnormalityCode, 32);
         buf.writeUtf(abnormalityName, 64);
@@ -191,12 +200,14 @@ public class RoomEntry {
         buf.writeVarInt(floorIndex + 1);
         buf.writeUtf(floorName, 48);
         buf.writeInt(floorY);
+        buf.writeBoolean(uniqueWorkBusy);
     }
 
     public static RoomEntry read(FriendlyByteBuf buf) {
         RoomEntry entry = new RoomEntry();
         entry.dimension = buf.readResourceLocation();
         entry.pos = buf.readBlockPos();
+        entry.boundAbnormality = buf.readBoolean() ? buf.readUUID() : null;
         entry.departmentId = buf.readUtf(FacilityAreaEntry.MAX_DEPARTMENT_LENGTH);
         entry.abnormalityCode = buf.readUtf(32);
         entry.abnormalityName = buf.readUtf(64);
@@ -217,6 +228,7 @@ public class RoomEntry {
         entry.floorIndex = buf.readVarInt() - 1;
         entry.floorName = buf.readUtf(48);
         entry.floorY = buf.readInt();
+        entry.uniqueWorkBusy = buf.readBoolean();
         return entry;
     }
 }

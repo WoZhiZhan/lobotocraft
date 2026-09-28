@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.entity.abnormality;
 import com.lobotocraft.facility.data.FacilityDayData;
 import com.wzz.lobotocraft.debug.prototype.queenlaser.QueenLaserPrototypePacket;
 import com.wzz.lobotocraft.debug.prototype.queenstar.QueenStarPrototypePacket;
+import com.wzz.lobotocraft.entity.ai.FacilityAbnormalityTargetPolicy;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.EscapeTracker;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
@@ -137,6 +138,7 @@ public class EntityQueenOfHatred extends AbstractAbnormality {
     private final Map<UUID, CompletedWork> completedWork = new HashMap<>();
     private String lastClientAnimation = "";
     private boolean lastClientSnake;
+    private boolean visualResyncPending;
 
     public EntityQueenOfHatred(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -359,6 +361,10 @@ public class EntityQueenOfHatred extends AbstractAbnormality {
         if (level().isClientSide) return;
         ServerLevel serverLevel = (ServerLevel) level();
         tickDayBoundary(serverLevel);
+        if (visualResyncPending) {
+            syncVisualsToPlayers(serverLevel);
+            visualResyncPending = false;
+        }
         tickPendingStar(serverLevel);
         tickCooldowns();
 
@@ -448,7 +454,22 @@ public class EntityQueenOfHatred extends AbstractAbnormality {
         stageStaffDeaths = 0;
         heroStaffDeaths = 0;
         helpedThisStage = false;
-        if (isHeroState(state)) finishHeroReturn(level, false);
+        if (isHeroState(state)) {
+            finishHeroReturn(level, false);
+            return;
+        }
+        if (isVillainState(state) || state == State.VILLAIN_RETURN_SNAKE
+                || state == State.VILLAIN_RETURN_HUMAN) {
+            finishVillainReturn(level, false);
+            return;
+        }
+        clearPendingWork();
+        clearVisuals();
+        setSnakeForm(false);
+        setEscape(false);
+        setQliphothCounter(getMaxQliphothCounter());
+        setHealth(getMaxHealth());
+        transition(State.CONTAINED, 0, "idle_inside");
     }
 
     private void tickCooldowns() {
@@ -822,7 +843,9 @@ public class EntityQueenOfHatred extends AbstractAbnormality {
         if (target == null) return;
         BlockPos safe = EntityUtil.findSafeEntityPositionInCompany(level, this,
                 target.blockPosition(), 5, 3);
-        Vec3 destination = safe == null ? target.position() : Vec3.atBottomCenterOf(safe);
+        if (safe == null) safe = findGroundTeleportFallback(level, target.blockPosition());
+        if (safe == null) return;
+        Vec3 destination = Vec3.atBottomCenterOf(safe);
         level.sendParticles(ParticleTypes.PORTAL, getX(), getY() + 1.0D, getZ(),
                 32, 0.7D, 1.0D, 0.7D, 0.2D);
         moveTo(destination.x, destination.y, destination.z, getYRot(), getXRot());
@@ -836,6 +859,25 @@ public class EntityQueenOfHatred extends AbstractAbnormality {
             QueenOfHatredCombat.damageBlack(this, living, 20, 26);
             EntityUtil.clearHurtTime(living);
         }
+    }
+
+    /** Finds a company-local floor below a flying target when its current Y is unreachable. */
+    private BlockPos findGroundTeleportFallback(ServerLevel level, BlockPos target) {
+        int minY = level.getMinBuildHeight();
+        int maxY = Math.min(target.getY() - 1, level.getMaxBuildHeight() - 2);
+        for (int y = maxY; y >= minY; y--) {
+            for (int dx = -5; dx <= 5; dx++) {
+                for (int dz = -5; dz <= 5; dz++) {
+                    BlockPos candidate = new BlockPos(target.getX() + dx, y, target.getZ() + dz);
+                    if (!level.getBlockState(candidate.below()).isFaceSturdy(
+                            level, candidate.below(), net.minecraft.core.Direction.UP)) continue;
+                    if (!level.getBlockState(candidate).isAir()) continue;
+                    BlockPos safe = EntityUtil.findSafeEntityPositionInCompany(level, this, candidate, 0, 0);
+                    if (safe != null) return safe;
+                }
+            }
+        }
+        return null;
     }
 
     private LivingEntity nearestTarget(ServerLevel level,
@@ -912,6 +954,50 @@ public class EntityQueenOfHatred extends AbstractAbnormality {
         }
     }
 
+    /** Replays the current laser state for a player who joined while it was active. */
+    void syncVisualToPlayer(ServerPlayer player) {
+        if (player == null || !(level() instanceof ServerLevel level) || player.level() != level) return;
+        if (!isLaserState(state) || beamStart == null || beamEnd == null) return;
+        LaserVisualState visual = currentLaserVisualState();
+        if (visual == null) return;
+        MessageLoader.getLoader().sendToPlayer(player, QueenLaserPrototypePacket.resume(
+                beamStart, beamEnd, QueenLaserPrototypePacket.MODE_MAX,
+                visual.castTicks(), visual.durationTicks(), visual.ageTicks()));
+    }
+
+    private LaserVisualState currentLaserVisualState() {
+        int villainCastTicks = VILLAIN_CHARGE_1_TICKS
+                + VILLAIN_CHARGE_2_TICKS + VILLAIN_CHARGE_3_TICKS;
+        return switch (state) {
+            case HERO_LASER_CAST -> new LaserVisualState(HERO_LASER_CAST_TICKS,
+                    HERO_LASER_CAST_TICKS + HERO_LASER_FIRE_TICKS, actionElapsed);
+            case HERO_LASER_FIRE -> new LaserVisualState(HERO_LASER_CAST_TICKS,
+                    HERO_LASER_CAST_TICKS + HERO_LASER_FIRE_TICKS,
+                    HERO_LASER_CAST_TICKS + actionElapsed);
+            case VILLAIN_CHARGE_1 -> new LaserVisualState(villainCastTicks,
+                    villainCastTicks + VILLAIN_LASER_TICKS, actionElapsed);
+            case VILLAIN_CHARGE_2 -> new LaserVisualState(villainCastTicks,
+                    villainCastTicks + VILLAIN_LASER_TICKS,
+                    VILLAIN_CHARGE_1_TICKS + actionElapsed);
+            case VILLAIN_CHARGE_3 -> new LaserVisualState(villainCastTicks,
+                    villainCastTicks + VILLAIN_LASER_TICKS,
+                    VILLAIN_CHARGE_1_TICKS + VILLAIN_CHARGE_2_TICKS + actionElapsed);
+            case VILLAIN_LASER -> new LaserVisualState(villainCastTicks,
+                    villainCastTicks + VILLAIN_LASER_TICKS,
+                    villainCastTicks + actionElapsed);
+            default -> null;
+        };
+    }
+
+    private record LaserVisualState(int castTicks, int durationTicks, int ageTicks) {
+    }
+
+    private void syncVisualsToPlayers(ServerLevel level) {
+        for (ServerPlayer player : level.getServer().getPlayerList().getPlayers()) {
+            syncVisualToPlayer(player);
+        }
+    }
+
     private void clearVisuals() {
         if (!(level() instanceof ServerLevel level)) return;
         sendVisual(level, QueenLaserPrototypePacket.clear());
@@ -971,7 +1057,9 @@ public class EntityQueenOfHatred extends AbstractAbnormality {
         if (isHeroState(state)) {
             Entity attacker = source.getEntity();
             boolean hostileAttacker = attacker instanceof AbstractAbnormality abnormality && abnormality.hasEscape()
-                    || FacilityCombatRules.isOrdealCombatant(attacker);
+                    || FacilityCombatRules.isOrdealCombatant(attacker)
+                    || (attacker instanceof LivingEntity living
+                    && FacilityAbnormalityTargetPolicy.isCoreSuppressionCombatant(living));
             if (!hostileAttacker && !DamageHelper.isKill(source)) return false;
             return baseHurt(source, amount);
         }
@@ -1099,6 +1187,15 @@ public class EntityQueenOfHatred extends AbstractAbnormality {
             tag.putDouble("QueenContainmentY", containmentOrigin.y);
             tag.putDouble("QueenContainmentZ", containmentOrigin.z);
         }
+        if (beamStart != null && beamEnd != null) {
+            tag.putBoolean("QueenHasBeam", true);
+            tag.putDouble("QueenBeamStartX", beamStart.x);
+            tag.putDouble("QueenBeamStartY", beamStart.y);
+            tag.putDouble("QueenBeamStartZ", beamStart.z);
+            tag.putDouble("QueenBeamEndX", beamEnd.x);
+            tag.putDouble("QueenBeamEndY", beamEnd.y);
+            tag.putDouble("QueenBeamEndZ", beamEnd.z);
+        }
         if (kissTarget != null) tag.putUUID("QueenKissTarget", kissTarget);
         if (kissWork != null) {
             tag.putString("QueenKissResult", kissWork.result().name());
@@ -1133,6 +1230,15 @@ public class EntityQueenOfHatred extends AbstractAbnormality {
             containmentOrigin = new Vec3(tag.getDouble("QueenContainmentX"),
                     tag.getDouble("QueenContainmentY"), tag.getDouble("QueenContainmentZ"));
         }
+        if (tag.getBoolean("QueenHasBeam")) {
+            beamStart = new Vec3(tag.getDouble("QueenBeamStartX"), tag.getDouble("QueenBeamStartY"),
+                    tag.getDouble("QueenBeamStartZ"));
+            beamEnd = new Vec3(tag.getDouble("QueenBeamEndX"), tag.getDouble("QueenBeamEndY"),
+                    tag.getDouble("QueenBeamEndZ"));
+        } else {
+            beamStart = null;
+            beamEnd = null;
+        }
         kissTarget = tag.hasUUID("QueenKissTarget") ? tag.getUUID("QueenKissTarget") : null;
         if (tag.contains("QueenKissResult")) {
             try {
@@ -1143,16 +1249,7 @@ public class EntityQueenOfHatred extends AbstractAbnormality {
             }
         }
 
-        if (state == State.HERO_ATTACK || state == State.HERO_LASER_CAST
-                || state == State.HERO_LASER_FIRE || state == State.HERO_WEAK) {
-            state = State.HERO_IDLE;
-            actionTicks = 0;
-        } else if (state == State.VILLAIN_CHARGE_1 || state == State.VILLAIN_CHARGE_2
-                || state == State.VILLAIN_CHARGE_3 || state == State.VILLAIN_LASER
-                || state == State.VILLAIN_WEAK) {
-            state = State.VILLAIN_IDLE;
-            actionTicks = 0;
-        }
+        visualResyncPending = isLaserState(state);
         if (hasEscape() && !isVillainState(state)
                 && state != State.VILLAIN_RETURN_SNAKE && state != State.VILLAIN_RETURN_HUMAN) {
             state = State.VILLAIN_IDLE;
@@ -1185,8 +1282,19 @@ public class EntityQueenOfHatred extends AbstractAbnormality {
         };
     }
 
+    private static boolean isLaserState(State value) {
+        return value == State.HERO_LASER_CAST || value == State.HERO_LASER_FIRE
+                || value == State.VILLAIN_CHARGE_1 || value == State.VILLAIN_CHARGE_2
+                || value == State.VILLAIN_CHARGE_3 || value == State.VILLAIN_LASER;
+    }
+
     String stateNameForTest() {
         return state.name();
+    }
+
+    int laserVisualAgeTicksForTest() {
+        LaserVisualState visual = currentLaserVisualState();
+        return visual == null ? -1 : visual.ageTicks();
     }
 
     void setHeroStaffSnapshotForTest(int startingStaff, int deaths) {

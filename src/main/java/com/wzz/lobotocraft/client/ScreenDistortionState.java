@@ -16,6 +16,13 @@ public class ScreenDistortionState {
         totalDuration = durationTicks;
     }
 
+    public static void clear() {
+        targetIntensity = 0f;
+        currentIntensity = 0f;
+        remainingTicks = 0;
+        totalDuration = 0;
+    }
+
     public static void tick() {
         if (remainingTicks > 0) {
             remainingTicks--;

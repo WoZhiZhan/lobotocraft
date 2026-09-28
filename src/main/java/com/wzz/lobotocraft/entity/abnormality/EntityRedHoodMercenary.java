@@ -240,6 +240,10 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
         return isAlive() && !hasEscape() && !commissionMode;
     }
 
+    public boolean isCommissionedAgainst(UUID targetId) {
+        return commissionMode && targetId != null && targetId.equals(commissionTargetId);
+    }
+
     private LivingEntity getCommissionTarget(ServerLevel level) {
         if (commissionTargetId == null) return null;
         if (level.getEntity(commissionTargetId) instanceof LivingEntity living && living.isAlive()) {
@@ -887,7 +891,9 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
     }
 
     private boolean isNonEscapedAbnormality(LivingEntity entity) {
-        return entity instanceof AbstractAbnormality abnormality && !abnormality.hasEscape();
+        return entity instanceof AbstractAbnormality abnormality
+                && !abnormality.hasEscape()
+                && !QueenOfHatredCombat.isQueenOfHatredCombatTarget(abnormality);
     }
 
     private LivingEntity findTarget(ServerLevel level) {

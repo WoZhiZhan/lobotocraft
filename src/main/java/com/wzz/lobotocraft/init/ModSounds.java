@@ -75,6 +75,7 @@ public class ModSounds {
 	public static final RegistryObject<SoundEvent> QOH_HERO_KISS_2 = register("qoh_hero_kiss_2");
 	public static final RegistryObject<SoundEvent> QOH_HERO_PANIC_DOWN = register("qoh_hero_panic_down");
 	public static final RegistryObject<SoundEvent> QOH_HERO_PANIC_LOOP = register("qoh_hero_panic_loop");
+	public static final RegistryObject<SoundEvent> FEAR_TINNITUS = register("fear_tinnitus");
 	public static final RegistryObject<SoundEvent> QOH_HERO_SKILL_START = register("qoh_hero_skill_start");
 	public static final RegistryObject<SoundEvent> QOH_HERO_SKILL_PORTAL_1 = register("qoh_hero_skill_portal_1");
 	public static final RegistryObject<SoundEvent> QOH_HERO_SKILL_PORTAL_2 = register("qoh_hero_skill_portal_2");

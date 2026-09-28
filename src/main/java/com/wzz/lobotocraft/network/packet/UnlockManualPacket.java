@@ -9,11 +9,8 @@ import com.wzz.lobotocraft.network.RequestThrottle;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.phys.AABB;
 import net.minecraftforge.network.NetworkEvent;
 
-import java.util.List;
-import java.util.Objects;
 
 /**
  * 解锁管理须知数据包（客户端 -> 服务器）
@@ -55,36 +52,6 @@ public class UnlockManualPacket implements IMessage {
             ServerPlayer player = ctx.getSender();
             if (player != null) {
                 unlockUsingServerData(player);
-                if (false) {
-                // 检查并消耗PE-BOX
-                if (PEBoxItem.consumePEBoxes(player.getInventory(), abnormalityCode, peBoxCost)) {
-                    // 解锁管理须知
-                    player.getCapability(PlayerAbnormalityDataProvider.PLAYER_ABNORMALITY_DATA)
-                            .ifPresent(data -> {
-                                // 解锁
-                                data.unlockManual(abnormalityCode, entryIndex);
-                                AABB box = player.getBoundingBox().inflate(64);
-                                List<AbstractAbnormality> list = player.level().getEntitiesOfClass(AbstractAbnormality.class, box);
-                                for (AbstractAbnormality ent : list) {
-                                    if (Objects.equals(ent.getAbnormalityCode(), this.abnormalityCode)) {
-                                        ent.sendPerPlayerName(player, ent.getLocalizedAbnormalityName());
-                                    }
-                                }
-                                // 获取当前观察等级（等于解锁数量）
-                                int currentLevel = data.getObservationLevel(abnormalityCode);
-
-                                // 发送成功消息
-                                player.sendSystemMessage(Component.translatable(
-                                        "message.lobotocraft.manual.unlocked_cost", peBoxCost));
-                                player.sendSystemMessage(Component.translatable(
-                                        "message.lobotocraft.manual.observation_level", currentLevel));
-                            });
-                } else {
-                    // PE-BOX不足
-                    player.sendSystemMessage(Component.translatable(
-                            "message.lobotocraft.manual.insufficient", peBoxCost));
-                }
-            }
             }
         });
         ctx.setPacketHandled(true);
@@ -98,6 +65,7 @@ public class UnlockManualPacket implements IMessage {
         if (abnormality == null || !isValidEntry(abnormalityCode, entryIndex)) return;
         int cost = serverCost(abnormality, entryIndex);
         if (cost < 0 || cost > 1024) return;
+        com.wzz.lobotocraft.work.FacilityKnowledgeService.synchronize(player);
         player.getCapability(PlayerAbnormalityDataProvider.PLAYER_ABNORMALITY_DATA).ifPresent(data -> {
             if (data.isManualUnlocked(abnormalityCode, entryIndex)) return;
             if (!PEBoxItem.consumePEBoxes(player.getInventory(), abnormalityCode, cost)) {
@@ -105,7 +73,7 @@ public class UnlockManualPacket implements IMessage {
                         "message.lobotocraft.manual.insufficient", cost));
                 return;
             }
-            data.unlockManual(abnormalityCode, entryIndex);
+            com.wzz.lobotocraft.work.FacilityKnowledgeService.unlock(player, abnormalityCode, entryIndex);
             abnormality.sendPerPlayerName(player, abnormality.getLocalizedAbnormalityName());
             player.sendSystemMessage(Component.translatable(
                     "message.lobotocraft.manual.entry_unlocked"));

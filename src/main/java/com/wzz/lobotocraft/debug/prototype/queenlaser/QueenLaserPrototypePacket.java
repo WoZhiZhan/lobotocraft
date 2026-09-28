@@ -23,12 +23,13 @@ public final class QueenLaserPrototypePacket implements IMessage {
     private double endZ;
     private int castTicks;
     private int durationTicks;
+    private int ageTicks;
 
     public QueenLaserPrototypePacket() {
     }
 
     private QueenLaserPrototypePacket(int action, Vec3 start, Vec3 end, int mode,
-                                      int castTicks, int durationTicks) {
+                                      int castTicks, int durationTicks, int ageTicks) {
         this.action = action;
         this.mode = mode;
         this.startX = start.x;
@@ -39,6 +40,7 @@ public final class QueenLaserPrototypePacket implements IMessage {
         this.endZ = end.z;
         this.castTicks = castTicks;
         this.durationTicks = durationTicks;
+        this.ageTicks = ageTicks;
     }
 
     public static QueenLaserPrototypePacket start(Vec3 start, Vec3 end, int mode, int durationTicks) {
@@ -48,12 +50,19 @@ public final class QueenLaserPrototypePacket implements IMessage {
     public static QueenLaserPrototypePacket start(Vec3 start, Vec3 end, int mode,
                                                    int castTicks, int durationTicks) {
         return new QueenLaserPrototypePacket(ACTION_START, start, end, mode,
-                castTicks, durationTicks);
+                castTicks, durationTicks, 0);
+    }
+
+    public static QueenLaserPrototypePacket resume(Vec3 start, Vec3 end, int mode,
+                                                    int castTicks, int durationTicks,
+                                                    int ageTicks) {
+        return new QueenLaserPrototypePacket(ACTION_START, start, end, mode,
+                castTicks, durationTicks, ageTicks);
     }
 
     public static QueenLaserPrototypePacket clear() {
         return new QueenLaserPrototypePacket(ACTION_CLEAR, Vec3.ZERO, Vec3.ZERO,
-                MODE_PREVIEW, 0, 0);
+                MODE_PREVIEW, 0, 0, 0);
     }
 
     @Override
@@ -73,6 +82,7 @@ public final class QueenLaserPrototypePacket implements IMessage {
         buf.writeDouble(endZ);
         buf.writeVarInt(castTicks);
         buf.writeVarInt(durationTicks);
+        buf.writeVarInt(ageTicks);
     }
 
     @Override
@@ -87,6 +97,7 @@ public final class QueenLaserPrototypePacket implements IMessage {
         endZ = buf.readDouble();
         castTicks = buf.readVarInt();
         durationTicks = buf.readVarInt();
+        ageTicks = buf.readVarInt();
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -101,6 +112,7 @@ public final class QueenLaserPrototypePacket implements IMessage {
                 new Vec3(endX, endY, endZ),
                 mode,
                 castTicks,
-                durationTicks);
+                durationTicks,
+                ageTicks);
     }
 }

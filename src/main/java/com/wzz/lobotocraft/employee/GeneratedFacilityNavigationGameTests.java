@@ -16,6 +16,7 @@ import com.wzz.lobotocraft.employee.navigation.TransitionGenerator;
 import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.world.data.FacilityWorldLayout;
 import com.wzz.lobotocraft.world.structure.StructureLoader;
+import com.wzz.lobotocraft.world.structure.StructureUpdater;
 import com.wzz.lobotocraft.world.structure.Structures;
 import java.util.List;
 import java.util.ArrayList;
@@ -23,7 +24,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -46,8 +46,6 @@ import org.slf4j.Logger;
 @GameTestHolder(ModMain.MODID + "_navigation")
 public final class GeneratedFacilityNavigationGameTests {
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final BlockPos STRUCTURE_ORIGIN = new BlockPos(5, 2, 0);
-    private static final BlockPos FACILITY_ANCHOR = new BlockPos(195, 269, 29);
     private static final int ROUTE_TIMEOUT_TICKS = 4_000;
     private static final int CONNECTED_PAIR_NODE_BUDGET = 65_536;
 
@@ -65,6 +63,14 @@ public final class GeneratedFacilityNavigationGameTests {
             "dept/information/passage/y-right-elevator-hub-rightdoor";
     private static final String SAFETY_MAIN_GROUP =
             "dept/safety/passage/sefira-netzach-1";
+    private static final String SAFETY_UPPER_ELEVATOR_GROUP =
+            "dept/safety/passage/n-leftup-elevator-hub";
+    private static final String SAFETY_UPPER_CORRIDOR_GROUP =
+            "dept/safety/passage/n-upper-way-rightdoor";
+    private static final String SAFETY_UPPER_LEFT_CONTAINMENT_GROUP =
+            "dept/safety/containment/n-upper-way4";
+    private static final String SAFETY_UPPER_RIGHT_CONTAINMENT_GROUP =
+            "dept/safety/containment/n-upper-way2";
     private static final String TRAINING_MAIN_GROUP =
             "dept/training/passage/sefira-hod-1";
     private static final String CENTRAL_UPPER_MAIN_GROUP =
@@ -75,8 +81,14 @@ public final class GeneratedFacilityNavigationGameTests {
             "dept/central/lower/passage/dept-tiphereth2-1";
     private static final String WELFARE_MAIN_GROUP =
             "dept/welfare/passage/sefira-chesed-1";
+    private static final String WELFARE_UPPER_MAIN_GROUP =
+            "dept/welfare/passage/dept-chesed-1";
     private static final String DISCIPLINARY_MAIN_GROUP =
             "dept/disciplinary/passage/sefira-geburah-1";
+    private static final String DISCIPLINARY_UPPER_MAIN_GROUP =
+            "dept/disciplinary/passage/dept-geburah-1";
+    private static final String DISCIPLINARY_UPPER_CORRIDOR_GROUP =
+            "dept/disciplinary/passage/geburah-ru-way1";
     private static final String RECORD_MAIN_GROUP =
             "dept/record/passage/sefira-chokhmah-1";
     private static final String EXTRACTION_MAIN_GROUP =
@@ -98,8 +110,23 @@ public final class GeneratedFacilityNavigationGameTests {
         new Scenario().start(helper);
     }
 
+    @GameTest(template = "navigation_empty", templateNamespace = ModMain.MODID + "_navigation",
+            timeoutTicks = 40, required = true, batch = "navigation_generation_callback")
+    public static void headlessStructureCompletionInvokesCallback(GameTestHelper helper) throws Exception {
+        java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+        StructureLoader.LoadTask task = new StructureLoader.LoadTask(
+                helper.getLevel(), null, "unused", BlockPos.ZERO,
+                net.minecraft.world.level.block.Rotation.NONE, null, 0, 0, 0, 0,
+                calls::incrementAndGet);
+        java.lang.reflect.Method finish = StructureLoader.LoadTask.class.getDeclaredMethod(
+                "finalizeLoading", int.class);
+        finish.setAccessible(true);
+        finish.invoke(task, 0);
+        helper.assertTrue(calls.get() == 1, "headless structure completion omitted its callback");
+        helper.succeed();
+    }
+
     private static final class Scenario {
-        private final AtomicBoolean generationFinished = new AtomicBoolean();
         private boolean generationStarted;
         private boolean staleEntitiesCleared;
         private boolean chunksLoaded;
@@ -124,20 +151,17 @@ public final class GeneratedFacilityNavigationGameTests {
                 helper.fail("facility dimension was not loaded");
                 return;
             }
-            if (!facility.getBlockState(FACILITY_ANCHOR).getCollisionShape(
-                    facility, FACILITY_ANCHOR).isEmpty()) {
-                generationFinished.set(true);
-            } else if (!generationStarted) {
+            // Use the real initialization transaction so spawning the employee cannot
+            // trigger a second generation and teleport it away from the route's start.
+            if (!generationStarted) {
                 generationStarted = true;
-                boolean accepted = StructureLoader.beginLoading(facility, null,
-                        Structures.LOBOTO.name(), STRUCTURE_ORIGIN,
-                        () -> generationFinished.set(true));
-                if (!accepted) {
-                    helper.fail("facility structure loader rejected the GameTest generation");
-                    return;
-                }
+                StructureUpdater.onPlayerEnter(facility, null);
             }
-            if (!generationFinished.get()) return;
+            if (StructureUpdater.isRunning()) return;
+            if (!Structures.LOBOTO.isGenerated(facility)) {
+                helper.fail("facility generation did not establish the generated state");
+                return;
+            }
             if (!staleEntitiesCleared) {
                 int discardedClerks = discardStaleClerks(facility);
                 LOGGER.info("Generated facility navigation discarded {} stale test clerks",
@@ -240,6 +264,14 @@ public final class GeneratedFacilityNavigationGameTests {
                 INFORMATION_LOWER_RIGHT_GROUP, 0x1F004L);
         NavigationNode safetyMain = sampledStandingPoint(facility, evaluator,
                 SAFETY_MAIN_GROUP, 0x5AFE71L);
+        NavigationNode safetyUpperElevator = sampledStandingPoint(facility, evaluator,
+                SAFETY_UPPER_ELEVATOR_GROUP, 0x5AFE72L);
+        NavigationNode safetyUpperCorridor = sampledStandingPoint(facility, evaluator,
+                SAFETY_UPPER_CORRIDOR_GROUP, 0x5AFE73L);
+        NavigationNode safetyUpperLeftContainment = sampledStandingPoint(facility, evaluator,
+                SAFETY_UPPER_LEFT_CONTAINMENT_GROUP, 0x5AFE74L);
+        NavigationNode safetyUpperRightContainment = sampledStandingPoint(facility, evaluator,
+                SAFETY_UPPER_RIGHT_CONTAINMENT_GROUP, 0x5AFE75L);
         NavigationNode trainingMain = sampledStandingPointNearY(facility, evaluator,
                 TRAINING_MAIN_GROUP, 0x7A1A11L,
                 safetyMain == null ? 201.0D : safetyMain.standingY());
@@ -250,6 +282,12 @@ public final class GeneratedFacilityNavigationGameTests {
                 DISCIPLINARY_MAIN_GROUP, 0xD15C1L);
         NavigationNode welfareMain = welfareRoute == null ? null : welfareRoute.start();
         NavigationNode disciplinaryMain = welfareRoute == null ? null : welfareRoute.target();
+        NavigationNode welfareUpperMain = sampledStandingPoint(facility, evaluator,
+                WELFARE_UPPER_MAIN_GROUP, 0x0E1FA2L);
+        NavigationNode disciplinaryUpperMain = sampledStandingPoint(facility, evaluator,
+                DISCIPLINARY_UPPER_MAIN_GROUP, 0xD15C2L);
+        NavigationNode disciplinaryUpperCorridor = sampledStandingPoint(facility, evaluator,
+                DISCIPLINARY_UPPER_CORRIDOR_GROUP, 0xD15C3L);
         NavigationNode recordMain = sampledStandingPoint(facility, evaluator,
                 RECORD_MAIN_GROUP, 0xAEC0ADL);
         NavigationNode extractionMain = sampledStandingPointNearY(facility, evaluator,
@@ -268,9 +306,13 @@ public final class GeneratedFacilityNavigationGameTests {
                 || centralSecondary == null || controlMain == null || controlTopLeft == null
                 || informationUpperLeft == null || informationLowerLeft == null
                 || informationUpperRight == null || informationLowerRight == null
-                || safetyMain == null || trainingMain == null
+                || safetyMain == null || safetyUpperElevator == null
+                || safetyUpperCorridor == null || safetyUpperLeftContainment == null
+                || safetyUpperRightContainment == null || trainingMain == null
                 || centralLowerSecondary == null || welfareMain == null
-                || disciplinaryMain == null || recordMain == null || extractionMain == null
+                || welfareUpperMain == null || disciplinaryMain == null
+                || disciplinaryUpperMain == null || disciplinaryUpperCorridor == null
+                || recordMain == null || extractionMain == null
                 || architectureLeft == null || architectureRight == null
                 || centralFarWest == null || centralFarEast == null) {
             helper.fail("could not select player-sized standing points from the generated facility: "
@@ -287,6 +329,24 @@ public final class GeneratedFacilityNavigationGameTests {
             return List.of();
         }
         List<Route> routes = new ArrayList<>();
+        routes.add(Route.monitorOrder("EMP reported Safety upper elevator to upper corridor",
+                safetyUpperElevator, safetyUpperCorridor, SAFETY_UPPER_CORRIDOR_GROUP, 0xE0401L));
+        routes.add(Route.monitorOrder("EMP reported Safety upper elevator to left containment",
+                safetyUpperElevator, safetyUpperLeftContainment,
+                SAFETY_UPPER_LEFT_CONTAINMENT_GROUP, 0xE0402L));
+        routes.add(Route.monitorOrder("EMP reported Safety upper elevator to right containment",
+                safetyUpperElevator, safetyUpperRightContainment,
+                SAFETY_UPPER_RIGHT_CONTAINMENT_GROUP, 0xE0403L));
+        routes.add(Route.monitorOrder("EMP reported Central upper to Welfare upper",
+                centralMain, welfareUpperMain, WELFARE_UPPER_MAIN_GROUP, 0xE0501L));
+        routes.add(Route.monitorOrder("EMP reported Safety upper to Welfare upper",
+                safetyUpperCorridor, welfareUpperMain, WELFARE_UPPER_MAIN_GROUP, 0xE0502L));
+        routes.add(Route.monitorOrder("EMP reported Disciplinary upper main to Welfare upper",
+                disciplinaryUpperMain, welfareUpperMain, WELFARE_UPPER_MAIN_GROUP, 0xE0503L));
+        routes.add(Route.monitorOrder("EMP reported Disciplinary upper corridor to Welfare upper",
+                disciplinaryUpperCorridor, welfareUpperMain, WELFARE_UPPER_MAIN_GROUP, 0xE0504L));
+        routes.add(Route.monitorOrder("EMP reported Extraction to Welfare upper",
+                extractionMain, welfareUpperMain, WELFARE_UPPER_MAIN_GROUP, 0xE0505L));
         addRoundTrip(routes, "Record to Extraction cross-wing", recordMain, extractionMain);
         addRoundTrip(routes, "Welfare to Disciplinary cross-wing", welfareMain,
                 disciplinaryMain);
@@ -362,8 +422,11 @@ public final class GeneratedFacilityNavigationGameTests {
                                                         NodeEvaluator evaluator,
                                                         String groupId, long seed,
                                                         Double requestedY) {
+        TransitionGenerator transitions = new TransitionGenerator(evaluator, 1, 1, false);
         return sampledStandingPoints(facility, evaluator, groupId, seed, requestedY)
-                .stream().findFirst().orElse(null);
+                .stream()
+                .filter(node -> isOnFacilityNetwork(transitions, node))
+                .findFirst().orElse(null);
     }
 
     private static List<NavigationNode> sampledStandingPoints(ServerLevel facility,
@@ -428,6 +491,19 @@ public final class GeneratedFacilityNavigationGameTests {
         NavigationNode node = new NavigationNode(candidate);
         return evaluator.evaluate(node, false).traversable()
                 && NavigationCandidatePolicy.hasLocalMobility(node, transitions::generate);
+    }
+
+    /**
+     * Sealed surfaces inside a department cuboid -- notably the containment
+     * cluster roofs -- are standable and locally mobile yet disconnected from
+     * the corridor network, so route origins must additionally sit on a region
+     * wide enough to reach the probe cap.  Applied after the cheap pruning and
+     * the preferred-Y sort, so consumers pay for it lazily.
+     */
+    private static boolean isOnFacilityNetwork(TransitionGenerator transitions,
+                                               NavigationNode node) {
+        return NavigationCandidatePolicy.isFacilityConnectedRegion(
+                node, transitions::generate);
     }
 
     private static boolean isLiveStandingPoint(ServerLevel facility, NavigationNode node) {
@@ -634,8 +710,6 @@ public final class GeneratedFacilityNavigationGameTests {
             }
             if (navigator.isUnreachable() || legTicks >= ROUTE_TIMEOUT_TICKS) {
                 NavigationNode currentTarget = currentWaypoint();
-                NavigationNode liveStart = new NavigationNode(
-                        employee.blockPosition(), employee.getY());
                 failure = route.name() + " failed after " + ticks + " ticks (leg "
                         + (waypointIndex + 1) + "/" + route.waypoints().size() + " after "
                         + legTicks + " ticks): start=" + route.start()
@@ -645,13 +719,7 @@ public final class GeneratedFacilityNavigationGameTests {
                         + ", firstNext=" + firstMovementTarget
                         + ", lastNext=" + lastMovementTarget
                         + ", unreachable=" + navigator.isUnreachable()
-                        + ", navigator=" + navigator.testFailureDiagnostics()
-                        + ", localBlocks=" + frontierDiagnostics(employee.serverLevel(),
-                        new NavigationNode(employee.blockPosition(), employee.getY()))
-                        + ", registeredElevators="
-                        + ElevatorRegistry.positions(employee.serverLevel()).size()
-                        + ", directAStar=" + directAStarDiagnostics(
-                        employee.serverLevel(), liveStart, currentTarget);
+                        + ", navigator=" + navigator.testFailureDiagnostics();
                 return Result.FAILED;
             }
             return Result.RUNNING;
@@ -674,7 +742,9 @@ public final class GeneratedFacilityNavigationGameTests {
                 if (!runtimeRecord.taskSummary().isEmpty()) {
                     failure = route.name() + " failed: " + runtimeRecord.taskSummary()
                             + ", employee=" + employee.position()
-                            + ", station=" + runtimeRecord.manualStationPos();
+                            + ", station=" + runtimeRecord.manualStationPos()
+                            + ", navigator="
+                            + EmployeeRuntimeManager.testNavigationDiagnostics(runtimeRecord);
                     return Result.FAILED;
                 }
                 BlockPos station = runtimeRecord.manualStationPos();
@@ -687,7 +757,8 @@ public final class GeneratedFacilityNavigationGameTests {
                 failure = route.name() + " timed out: employee=" + employee.position()
                         + ", task=" + runtimeRecord.taskType() + "/"
                         + runtimeRecord.taskSummary()
-                        + ", station=" + runtimeRecord.manualStationPos();
+                        + ", station=" + runtimeRecord.manualStationPos()
+                        + ", navigator=" + EmployeeRuntimeManager.testNavigationDiagnostics(runtimeRecord);
                 return Result.FAILED;
             }
             return Result.RUNNING;
@@ -710,68 +781,6 @@ public final class GeneratedFacilityNavigationGameTests {
         }
 
         private enum Result { RUNNING, COMPLETE, FAILED }
-    }
-
-    private static String directAStarDiagnostics(ServerLevel facility, NavigationNode start,
-                                                 NavigationNode target) {
-        NavigationSnapshot snapshot = FacilityNavigationCache.snapshot(facility,
-                FacilityNavigationCache.COMPANY_MIN, FacilityNavigationCache.COMPANY_MAX);
-        if (snapshot == null) return "snapshot-unavailable";
-        NodeEvaluator evaluator = new NodeEvaluator(snapshot, 0.6D, 1.8D);
-        NodeEvaluator.Evaluation startEvaluation = evaluator.evaluate(start, false);
-        NodeEvaluator.Evaluation targetEvaluation = evaluator.evaluate(target, false);
-        TransitionGenerator transitions = new TransitionGenerator(evaluator, 1, 1, false);
-        List<NavigationTransition> startNeighbors = transitions.generate(start);
-        AStarPathfinder pathfinder = new AStarPathfinder(transitions::generate,
-                NavigationTransition::cost,
-                GeneratedFacilityNavigationGameTests::heuristic);
-        PathSearchResult result = pathfinder.search(start, target,
-                node -> node.standingPosition().distanceToSqr(target.standingPosition())
-                        <= 1.6D * 1.6D,
-                new AStarPathfinder.SearchOptions(65_536, 1.0D));
-        NavigationNode endpoint = result.path() == null ? null : result.path().endpoint();
-        String firstStep = result.path() == null || result.path().steps().isEmpty() ? "none"
-                : result.path().steps().get(0).transition().action() + ":"
-                + result.path().steps().get(0).transition().affectedBlocks();
-        String firstSpecialStep = result.path() == null ? "none"
-                : result.path().steps().stream()
-                .filter(step -> !"WALK".equals(step.transition().action().name()))
-                .findFirst()
-                .map(step -> step.from() + "->" + step.node() + ":"
-                        + step.transition().action() + ":"
-                        + step.transition().affectedBlocks())
-                .orElse("none");
-        String neighborActions = startNeighbors.stream().limit(8)
-                .map(transition -> transition.action() + "->" + transition.target()
-                        + ":" + transition.affectedBlocks())
-                .toList().toString();
-        return "{start=" + startEvaluation.traversable() + "/" + startEvaluation.failure()
-                + ", target=" + targetEvaluation.traversable() + "/"
-                + targetEvaluation.failure() + ", startNeighbors=" + startNeighbors.size()
-                + "/" + neighborActions
-                + ", status=" + result.status() + ", visited=" + result.visitedNodes()
-                + ", generated=" + result.generatedTransitions()
-                + ", endpoint=" + endpoint + ", firstStep=" + firstStep
-                + ", firstSpecialStep=" + firstSpecialStep
-                + ", frontier=" + frontierDiagnostics(facility, endpoint) + "}";
-    }
-
-    private static String frontierDiagnostics(ServerLevel facility, NavigationNode endpoint) {
-        if (endpoint == null) return "none";
-        List<String> states = new ArrayList<>();
-        BlockPos center = endpoint.feetPosition();
-        for (int y = -1; y <= 2; y++) {
-            for (int x = -2; x <= 2; x++) {
-                for (int z = -2; z <= 2; z++) {
-                    if (Math.abs(x) + Math.abs(z) > 2) continue;
-                    BlockPos position = center.offset(x, y, z);
-                    var state = facility.getBlockState(position);
-                    if (state.isAir()) continue;
-                    states.add(position + "=" + state);
-                }
-            }
-        }
-        return states.toString();
     }
 
     private static double heuristic(NavigationNode from, NavigationNode to) {

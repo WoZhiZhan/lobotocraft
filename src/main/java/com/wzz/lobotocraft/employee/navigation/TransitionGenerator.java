@@ -10,12 +10,11 @@ import java.util.Objects;
 public final class TransitionGenerator {
     private static final double HEIGHT_EPSILON = 1.0E-6D;
     /**
-     * Employees may use stairs and slabs, but must not jump onto a full block
-     * wall and treat its top as a second floor. A one-block rise is a player
-     * jump, not a facility route transition.
+     * Full-height rises require stairs or a broad landing. An isolated block
+     * or a narrow wall top must not become an alternate facility floor.
      */
     private static final double MAX_NAVIGABLE_RISE = 0.75D;
-    private static final double MAX_TIERED_SUPPORT_RISE = 1.0D;
+    private static final double MAX_SUPPORTED_RISE = 1.0D;
     private static final Direction[] HORIZONTAL = {
             Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST
     };
@@ -44,8 +43,9 @@ public final class TransitionGenerator {
                     from.standingY(), maxStepUp, maxDropDown, allowBreaking)) {
                 double rise = candidate.node().standingY() - from.standingY();
                 if (rise > MAX_NAVIGABLE_RISE
-                        && (rise > MAX_TIERED_SUPPORT_RISE
-                        || !evaluator.hasTieredSupport(candidate.node()))) {
+                        && (rise > MAX_SUPPORTED_RISE
+                        || !evaluator.hasTieredSupport(candidate.node())
+                        && !hasBroadLanding(candidate.node(), direction))) {
                     continue;
                 }
                 NodeEvaluator.Evaluation movement = evaluator.evaluateTransition(
@@ -57,6 +57,26 @@ public final class TransitionGenerator {
             addDiagonalTransitions(result, from, offset[0], offset[1]);
         }
         return List.copyOf(result);
+    }
+
+    private boolean hasBroadLanding(NavigationNode landing, Direction direction) {
+        NavigationNode forward = new NavigationNode(
+                landing.feetPosition().relative(direction), landing.standingY());
+        if (!evaluator.evaluateTransition(landing, forward, allowBreaking).traversable()) return false;
+        int sideX = -direction.getStepZ();
+        int sideZ = direction.getStepX();
+        for (int sign = -1; sign <= 1; sign += 2) {
+            NavigationNode side = new NavigationNode(
+                    landing.feetPosition().offset(sideX * sign, 0, sideZ * sign), landing.standingY());
+            NavigationNode farSide = new NavigationNode(
+                    forward.feetPosition().offset(sideX * sign, 0, sideZ * sign), landing.standingY());
+            if (evaluator.evaluateTransition(landing, side, allowBreaking).traversable()
+                    && evaluator.evaluateTransition(side, farSide, allowBreaking).traversable()
+                    && evaluator.evaluateTransition(forward, farSide, allowBreaking).traversable()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void addDiagonalTransitions(List<NavigationTransition> result, NavigationNode from,

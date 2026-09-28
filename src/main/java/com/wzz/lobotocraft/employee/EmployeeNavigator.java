@@ -31,9 +31,11 @@ import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -105,6 +107,8 @@ public final class EmployeeNavigator {
     private boolean complete;
     private boolean unreachable;
     private String lastFailureReason = "none";
+    private final Set<ElevatorTraversal> usedElevatorTraversals = new HashSet<>();
+    private final Set<BlockPos> rejectedElevatorSources = new HashSet<>();
     private PlanningJob planningJob;
     /** Temporary target used while a closed iron door waits for its pressure plate. */
     private Vec3 pressurePlateTarget;
@@ -130,6 +134,8 @@ public final class EmployeeNavigator {
         this.complete = false;
         invalidatePath();
         resetStuckTracking();
+        usedElevatorTraversals.clear();
+        rejectedElevatorSources.clear();
         evaluateRoute();
     }
 
@@ -165,6 +171,8 @@ public final class EmployeeNavigator {
         this.complete = false;
         invalidatePath();
         resetStuckTracking();
+        usedElevatorTraversals.clear();
+        rejectedElevatorSources.clear();
         evaluateRoute();
     }
 
@@ -254,6 +262,8 @@ public final class EmployeeNavigator {
         clearCombatTarget();
         elevator = null;
         elevatorUp = false;
+        usedElevatorTraversals.clear();
+        rejectedElevatorSources.clear();
         complete = false;
         state = State.DIRECT;
         invalidatePath();
@@ -300,10 +310,18 @@ public final class EmployeeNavigator {
     String testFailureDiagnostics() {
         return "reason=" + lastFailureReason + ", state=" + state + ", elevator=" + elevator
                 + ", elevatorUp=" + elevatorUp
-                + ", stuckStrikes=" + stuckStrikes + ", noPathStrikes=" + noPathStrikes;
+                + ", stuckStrikes=" + stuckStrikes + ", noPathStrikes=" + noPathStrikes
+                + ", path=" + pathIndex + "/" + path.size()
+                + ", next=" + (pathIndex < path.size() ? path.get(pathIndex) : null)
+                + ", planning=" + (planningJob != null);
     }
 
     public void tick() {
+        tick(true);
+    }
+
+    /** Computes routes while withholding movement/elevator actions when paused. */
+    public void tick(boolean allowMovement) {
         if (target == null || !player.isAlive()) {
             player.clearNavigationInput();
             return;
@@ -323,10 +341,10 @@ public final class EmployeeNavigator {
             return;
         }
         if (state == State.WAITING_ELEVATOR) {
-            tickWaitingForElevator();
+            if (allowMovement) tickWaitingForElevator();
             return;
         }
-        if (state == State.TO_ELEVATOR && tryUseElevator()) return;
+        if (allowMovement && state == State.TO_ELEVATOR && tryUseElevator()) return;
 
         if (pathIndex >= path.size()) {
             player.clearNavigationInput();
@@ -342,6 +360,7 @@ public final class EmployeeNavigator {
             if (result == PlanResult.BUDGET_DEFERRED || result == PlanResult.PLANNING_DEFERRED
                     || result == PlanResult.RETRY_EXPANDED) return;
             if (result == PlanResult.NO_PATH) {
+                if (rejectUnreachableElevatorSource()) return;
                 replanDelay = 40;
                 lastFailureReason = "no-path@" + player.position();
                 if (++noPathStrikes >= UNREACHABLE_STRIKES) unreachable = true;
@@ -349,10 +368,15 @@ public final class EmployeeNavigator {
             }
             noPathStrikes = 0;
             if (result == PlanResult.ALREADY_ARRIVED) {
-                if (state == State.TO_ELEVATOR) tryUseElevator();
+                if (allowMovement && state == State.TO_ELEVATOR) tryUseElevator();
                 else complete = true;
                 return;
             }
+        }
+
+        if (!allowMovement) {
+            player.clearNavigationInput();
+            return;
         }
 
         int shortcutValidatedPathIndex = skipVisibleWaypoints();
@@ -436,7 +460,10 @@ public final class EmployeeNavigator {
             for (boolean upward : directions) {
                 BlockPos destination = elevatorEntity.findDestinationElevator(level, upward);
                 if (destination == null) continue;
-                if (!isUsableElevatorLanding(level, destination)) continue;
+                BlockPos sourcePosition = position.immutable();
+                if (rejectedElevatorSources.contains(sourcePosition)) continue;
+                ElevatorChoice choice = new ElevatorChoice(sourcePosition, upward);
+                if (hasUsedElevatorTraversal(position, destination)) continue;
                 double remaining = Math.abs(target.getY() - (destination.getY() + 1));
                 if (needsVerticalProgress && remaining >= currentVerticalGap) continue;
                 if (!needsVerticalProgress && !allowVerticalDetour) continue;
@@ -445,15 +472,30 @@ public final class EmployeeNavigator {
                         : elevatorDetourScore(player.position(), target, position, destination);
                 if (score < bestScore) {
                     bestScore = score;
-                    best = new ElevatorChoice(position.immutable(), upward);
+                    best = choice;
                 }
             }
         }
         return best;
     }
 
-    private boolean isUsableElevatorLanding(ServerLevel level, BlockPos destination) {
-        return ElevatorBlockEntity.findSafeLanding(level, player, destination) != null;
+    private boolean rejectUnreachableElevatorSource() {
+        if (state != State.TO_ELEVATOR || elevator == null) return false;
+        rejectedElevatorSources.add(elevator.immutable());
+        lastFailureReason = "unreachable-elevator-source@" + player.position()
+                + " source=" + elevator + "/up=" + elevatorUp;
+        state = State.DIRECT;
+        elevator = null;
+        elevatorUp = false;
+        invalidatePath();
+        replanDelay = 0;
+        activateElevatorFallback();
+        return true;
+    }
+
+    private boolean hasUsedElevatorTraversal(BlockPos source, BlockPos destination) {
+        return usedElevatorTraversals.contains(new ElevatorTraversal(source, destination))
+                || usedElevatorTraversals.contains(new ElevatorTraversal(destination, source));
     }
 
     private PlanResult planCurrentLeg() {
@@ -931,8 +973,8 @@ public final class EmployeeNavigator {
         double dx = targetPosition.x - player.getX();
         double dz = targetPosition.z - player.getZ();
         float yaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
-        boolean jump = step.transition().action() == NavigationAction.STEP_UP
-                || targetPosition.y > player.getY() + 0.35D;
+        boolean jump = NavigationExecutionPolicy.needsJump(
+                player.getY(), targetPosition.y, player.maxUpStep(), player.onGround());
         player.setNavigationInput(yaw,
                 NavigationExecutionPolicy.forwardInput(player.position(), waypoint), jump);
     }
@@ -955,9 +997,19 @@ public final class EmployeeNavigator {
         if (result != ElevatorBlockEntity.TravelResult.SUCCESS) {
             lastFailureReason = "elevator-" + result + "@" + player.position()
                     + " source=" + elevator + "/up=" + elevatorUp;
+            if (result == ElevatorBlockEntity.TravelResult.NO_DESTINATION
+                    || result == ElevatorBlockEntity.TravelResult.BLOCKED_DESTINATION) {
+                rejectUnreachableElevatorSource();
+                return true;
+            }
             invalidatePath();
             evaluateRoute();
             return false;
+        }
+        BlockPos destination = source.findDestinationElevator(player.serverLevel(), elevatorUp);
+        if (destination != null) {
+            usedElevatorTraversals.add(new ElevatorTraversal(
+                    elevator.immutable(), destination.immutable()));
         }
         resetStuckTracking();
         state = State.WAITING_ELEVATOR;
@@ -1205,6 +1257,9 @@ public final class EmployeeNavigator {
     }
 
     private record ElevatorChoice(BlockPos source, boolean upward) {
+    }
+
+    private record ElevatorTraversal(BlockPos source, BlockPos destination) {
     }
 
     private static double normalizeArrivalDistance(double distance) {

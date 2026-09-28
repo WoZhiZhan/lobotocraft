@@ -6,6 +6,7 @@ import com.wzz.lobotocraft.client.compat.YsmClientCompat;
 import com.wzz.lobotocraft.client.ui.LobotomyButton;
 import com.wzz.lobotocraft.client.ui.LobotomyUiRenderer;
 import com.wzz.lobotocraft.client.ui.LobotomyUiTheme;
+import com.wzz.lobotocraft.client.ui.FacilityPauseButton;
 import com.wzz.lobotocraft.compat.ysm.YsmModelCatalog;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.employee.EmployeeAppearance;
@@ -176,6 +177,7 @@ public final class FacilityManagementScreen extends Screen {
     private String selectedAiName = "";
     private LobotomyButton departmentButton;
     private LobotomyButton appearanceButton;
+    private LobotomyButton pauseButton;
     private static UUID rememberedAiEmployee;
 
     public FacilityManagementScreen(CompoundTag snapshot) {
@@ -200,6 +202,10 @@ public final class FacilityManagementScreen extends Screen {
     @Override
     public void init() {
         updateLayout();
+        if (snapshot.getBoolean("CanPause")) {
+            pauseButton = new FacilityPauseButton(panelX + 112, panelY + 14, 82, 20);
+            addRenderableWidget(pauseButton);
+        }
         int profileRight = panelX + panelWidth - 16;
         int specialWidth = panelWidth >= 520 ? 86 : 72;
         int identityWidth = panelWidth >= 520 ? 76 : 54;
@@ -1051,6 +1057,17 @@ public final class FacilityManagementScreen extends Screen {
         int maximum = Math.max(0, count * rowHeight - visibleHeight);
         scroll = Mth.clamp(scroll - (int) Math.signum(delta) * rowHeight, 0, maximum);
         return true;
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_SPACE
+                && snapshot.getBoolean("CanPause")
+                && FacilityPauseButton.canToggle()) {
+            FacilityPauseButton.requestToggle();
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override

@@ -133,6 +133,57 @@ final class NodeEvaluatorTest {
     }
 
     @Test
+    void allowsOneBlockRiseOntoBroadLandingInEveryDirection() {
+        for (int[] direction : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+            for (int side : new int[]{-1, 1}) {
+                SnapshotBuilder world = new SnapshotBuilder();
+                world.solid(new BlockPos(0, 0, 0));
+                for (int forward = 1; forward <= 2; forward++) {
+                    for (int lateral = 0; lateral <= 1; lateral++) {
+                        world.solid(new BlockPos(
+                                direction[0] * forward - direction[1] * lateral * side, 1,
+                                direction[1] * forward + direction[0] * lateral * side));
+                    }
+                }
+                BlockPos landing = new BlockPos(direction[0], 2, direction[1]);
+                assertTrue(generator(world).generate(new NavigationNode(new BlockPos(0, 1, 0)))
+                                .stream().anyMatch(step -> step.target().feetPosition().equals(landing)),
+                        "a supported two-by-two landing was mistaken for a wall: " + landing);
+            }
+        }
+    }
+
+    @Test
+    void rejectsLongNarrowWallTopDespiteItsSidewaysMobility() {
+        SnapshotBuilder world = new SnapshotBuilder();
+        world.solid(new BlockPos(0, 0, 0));
+        for (int z = -2; z <= 2; z++) world.solid(new BlockPos(1, 1, z));
+        assertFalse(generator(world).generate(new NavigationNode(new BlockPos(0, 1, 0)))
+                .stream().anyMatch(step -> step.target().feetPosition().equals(new BlockPos(1, 2, 0))));
+    }
+
+    @Test
+    void rejectsNarrowForwardLedgeWithoutLateralLandingRoom() {
+        SnapshotBuilder world = new SnapshotBuilder();
+        world.solid(new BlockPos(0, 0, 0));
+        for (int x = 1; x <= 3; x++) world.solid(new BlockPos(x, 1, 0));
+        assertFalse(generator(world).generate(new NavigationNode(new BlockPos(0, 1, 0)))
+                .stream().anyMatch(step -> step.target().feetPosition().equals(new BlockPos(1, 2, 0))));
+    }
+
+    @Test
+    void broadLandingDoesNotBypassJumpHeadroom() {
+        SnapshotBuilder world = new SnapshotBuilder();
+        world.solid(new BlockPos(0, 0, 0));
+        for (int x = 1; x <= 2; x++) {
+            for (int z = 0; z <= 1; z++) world.solid(new BlockPos(x, 1, z));
+        }
+        world.solid(new BlockPos(0, 3, 0));
+        assertFalse(generator(world).generate(new NavigationNode(new BlockPos(0, 1, 0)))
+                .stream().anyMatch(step -> step.target().feetPosition().equals(new BlockPos(1, 2, 0))));
+    }
+
+    @Test
     void allowsFullHeightRiseWhenTheSupportIsARealStairShape() {
         SnapshotBuilder world = new SnapshotBuilder();
         world.solid(new BlockPos(0, 0, 0));

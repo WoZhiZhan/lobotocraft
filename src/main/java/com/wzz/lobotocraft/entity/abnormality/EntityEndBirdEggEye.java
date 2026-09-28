@@ -93,7 +93,8 @@ public class EntityEndBirdEggEye extends AbstractAbnormality {
 
     @Override
     public void remove(net.minecraft.world.entity.Entity.RemovalReason reason) {
-        if (!level().isClientSide && reason.shouldDestroy() && !isDeadOrDying()) {
+        if (!level().isClientSide && reason.shouldDestroy() && !isDeadOrDying()
+                && !EntityEndBird.isDayRecoveryRemoval(this)) {
             EntityEndBird.endBirdEggDie(level(), getUUID(),
                     com.wzz.lobotocraft.world.data.EndBirdEggTracker.EGG_EYE, null);
         }
@@ -112,6 +113,11 @@ public class EntityEndBirdEggEye extends AbstractAbnormality {
 
     @Override
     public boolean canEscape() {
+        return false;
+    }
+
+    @Override
+    public boolean canBeContained() {
         return false;
     }
 

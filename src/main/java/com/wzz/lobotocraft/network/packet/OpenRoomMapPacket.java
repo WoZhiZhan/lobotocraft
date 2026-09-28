@@ -1,5 +1,8 @@
 package com.wzz.lobotocraft.network.packet;
 
+import com.lobotocraft.facility.data.FacilityDayData;
+import com.lobotocraft.facility.network.FacilityNetwork;
+import com.lobotocraft.facility.network.FacilityStatePacket;
 import com.wzz.lobotocraft.block.entity.RoomMarkerBlockEntity;
 import com.wzz.lobotocraft.client.room.RoomViewClient;
 import com.wzz.lobotocraft.employee.FacilityAccessService;
@@ -123,6 +126,11 @@ public class OpenRoomMapPacket implements IMessage {
                     r -> r.pos.distToCenterSqr(player.getX(), player.getY(), player.getZ())));
             for (RoomEntry room : byDistance) {
                 RoomChunkTickets.keepAlive(roomLevel, room.pos);
+                if (roomLevel.hasChunkAt(room.pos)
+                        && roomLevel.getBlockEntity(room.pos) instanceof RoomMarkerBlockEntity marker) {
+                    room.boundAbnormality = room.status == RoomEntry.STATUS_UNEXPANDED
+                            ? null : marker.getBoundAbnormality();
+                }
                 reconcileEscapedStatus(roomLevel, room);
             }
         }
@@ -163,11 +171,13 @@ public class OpenRoomMapPacket implements IMessage {
                 .toList();
         Set<String> dangerousAreaIds = roomLevel == null
                 ? Set.of() : FacilityDangerSnapshotService.collect(roomLevel, areas);
+        FacilityDayData facility = FacilityDayData.get(player.server.overworld());
+        FacilityNetwork.send(player, FacilityStatePacket.from(
+                facility, player.server.overworld().getGameTime(), player));
         MessageLoader.getLoader().sendToPlayer(player,
                 new OpenRoomMapPacket(rooms, floors, areas, RoomEmployeeSnapshotService.collect(player, dim),
                         dangerousAreaIds, level.getGameTime(),
-                        com.lobotocraft.facility.data.FacilityDayData.get(player.server.overworld())
-                                .isTt2ProtocolEnabled(), refresh, dim));
+                        facility.isTt2ProtocolEnabled(), refresh, dim));
     }
 
     static boolean isContainmentVisible(FacilityAccessService.ContainmentAccess access) {

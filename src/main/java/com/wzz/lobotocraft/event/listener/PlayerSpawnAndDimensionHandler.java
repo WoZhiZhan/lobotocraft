@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.event.listener;
 import com.google.gson.*;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.entity.base.EscapeTracker;
+import com.wzz.lobotocraft.entity.ai.AbnormalityFearService;
 import com.wzz.lobotocraft.init.ModBlocks;
 import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.init.ModItems;
@@ -164,6 +165,7 @@ public class PlayerSpawnAndDimensionHandler {
             return;
         }
         syncAlertToPlayer(player);
+        AbnormalityFearService.resetEncounter(player);
         // 如果玩家有设置的重生点，优先使用
         if (player.getRespawnPosition() != null) {
             return;

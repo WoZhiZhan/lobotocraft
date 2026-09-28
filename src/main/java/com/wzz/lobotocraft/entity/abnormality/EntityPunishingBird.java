@@ -305,8 +305,13 @@ public class EntityPunishingBird extends AbstractAbnormality {
                     && data.getEscapedBirdUUIDs().contains(this.getStringUUID());
             if (doorSpawnedAndBirdInvolved) return false;
         }
-        if (source.getEntity() instanceof AbstractAbnormality)
+        if (source.getEntity() instanceof AbstractAbnormality abnormality) {
+            if (hasEscape() && QueenOfHatredCombat.isQueenOfHatredCombatTarget(abnormality)) {
+                becomeAngry(abnormality);
+                return super.hurt(source, amount);
+            }
             return false;
+        }
         if (source.getEntity() instanceof ServerPlayer player) {
             if (isPanickingAttacker(player)) {
                 return super.hurt(source, amount);
@@ -323,7 +328,7 @@ public class EntityPunishingBird extends AbstractAbnormality {
         return MentalValueUtil.isPanic(player);
     }
 
-    private void becomeAngry(Player attacker) {
+    private void becomeAngry(LivingEntity attacker) {
         setAngry(true);
         angryTarget = attacker.getUUID();
         angryTimer = ANGRY_DURATION;
@@ -552,8 +557,9 @@ public class EntityPunishingBird extends AbstractAbnormality {
             return;
         }
 
-        Player target = level().getPlayerByUUID(angryTarget);
-        if (target == null || !target.isAlive()) {
+        Entity angryEntity = level() instanceof ServerLevel serverLevel
+                ? serverLevel.getEntity(angryTarget) : null;
+        if (!(angryEntity instanceof LivingEntity target) || !target.isAlive()) {
             startReturningToNest();
             return;
         }

@@ -8,6 +8,8 @@ import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.capability.PlayerAbnormalityDataProvider;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
+import com.lobotocraft.facility.FacilityPauseState;
 import com.wzz.lobotocraft.event.listener.BlueMiddayEvent;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.event.definition.work.*;
@@ -319,6 +321,12 @@ public class WorkManager {
     private static boolean startWork(ServerPlayer player, AbstractAbnormality entity,
                                      WorkType requestedWorkType, WorkType resolvedWorkType,
                                      boolean continuousMode, boolean openClientScreen) {
+        if (UniqueWorkRequest.isBusy(entity)
+                || AbnormalityCommandPolicy.action(entity.getAbnormalityCode(),
+                        requestedWorkType.ordinal()) != null) {
+            player.sendSystemMessage(Component.translatable("message.lobotocraft.unique_work.use_command"));
+            return false;
+        }
         if (!entity.isAlive() || entity.isRemoved()) {
             player.sendSystemMessage(Component.translatable(
                     "message.lobotocraft.work.abnormality_missing"));
@@ -333,6 +341,11 @@ public class WorkManager {
         if (isPlayerWorking(player)) {
             player.sendSystemMessage(Component.translatable(
                     "message.lobotocraft.work.already_working"));
+            return false;
+        }
+        Component controlStateDenial = AbnormalityWorkRules.controlStateDenial(player);
+        if (controlStateDenial != null) {
+            player.sendSystemMessage(controlStateDenial.copy().withStyle(ChatFormatting.RED));
             return false;
         }
         if (AbnormalityWorkRules.hasAiReservationConflict(
@@ -518,6 +531,9 @@ public class WorkManager {
             // player's session. Never let the stale snapshot keep extracting
             // PE or apply failure damage after the replacement has won.
             if (activeWorks.get(session.player.getUUID()) != session) continue;
+
+            if (session.player instanceof EmployeeServerPlayer
+                    && FacilityPauseState.isPaused(event.getServer())) continue;
 
             if (!session.player.isAlive() || session.player.isRemoved() || session.player.isDeadOrDying()) {
                 cancelWork(session, "死亡中断对异想体的工作！", true);

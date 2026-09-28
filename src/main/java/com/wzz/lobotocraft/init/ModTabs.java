@@ -34,6 +34,7 @@ public class ModTabs {
 						tabData.accept(ModItems.WINGBEAT_SPAWN_EGG.get());
 						tabData.accept(ModItems.QUEEN_BEE_SPAWN_EGG.get());
 						tabData.accept(ModItems.RED_SHOES_SPAWN_EGG.get());
+						tabData.accept(ModItems.SINGING_MACHINE_SPAWN_EGG.get());
 						tabData.accept(ModItems.SNOWQUEEN_SPAWN_EGG.get());
 						tabData.accept(ModItems.PPODAE_SPAWN_EGG.get());
 						tabData.accept(ModItems.CHILDREN_GALAXY_SPAWN_EGG.get());
@@ -230,6 +231,7 @@ public class ModTabs {
 						tabData.accept(ModItems.MUST_OPEN_PATH_BOOTS.get());
 						tabData.accept(ModItems.MUST_OPEN_PATH_WEAPON.get());
 						tabData.accept(ModItems.MUST_OPEN_PATH_CURIO.get());
+						tabData.accept(ModItems.CLEANER_CURIO.get());
 					})
 					.build());
 

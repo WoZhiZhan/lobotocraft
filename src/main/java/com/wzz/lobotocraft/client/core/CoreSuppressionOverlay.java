@@ -19,8 +19,6 @@ import net.minecraftforge.fml.common.Mod;
 public final class CoreSuppressionOverlay {
     private static final String CHESED_DAMAGE_TEXTURE_ROOT =
             "textures/gui/core_suppression/chesed/damage/";
-    private static final ResourceLocation[] CHESED_DAMAGE_ENABLED = damageTextures("enabled");
-    private static final ResourceLocation[] CHESED_DAMAGE_DISABLED = damageTextures("disabled");
     private static final ResourceLocation CHESED_CORE = ResourceUtil.createInstance(
             CHESED_DAMAGE_TEXTURE_ROOT + "core.png");
 
@@ -37,7 +35,7 @@ public final class CoreSuppressionOverlay {
             GeburahEffectCompositor.render(event.getGuiGraphics(), event.getPartialTick());
         }
         if (!CoreSuppressionClientState.isActive()) return;
-        if (minecraft.options.hideGui || minecraft.options.renderDebug || minecraft.screen != null) return;
+        if (minecraft.options.hideGui || minecraft.screen != null) return;
         if (CoreSuppressionClientState.getType() != CoreSuppressionType.GEBURAH) {
             renderObjective(event.getGuiGraphics(), CoreSuppressionClientState.getType());
             if (CoreSuppressionClientState.getType() == CoreSuppressionType.CHESED) {
@@ -52,6 +50,11 @@ public final class CoreSuppressionOverlay {
     public static void renderScreenFilter(ScreenEvent.Render.Post event) {
         if (CoreSuppressionClientState.isActive()) renderAtmosphere(event.getGuiGraphics());
         GeburahEffectCompositor.render(event.getGuiGraphics(), event.getPartialTick());
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player != null && !minecraft.options.hideGui
+                && CoreSuppressionClientState.isActive(CoreSuppressionType.CHESED)) {
+            renderChesedDamageTypes(event.getGuiGraphics());
+        }
     }
 
     private static void renderAtmosphere(GuiGraphics graphics) {
@@ -198,31 +201,127 @@ public final class CoreSuppressionOverlay {
         int mask = CoreSuppressionClientState.getMechanicState();
         ChesedHudLayout.Layout layout = ChesedHudLayout.calculate(
                 graphics.guiWidth(), graphics.guiHeight());
-        renderChesedDamageIcon(graphics, ChesedDamageKind.RED, layout.red(), mask);
-        renderChesedDamageIcon(graphics, ChesedDamageKind.WHITE, layout.white(), mask);
-        renderChesedDamageIcon(graphics, ChesedDamageKind.BLACK, layout.black(), mask);
-        renderChesedDamageIcon(graphics, ChesedDamageKind.PALE, layout.pale(), mask);
+        drawChesedDamageIcon(graphics, ChesedDamageKind.RED, layout.red(), mask,
+                directionFor(ChesedDamageKind.RED));
+        drawChesedDamageIcon(graphics, ChesedDamageKind.WHITE, layout.white(), mask,
+                directionFor(ChesedDamageKind.WHITE));
+        drawChesedDamageIcon(graphics, ChesedDamageKind.BLACK, layout.black(), mask,
+                directionFor(ChesedDamageKind.BLACK));
+        drawChesedDamageIcon(graphics, ChesedDamageKind.PALE, layout.pale(), mask,
+                directionFor(ChesedDamageKind.PALE));
         ChesedHudLayout.Rect core = layout.core();
         graphics.blit(CHESED_CORE, core.x(), core.y(), core.width(), core.height(),
                 0, 0, 37, 35, 37, 35);
     }
 
-    private static void renderChesedDamageIcon(GuiGraphics graphics, ChesedDamageKind kind,
-                                               ChesedHudLayout.Rect rect, int mask) {
-        ResourceLocation[] textures = kind.isSelected(mask)
-                ? CHESED_DAMAGE_ENABLED : CHESED_DAMAGE_DISABLED;
-        graphics.blit(textures[kind.ordinal()], rect.x(), rect.y(), rect.width(), rect.height(),
-                0, 0, 96, 96, 96, 96);
+    enum TriangleDirection {
+        UP, DOWN, LEFT, RIGHT
     }
 
-    private static ResourceLocation[] damageTextures(String state) {
-        ChesedDamageKind[] kinds = ChesedDamageKind.values();
-        ResourceLocation[] textures = new ResourceLocation[kinds.length];
-        for (int i = 0; i < kinds.length; i++) {
-            textures[i] = ResourceUtil.createInstance(
-                    CHESED_DAMAGE_TEXTURE_ROOT + kinds[i].id() + "_" + state + ".png");
+    static TriangleDirection directionFor(ChesedDamageKind kind) {
+        return switch (kind) {
+            case RED -> TriangleDirection.DOWN;
+            case WHITE -> TriangleDirection.LEFT;
+            case BLACK -> TriangleDirection.UP;
+            case PALE -> TriangleDirection.RIGHT;
+        };
+    }
+
+    private static void drawChesedDamageIcon(GuiGraphics graphics, ChesedDamageKind kind,
+                                             ChesedHudLayout.Rect rect, int mask,
+                                             TriangleDirection direction) {
+        boolean selected = kind.isSelected(mask);
+        int outer = selected ? 0xFFF48A3C : 0xFFC06A38;
+        int inner = selected ? selectedDamageColor(kind) : 0xFF20232A;
+        int padding = Math.max(1, Math.min(rect.width(), rect.height()) / 14);
+        drawTriangle(graphics, rect.x() + padding, rect.y() + padding,
+                Math.max(1, rect.width() - padding * 2),
+                Math.max(1, rect.height() - padding * 2), direction, outer);
+        int innerPadding = Math.max(2, padding + 2);
+        drawTriangle(graphics, rect.x() + innerPadding, rect.y() + innerPadding,
+                Math.max(1, rect.width() - innerPadding * 2),
+                Math.max(1, rect.height() - innerPadding * 2), direction, inner);
+
+        String letter = switch (kind) {
+            case RED -> "R";
+            case WHITE -> "W";
+            case BLACK -> "B";
+            case PALE -> "P";
+        };
+        Minecraft minecraft = Minecraft.getInstance();
+        int textColor = selected ? 0xFFFFFFFF : 0xFFD1D4DA;
+        int textX = rect.x() + (rect.width() - minecraft.font.width(letter)) / 2;
+        int textY = rect.y() + (rect.height() - 8) / 2;
+        graphics.drawString(minecraft.font, letter, textX, textY, textColor, true);
+    }
+
+    private static int selectedDamageColor(ChesedDamageKind kind) {
+        return switch (kind) {
+            case RED -> 0xFFB91F31;
+            case WHITE -> 0xFFE8E3C8;
+            case BLACK -> 0xFF76508F;
+            case PALE -> 0xFF36C8C5;
+        };
+    }
+
+    private static void drawTriangle(GuiGraphics graphics, int x, int y, int width, int height,
+                                     TriangleDirection direction, int color) {
+        int centerX = x + width / 2;
+        int centerY = y + height / 2;
+        switch (direction) {
+            case DOWN -> {
+                for (int row = 0; row < height; row++) {
+                    int halfWidth = triangleHalfWidth(direction, row, height, width);
+                    graphics.fill(centerX - halfWidth, y + row,
+                            centerX + halfWidth + 1, y + row + 1, color);
+                }
+            }
+            case UP -> {
+                for (int row = 0; row < height; row++) {
+                    int halfWidth = triangleHalfWidth(direction, row, height, width);
+                    graphics.fill(centerX - halfWidth, y + row,
+                            centerX + halfWidth + 1, y + row + 1, color);
+                }
+            }
+            case RIGHT -> {
+                for (int column = 0; column < width; column++) {
+                    int halfHeight = triangleHalfHeight(direction, column, width, height);
+                    graphics.fill(x + column, centerY - halfHeight,
+                            x + column + 1, centerY + halfHeight + 1, color);
+                }
+            }
+            case LEFT -> {
+                for (int column = 0; column < width; column++) {
+                    int halfHeight = triangleHalfHeight(direction, column, width, height);
+                    graphics.fill(x + column, centerY - halfHeight,
+                            x + column + 1, centerY + halfHeight + 1, color);
+                }
+            }
         }
-        return textures;
+    }
+
+    static int triangleHalfWidth(TriangleDirection direction, int position,
+                                 int span, int crossSpan) {
+        if (span <= 0 || crossSpan <= 0) return 1;
+        return switch (direction) {
+            case DOWN -> Math.max(1, Math.round((span - position) * crossSpan
+                    / (2.0F * span)));
+            case UP -> Math.max(1, Math.round((position + 1) * crossSpan
+                    / (2.0F * span)));
+            case LEFT, RIGHT -> 1;
+        };
+    }
+
+    static int triangleHalfHeight(TriangleDirection direction, int position,
+                                  int span, int crossSpan) {
+        if (span <= 0 || crossSpan <= 0) return 1;
+        return switch (direction) {
+            case RIGHT -> Math.max(1, Math.round((span - position) * crossSpan
+                    / (2.0F * span)));
+            case LEFT -> Math.max(1, Math.round((position + 1) * crossSpan
+                    / (2.0F * span)));
+            case UP, DOWN -> 1;
+        };
     }
 
     private static String roman(int level) {

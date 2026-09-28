@@ -295,15 +295,42 @@ public class EntityArmyInBlack extends AbstractAbnormality {
 
     @Override
     public void onWorkComplete(ServerPlayer player, WorkType workType, WorkResult result) {
-        if (workType == WorkType.ATTACHMENT) {
-            protectEmployee(player);
-            decreaseQliphothCounter(1);
-            player.displayClientMessage(Component.translatable(
-                    "message.lobotocraft.abnormality.army_in_black.protection_started"), true);
-        }
         if (workType == WorkType.REPRESSION) {
             decreaseQliphothCounter(1);
         }
+    }
+
+    public boolean canAcceptProtection() {
+        return isAlive() && !isRemoved() && !hasEscape() && protectedPlayerId == null;
+    }
+
+    public boolean beginProtectionCommand(ServerPlayer player) {
+        if (!canAcceptProtection() || player == null || !player.isAlive()
+                || player.level() != level() || MentalValueUtil.isPanic(player)) return false;
+        protectEmployee(player);
+        decreaseQliphothCounter(1);
+        player.displayClientMessage(Component.translatable(
+                "message.lobotocraft.abnormality.army_in_black.protection_started"), true);
+        return true;
+    }
+
+    public boolean isProtecting(UUID playerId) {
+        return playerId != null && playerId.equals(protectedPlayerId);
+    }
+
+    @Override
+    public void remove(net.minecraft.world.entity.Entity.RemovalReason reason) {
+        if (!level().isClientSide && reason.shouldDestroy()) stopProtection();
+        super.remove(reason);
+    }
+
+    private ServerPlayer findProtectedPlayer(ServerLevel level) {
+        if (protectedPlayerId == null) return null;
+        ServerPlayer player = level.getServer().getPlayerList().getPlayer(protectedPlayerId);
+        if (player != null) return player;
+        player = com.wzz.lobotocraft.employee.EmployeeRuntimeManager.activePlayer(protectedPlayerId);
+        if (player != null) return player;
+        return level.getEntity(protectedPlayerId) instanceof ServerPlayer loaded ? loaded : null;
     }
 
     private void protectEmployee(ServerPlayer player) {
@@ -323,7 +350,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         if (this.protectedPlayerId == null) {
             return false;
         }
-        ServerPlayer player = ((ServerLevel) this.level()).getServer().getPlayerList().getPlayer(this.protectedPlayerId);
+        ServerPlayer player = findProtectedPlayer((ServerLevel) this.level());
         if (player == null
                 || player.level() != this.level()
                 || !player.isAlive()
@@ -423,7 +450,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     private void stopProtection() {
         BlockPos returnPos = this.protectionReturnPos;
         if (this.protectedPlayerId != null && this.level() instanceof ServerLevel serverLevel) {
-            ServerPlayer player = serverLevel.getServer().getPlayerList().getPlayer(this.protectedPlayerId);
+            ServerPlayer player = findProtectedPlayer(serverLevel);
             if (player != null) {
                 boolean ownsProtectionTag = player.getPersistentData().getLong(PROTECTION_UNTIL_TAG) <= this.protectionEndsAt;
                 if (ownsProtectionTag) {
@@ -543,6 +570,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
 
     @Override
     public void die(DamageSource damageSource) {
+        if (!level().isClientSide) stopProtection();
         TargetMarkerItem.clearTargetMark(this);
         if (!selfDetonated && escapeGroupId != null && this.level() instanceof ServerLevel level) {
             removeUndetonatedGroupMember(level);

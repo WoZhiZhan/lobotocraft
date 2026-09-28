@@ -54,6 +54,7 @@ import software.bernie.geckolib.core.object.PlayState;
 import java.util.*;
 
 public class EntityEndBird extends AbstractAbnormality {
+    public static final String DAY_RECOVERY_REMOVAL_TAG = "lobotocraft_end_bird_day_recovery";
 
     private final Random random = new Random();
 
@@ -889,6 +890,38 @@ public class EntityEndBird extends AbstractAbnormality {
         BlackForestEvent.queueAndRestoreCapturedBirds(serverLevel, records);
         birdReturnInfo.clear();
         capturedBirds.clear();
+    }
+
+    /**
+     * Day rollover is an administrative reset, not a player suppression: restore the three
+     * captured birds without invoking egg-death rewards, End Bird rewards, or containment return.
+     */
+    public void recoverForNewDay(ServerLevel serverLevel) {
+        if (serverLevel == null || level().isClientSide || isRemoved()) return;
+        EndBirdEggTracker tracker = EndBirdEggTracker.get(serverLevel);
+        List<UUID> eggIds = tracker.abortEncounter(getUUID(), charmedPlayers);
+        queueAndDispelAllCharms(serverLevel, tracker);
+        for (UUID eggId : eggIds) {
+            Entity egg = findLoadedEntity(serverLevel.getServer(), eggId);
+            discardEggForDayRecovery(egg);
+            if (egg == null || egg.isRemoved()) tracker.acknowledgeEggCleanup(eggId);
+        }
+        restoreThreeBirds(serverLevel);
+        discard();
+    }
+
+    public static void discardEggForDayRecovery(Entity egg) {
+        if (!(egg instanceof EntityEndBirdEggSmall)
+                && !(egg instanceof EntityEndBirdEggHigh)
+                && !(egg instanceof EntityEndBirdEggEye)) {
+            return;
+        }
+        egg.getPersistentData().putBoolean(DAY_RECOVERY_REMOVAL_TAG, true);
+        egg.discard();
+    }
+
+    public static boolean isDayRecoveryRemoval(Entity egg) {
+        return egg != null && egg.getPersistentData().getBoolean(DAY_RECOVERY_REMOVAL_TAG);
     }
 
     /**

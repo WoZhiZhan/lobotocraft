@@ -72,6 +72,7 @@ public class EntityClerk extends PathfinderMob {
 
     @Override
     protected void registerGoals() {
+        this.goalSelector.addGoal(-1, new com.wzz.lobotocraft.entity.ai.UniqueWorkClerkGoal(this));
         this.goalSelector.addGoal(0, new FloatGoal(this));
         this.goalSelector.addGoal(1, new PanicGoal(this, 1.3D));
         this.goalSelector.addGoal(2, new AvoidEntityGoal<>(

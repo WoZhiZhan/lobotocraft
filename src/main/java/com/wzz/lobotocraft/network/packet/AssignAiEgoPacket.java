@@ -5,8 +5,8 @@ import com.wzz.lobotocraft.ego.EgoLoadoutService;
 import com.wzz.lobotocraft.employee.EmployeeRuntimeManager;
 import com.wzz.lobotocraft.employee.FacilityManagementService;
 import com.wzz.lobotocraft.employee.FacilityPersonnelData;
-import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
 import com.wzz.lobotocraft.entity.abnormality.EntitySnowQueen;
+import com.wzz.lobotocraft.entity.control.HostileControlState;
 import com.wzz.lobotocraft.item.ego.base.IEgoLevelItem;
 import com.wzz.lobotocraft.network.IMessage;
 import com.wzz.lobotocraft.util.MentalValueUtil;
@@ -141,6 +141,6 @@ public final class AssignAiEgoPacket implements IMessage {
     }
 
     private static boolean isControlled(ServerPlayer player) {
-        return EntitySnowQueen.isFrozen(player) || EntityRedShoes.isRedShoesControlled(player);
+        return EntitySnowQueen.isFrozen(player) || HostileControlState.isActive(player);
     }
 }

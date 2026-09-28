@@ -25,6 +25,7 @@ import com.wzz.lobotocraft.network.packet.EquipPersonalEgoPacket;
 import com.wzz.lobotocraft.network.packet.EscapeAlertPacket;
 import com.wzz.lobotocraft.network.packet.ExplosionPacket;
 import com.wzz.lobotocraft.network.packet.FallBackCameraPacket;
+import com.wzz.lobotocraft.network.packet.FearFeedbackPacket;
 import com.wzz.lobotocraft.network.packet.FullScreenRenderMessage;
 import com.wzz.lobotocraft.network.packet.GeburahCameraShakePacket;
 import com.wzz.lobotocraft.network.packet.GeburahStatusSyncPacket;
@@ -87,6 +88,7 @@ import com.wzz.lobotocraft.network.packet.StopUsingToolPacket;
 import com.wzz.lobotocraft.network.packet.StrangeBadgeEffectPacket;
 import com.wzz.lobotocraft.network.packet.SuppressorCountSyncPacket;
 import com.wzz.lobotocraft.network.packet.ToggleJudgementPacket;
+import com.wzz.lobotocraft.network.packet.ToggleFacilityPausePacket;
 import com.wzz.lobotocraft.network.packet.ToggleGlobalTT2Packet;
 import com.wzz.lobotocraft.network.packet.ToolUsageUpdatePacket;
 import com.wzz.lobotocraft.network.packet.TriggerShakePacket;
@@ -215,7 +217,14 @@ public final class PacketRegistry {
             QueenStarPrototypePacket.class,
             GeburahCameraShakePacket.class,
             GeburahStatusSyncPacket.class,
-            GeburahVisualEffectPacket.class);
+            GeburahVisualEffectPacket.class,
+            FearFeedbackPacket.class,
+            ToggleFacilityPausePacket.class,
+            com.wzz.lobotocraft.network.packet.RequestUniqueRoomWorkPacket.class,
+            com.wzz.lobotocraft.network.packet.UniqueWorkStatePacket.class,
+            com.wzz.lobotocraft.network.packet.FacilityKnowledgeSyncPacket.class,
+            com.wzz.lobotocraft.network.packet.UniqueCommandTargetsPacket.class,
+            com.wzz.lobotocraft.network.packet.CommitUniqueCommandPacket.class);
 
     /** Class -> id 的缓存，用 IdentityHashMap（Class 用引用相等即可，避免 equals/hashCode 开销）。 */
     private static final Map<Class<?>, Integer> ID_BY_CLASS = new IdentityHashMap<>();

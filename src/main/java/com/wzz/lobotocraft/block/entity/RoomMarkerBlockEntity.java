@@ -113,7 +113,8 @@ public class RoomMarkerBlockEntity extends BlockEntity {
 
         AABB box = getScanBox();
         List<AbstractAbnormality> inRoom = level.getEntitiesOfClass(
-                AbstractAbnormality.class, box, e -> e.isAlive() && !e.isRemoved());
+                AbstractAbnormality.class, box,
+                e -> e.isAlive() && !e.isRemoved() && e.canBeContained());
 
         AbstractAbnormality target = null;
         boolean inside = false;
@@ -121,7 +122,10 @@ public class RoomMarkerBlockEntity extends BlockEntity {
         // 1. UUID 快路径
         if (boundUuid != null) {
             Entity found = level.getEntity(boundUuid);
-            if (found instanceof AbstractAbnormality ab && ab.isAlive() && !ab.isRemoved()
+            if (found instanceof AbstractAbnormality ab && !ab.canBeContained()) {
+                // Clear legacy bindings to temporary encounter bodies such as Apocalypse Bird eggs.
+                clearBindingQuiet();
+            } else if (found instanceof AbstractAbnormality ab && ab.isAlive() && !ab.isRemoved()
                     && (boundCode.isEmpty() || boundCode.equals(ab.getAbnormalityCode()))) {
                 target = ab;
                 inside = box.contains(ab.position());
@@ -149,7 +153,8 @@ public class RoomMarkerBlockEntity extends BlockEntity {
                 double best = Double.MAX_VALUE;
                 for (AbstractAbnormality candidate : level.getEntitiesOfClass(
                         AbstractAbnormality.class, wide,
-                        e -> e.isAlive() && !e.isRemoved() && boundCode.equals(e.getAbnormalityCode()))) {
+                        e -> e.isAlive() && !e.isRemoved() && e.canBeContained()
+                                && boundCode.equals(e.getAbnormalityCode()))) {
                     double dist = distSqrToMarker(candidate);
                     if (dist < best) {
                         best = dist;
@@ -184,6 +189,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
         entry.playersInside = players.size();
         entry.lastUpdate = level.getGameTime();
         entry.toolType = false;
+        entry.uniqueWorkBusy = false;
 
         if (target != null) {
             missingScans = 0;
@@ -202,6 +208,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
             entry.riskName = boundRisk;
             entry.riskColor = boundRiskColor;
             entry.toolType = target.isToolType();
+            entry.uniqueWorkBusy = com.wzz.lobotocraft.work.UniqueWorkRequest.isBusy(target);
             entry.status = RoomMonitorStatusPolicy.trackedStatus(escapeFlag, inside);
             entry.qliphoth = target.getQliphothCounter();
             entry.maxQliphoth = target.getMaxQliphothCounter();
@@ -257,6 +264,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
             clearMeltdown(entry);
         }
 
+        entry.boundAbnormality = target == null ? null : target.getUUID();
         data.putRoom(entry);
     }
 
@@ -270,6 +278,7 @@ public class RoomMarkerBlockEntity extends BlockEntity {
         entry.abnormalityNameKey = "";
         entry.riskName = "";
         entry.status = RoomEntry.STATUS_UNEXPANDED;
+        entry.boundAbnormality = null;
         entry.qliphoth = -1;
         entry.maxQliphoth = -1;
         entry.healthPercent = 1.0F;
@@ -329,7 +338,8 @@ public class RoomMarkerBlockEntity extends BlockEntity {
             return false;
         }
         Entity found = level.getEntity(uuid);
-        if (!(found instanceof AbstractAbnormality abnormality) || !abnormality.isAlive()) {
+        if (!(found instanceof AbstractAbnormality abnormality) || !abnormality.isAlive()
+                || !abnormality.canBeContained()) {
             return false;
         }
         adopt(abnormality);

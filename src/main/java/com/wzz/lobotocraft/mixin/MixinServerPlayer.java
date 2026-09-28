@@ -3,7 +3,7 @@ package com.wzz.lobotocraft.mixin;
 import com.wzz.lobotocraft.item.api.IProhibitDiscarding;
 import com.wzz.lobotocraft.ego.EgoLoadoutService;
 import com.wzz.lobotocraft.ego.EgoProjectionRules;
-import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
+import com.wzz.lobotocraft.entity.control.HostileControlState;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -34,7 +34,7 @@ public abstract class MixinServerPlayer {
                     target = "Lnet/minecraft/server/level/ServerPlayer;canHarmPlayer(Lnet/minecraft/world/entity/player/Player;)Z")
     )
     private boolean lobotocraft$allowRedShoesRescueDamage(ServerPlayer victim, Player attacker) {
-        return EntityRedShoes.isRedShoesControlled(victim) || victim.canHarmPlayer(attacker);
+        return HostileControlState.isActive(victim) || victim.canHarmPlayer(attacker);
     }
 
 }

@@ -369,11 +369,9 @@ public class EntityNothingThere extends AbstractAbnormality {
     }
     @Override
     public boolean hurt(net.minecraft.world.damagesource.DamageSource source, float amount) {
-        if (currentPhase == PHASE_3 && DamageHelper.isRedDamage(source)) {
-            return false;
-        }
+        float healthBefore = getHealth();
         boolean result = super.hurt(source, amount);
-        if (result) {
+        if (getHealth() < healthBefore) {
             lastDamagedTick = this.tickCount;
         }
         return result;
@@ -966,7 +964,7 @@ public class EntityNothingThere extends AbstractAbnormality {
         var speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
         if (speed != null) speed.setBaseValue(PHASE3_MOVEMENT_SPEED);
         var redResist = this.getAttribute(ModAttributes.RED_DAMAGE_RESISTANCE.get());
-        if (redResist != null) redResist.setBaseValue(0.3D);
+        if (redResist != null) redResist.setBaseValue(0.0D);
         var whiteResist = this.getAttribute(ModAttributes.WHITE_DAMAGE_RESISTANCE.get());
         if (whiteResist != null) whiteResist.setBaseValue(0.4D);
         var blackResist = this.getAttribute(ModAttributes.BLACK_DAMAGE_RESISTANCE.get());
@@ -1421,6 +1419,9 @@ public class EntityNothingThere extends AbstractAbnormality {
             savedCollisionPhase = PHASE_2;
         }
         currentPhase = savedPhase;
+        // Older phase-three saves still contain the pre-immunity 0.3 attribute.
+        var redResist = this.getAttribute(ModAttributes.RED_DAMAGE_RESISTANCE.get());
+        if (redResist != null) redResist.setBaseValue(savedPhase == PHASE_3 ? 0.0D : 0.3D);
         this.entityData.set(DATA_PHASE, savedPhase);
         this.entityData.set(DATA_COLLISION_PHASE, savedCollisionPhase);
         this.setTexture(textureForPhase(savedPhase));

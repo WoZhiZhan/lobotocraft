@@ -460,14 +460,15 @@ public class StructureLoader {
         }
 
         private void finalizeLoading(int totalChunks) {
-            if (!cancelled && player != null) {
-                long elapsed = System.currentTimeMillis() - startTime;
-
-                player.displayClientMessage(
-                        Component.translatable("message.lobotocraft.structure_load.completed",
-                                totalChunks, successCount.get(), failCount.get(), elapsed / 1000),
-                        false
-                );
+            if (!cancelled) {
+                if (player != null) {
+                    long elapsed = System.currentTimeMillis() - startTime;
+                    player.displayClientMessage(
+                            Component.translatable("message.lobotocraft.structure_load.completed",
+                                    totalChunks, successCount.get(), failCount.get(), elapsed / 1000),
+                            false
+                    );
+                }
                 if (this.callBack != null)
                     this.callBack.run();
             } else if (cancelled && player != null) {

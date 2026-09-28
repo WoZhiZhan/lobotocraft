@@ -12,7 +12,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class FacilityNetwork {
     // Bump whenever a packet id or codec in this channel changes.
-    private static final String PROTOCOL = "6";
+    private static final String PROTOCOL = "7";
     private static final SimpleChannel CHANNEL = NetworkRegistry.ChannelBuilder
         .named(ResourceLocation.fromNamespaceAndPath(FacilityPatch.MOD_ID, "facility"))
         .networkProtocolVersion(() -> PROTOCOL)
@@ -60,4 +60,5 @@ public final class FacilityNetwork {
     public static void sendToServer(DayVoteActionPacket packet) {
         CHANNEL.sendToServer(packet);
     }
+
 }

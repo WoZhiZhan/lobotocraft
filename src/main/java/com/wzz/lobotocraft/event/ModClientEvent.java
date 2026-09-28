@@ -11,6 +11,7 @@ import com.wzz.lobotocraft.client.renderer.entity.abnormality.*;
 import com.wzz.lobotocraft.client.renderer.item.BaseEgoCurioRenderer;
 import com.wzz.lobotocraft.client.screen.EmployeeInventoryScreen;
 import com.wzz.lobotocraft.client.screen.EmployeeWarehouseScreen;
+import com.wzz.lobotocraft.client.ui.LobotomyUiRenderer;
 import com.wzz.lobotocraft.init.ModBlockEntities;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModItems;
@@ -21,11 +22,13 @@ import net.minecraft.client.renderer.entity.ItemEntityRenderer;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.client.event.ModelEvent;
 import net.minecraftforge.client.event.RegisterShadersEvent;
+import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
 import net.minecraft.client.gui.screens.MenuScreens;
 import com.wzz.lobotocraft.init.ModMenus;
 import net.minecraftforge.eventbus.api.EventPriority;
@@ -37,6 +40,12 @@ import top.theillusivec4.curios.api.client.CuriosRendererRegistry;
 
 @Mod.EventBusSubscriber(modid = ModMain.MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class ModClientEvent {
+
+    @SubscribeEvent
+    public static void onRegisterClientReloadListeners(RegisterClientReloadListenersEvent event) {
+        event.registerReloadListener((ResourceManagerReloadListener)
+                resourceManager -> LobotomyUiRenderer.clearTextureCache());
+    }
 
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
@@ -150,6 +159,9 @@ public class ModClientEvent {
         event.registerEntityRenderer(ModEntities.wingbeat.get(), (r) -> new EntityWingBestRenderer(r, 1.2f, 0.9f));
         event.registerEntityRenderer(ModEntities.queen_bee.get(), (r) -> new AbnormalityRenderer<>(r, 1.2f, 1.2f));
         event.registerEntityRenderer(ModEntities.red_shoes.get(), (r) -> new AbnormalityRenderer<>(r, 0.8f, 0.8f));
+        event.registerEntityRenderer(ModEntities.singing_machine.get(),
+                (r) -> new AbnormalityRenderer<>(r, "singing_machine", "singing_machine",
+                        1.35F, 1.35F));
         event.registerEntityRenderer(ModEntities.worker_bee.get(), (r) -> new GeoEntityRenderer<>(r, 0.9f, 0.9f));
         event.registerEntityRenderer(ModEntities.snowqueen.get(), (r) -> new AbnormalityRenderer<>(r, 1.6f, 1.2f));
         event.registerEntityRenderer(ModEntities.ppodae.get(), (r) -> new EntityPpodaeRenderer(r, 0.9f, 0.8f));

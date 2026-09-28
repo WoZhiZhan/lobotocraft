@@ -46,9 +46,15 @@ import software.bernie.geckolib.core.object.PlayState;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class EntityBlueStar extends AbstractAbnormality {
     private final Random random = new Random();
+    /** Timers started by this escape instance; they must not outlive containment. */
+    private final Set<EscapeTimerHandle> activeEscapeTimers = ConcurrentHashMap.newKeySet();
+
+    private record EscapeTimerHandle(UUID targetId, TimerEntry<?> timer) {
+    }
 
     public EntityBlueStar(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -207,14 +213,37 @@ public class EntityBlueStar extends AbstractAbnormality {
     @Override
     public void stopEscape() {
         boolean wasEscaped = hasEscape();
+        if (wasEscaped) {
+            for (EscapeTimerHandle handle : activeEscapeTimers) {
+                handle.timer().removeTimer(handle.targetId());
+            }
+            activeEscapeTimers.clear();
+        }
         super.stopEscape();
         if (!wasEscaped || hasEscape()) return;
         setAnimation("animation.blue_star.idle");
         setTarget(null);
     }
 
+    private void trackEscapeTimer(TimerEntry<?> timer, LivingEntity target) {
+        if (timer != null && target != null) {
+            activeEscapeTimers.add(new EscapeTimerHandle(target.getUUID(), timer));
+        }
+    }
+
+    private void untrackEscapeTimer(LivingEntity target, TimerEntry<?> timer) {
+        if (target != null && timer != null) {
+            activeEscapeTimers.remove(new EscapeTimerHandle(target.getUUID(), timer));
+        }
+    }
+
+    private boolean isEscapeCombatActive() {
+        return hasEscape() && !isContainmentReturnPending();
+    }
+
     private void killMob(LivingEntity living, boolean remove) {
-        if (living == null || !living.isAlive() || living.isRemoved()) return;
+        if (isContainmentReturnPending()
+                || living == null || !living.isAlive() || living.isRemoved()) return;
         TimerEntry<LivingEntity> timerEntry = new TimerEntry<>() {
             @Override
             public void onStart(@NotNull LivingEntity living) {
@@ -230,6 +259,7 @@ public class EntityBlueStar extends AbstractAbnormality {
 
             @Override
             public void onEnd(@NotNull LivingEntity living) {
+                untrackEscapeTimer(living, this);
                 if (!living.isAlive() || living.isRemoved()) return;
                 if (living instanceof EntityClerk clerk) {
                     EntityClerk.markNoTombstone(clerk);
@@ -256,6 +286,7 @@ public class EntityBlueStar extends AbstractAbnormality {
 
             @Override
             public void onCancelled(@NotNull LivingEntity living, @NotNull CancellationReason reason) {
+                untrackEscapeTimer(living, this);
                 if (reason == CancellationReason.LOGOUT && living instanceof ServerPlayer player) {
                     PendingPlayerExecution.mark(player);
                 }
@@ -263,6 +294,7 @@ public class EntityBlueStar extends AbstractAbnormality {
             }
         };
         if (timerEntry.addSkillTimer(living, 0, 1800, 1)) {
+            trackEscapeTimer(timerEntry, living);
             setAnimation("animation.blue_star.attack");
         }
     }
@@ -270,7 +302,7 @@ public class EntityBlueStar extends AbstractAbnormality {
     @Override
     public void tick() {
         super.tick();
-        setNoAi(!hasEscape());
+        setNoAi(!isEscapeCombatActive());
         if (level().isClientSide) {
             return;
         }
@@ -286,7 +318,7 @@ public class EntityBlueStar extends AbstractAbnormality {
                    killMob(player, false);
                 }
             }
-            if (this.hasEscape()) {
+            if (isEscapeCombatActive()) {
                 for (Player player : EntityUtil.findPlayersAround(this, 4, 8)) {
                     AtomicBoolean shouldDead = new AtomicBoolean(false);
                     player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(data -> {
@@ -313,26 +345,31 @@ public class EntityBlueStar extends AbstractAbnormality {
                         player.teleportTo(this.getX(), this.getY(), this.getZ());
                         // 过渡动画结束后再击杀(40 tick ≈ 2000 毫秒)
                         TimerEntry<ServerPlayer> killTimer = getPlayerTimerEntry();
-                        killTimer.addSkillTimer(player, 0, animDuration * 50, 1);
+                        if (killTimer.addSkillTimer(player, 0, animDuration * 50, 1)) {
+                            trackEscapeTimer(killTimer, player);
+                        }
                     }
                 }
             }
         }
-        if (this.tickCount % 80 == 0 && this.hasEscape()) {
+        if (this.tickCount % 80 == 0 && isEscapeCombatActive()) {
             setAnimation("animation.blue_star.attack");
             for (Entity entity : EntityUtil.findAllEntities(this, 400)) {
                 if (entity instanceof LivingEntity living && !(living instanceof EntityBlueStar)) {
                     TimerEntry<LivingEntity> timerEntry = getEntityTimerEntry();
-                    timerEntry.addSkillTimer(living, 0, 1800, 1);
+                    if (timerEntry.addSkillTimer(living, 0, 1800, 1)) {
+                        trackEscapeTimer(timerEntry, living);
+                    }
                 }
             }
         }
     }
 
-    private static @NotNull TimerEntry<ServerPlayer> getPlayerTimerEntry() {
+    private @NotNull TimerEntry<ServerPlayer> getPlayerTimerEntry() {
         TimerEntry<ServerPlayer> killTimer = new TimerEntry<>() {
             @Override
             public void onEnd(@NotNull ServerPlayer living) {
+                untrackEscapeTimer(living, this);
                 if (living.isAlive() && !living.isRemoved()) {
                     living.kill();
                 }
@@ -340,6 +377,7 @@ public class EntityBlueStar extends AbstractAbnormality {
 
             @Override
             public void onCancelled(@NotNull ServerPlayer living, @NotNull CancellationReason reason) {
+                untrackEscapeTimer(living, this);
                 if (reason == CancellationReason.LOGOUT) PendingPlayerExecution.mark(living);
             }
         };
@@ -358,10 +396,13 @@ public class EntityBlueStar extends AbstractAbnormality {
                         if (living instanceof Villager villager && random.nextInt(101) <= 20) {
                             killMob(villager, true);
                         } else {
-                            if (living instanceof EntityClerk clerk && damage >= clerk.getHealth()) {
+                        if (living instanceof EntityClerk clerk && damage >= clerk.getHealth()) {
                                 EntityClerk.markNoTombstone(clerk);
                             }
-                            living.hurt(living.damageSources().fellOutOfWorld(), damage);
+                            DamageSource source = QueenOfHatredCombat.isQueenOfHatredCombatTarget(living)
+                                    ? DamageHelper.getDamage(EntityBlueStar.this, "white")
+                                    : living.damageSources().fellOutOfWorld();
+                            living.hurt(source, damage);
                         }
                     } else {
                         MessageLoader.getLoader().sendToPlayer(player, new ScreenDistortionEffectPacket(0.3f, 10));
@@ -377,6 +418,13 @@ public class EntityBlueStar extends AbstractAbnormality {
 
             @Override
             public void onEnd(@NotNull LivingEntity living) {
+                untrackEscapeTimer(living, this);
+                setAnimation("animation.blue_star.idle");
+            }
+
+            @Override
+            public void onCancelled(@NotNull LivingEntity living, @NotNull CancellationReason reason) {
+                untrackEscapeTimer(living, this);
                 setAnimation("animation.blue_star.idle");
             }
         };

@@ -3,7 +3,7 @@ package com.wzz.lobotocraft.block.entity;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
 import com.wzz.lobotocraft.entity.EntityClerk;
-import com.wzz.lobotocraft.entity.abnormality.EntityRedShoes;
+import com.wzz.lobotocraft.entity.control.HostileControlState;
 import com.wzz.lobotocraft.event.definition.mental_value.MentalValueEvent;
 import com.wzz.lobotocraft.init.ModBlockEntities;
 import com.wzz.lobotocraft.init.ModMobEffects;
@@ -272,7 +272,7 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
         if (player.hasEffect(ModMobEffects.QUEEN_BEE_SPORE.get())) {
             return;
         }
-        if (EntityRedShoes.isRedShoesControlled(player)) {
+        if (HostileControlState.isActive(player)) {
             return;
         }
         float maxHealth = player.getMaxHealth();
@@ -303,7 +303,7 @@ public class RegenerationReactorBlockEntity extends BaseGeoBlockEntity {
         if (clerk.hasEffect(ModMobEffects.QUEEN_BEE_SPORE.get())) {
             return;
         }
-        if (EntityRedShoes.isRedShoesControlled(clerk)) {
+        if (HostileControlState.isActive(clerk)) {
             return;
         }
         float maxHealth = clerk.getMaxHealth();

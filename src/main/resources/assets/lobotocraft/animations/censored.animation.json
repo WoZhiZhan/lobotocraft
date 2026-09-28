@@ -3,6 +3,12 @@
 	"animations": {
 		"special_attack": {
 			"animation_length": 3,
+			"timeline": {
+				"0.75": "censored.special.heal",
+				"2.25": "censored.special.white_damage",
+				"2.5": "censored.special.create_child",
+				"3.0": "censored.special.end"
+			},
 			"bones": {
 				"CENSORED": {
 					"rotation": {
@@ -1089,6 +1095,10 @@
 		},
 		"attack": {
 			"animation_length": 2,
+			"timeline": {
+				"1.25": "censored.attack.hit",
+				"2.0": "censored.attack.end"
+			},
 			"bones": {
 				"CENSORED": {
 					"rotation": {

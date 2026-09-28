@@ -9,6 +9,7 @@ import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.item.ego.butterfly_funeral.ButterflyFuneralWeapon;
+import com.wzz.lobotocraft.item.ego.butterfly_funeral.ButterflyFuneralEquipmentTuning;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.FacilityCombatRules;
 import com.wzz.lobotocraft.util.MentalValueUtil;
@@ -46,7 +47,7 @@ import java.util.List;
 
 /**
  * 亡蝶葬仪 (T-01-68) —— HE 级异想体。
- * 出逃后在设施内游荡,主动靠近可攻击单位,12格内开始攻击除出逃异想体、不会出逃异想体外的所有单位。
+ * 出逃后在设施内游荡,主动靠近可攻击单位,12格内开始攻击；异想体须处于战斗状态。
  * 普攻(65%,冷却7秒):射击手势后出伤,蝴蝶绽放在目标上,10-15点白色伤害。
  * 特殊攻击(35%):停止移动放下棺材,持续15秒向前方50格、42°扇形喷出蝴蝶群,
  *   身处其中的单位每秒受3-4点白色伤害,村民被定身。
@@ -198,7 +199,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
         return new EGOEquipmentData.WeaponData(
                 ResourceUtil.createInstance("textures/gui/ego/butterfly_funeral_weapon.png"),
                 "圣宣",
-                getRiskLevel(),
+                ButterflyFuneralEquipmentTuning.weaponRiskLevel(),
                 "WHITE",
                 "2",
                 "2.6",
@@ -430,7 +431,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
         }
     }
 
-    /** 优先攻击玩家,其次攻击其它有效单位;不锁定出逃状态异想体和不会出逃的异想体 */
+    /** Prefer players, then other valid combat targets; contained abnormalities are excluded. */
     private LivingEntity findTarget(ServerLevel level) {
         List<LivingEntity> candidates = level.getEntitiesOfClass(LivingEntity.class,
                 this.getBoundingBox().inflate(ACTIVE_SEARCH_RANGE),
@@ -467,7 +468,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
         if (e == this || !e.isAlive()) return false;
         if (e instanceof Player p && (p.isCreative() || p.isSpectator())) return false;
         if (e instanceof AbstractAbnormality ab) {
-            return !ab.hasEscape() && ab.canEscape();
+            return ab.isAbnormalityCombatTarget();
         }
         return true;
     }

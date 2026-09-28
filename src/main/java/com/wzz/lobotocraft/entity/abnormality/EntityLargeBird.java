@@ -161,7 +161,8 @@ public class EntityLargeBird extends AbstractAbnormality {
         this.goalSelector.addGoal(4, new LookAtPlayerGoal(this, Player.class, 16.0F));
         this.goalSelector.addGoal(5, new net.minecraft.world.entity.ai.goal.RandomLookAroundGoal(this));
         this.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(this, LivingEntity.class, 10, true, false,
-                (entity) -> (entity instanceof Villager || entity instanceof EntityClerk || (entity instanceof Player player
+                (entity) -> (entity instanceof Villager || entity instanceof EntityClerk
+                        || (entity instanceof Player player
                         && EntityUtil.getDistanceBetweenEntities(this, player) <= 3.1D)) && hasEscape()));
     }
 
@@ -219,8 +220,10 @@ public class EntityLargeBird extends AbstractAbnormality {
 
     @Override
     public boolean hurt(DamageSource damageSource, float f) {
-        if (damageSource.getEntity() instanceof AbstractAbnormality)
+        if (damageSource.getEntity() instanceof AbstractAbnormality abnormality
+                && !QueenOfHatredCombat.isQueenOfHatredCombatTarget(abnormality)) {
             return false;
+        }
         if (!level.isClientSide) {
             BlackForestEvent.BlackForestSavedData data =
                     BlackForestEvent.BlackForestSavedData.get((ServerLevel) level());

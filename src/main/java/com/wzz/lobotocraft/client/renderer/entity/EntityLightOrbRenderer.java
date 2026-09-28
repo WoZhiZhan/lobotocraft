@@ -9,12 +9,8 @@ import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
-import java.util.ArrayDeque;
-import java.util.HashMap;
-import java.util.Map;
 
 public class EntityLightOrbRenderer extends EntityRenderer<EntityLightOrb> {
 
@@ -65,9 +61,6 @@ public class EntityLightOrbRenderer extends EntityRenderer<EntityLightOrb> {
     private static final float  RING_OUTER   = 0.26f;
     private static final float  RING_INNER   = 0.12f;
 
-    private static final Map<Integer, ArrayDeque<Vec3>> TRAILS = new HashMap<>();
-    private static final int TRAIL_MAX = 14;
-
     public EntityLightOrbRenderer(EntityRendererProvider.Context ctx) {
         super(ctx);
         this.shadowRadius = 0f;
@@ -85,16 +78,7 @@ public class EntityLightOrbRenderer extends EntityRenderer<EntityLightOrb> {
     public void render(EntityLightOrb entity, float yaw, float pt,
                        PoseStack ps, MultiBufferSource buf, int light) {
 
-        Vec3 curPos = new Vec3(
-                Mth.lerp(pt, entity.xOld, entity.getX()),
-                Mth.lerp(pt, entity.yOld, entity.getY()),
-                Mth.lerp(pt, entity.zOld, entity.getZ()));
-
-        if (entity.isRemoved()) { TRAILS.remove(entity.getId()); return; }
-
-        ArrayDeque<Vec3> trail = TRAILS.computeIfAbsent(entity.getId(), k -> new ArrayDeque<>());
-        trail.addFirst(curPos);
-        while (trail.size() > TRAIL_MAX) trail.removeLast();
+        if (entity.isRemoved()) return;
 
         float tick = (entity.tickCount + pt) * 0.05f;
 

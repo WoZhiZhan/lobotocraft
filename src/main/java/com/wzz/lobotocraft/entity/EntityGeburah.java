@@ -83,8 +83,6 @@ import java.util.Optional;
 import java.util.Set;
 
 public final class EntityGeburah extends BaseGeoEntity {
-    private static final double NORMAL_MOVEMENT_SPEED = 0.20D;
-    private static final double EGO_MOVEMENT_SPEED = 0.45D;
     private static final double COMBO_START_RANGE = 5.0D;
     private static final String WILL_OF_BATTLE = "willofbattle";
     private static final String EGO_WILL_OF_BATTLE = "ego_willofbattle";
@@ -153,7 +151,7 @@ public final class EntityGeburah extends BaseGeoEntity {
     public static AttributeSupplier.Builder createAttributes() {
         return Mob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, GeburahCombatState.DEFAULT_MAX_HEALTH)
-                .add(Attributes.MOVEMENT_SPEED, NORMAL_MOVEMENT_SPEED)
+                .add(Attributes.MOVEMENT_SPEED, GeburahPursuitPolicy.movementSpeed(false))
                 .add(Attributes.FOLLOW_RANGE, 256.0D)
                 .add(Attributes.ATTACK_DAMAGE, 12.0D)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D)
@@ -245,12 +243,14 @@ public final class EntityGeburah extends BaseGeoEntity {
         if (hasValidTarget) {
             double pursuitSpeed = counterPursuitTicks > 0 && target == counterattackTarget
                     ? 1.65D : 1.0D;
+            boolean pursuitTeleported = false;
             if (shouldUseElevatorPursuit()) {
                 chaseWatchdog.reset();
             } else {
                 getNavigation().moveTo(target, pursuitSpeed);
-                recoverStuckChase(target);
+                pursuitTeleported = recoverStuckChase(target);
             }
+            if (!pursuitTeleported) faceMovementIfFree();
             setAnimation(combatState.phase() == GeburahPhase.EGO ? "EGOmove" : "move");
         } else {
             chaseWatchdog.reset();
@@ -274,18 +274,30 @@ public final class EntityGeburah extends BaseGeoEntity {
                 isValidTarget(target), isCombatActionActive());
     }
 
-    private void recoverStuckChase(LivingEntity target) {
+    private boolean recoverStuckChase(LivingEntity target) {
         if (!(level() instanceof ServerLevel serverLevel)
-                || !chaseWatchdog.observe(target.getUUID(), position())) return;
+                || !chaseWatchdog.observe(target.getUUID(), position())) return false;
         Optional<Vec3> destination = GeburahSafeTeleport.findBehindTarget(
                 serverLevel, this, target, combatState.phase() == GeburahPhase.EGO ? 5.0D : 3.5D);
-        if (destination.isEmpty()) return;
+        if (destination.isEmpty()) return false;
         Vec3 start = position();
         Vec3 end = destination.get();
         moveTo(end.x, end.y, end.z, getYRot(), getXRot());
         faceTarget(target, 180.0F);
         GeburahAttackEffects.spawnPursuitDash(serverLevel, start, end,
                 combatState.phase() == GeburahPhase.EGO);
+        return true;
+    }
+
+    private void faceMovementIfFree() {
+        double deltaX = getX() - xo;
+        double deltaZ = getZ() - zo;
+        if (!GeburahPursuitPolicy.shouldFaceMovement(
+                isCombatActionActive(), deltaX, deltaZ)) return;
+        float yaw = GeburahPursuitPolicy.movementYaw(deltaX, deltaZ);
+        setYRot(yaw);
+        setYBodyRot(yaw);
+        setYHeadRot(yaw);
     }
 
     private boolean tickCombatAction(LivingEntity target) {
@@ -422,7 +434,7 @@ public final class EntityGeburah extends BaseGeoEntity {
                     || !hasLineOfSight(majorTarget))) return false;
             float healthBefore = majorTarget.getHealth();
             boolean hit = hurtWithoutVanillaReaction(majorTarget,
-                    outgoingDamage(majorTarget, rollDamage(cue)), true);
+                    outgoingDamage(majorTarget, rollDamage(cue)));
             if (!hit) return false;
             float healthLoss = Math.max(0.0F, healthBefore - majorTarget.getHealth());
             restoreMajorPosture(majorTarget);
@@ -449,7 +461,7 @@ public final class EntityGeburah extends BaseGeoEntity {
         for (LivingEntity target : targets) {
             float healthBefore = target.getHealth();
             if (!hurtWithoutVanillaReaction(target,
-                    outgoingDamage(target, rollDamage(cue)), true)) continue;
+                    outgoingDamage(target, rollDamage(cue)))) continue;
             float healthLoss = Math.max(0.0F, healthBefore - target.getHealth());
             connected = true;
             restoreMajorPosture(target);
@@ -598,7 +610,7 @@ public final class EntityGeburah extends BaseGeoEntity {
         }
         getNavigation().stop();
         if (isValidTarget(comboTarget) && combo.stage() == GeburahComboController.Stage.WINDUP) {
-            getLookControl().setLookAt(comboTarget, 90.0F, 90.0F);
+            faceTarget(comboTarget, 90.0F);
         }
         actionWindow = switch (combo.stage()) {
             case WINDUP -> GeburahActionWindow.WINDUP;
@@ -698,6 +710,7 @@ public final class EntityGeburah extends BaseGeoEntity {
                 specialDestination = refreshed.get();
                 moveTo(specialDestination.x, specialDestination.y, specialDestination.z,
                         getYRot(), getXRot());
+                faceTarget(specialTarget, 180.0F);
                 spawnWillOfBattleParticles((ServerLevel) level(), origin, specialDestination);
                 setAnimation(specialEgo ? "EGOwillofbattle" : "willofbattle");
                 level().playSound(null, blockPosition(), ModSounds.GEBURAH_SLASH.get(),
@@ -720,8 +733,9 @@ public final class EntityGeburah extends BaseGeoEntity {
             return false;
         }
         getNavigation().stop();
-        if (isValidTarget(specialTarget)) {
-            getLookControl().setLookAt(specialTarget, 180.0F, 180.0F);
+        if (isValidTarget(specialTarget)
+                && special.stage() == GeburahSpecialController.Stage.WINDUP) {
+            faceTarget(specialTarget, 180.0F);
         }
         actionWindow = switch (special.stage()) {
             case WINDUP -> GeburahActionWindow.WINDUP;
@@ -738,7 +752,7 @@ public final class EntityGeburah extends BaseGeoEntity {
         float damage = 19.0F + random.nextInt(8);
         float healthBefore = target.getHealth();
         if (!hurtWithoutVanillaReaction(target,
-                outgoingDamage(target, damage), specialEgo)) return;
+                outgoingDamage(target, damage))) return;
         GeburahSoundscape.playAttackImpact(level(), blockPosition(),
                 GeburahMove.STAB, specialEgo);
         float healthLoss = Math.max(0.0F, healthBefore - target.getHealth());
@@ -813,7 +827,7 @@ public final class EntityGeburah extends BaseGeoEntity {
                     + random.nextInt(move.maxDamage(comboEgo) - move.minDamage(comboEgo) + 1);
             float healthBefore = target.getHealth();
             if (!hurtWithoutVanillaReaction(target,
-                    outgoingDamage(target, damage), comboEgo)) continue;
+                    outgoingDamage(target, damage))) continue;
             float healthLoss = Math.max(0.0F, healthBefore - target.getHealth());
             if (target == comboTarget) primaryTargetHit = true;
 
@@ -877,16 +891,12 @@ public final class EntityGeburah extends BaseGeoEntity {
     }
 
     private boolean hurtWithoutVanillaReaction(LivingEntity target, float damage) {
-        return hurtWithoutVanillaReaction(target, damage, false);
-    }
-
-    private boolean hurtWithoutVanillaReaction(LivingEntity target, float damage,
-                                                boolean neutralPlayerRedResistance) {
         boolean wasEscapedAbnormality = target instanceof AbstractAbnormality abnormality
                 && abnormality.hasEscape();
         Vec3 movement = target.getDeltaMovement();
         EntityUtil.clearHurtTime(target);
-        boolean hurt = neutralPlayerRedResistance && target instanceof ServerPlayer
+        boolean hurt = target instanceof ServerPlayer
+                && GeburahDamageTuning.shouldNeutralizePlayerRed(combatState.phase())
                 ? GeburahDamageTuning.withNeutralPlayerRed(() ->
                         target.hurt(DamageHelper.getDamage(this, "red"), damage))
                 : target.hurt(DamageHelper.getDamage(this, "red"), damage);
@@ -979,7 +989,7 @@ public final class EntityGeburah extends BaseGeoEntity {
         for (Entity entity : serverLevel.getAllEntities()) {
             if (!(entity instanceof LivingEntity living) || !living.isAlive() || living == this) continue;
             double distance = distanceToSqr(living);
-            if (living instanceof AbstractAbnormality abnormality && abnormality.hasEscape()) {
+            if (living instanceof AbstractAbnormality abnormality && abnormality.isAbnormalityCombatTarget()) {
                 if (distance < abnormalityDistance) {
                     nearestAbnormality = abnormality;
                     abnormalityDistance = distance;
@@ -1016,7 +1026,7 @@ public final class EntityGeburah extends BaseGeoEntity {
 
     private boolean isValidTarget(LivingEntity target) {
         if (target == null || !target.isAlive() || target.level() != level()) return false;
-        if (target instanceof AbstractAbnormality abnormality) return abnormality.hasEscape();
+        if (target instanceof AbstractAbnormality abnormality) return abnormality.isAbnormalityCombatTarget();
         return target instanceof ServerPlayer player && !player.isSpectator() && !player.isCreative()
                 && GeburahEncounterService.INSTANCE.isParticipant(player);
     }
@@ -1119,7 +1129,7 @@ public final class EntityGeburah extends BaseGeoEntity {
         if (attacker instanceof ServerPlayer player) {
             return GeburahEncounterService.INSTANCE.isParticipant(player);
         }
-        return attacker instanceof AbstractAbnormality abnormality && abnormality.hasEscape();
+        return attacker instanceof AbstractAbnormality abnormality && abnormality.isAbnormalityCombatTarget();
     }
 
     public GeburahCombatState.DamageResult applyFinalDamage(float amount, boolean damagePosture) {
@@ -1340,9 +1350,8 @@ public final class EntityGeburah extends BaseGeoEntity {
         setResistance(ModAttributes.BLACK_DAMAGE_RESISTANCE.get(), combatState.resistance("black"));
         setResistance(ModAttributes.BLUE_DAMAGE_RESISTANCE.get(), combatState.resistance("blue"));
         AttributeInstance speed = getAttribute(Attributes.MOVEMENT_SPEED);
-        if (speed != null) speed.setBaseValue(
-                combatState.phase() == GeburahPhase.EGO
-                        ? EGO_MOVEMENT_SPEED : NORMAL_MOVEMENT_SPEED);
+        if (speed != null) speed.setBaseValue(GeburahPursuitPolicy.movementSpeed(
+                combatState.phase() == GeburahPhase.EGO));
     }
 
     private void setResistance(net.minecraft.world.entity.ai.attributes.Attribute attribute,

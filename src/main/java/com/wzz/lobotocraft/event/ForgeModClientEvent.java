@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.client.ScreenDistortionEffect;
 import com.wzz.lobotocraft.client.ScreenDistortionState;
 import com.wzz.lobotocraft.client.WelcomeNoticeClientState;
+import com.wzz.lobotocraft.client.fear.FearClientState;
 import com.wzz.lobotocraft.client.audio.GuiMusicManager;
 import com.wzz.lobotocraft.client.audio.NormalWorkMusicManager;
 import com.wzz.lobotocraft.client.alert.EscapeAlertManager;
@@ -32,6 +33,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.Mth;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
@@ -73,6 +75,7 @@ public class ForgeModClientEvent {
             GeburahEffectCompositor.tick();
             GeburahStatusClientState.tick();
             WelcomeNoticeClientState.tick();
+            FearClientState.tick();
         }
     }
 
@@ -93,6 +96,8 @@ public class ForgeModClientEvent {
             NormalWorkMusicManager.getInstance().clear();
             EscapeAlertManager.getInstance().clear();
             active_charms.clear();
+            ScreenDistortionState.clear();
+            ClientPacketHandler.clear();
             CoreSuppressionClientState.update(false, -1, "", 0, 0, 0, 0, 0, 0, 0, false);
             CoreSuppressionWarningClientState.clear();
             CoreSuppressionPostProcessor.clear();
@@ -100,6 +105,7 @@ public class ForgeModClientEvent {
             GeburahBladeTrailState.clear();
             GeburahEffectCompositor.clear();
             GeburahStatusClientState.clear();
+            FearClientState.clear();
         }
     }
 
@@ -110,6 +116,8 @@ public class ForgeModClientEvent {
         event.setYaw(event.getYaw() + shake.yaw());
         event.setPitch(event.getPitch() + shake.pitch());
         event.setRoll(event.getRoll() + shake.roll());
+
+        applyFearFocus(event);
 
         Camera camera = event.getCamera();
         Entity cameraEntity = camera.getEntity();
@@ -178,8 +186,36 @@ public class ForgeModClientEvent {
         }
     }
 
+    private static void applyFearFocus(ViewportEvent.ComputeCameraAngles event) {
+        if (!FearClientState.isDisorientationActive()) return;
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        if (player == null || event.getCamera().getEntity() != player || minecraft.level == null) return;
+        Entity target = minecraft.level.getEntity(FearClientState.disorientationTargetId());
+        if (target == null || target.isRemoved()) return;
+        Vec3 delta = target.getEyePosition((float) event.getPartialTick())
+                .subtract(event.getCamera().getPosition());
+        if (delta.lengthSqr() < 1.0E-6D) return;
+        float targetYaw = (float) (Mth.atan2(delta.z, delta.x) * Mth.RAD_TO_DEG) - 90.0F;
+        float horizontal = Mth.sqrt((float) (delta.x * delta.x + delta.z * delta.z));
+        float targetPitch = (float) (-(Mth.atan2(delta.y, horizontal) * Mth.RAD_TO_DEG));
+        float progress = FearClientState.disorientationProgress();
+        float strength = progress < 0.16F ? progress / 0.16F : 1.0F;
+        strength *= 1.0F - smoothstep(0.72F, 1.0F, progress);
+        float yawDelta = Mth.wrapDegrees(targetYaw - event.getYaw());
+        float pitchDelta = Mth.wrapDegrees(targetPitch - event.getPitch());
+        event.setYaw(event.getYaw() + yawDelta * strength);
+        event.setPitch(Mth.clamp(event.getPitch() + pitchDelta * strength, -89.0F, 89.0F));
+    }
+
+    private static float smoothstep(float edge0, float edge1, float value) {
+        float t = Mth.clamp((value - edge0) / (edge1 - edge0), 0.0F, 1.0F);
+        return t * t * (3.0F - 2.0F * t);
+    }
+
     @SubscribeEvent
     public static void onComputeFov(ViewportEvent.ComputeFov event) {
+        event.setFOV(event.getFOV() * FearClientState.fovMultiplier());
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null || !player.hasEffect(
                 com.wzz.lobotocraft.init.ModMobEffects.MUST_OPEN_PATH_ANCHORED.get())) return;

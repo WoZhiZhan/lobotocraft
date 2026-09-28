@@ -28,15 +28,18 @@ public record MeltdownDefinition(MeltdownCause cause, int version, int durationT
         MeltdownTargetCountPolicy countPolicy = normalized == MeltdownCause.QLIPHOTH_OVERLOAD
             ? MeltdownTargetCountPolicy.QLIPHOTH_LEVEL_TENTHS
             : MeltdownTargetCountPolicy.CALLER_LIMIT;
-        boolean excludeWorking = normalized != MeltdownCause.APOCALYPSE_BIRD_EGG;
+        boolean excludeWorking = normalized != MeltdownCause.QLIPHOTH_OVERLOAD
+            && normalized != MeltdownCause.APOCALYPSE_BIRD_EGG
+            && normalized != MeltdownCause.DEBUG;
         return new MeltdownDefinition(normalized, 1, MeltdownLifecycle.DEFAULT_DURATION_TICKS,
             MeltdownLifecycle.NORMAL_TIME_RATE_PERMILLE, normalized.requiresCoreSuppression(),
             MeltdownStackingPolicy.IGNORE_NEW, MeltdownResolutionPolicy.WORK_COMPLETION,
             MeltdownFailurePolicy.ENERGY_AND_COUNTER, countPolicy, excludeWorking);
     }
 
-    public int requestedTargetCount(int eligibleContainments, int triggeredLevel,
-                                    int callerLimit) {
-        return targetCountPolicy.requested(eligibleContainments, triggeredLevel, callerLimit);
+    public int requestedTargetCount(int statisticalPopulation, int workablePopulation,
+                                    int triggeredLevel, int callerLimit) {
+        return targetCountPolicy.requested(statisticalPopulation, workablePopulation,
+            triggeredLevel, callerLimit);
     }
 }

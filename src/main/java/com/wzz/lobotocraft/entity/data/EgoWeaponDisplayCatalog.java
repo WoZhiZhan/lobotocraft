@@ -34,7 +34,8 @@ public final class EgoWeaponDisplayCatalog {
             entry("F-01-37", "WHITE", "6-12", "1.2", "1.2格"),
             entry("O-01-12", "WHITE", "2-3", "0.6", "10格"),
             entry("O-02-98", "BLACK", "1-4", "快", "3格"),
-            entry("F-04-83", "RED", "5-7", "2s", "近")
+            entry("F-04-83", "RED", "5-7", "2s", "近"),
+            entry("S-03-07", "RED", "27-32", "0.6", "不变")
     );
 
     private EgoWeaponDisplayCatalog() {

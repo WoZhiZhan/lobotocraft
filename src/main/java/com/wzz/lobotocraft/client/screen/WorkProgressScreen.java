@@ -6,7 +6,6 @@ import com.wzz.lobotocraft.client.core.CoreSuppressionClientState;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
 import com.wzz.lobotocraft.logger.ModLogger;
 import com.wzz.lobotocraft.network.MessageLoader;
-import com.wzz.lobotocraft.network.packet.ObtainGiftPacket;
 import com.wzz.lobotocraft.network.packet.StopContinuousWorkPacket;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.WorkResult;
@@ -384,22 +383,6 @@ public class WorkProgressScreen extends Screen {
                 case GOOD -> minecraft.player.playSound(SoundEvents.PLAYER_LEVELUP, 1.0F, 1.2F);
                 case NORMAL -> minecraft.player.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0F, 1.0F);
                 case BAD -> minecraft.player.playSound(SoundEvents.VILLAGER_NO, 1.0F, 0.8F);
-            }
-            if (observationLevel >= 2) {
-                IAbnormality abnormality = getAbnormality();
-                try {
-                    if (false && abnormality != null && random.nextFloat() <= abnormality.getGiftProbability()) {
-                        MessageLoader.getLoader().sendToServer(new ObtainGiftPacket(abnormality.getEntityId(), abnormality.getEGOGiftData().itemId()));
-                        minecraft.player.sendSystemMessage(Component.translatable(
-                                "message.lobotocraft.work.gift_obtained",
-                                abnormality.getAbnormalityName(), abnormality.getEGOGiftData().part(),
-                                abnormality.getEGOGiftData().name()));
-                        minecraft.player.playSound(SoundEvents.PLAYER_LEVELUP);
-                    }
-                } catch (Throwable e) {
-                    minecraft.player.sendSystemMessage(Component.translatable(
-                            "message.lobotocraft.work.gift_failed"));
-                }
             }
         }
     }

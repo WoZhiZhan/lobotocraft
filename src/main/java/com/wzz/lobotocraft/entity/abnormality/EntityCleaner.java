@@ -34,12 +34,12 @@ import software.bernie.geckolib.core.object.PlayState;
 
 /**
  * 野怪清道夫 (TETH) —— 主世界夜间刷新的小怪。
- * 80血;僵尸移速/攻击距离;三种外观;攻击玩家/动物/村民,击杀的生物无掉落;
+ * 30血;僵尸移速/攻击距离;三种外观;攻击玩家/动物/村民,击杀的生物无掉落;
  * 70%普通攻击(attack/attack2,3黑伤),30%特殊攻击(skill1连播5次,每次7黑伤);
  * 每次造成伤害回复等量血量;抗性 红1.0/白1.2/黑0.5/蓝0.8。
  */
 public class EntityCleaner extends BaseGeoEntity {
-    public static final double MAX_HEALTH = 55.0D;
+    public static final double MAX_HEALTH = 30.0D;
     private static final double SPEED_II_WALKING_PLAYER_SPEED = 0.28D;
 
     private static final EntityDataAccessor<String> ANIM =

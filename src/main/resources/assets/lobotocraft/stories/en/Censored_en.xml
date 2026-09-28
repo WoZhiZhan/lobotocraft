@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<creature>
+  <info id="100089">
+    <narration action="move">
+      #0 is assigned to $0’s Containment Unit.
+    </narration>
+    <narration action="start">
+      [
+      {No one knows the true appearance of $0.},
+      {Its form and mere existence are enough to cause discomfort.}
+      ]
+    </narration>
+    <narration action="dead">
+      [
+      {Nothing recognizable remains inside the Containment Unit.},
+      {$0 is creating another child.}
+      ]
+    </narration>
+    <narration action="panic">
+      [
+      {#0 cannot withstand the existence of $0 and has panicked.}
+      ]
+    </narration>
+  </info>
+  <observe level="4">
+    <collection>
+      <codeNo openLevel="0">O-03-89</codeNo>
+      <portrait openLevel="1">Sprites/Unit/creature/Censored</portrait>
+      <name openLevel="1">CENSORED</name>
+      <riskLevel openLevel="1">ALEPH</riskLevel>
+      <openText>Do not attempt to understand it.</openText>
+    </collection>
+    <desc id="1" openLevel="0">
+      [
+      {The records for this Abnormality have been deleted.}
+      ]
+    </desc>
+    <desc id="2" openLevel="1">
+      [
+      {It waits inside its Containment Unit and affects employees who enter.}
+      ]
+    </desc>
+    <desc id="3" openLevel="2">
+      [
+      {When an employee cannot withstand its existence, they panic and the Qliphoth Counter decreases.}
+      ]
+    </desc>
+    <desc id="4" openLevel="3">
+      [
+      {When the Qliphoth Counter reaches zero, it breaches containment and searches the facility for employees.}
+      ]
+    </desc>
+    <desc id="5" openLevel="4">
+      [
+      {It attacks employees. After killing one, it approaches the corpse and creates a new child.}
+      ]
+    </desc>
+    <specialTipSize size="6">
+      <specialTip openLevel="1" key="1">When an employee enters $0’s Containment Unit, lower-level employees panic immediately.</specialTip>
+      <specialTip openLevel="1" key="2">At the end of work, an employee with empty SP decreases $0’s Qliphoth Counter.</specialTip>
+      <specialTip openLevel="1" key="3">A Bad work result decreases $0’s Qliphoth Counter again.</specialTip>
+      <specialTip openLevel="2" key="4">When $0’s Qliphoth Counter reaches zero, it breaches containment.</specialTip>
+      <specialTip openLevel="3" key="5">After breaching, $0 attacks employees; each child independently searches for and attacks employees.</specialTip>
+      <specialTip openLevel="4" key="6">While processing a tombstone, $0 temporarily cannot take damage and creates a child when the process ends.</specialTip>
+    </specialTipSize>
+  </observe>
+</creature>

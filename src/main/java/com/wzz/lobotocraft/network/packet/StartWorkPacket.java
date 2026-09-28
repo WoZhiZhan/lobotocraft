@@ -79,6 +79,8 @@ public class StartWorkPacket implements IMessage {
                 player.sendSystemMessage(Component.translatable("message.lobotocraft.work.already_working"));
                 return;
             }
+            if (com.wzz.lobotocraft.work.AbnormalityCommandPolicy.dispatch(
+                    player, abnormality, workType.ordinal())) return;
             WorkManager.startWork(player, abnormality, workType);
         });
         ctx.setPacketHandled(true);

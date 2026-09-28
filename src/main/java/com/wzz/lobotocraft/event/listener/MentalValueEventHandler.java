@@ -5,8 +5,11 @@ import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.capability.PanicType;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionDamageHooks;
+import com.wzz.lobotocraft.core_suppression.geburah.GeburahDamageTuning;
 import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
+import com.wzz.lobotocraft.entity.EntityGeburah;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.abnormality.EntityCensored;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.event.definition.mental_value.MentalValueEvent;
 import com.wzz.lobotocraft.init.ModAttributes;
@@ -256,7 +259,11 @@ public class MentalValueEventHandler {
         Holder<DamageType> holder = source.typeHolder();
         Optional<ResourceKey<DamageType>> optionalKey = holder.unwrapKey();
         if (DamageHelper.isRedDamage(source) || optionalKey.isPresent() && DamageHelper.isVanillaDamage(optionalKey.get())) {
-            return player.getAttributeValue(ModAttributes.RED_DAMAGE_RESISTANCE.get());
+            double resistance = player.getAttributeValue(ModAttributes.RED_DAMAGE_RESISTANCE.get());
+            return DamageHelper.isRedDamage(source)
+                    ? GeburahDamageTuning.effectivePlayerRedMultiplier(
+                            source.getEntity() instanceof EntityGeburah, resistance)
+                    : resistance;
         } else if (DamageHelper.isWhiteDamage(source)) {
             return player.getAttributeValue(ModAttributes.WHITE_DAMAGE_RESISTANCE.get());
         } else if (DamageHelper.isBlackDamage(source)) {
@@ -308,6 +315,7 @@ public class MentalValueEventHandler {
         if (!(event.getEntity() instanceof ServerPlayer serverPlayer)) return;
         boolean enteredPanic = event.getOriginalValue() > 0.0F && event.getNewValue() <= 0.0F;
         if (enteredPanic) {
+            EntityCensored.onEmployeePanic(serverPlayer);
             serverPlayer.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental ->
                     mental.setPanicType(selectPanicType(serverPlayer, mental)));
             syncMentalValue(serverPlayer, event.getChangeType());

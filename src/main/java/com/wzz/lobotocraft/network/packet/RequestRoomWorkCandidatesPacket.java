@@ -83,6 +83,15 @@ public class RequestRoomWorkCandidatesPacket implements IMessage {
             reply(sender, List.of(), "message.lobotocraft.monitor.dispatch.tool_not_workable");
             return;
         }
+        if (com.wzz.lobotocraft.work.UniqueWorkRequest.isBusy(abnormality)
+                || (com.wzz.lobotocraft.work.AbnormalityCommandPolicy.action(
+                        abnormality.getAbnormalityCode(), workType.ordinal()) != null
+                && com.wzz.lobotocraft.work.AbnormalityCommandPolicy.action(
+                        abnormality.getAbnormalityCode(), workType.ordinal())
+                        != com.wzz.lobotocraft.work.AbnormalityCommandPolicy.Action.PROTECTION)) {
+            reply(sender, List.of(), "message.lobotocraft.unique_work.use_command");
+            return;
+        }
         reply(sender, RoomEmployeeSnapshotService.collect(sender, abnormality, workType), "");
     }
 

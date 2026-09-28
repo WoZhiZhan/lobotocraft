@@ -16,7 +16,13 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
+import net.minecraft.world.level.block.AbstractGlassBlock;
+import net.minecraft.world.level.block.IronBarsBlock;
+import net.minecraft.world.level.block.WallBlock;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.ClipContext;
 
 import java.util.List;
 
@@ -141,15 +147,30 @@ public class AbnormalitySpawnHelper {
                 Math.max(0, horizontalSearchRadius));
     }
 
+    /** Spawn from a clicked facility anchor, keeping the candidate in the connected air pocket. */
+    public static <T extends AbstractAbnormality> T spawnPersistentFromAnchor(
+            ServerLevel level, EntityType<T> type, BlockPos anchor, MobSpawnType spawnType) {
+        return spawnPersistent(level, type, anchor, spawnType,
+                SpawnPlacementPolicy.DEBUG_BYPASS, 6, true);
+    }
+
     private static <T extends AbstractAbnormality> T spawnPersistent(
             ServerLevel level, EntityType<T> type, BlockPos pos, MobSpawnType spawnType,
             SpawnPlacementPolicy placementPolicy, int horizontalSearchRadius) {
+        return spawnPersistent(level, type, pos, spawnType, placementPolicy,
+                horizontalSearchRadius, false);
+    }
+
+    private static <T extends AbstractAbnormality> T spawnPersistent(
+            ServerLevel level, EntityType<T> type, BlockPos pos, MobSpawnType spawnType,
+            SpawnPlacementPolicy placementPolicy, int horizontalSearchRadius,
+            boolean requireClearPath) {
         if (placementPolicy == null) placementPolicy = SpawnPlacementPolicy.FACILITY_RULES;
         T entity = type.create(level);
         if (entity == null) return null;
 
         BlockPos spawnPos = findSafeSpawnPosition(
-                level, entity, pos, placementPolicy, horizontalSearchRadius);
+                level, entity, pos, placementPolicy, horizontalSearchRadius, requireClearPath);
         if (spawnPos == null) return null;
         entity.moveTo(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5,
                 level.random.nextFloat() * 360f, 0f);
@@ -162,9 +183,9 @@ public class AbnormalitySpawnHelper {
 
     private static <T extends AbstractAbnormality> BlockPos findSafeSpawnPosition(
             ServerLevel level, T entity, BlockPos pos, SpawnPlacementPolicy placementPolicy,
-            int horizontalSearchRadius) {
+            int horizontalSearchRadius, boolean requireClearPath) {
         BlockPos direct = findSpawnGround(level, pos, 0);
-        if (canSpawnAt(level, entity, direct, placementPolicy)) {
+        if (canSpawnAt(level, entity, direct, placementPolicy, requireClearPath)) {
             return direct;
         }
 
@@ -175,15 +196,19 @@ public class AbnormalitySpawnHelper {
             for (int ring = 1; ring <= radius; ring++) {
                 for (int offsetX = -ring; offsetX <= ring; offsetX++) {
                     BlockPos north = findSpawnGround(level, pos.offset(offsetX, 0, -ring), 0);
-                    if (canSpawnAt(level, entity, north, placementPolicy)) return north;
+                    if (canSpawnAt(level, entity, north, placementPolicy, requireClearPath)
+                            && (!requireClearPath || hasClearPath(level, pos, north, entity))) return north;
                     BlockPos south = findSpawnGround(level, pos.offset(offsetX, 0, ring), 0);
-                    if (canSpawnAt(level, entity, south, placementPolicy)) return south;
+                    if (canSpawnAt(level, entity, south, placementPolicy, requireClearPath)
+                            && (!requireClearPath || hasClearPath(level, pos, south, entity))) return south;
                 }
                 for (int offsetZ = -ring + 1; offsetZ < ring; offsetZ++) {
                     BlockPos west = findSpawnGround(level, pos.offset(-ring, 0, offsetZ), 0);
-                    if (canSpawnAt(level, entity, west, placementPolicy)) return west;
+                    if (canSpawnAt(level, entity, west, placementPolicy, requireClearPath)
+                            && (!requireClearPath || hasClearPath(level, pos, west, entity))) return west;
                     BlockPos east = findSpawnGround(level, pos.offset(ring, 0, offsetZ), 0);
-                    if (canSpawnAt(level, entity, east, placementPolicy)) return east;
+                    if (canSpawnAt(level, entity, east, placementPolicy, requireClearPath)
+                            && (!requireClearPath || hasClearPath(level, pos, east, entity))) return east;
                 }
             }
         } else {
@@ -191,7 +216,7 @@ public class AbnormalitySpawnHelper {
                 int offsetX = level.random.nextInt(radius * 2 + 1) - radius;
                 int offsetZ = level.random.nextInt(radius * 2 + 1) - radius;
                 BlockPos candidate = findSpawnGround(level, pos.offset(offsetX, 0, offsetZ), 0);
-                if (canSpawnAt(level, entity, candidate, placementPolicy)) return candidate;
+                if (canSpawnAt(level, entity, candidate, placementPolicy, false)) return candidate;
             }
         }
 
@@ -199,7 +224,9 @@ public class AbnormalitySpawnHelper {
         if (!isCompany(level) && placementPolicy == SpawnPlacementPolicy.FACILITY_RULES) {
             return fallback != null ? fallback : pos.above();
         }
-        return canSpawnAt(level, entity, fallback, placementPolicy) ? fallback : null;
+        return canSpawnAt(level, entity, fallback, placementPolicy, requireClearPath)
+                && (!requireClearPath || hasClearPath(level, pos, fallback, entity))
+                ? fallback : null;
     }
 
     private static BlockPos findSpawnGround(ServerLevel level, BlockPos pos, int horizontalRange) {
@@ -210,16 +237,39 @@ public class AbnormalitySpawnHelper {
     }
 
     private static boolean canSpawnAt(ServerLevel level, Entity entity, BlockPos pos,
-                                      SpawnPlacementPolicy placementPolicy) {
+                                      SpawnPlacementPolicy placementPolicy,
+                                      boolean rejectDecorativeBlocks) {
         if (pos == null) return false;
         if (placementPolicy.requiresOpenFacilityArea() && isCompany(level)
                 && !FacilityAccessService.isPositionOpen(level.getServer(),
                 level.dimension().location(), pos)) return false;
+        if (rejectDecorativeBlocks && hasDecorativeObstacle(level, pos)) return false;
         entity.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5,
                 entity.getYRot(), entity.getXRot());
         return level.noCollision(entity)
                 && level.getEntities(entity, entity.getBoundingBox(),
                 other -> other.isAlive() && !other.isRemoved() && other.isPickable()).isEmpty();
+    }
+
+    private static boolean hasDecorativeObstacle(ServerLevel level, BlockPos feet) {
+        for (BlockPos check : new BlockPos[]{feet.below(), feet, feet.above()}) {
+            var block = level.getBlockState(check).getBlock();
+            if (block instanceof AbstractGlassBlock || block instanceof IronBarsBlock
+                    || block instanceof WallBlock) return true;
+        }
+        return false;
+    }
+
+    private static boolean hasClearPath(ServerLevel level, BlockPos anchor, BlockPos candidate,
+                                        Entity entity) {
+        if (candidate == null || anchor == null || candidate.equals(anchor)) return true;
+        BlockPos originFeet = findSpawnGround(level, anchor, 0);
+        if (originFeet == null) originFeet = anchor.above();
+        Vec3 from = Vec3.atCenterOf(originFeet).add(0.0D, 0.1D, 0.0D);
+        Vec3 to = Vec3.atCenterOf(candidate).add(0.0D, 0.1D, 0.0D);
+        BlockHitResult hit = level.clip(new ClipContext(from, to,
+                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, entity));
+        return hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS;
     }
 
     // ===================== 地形(生物群系)判断 =====================

@@ -237,6 +237,12 @@ public class EntityLumberjack extends AbstractAbnormality {
     }
 
     @Override
+    protected void resetForNewDay() {
+        super.resetForNewDay();
+        resetContainmentState();
+    }
+
+    @Override
     public void die(DamageSource source) {
         if (!level().isClientSide && hasEscape() && state != STATE_DYING) {
             setHealth(1.0F);
@@ -562,7 +568,8 @@ public class EntityLumberjack extends AbstractAbnormality {
         if (target == this || !target.isAlive()) return false;
         if (target instanceof Player player) return !player.isCreative() && !player.isSpectator();
         if (target instanceof AbstractAbnormality abnormality) return abnormality.isAbnormalityCombatTarget();
-        return target instanceof EntityClerk || FacilityCombatRules.isOrdealCombatant(target);
+        return target instanceof EntityClerk || FacilityCombatRules.isOrdealCombatant(target)
+                || com.wzz.lobotocraft.entity.ai.FacilityAbnormalityTargetPolicy.isCoreSuppressionCombatant(target);
     }
 
     private int randomSpecialCooldown() {

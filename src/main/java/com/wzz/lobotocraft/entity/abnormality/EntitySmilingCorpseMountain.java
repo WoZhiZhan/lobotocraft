@@ -3,6 +3,8 @@ package com.wzz.lobotocraft.entity.abnormality;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.EntityLightFollower;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.ai.FacilityMobNavigator;
+import com.wzz.lobotocraft.entity.ai.goal.FacilityRoamGoal;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.event.listener.BlackForestEvent;
@@ -38,7 +40,6 @@ import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
-import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
@@ -107,6 +108,8 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     // 移动追击范围
     private static final double CHASE_RANGE_LOW = 16.0;   // 一/二阶段
     private static final double CHASE_RANGE_P3  = 32.0;   // 三阶段（区块级仇恨）
+    private static final double RETALIATION_RANGE = 2.5D;
+    private static final int RETALIATION_TICKS = 40;
 
     private static final int TOMBSTONE_PER_PHASE = 3;
     // 二阶段嚎叫冲击波颜色（黑紫色，0xRRGGBB，可调）
@@ -114,6 +117,8 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     private int tombstoneEaten = 0;
     private BlockPos cachedTombstone = null;
     private int lastTombstoneScan = -100;
+    private LivingEntity retaliationTarget;
+    private int retaliationTicks;
 
     private int transitionCooldown = 0;
     private int readyRunTransition = 0;
@@ -175,6 +180,13 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
     public void setPhase(int phase) {
         this.entityData.set(DATA_PHASE, phase);
+    }
+
+    private void clearRetaliation() {
+        retaliationTarget = null;
+        retaliationTicks = 0;
+        setTarget(null);
+        setLastHurtByMob(null);
     }
 
     private void applyPhaseAttributes(int phase) {
@@ -320,7 +332,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         this.goalSelector.addGoal(2, new Phase2HowlGoal(this));
         this.goalSelector.addGoal(2, new Phase3AttackGoal(this));
         // 4+: 游荡 / 注视
-        this.goalSelector.addGoal(4, new WaterAvoidingRandomStrollGoal(this, 0.8D));
+        this.goalSelector.addGoal(4, new FacilityRoamGoal(this, 0.8D));
         this.goalSelector.addGoal(5, new LookAtPlayerGoal(this, Player.class, 16.0F));
         this.goalSelector.addGoal(6, new RandomLookAroundGoal(this));
 
@@ -364,6 +376,14 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         if (e instanceof AbstractAbnormality ab) return ab.isAbnormalityCombatTarget();
         if (e instanceof Player p) return !p.isCreative() && !p.isSpectator();
         return e instanceof Villager || e instanceof EntityClerk;
+    }
+
+    private boolean hasTombstonePriority() {
+        return getPhase() < 3 && findNearestTombstone() != null;
+    }
+
+    private boolean canUseVictimCombat() {
+        return !hasTombstonePriority() || retaliationTicks > 0;
     }
 
     private java.util.function.Predicate<LivingEntity> victimPredicate() {
@@ -607,7 +627,22 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
             if (doorSpawnedAndBirdInvolved) return false;
         }
 
+        LivingEntity attacker = damageSource.getEntity() instanceof LivingEntity living ? living : null;
+        boolean closeRetaliation = attacker != null && attacker != this
+                && distanceToSqr(attacker) <= RETALIATION_RANGE * RETALIATION_RANGE;
         boolean hurt = super.hurt(damageSource, f);
+
+        if (hurt && closeRetaliation && hasEscape() && canAct()) {
+            retaliationTarget = attacker;
+            retaliationTicks = RETALIATION_TICKS;
+            setTarget(attacker);
+        } else if (!closeRetaliation) {
+            // Ranged damage must not create or replace the corpse mountain's target.
+            retaliationTarget = null;
+            retaliationTicks = 0;
+            setTarget(null);
+            setLastHurtByMob(null);
+        }
 
         // 机制5：非致命的“血量过半”降阶（致命伤在 die() 拦截）
         if (hurt && !level.isClientSide && hasEscape()
@@ -793,6 +828,14 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
             setHealth(getMaxHealth());
         }
 
+        if (retaliationTicks > 0) {
+            retaliationTicks--;
+            if (retaliationTicks == 0) {
+                clearRetaliation();
+                getNavigation().stop();
+            }
+        }
+
         if (transitionCooldown > 0) {
             transitionCooldown--;
             getNavigation().stop();
@@ -961,25 +1004,37 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     /** 统一移动：优先吞噬墓碑（阶段<3），否则追击最近有效目标；攻击期间也持续移动 */
     private static class CorpseMoveGoal extends Goal {
         private final EntitySmilingCorpseMountain e;
+        private final FacilityMobNavigator facilityNavigator;
         private BlockPos tomb;
+        private BlockPos commandedTarget;
+        private boolean commandedTombstone;
 
         CorpseMoveGoal(EntitySmilingCorpseMountain e) {
             this.e = e;
+            this.facilityNavigator = new FacilityMobNavigator(e, 1.0D);
             setFlags(EnumSet.of(Flag.MOVE));
         }
 
         private boolean wantTombstone() {
             if (e.getPhase() >= 3) return false;
-            if (e.getPhase() == 1 && e.playerWithin(2.5)) return false; // 一阶段贴身玩家优先缠斗
+            if (e.retaliationTarget != null && e.retaliationTarget.isAlive()
+                    && e.retaliationTicks > 0) return false;
             tomb = e.findNearestTombstone();
             return tomb != null;
         }
 
         private LivingEntity chaseTarget() {
+            if (e.retaliationTarget != null && e.retaliationTarget.isAlive()
+                    && e.retaliationTicks > 0) return e.retaliationTarget;
             LivingEntity t = e.getTarget();
             if (t != null && t.isAlive() && e.victimPredicate().test(t)) return t;
             double range = e.getPhase() >= 3 ? CHASE_RANGE_P3 : CHASE_RANGE_LOW;
             return e.findNearestVictim(range);
+        }
+
+        private boolean hasRetaliationTarget() {
+            return e.retaliationTarget != null && e.retaliationTarget.isAlive()
+                    && e.retaliationTicks > 0;
         }
 
         @Override
@@ -989,17 +1044,30 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
         @Override
         public boolean canContinueToUse() {
-            return canUse();
+            return e.canAct() && !facilityNavigator.isUnreachable()
+                    && (wantTombstone() || chaseTarget() != null);
+        }
+
+        @Override
+        public void start() {
+            commandedTarget = null;
+            commandedTombstone = false;
         }
 
         @Override
         public void tick() {
             if (e.getAnimation().startsWith("attack")) {
+                facilityNavigator.stop();
                 e.getNavigation().stop();
                 return;
             }
+            if (hasRetaliationTarget()) {
+                e.setTarget(e.retaliationTarget);
+            }
             if (wantTombstone() && tomb != null) {
-                e.getNavigation().moveTo(tomb.getX() + 0.5, tomb.getY(), tomb.getZ() + 0.5, 1.0);
+                e.setTarget(null);
+                e.setLastHurtByMob(null);
+                navigateTo(tomb, true);
                 e.getLookControl().setLookAt(tomb.getX() + 0.5, tomb.getY(), tomb.getZ() + 0.5);
                 // 用水平距离判定，放宽到 2.6，兼容贴墙无法寻路到位的墓碑
                 double dx = (tomb.getX() + 0.5) - e.getX();
@@ -1007,21 +1075,46 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
                 double dy = Math.abs((tomb.getY() + 0.5) - e.getY());
                 if (dx * dx + dz * dz <= 2.6 * 2.6 && dy <= 3.0) {
                     e.consumeTombstone(tomb);
+                    facilityNavigator.stop();
+                    commandedTarget = null;
                     tomb = null;
                 }
                 return;
             }
             LivingEntity t = chaseTarget();
             if (t != null) {
-                e.getNavigation().moveTo(t, 1.0);
+                navigateTo(t.blockPosition(), false);
                 e.getLookControl().setLookAt(t, 30, 30);
+            }
+        }
+
+        private void navigateTo(BlockPos target, boolean tombstone) {
+            if (target == null) return;
+            BlockPos immutable = target.immutable();
+            if (!immutable.equals(commandedTarget) || tombstone != commandedTombstone) {
+                commandedTarget = immutable;
+                commandedTombstone = tombstone;
+                if (e.level().dimension() == ModDimensions.LOBOTO_KEY) {
+                    facilityNavigator.moveTo(immutable);
+                } else {
+                    e.getNavigation().moveTo(immutable.getX() + 0.5D, immutable.getY(),
+                            immutable.getZ() + 0.5D, 1.0D);
+                }
+            }
+            if (e.level().dimension() == ModDimensions.LOBOTO_KEY) {
+                facilityNavigator.tick();
             }
         }
 
         @Override
         public void stop() {
+            facilityNavigator.stop();
             e.getNavigation().stop();
             tomb = null;
+            commandedTarget = null;
+            commandedTombstone = false;
+            e.retaliationTarget = null;
+            e.retaliationTicks = 0;
         }
     }
 
@@ -1041,6 +1134,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         @Override
         public boolean canUse() {
             return e.canAct() && e.getPhase() == 1 && e.tickCount >= cd
+                    && e.canUseVictimCombat()
                     && e.findNearestVictim(P1_FWD + 0.5) != null;
         }
 
@@ -1055,6 +1149,10 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
             active = true;
             t = 0;
             primary = e.findNearestVictim(P1_FWD + 1);
+            if (e.retaliationTarget != null && e.retaliationTarget.isAlive()
+                    && e.retaliationTicks > 0) {
+                primary = e.retaliationTarget;
+            }
             e.faceTarget(primary);
             e.setAnimation("attack1");
         }
@@ -1084,6 +1182,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
                 active = false;
                 cd = e.tickCount + P1_CD;
                 e.setAnimation(e.phaseIdle());
+                e.clearRetaliation();
             }
         }
 
@@ -1109,7 +1208,8 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
         @Override
         public boolean canUse() {
-            return e.canAct() && e.getPhase() == 2 && e.tickCount >= cd && e.hasHowlTarget(P2_TRIGGER);
+            return e.canAct() && e.getPhase() == 2 && e.tickCount >= cd
+                    && e.canUseVictimCombat() && e.hasHowlTarget(P2_TRIGGER);
         }
 
         @Override
@@ -1122,7 +1222,9 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         public void start() {
             active = true;
             t = 0;
-            e.faceTarget(e.findNearestVictim(P2_TRIGGER));
+            LivingEntity target = e.retaliationTarget != null && e.retaliationTarget.isAlive()
+                    && e.retaliationTicks > 0 ? e.retaliationTarget : e.findNearestVictim(P2_TRIGGER);
+            e.faceTarget(target);
             e.setAnimation("attack2");
         }
 
@@ -1141,6 +1243,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
                 active = false;
                 cd = e.tickCount + P2_CD;
                 e.setAnimation(e.phaseIdle());
+                e.clearRetaliation();
             }
         }
 
@@ -1171,6 +1274,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         @Override
         public boolean canUse() {
             return e.canAct() && e.getPhase() == 3 && e.tickCount >= cd
+                    && e.canUseVictimCombat()
                     && e.findNearestVictim(P3_FWD + 0.5) != null;
         }
 
@@ -1187,7 +1291,9 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
             active = true;
             t = 0;
             sweepHit.clear();
-            e.faceTarget(e.findNearestVictim(P3S_LEN));
+            LivingEntity target = e.retaliationTarget != null && e.retaliationTarget.isAlive()
+                    && e.retaliationTicks > 0 ? e.retaliationTarget : e.findNearestVictim(P3S_LEN);
+            e.faceTarget(target);
             special = e.random.nextFloat() < 0.30f;
             if (special) {
                 totalTick = P3S_TOTAL;
@@ -1239,6 +1345,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
                 active = false;
                 cd = e.tickCount + P3_CD;
                 e.setAnimation(e.phaseIdle());
+                e.clearRetaliation();
             }
         }
 

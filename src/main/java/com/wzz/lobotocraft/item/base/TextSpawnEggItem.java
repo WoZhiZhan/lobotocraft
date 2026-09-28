@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.item.base;
 
 import com.wzz.lobotocraft.entity.abnormality.EntityLadyFacingTheWall;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.block.EscapeBlock;
 import com.wzz.lobotocraft.util.AbnormalitySpawnHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -70,12 +71,18 @@ public class TextSpawnEggItem extends ForgeSpawnEggItem {
             return InteractionResult.SUCCESS;
         }
 
-        BlockPos spawnSearchPos = clickedState.getCollisionShape(level, clickedPos).isEmpty()
-                ? clickedPos
-                : clickedPos.relative(context.getClickedFace()).below();
-        AbstractAbnormality spawned = AbnormalitySpawnHelper.spawnPersistent(
-                (ServerLevel) level, (EntityType) type, spawnSearchPos, MobSpawnType.SPAWN_EGG,
-                AbnormalitySpawnHelper.SpawnPlacementPolicy.DEBUG_BYPASS);
+        AbstractAbnormality spawned;
+        if (clickedState.getBlock() instanceof EscapeBlock) {
+            spawned = AbnormalitySpawnHelper.spawnPersistentFromAnchor(
+                    (ServerLevel) level, (EntityType) type, clickedPos, MobSpawnType.SPAWN_EGG);
+        } else {
+            BlockPos spawnSearchPos = clickedState.getCollisionShape(level, clickedPos).isEmpty()
+                    ? clickedPos
+                    : clickedPos.relative(context.getClickedFace()).below();
+            spawned = AbnormalitySpawnHelper.spawnPersistent(
+                    (ServerLevel) level, (EntityType) type, spawnSearchPos, MobSpawnType.SPAWN_EGG,
+                    AbnormalitySpawnHelper.SpawnPlacementPolicy.DEBUG_BYPASS);
+        }
         if (spawned == null) {
             return InteractionResult.FAIL;
         }

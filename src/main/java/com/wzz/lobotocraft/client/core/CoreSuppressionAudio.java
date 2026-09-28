@@ -11,6 +11,7 @@ import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
@@ -22,6 +23,7 @@ import net.minecraftforge.fml.common.Mod;
 public final class CoreSuppressionAudio {
     private static CoreMusicInstance currentMusic;
     private static ResourceLocation currentTrack;
+    private static ChesedRainInstance currentRain;
 
     private CoreSuppressionAudio() {
     }
@@ -30,6 +32,7 @@ public final class CoreSuppressionAudio {
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         Minecraft minecraft = Minecraft.getInstance();
+        tickChesedRain(minecraft);
         if (CoreSuppressionClientState.isActive()
                 && CoreSuppressionClientState.getType() == CoreSuppressionType.GEBURAH) {
             prepareExclusiveMusic(minecraft);
@@ -50,6 +53,28 @@ public final class CoreSuppressionAudio {
         float volume = "escape_alert_bgm_1".equals(desired.getPath()) ? 0.8F * 0.31622776F : 0.8F;
         currentMusic = new CoreMusicInstance(SoundEvent.createVariableRangeEvent(desired), volume, true);
         minecraft.getSoundManager().play(currentMusic);
+    }
+
+    private static void tickChesedRain(Minecraft minecraft) {
+        boolean shouldPlay = ChesedRainSoundPolicy.shouldPlay(
+                CoreSuppressionClientState.isActive(), CoreSuppressionClientState.getType());
+        if (!shouldPlay || minecraft.level == null) {
+            stopChesedRain(minecraft);
+            return;
+        }
+        if (currentRain != null && !currentRain.isStopped()
+                && minecraft.getSoundManager().isActive(currentRain)) return;
+        stopChesedRain(minecraft);
+        currentRain = new ChesedRainInstance();
+        minecraft.getSoundManager().play(currentRain);
+    }
+
+    private static void stopChesedRain(Minecraft minecraft) {
+        if (currentRain != null) {
+            currentRain.forceStop();
+            minecraft.getSoundManager().stop(currentRain);
+            currentRain = null;
+        }
     }
 
     private static void tickGeburahMusic(Minecraft minecraft, int visualStage) {
@@ -116,6 +141,31 @@ public final class CoreSuppressionAudio {
             relative = true;
             attenuation = Attenuation.NONE;
             this.volume = volume;
+        }
+
+        @Override
+        public void tick() {
+        }
+
+        @Override
+        public boolean canStartSilent() {
+            return true;
+        }
+
+        private void forceStop() {
+            super.stop();
+        }
+    }
+
+    private static final class ChesedRainInstance extends AbstractTickableSoundInstance {
+        private ChesedRainInstance() {
+            super(SoundEvents.WEATHER_RAIN, SoundSource.WEATHER,
+                    SoundInstance.createUnseededRandom());
+            looping = true;
+            relative = true;
+            attenuation = Attenuation.NONE;
+            volume = 0.38F;
+            pitch = 0.92F;
         }
 
         @Override

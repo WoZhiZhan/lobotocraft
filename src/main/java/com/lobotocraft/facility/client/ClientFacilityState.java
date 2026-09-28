@@ -1,6 +1,8 @@
 package com.lobotocraft.facility.client;
 
 import com.lobotocraft.facility.network.FacilityStatePacket;
+import com.wzz.lobotocraft.world.data.RoomEntry;
+import java.util.Map;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -30,6 +32,17 @@ public final class ClientFacilityState {
         return state;
     }
 
+    /** A missing target is inactive; never revive a meltdown from a stale room scan. */
+    public static int roomMeltdownTicks(RoomEntry room) {
+        if (room.boundAbnormality == null || (room.status != RoomEntry.STATUS_OCCUPIED
+                && room.status != RoomEntry.STATUS_ESCAPED)) return -1;
+        return state.meltdownRemainingTicks().getOrDefault(room.boundAbnormality, -1);
+    }
+
+    public static int meltdownSeconds(int remainingTicks) {
+        return Math.max(0, remainingTicks) / 20;
+    }
+
     public static int getWarningTicks() {
         return warningTicks;
     }
@@ -52,6 +65,6 @@ public final class ClientFacilityState {
 
     private static FacilityStatePacket emptyState() {
         return new FacilityStatePacket(1, 0, 15, 1, 0, 4, 0, 0, 0, 0, 0L, 0L, 0, 0,
-                false, false, 0, 0, 0, 0, 0, 0);
+                false, false, 0, 0, 0, 0, 0, 0, false, 0, Map.of());
     }
 }

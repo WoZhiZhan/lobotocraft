@@ -17,6 +17,15 @@ class MeltdownPolicyTest {
     }
 
     @Test
+    void normalMeltdownsStartOnDaySix() {
+        assertFalse(MeltdownPolicy.normalMeltdownEnabled(1));
+        assertFalse(MeltdownPolicy.normalMeltdownEnabled(5));
+        assertTrue(MeltdownPolicy.normalMeltdownEnabled(6));
+        assertEquals(4, MeltdownPolicy.normalMeltdownCapacity(2));
+        assertEquals(2, MeltdownPolicy.normalMeltdownCapacity(0));
+    }
+
+    @Test
     void suppressionStartsMeltdownOnlyWhenStageIsNotAnOrdeal() {
         assertTrue(MeltdownPolicy.canActivate(true, false));
         assertEquals(2, MeltdownPolicy.stageNotificationType(true, false));
@@ -28,6 +37,25 @@ class MeltdownPolicyTest {
     void interruptedWorkCannotResolveOrAdvanceFacilityProgress() {
         assertTrue(MeltdownPolicy.countsForFacilityProgress(false));
         assertFalse(MeltdownPolicy.countsForFacilityProgress(true));
+    }
+
+    @Test
+    void workOnAnActiveMeltdownDoesNotAdvanceTheFacilityGauge() {
+        assertTrue(MeltdownPolicy.advancesGaugeForWork(false));
+        assertFalse(MeltdownPolicy.advancesGaugeForWork(true));
+    }
+
+    @Test
+    void aNewBatchIsAnnouncedEvenWhileEarlierMeltdownsRemainActive() {
+        assertTrue(MeltdownPolicy.shouldAnnounceActivation(3, 1));
+        assertFalse(MeltdownPolicy.shouldAnnounceActivation(3, 0));
+    }
+
+    @Test
+    void workCapacityRatherThanToolIdentityControlsOrdinaryEligibility() {
+        assertTrue(MeltdownPolicy.hasNormalWorkCapacity(20, false));
+        assertFalse(MeltdownPolicy.hasNormalWorkCapacity(0, false));
+        assertFalse(MeltdownPolicy.hasNormalWorkCapacity(20, true));
     }
 
     @Test
@@ -102,9 +130,10 @@ class MeltdownPolicyTest {
         MeltdownDefinition birdEgg = MeltdownLifecycle.definition(
             MeltdownCause.APOCALYPSE_BIRD_EGG);
 
-        assertEquals(4, overload.requestedTargetCount(11, 3, 99));
-        assertEquals(4, birdEgg.requestedTargetCount(11, 3, 4));
-        assertTrue(overload.excludeWorkingTargets());
+        assertEquals(4, overload.requestedTargetCount(11, 8, 3, 99));
+        assertEquals(2, overload.requestedTargetCount(11, 2, 3, 99));
+        assertEquals(4, birdEgg.requestedTargetCount(11, 8, 3, 4));
+        assertFalse(overload.excludeWorkingTargets());
         assertFalse(birdEgg.excludeWorkingTargets());
     }
 }

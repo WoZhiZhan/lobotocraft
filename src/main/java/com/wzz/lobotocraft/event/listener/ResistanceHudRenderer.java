@@ -2,13 +2,13 @@ package com.wzz.lobotocraft.event.listener;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.wzz.lobotocraft.ModMain;
+import com.wzz.lobotocraft.client.ui.DamageTypeVisual;
+import com.wzz.lobotocraft.client.ui.LobotomyUiRenderer;
 import com.wzz.lobotocraft.init.ModAttributes;
-import com.wzz.lobotocraft.util.ResourceUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -16,12 +16,6 @@ import net.minecraftforge.fml.common.Mod;
 
 @Mod.EventBusSubscriber(modid = ModMain.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public class ResistanceHudRenderer {
-
-    // 抗性图标材质
-    private static final ResourceLocation RED_ICON = ResourceUtil.createInstance(ModMain.MODID, "textures/particle/red.png");
-    private static final ResourceLocation WHITE_ICON = ResourceUtil.createInstance(ModMain.MODID, "textures/particle/white.png");
-    private static final ResourceLocation BLACK_ICON = ResourceUtil.createInstance(ModMain.MODID, "textures/particle/black.png");
-    private static final ResourceLocation BLUE_ICON = ResourceUtil.createInstance(ModMain.MODID, "textures/particle/blue.png");
 
     @SubscribeEvent
     public static void onScreenRender(ScreenEvent.Render.Post event) {
@@ -56,16 +50,17 @@ public class ResistanceHudRenderer {
         int startY = guiTop - 30; // GUI上方30像素
 
         // 渲染四个抗性图标和数值
-        renderResistance(guiGraphics, RED_ICON, redRes, startX, startY);
-        renderResistance(guiGraphics, WHITE_ICON, whiteRes, startX + 20, startY);
-        renderResistance(guiGraphics, BLACK_ICON, blackRes, startX + 40, startY);
-        renderResistance(guiGraphics, BLUE_ICON, blueRes, startX + 60, startY);
+        renderResistance(guiGraphics, DamageTypeVisual.RED, redRes, startX, startY);
+        renderResistance(guiGraphics, DamageTypeVisual.WHITE, whiteRes, startX + 20, startY);
+        renderResistance(guiGraphics, DamageTypeVisual.BLACK, blackRes, startX + 40, startY);
+        renderResistance(guiGraphics, DamageTypeVisual.PALE, blueRes, startX + 60, startY);
     }
 
-    private static void renderResistance(GuiGraphics guiGraphics, ResourceLocation icon, double resistance, int x, int y) {
+    private static void renderResistance(GuiGraphics guiGraphics, DamageTypeVisual visual, double resistance, int x, int y) {
         // 渲染图标
         RenderSystem.enableBlend();
-        guiGraphics.blit(icon, x, y, 0, 0, 16, 16, 16, 16);
+        LobotomyUiRenderer.blitScaled(guiGraphics, visual.icon(), x, y, 16, 16,
+                visual.textureWidth(), visual.textureHeight());
         RenderSystem.disableBlend();
         // 渲染数值
         String resText = String.format("%.1f", resistance);

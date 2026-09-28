@@ -143,6 +143,17 @@ public class AbnormalityWorkScreen extends Screen {
 
     private void renderWorkIcon(GuiGraphics graphics, int x, int y, int workIndex,
                                 ResourceLocation icon, Component name) {
+        var action = uniqueAction(workIndex);
+        if (action != null) {
+            com.wzz.lobotocraft.client.ui.LobotomyUiRenderer.drawButton(graphics, font,
+                    x, y, 40, 40, Component.literal(action.symbol),
+                    selectedWork == workIndex
+                            ? com.wzz.lobotocraft.client.ui.LobotomyUiRenderer.ButtonState.SELECTED
+                            : com.wzz.lobotocraft.client.ui.LobotomyUiRenderer.ButtonState.DANGER);
+            graphics.drawCenteredString(font, Component.translatable(action.labelKey),
+                    x + 20, y + 45, com.wzz.lobotocraft.client.ui.LobotomyUiTheme.ALERT_RED);
+            return;
+        }
         boolean isSelected = (workIndex == selectedWork);
         boolean malkuthScramble = CoreSuppressionClientState.isActive(CoreSuppressionType.MALKUTH);
 
@@ -241,6 +252,21 @@ public class AbnormalityWorkScreen extends Screen {
                 new StartWorkPacket(abnormalityId, workType)
         );
         this.minecraft.setScreen(null);
+    }
+
+    private com.wzz.lobotocraft.work.AbnormalityCommandPolicy.Action uniqueAction(int slot) {
+        return minecraft.level != null && minecraft.level.getEntity(abnormalityId)
+                instanceof com.wzz.lobotocraft.entity.base.AbstractAbnormality source
+                ? com.wzz.lobotocraft.work.AbnormalityCommandPolicy.action(source.getAbnormalityCode(), slot)
+                : null;
+    }
+
+    public void refreshSharedKnowledge(com.wzz.lobotocraft.capability.PlayerAbnormalityData knowledge) {
+        if (minecraft.level == null || !(minecraft.level.getEntity(abnormalityId)
+                instanceof com.wzz.lobotocraft.entity.base.AbstractAbnormality source)) return;
+        for (int i = 0; i < workPrefsUnlocked.length; i++) {
+            workPrefsUnlocked[i] = knowledge.isManualUnlocked(source.getAbnormalityCode(), 100 + i);
+        }
     }
 
     @Override

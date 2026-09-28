@@ -17,6 +17,7 @@ import com.wzz.lobotocraft.item.ego.army_in_black.*;
 import com.wzz.lobotocraft.item.ego.bigbadwolf.*;
 import com.wzz.lobotocraft.item.ego.butterfly_funeral.*;
 import com.wzz.lobotocraft.item.ego.children_galaxy.*;
+import com.wzz.lobotocraft.item.ego.cleaner.CleanerCurio;
 import com.wzz.lobotocraft.item.ego.crumbling_armor.*;
 import com.wzz.lobotocraft.item.ego.end_bird.*;
 import com.wzz.lobotocraft.item.ego.fourth_match_flame.*;
@@ -120,6 +121,12 @@ public class ModItems {
     public static final RegistryObject<Item> RED_SHOES_SPAWN_EGG = REGISTRY.register("red_shoes_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.red_shoes, 0x8B0000, 0xFFFFFF, new Item.Properties(),
                     "§c女孩泪流满面地哀求着：“先生，求您把我的脚砍下来吧！”"));
+
+    public static final RegistryObject<Item> SINGING_MACHINE_SPAWN_EGG =
+            REGISTRY.register("singing_machine_spawn_egg",
+                    () -> new TextSpawnEggItem(ModEntities.singing_machine,
+                            0x555555, 0x8B0000, new Item.Properties(),
+                            "§c由一个活人制造出的旋律是最美妙的！"));
 
     public static final RegistryObject<Item> SNOWQUEEN_SPAWN_EGG = REGISTRY.register("snowqueen_spawn_egg",
             () -> new TextSpawnEggItem(ModEntities.snowqueen, ExtendedColor.NEON_CYAN.getRGB(), ExtendedColor.LAVENDER_BLUSH.getRGB(), new Item.Properties(),
@@ -403,6 +410,8 @@ public class ModItems {
             MustOpenPathWeapon::new);
     public static final RegistryObject<Item> MUST_OPEN_PATH_CURIO = REGISTRY.register("must_open_path_curio",
             MustOpenPathCurio::new);
+    public static final RegistryObject<Item> CLEANER_CURIO = REGISTRY.register("cleaner_curio",
+            CleanerCurio::new);
     public static final RegistryObject<Item> ROOM_MARKER = REGISTRY.register("room_marker", () -> new BlockItem(ModBlocks.ROOM_MARKER.get(), new Item.Properties()));
     public static final RegistryObject<Item> FLOOR_MARKER = REGISTRY.register("floor_marker",
             () -> new BlockItem(ModBlocks.FLOOR_MARKER.get(), new Item.Properties()));

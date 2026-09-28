@@ -145,18 +145,25 @@ public final class FacilityAreaMoveService {
                                      BlockPos candidate) {
         Double y = standingY(level, employee, candidate);
         if (y == null) return false;
-        BlockPos minimum = candidate.offset(-2, -2, -2);
-        BlockPos maximum = candidate.offset(2, 3, 2);
-        NavigationSnapshot snapshot = FacilityNavigationCache.snapshot(level, minimum, maximum);
-        if (snapshot == null) {
-            snapshot = NavigationSnapshot.capture(level, minimum, maximum, 150);
+        // Company-wide bounds cost nothing upfront on the shared cache (cells
+        // resolve lazily) and let the region probe distinguish a corridor-
+        // connected surface from a sealed island by exhaustion instead of by
+        // snapshot clipping.
+        NavigationSnapshot snapshot = FacilityNavigationCache.snapshot(level,
+                FacilityNavigationCache.COMPANY_MIN, FacilityNavigationCache.COMPANY_MAX);
+        boolean facilityWide = snapshot != null;
+        if (!facilityWide) {
+            snapshot = NavigationSnapshot.capture(level,
+                    candidate.offset(-2, -2, -2), candidate.offset(2, 3, 2), 150);
         }
         NodeEvaluator evaluator = new NodeEvaluator(snapshot,
                 employee.getBbWidth(), employee.getBbHeight());
         NavigationNode node = new NavigationNode(candidate, y);
         if (!evaluator.evaluate(node, false).traversable()) return false;
         TransitionGenerator transitions = new TransitionGenerator(evaluator, 1, 1, false);
-        return NavigationCandidatePolicy.hasLocalMobility(node, transitions::generate);
+        return facilityWide
+                ? NavigationCandidatePolicy.isFacilityConnectedRegion(node, transitions::generate)
+                : NavigationCandidatePolicy.hasLocalMobility(node, transitions::generate);
     }
 
     private static Double standingY(ServerLevel level, EmployeeServerPlayer employee,
