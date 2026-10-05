@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.client.core.GeburahBladeTrailRenderer;
 import com.wzz.lobotocraft.client.core.GeburahBladeTrailState;
 import com.wzz.lobotocraft.client.core.GeburahEgoHitEffects;
+import com.wzz.lobotocraft.client.core.GeburahSpecialEffects;
 import com.wzz.lobotocraft.client.config.ClientVisualConfig;
 import com.wzz.lobotocraft.client.damage_border.DamageBorderHud;
 import net.minecraft.commands.Commands;
@@ -42,6 +43,11 @@ public final class LobotocraftClientCommand {
                         .executes(context -> reportEgoTrial(context.getSource()))
                         .then(Commands.argument("enabled", BoolArgumentType.bool())
                                 .executes(context -> setEgoTrial(context.getSource(),
+                                        BoolArgumentType.getBool(context, "enabled")))))
+                .then(Commands.literal("geburah_special_visuals")
+                        .executes(context -> reportSpecialVisuals(context.getSource()))
+                        .then(Commands.argument("enabled", BoolArgumentType.bool())
+                                .executes(context -> setSpecialVisuals(context.getSource(),
                                         BoolArgumentType.getBool(context, "enabled"))))));
     }
 
@@ -65,6 +71,18 @@ public final class LobotocraftClientCommand {
         source.sendSuccess(() -> Component.literal("Geburah trail markers: "
                 + GeburahBladeTrailRenderer.debugMarkers()), false);
         return 1;
+    }
+
+    private static int reportSpecialVisuals(net.minecraft.commands.CommandSourceStack source) {
+        source.sendSuccess(() -> Component.literal("Geburah special visuals: "
+                + ClientVisualConfig.GEBURAH_SPECIAL_VISUALS.get() + " (false = legacy particles)"), false);
+        return 1;
+    }
+    private static int setSpecialVisuals(net.minecraft.commands.CommandSourceStack source, boolean enabled) {
+        ClientVisualConfig.GEBURAH_SPECIAL_VISUALS.set(enabled);
+        ClientVisualConfig.SPEC.save();
+        GeburahSpecialEffects.clearAccents();
+        return reportSpecialVisuals(source);
     }
 
     private static int reportEgoTrial(net.minecraft.commands.CommandSourceStack source) {

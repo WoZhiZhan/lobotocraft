@@ -14,7 +14,7 @@ final class GeburahMajorAttackAudioPolicyTest {
     void onlyFinisherCueStartsTheMainBloodMistSound() {
         GeburahMajorMove move = GeburahMajorMove.BLOOD_MIST;
 
-        assertEquals(GeburahMajorAttackAudioPolicy.HitSound.WINDUP,
+        assertEquals(GeburahMajorAttackAudioPolicy.HitSound.SOFT_HIT,
                 GeburahMajorAttackAudioPolicy.forCue(move, move.cues().get(1), 39, 8));
         assertEquals(GeburahMajorAttackAudioPolicy.HitSound.NONE,
                 GeburahMajorAttackAudioPolicy.forCue(move, move.cues().get(2), 45, 39));
@@ -23,10 +23,10 @@ final class GeburahMajorAttackAudioPolicyTest {
     }
 
     @Test
-    void windupSoundCanReplayForSeparatedChipGroupsButNotAdjacentCues() {
+    void separatedChipGroupsGetSoftHitsRatherThanReplayedWindup() {
         GeburahMajorMove move = GeburahMajorMove.EGO_BLOOD_MIST;
 
-        assertEquals(GeburahMajorAttackAudioPolicy.HitSound.WINDUP,
+        assertEquals(GeburahMajorAttackAudioPolicy.HitSound.SOFT_HIT,
                 GeburahMajorAttackAudioPolicy.forCue(move, move.cues().get(1), 39, 0));
         assertEquals(GeburahMajorAttackAudioPolicy.HitSound.NONE,
                 GeburahMajorAttackAudioPolicy.forCue(move, move.cues().get(3), 75, 62));

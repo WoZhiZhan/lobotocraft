@@ -226,7 +226,8 @@ public final class PacketRegistry {
             com.wzz.lobotocraft.network.packet.UniqueCommandTargetsPacket.class,
             com.wzz.lobotocraft.network.packet.CommitUniqueCommandPacket.class,
             com.wzz.lobotocraft.network.packet.GeburahGroundImpactPacket.class,
-            com.wzz.lobotocraft.network.packet.GeburahEgoContactPacket.class);
+            com.wzz.lobotocraft.network.packet.GeburahEgoContactPacket.class,
+            com.wzz.lobotocraft.network.packet.GeburahSpecialVisualPacket.class);
 
     /** Class -> id 的缓存，用 IdentityHashMap（Class 用引用相等即可，避免 equals/hashCode 开销）。 */
     private static final Map<Class<?>, Integer> ID_BY_CLASS = new IdentityHashMap<>();

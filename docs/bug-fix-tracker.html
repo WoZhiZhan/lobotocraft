@@ -310,6 +310,13 @@
     }));
     const supplemental = [
       {
+        id: "Todo / 红姐三特殊技能表现 #1", bucket: "视觉增强",
+        category: "enhancement", triageState: "ready-for-human",
+        section: "红姐陷阵之志／血舞弥漫／尸横遍野", number: 1,
+        report: "2026-10-05 用户批准三招表现增强并要求建立Git基线。陷阵之志突出换位，血舞突出连续撕裂与轻重节奏，尸横遍野突出蓄力预警和宽斩面；不改伤害、范围、节点、冷却、位移、锁控、骨骼动画及现有震屏，保留关闭入口。",
+        after: "2026-10-05 已实现事件驱动的客户端世界特效：实际武器刀光、换位窄轨迹/起点残影、连续轻重斩痕、12×15潜在几何范围预警及宽弧斩面/短余痕。取消/结束/死亡清预警，换世界清状态；每8tick低频快照，旧风格也由客户端重放，移除逐tick服务器粒子广播。/lobotocraft_client geburah_special_visuals false切旧粒子风格，不影响横斩/突刺或砸地；声音连段改短击不再重播蓄力，协议43→44双方更新。基线9af78f5。JUnit689/689、真实入口4/4通过，客户端画面/声音/帧耗未实机验收；独立review待完成，未打新JAR。"
+      },
+      {
         id: "Todo / 红姐E.G.O横斩突刺试验 #1", bucket: "视觉试验",
         category: "enhancement", triageState: "ready-for-human",
         section: "红姐E.G.O横斩／突刺试验增强", number: 1,
@@ -377,6 +384,19 @@
       ...defaultProgress, implementation: "未改",
       note: "仅登记Todo，未授权实施。需求与备选方案按用户截图保留。",
       evidence: todoSource
+    };
+    const previousSpecialTodoProgress = Object.fromEntries([4,5].map(n => {
+      const id = `Todo / 水滴反馈 #${n}`;
+      return [id, JSON.parse(JSON.stringify(supplementalProgress[id]))];
+    }));
+    const specialSkillEvidence = "docs/bug-evidence/20261005-geburah-special-visual-spec.md\n"
+      + "docs/bug-evidence/20261005-geburah-special-visual-implementation.md\n"
+      + "D:\\GongzuotaiD\\CodexDesk\\2026-09-12\\d-mcmodfolder-lobotocraft-integration-9d26841-docx\\work\\build-special-visuals-20261005-c.log\n"
+      + "D:\\GongzuotaiD\\CodexDesk\\2026-09-12\\d-mcmodfolder-lobotocraft-integration-9d26841-docx\\work\\run-special-visuals-20261005-b\\gametest.log";
+    supplementalProgress["Todo / 红姐三特殊技能表现 #1"] = {
+      ...defaultProgress, implementation: "已改", verification: "自动测试通过",
+      note: "基线9af78f5、本地未推送；新客户端技能世界表现待实机验收，不以自动回归冒称美术满意。旧粒子重放属于表现回退，非网络/音效回退。",
+      evidence: specialSkillEvidence
     };
     supplementalProgress["Todo / 红姐E.G.O横斩突刺试验 #1"] = {
       ...defaultProgress, implementation: "已改", verification: "自动测试通过",
@@ -1213,8 +1233,26 @@
         evidence: supplementalProgress["Todo / 红姐E.G.O横斩突刺试验 #1"].evidence
       }
     };
+    const specialSkillFixes = {
+      ["Todo / 水滴反馈 #4"]: {
+        state: ["已改", "自动测试通过"],
+        after: "2026-10-05 随三特殊技能增强实施：尸横遍野蓄力阶段显示低亮红色12×15前方区域轮廓，第46tick出手后结束预警。伤害与显示共用GeburahMajorMove.area尺寸，不画全周圆形；只表达潜在几何范围，不承诺穿墙命中。取消/结束/死亡与换世界清理，受总特效OFF及独立特殊技能开关控制。范围/节点自动测试及真实技能回归通过；客户端地面显示待实机验收。",
+        note: "本轮用户批准方案包含范围提示，非擅自实施其他Todo。已改代码/自动通过不代表实机通过。",
+        evidence: specialSkillEvidence
+      },
+      ["Todo / 水滴反馈 #5"]: {
+        state: ["修复中", "自动测试通过"],
+        after: "2026-10-05 部分实施：尸横遍野增加实际刀刃拖尾、宽弧斩面、短暗红余痕与少量扬尘，并减少服务端逐tick粒子广播；几何、状态和技能入口回归通过。原条目的延长消散／延迟残影备选未全部采用，命中后时间尺度方案未授权、未实施；实际观感/性能仍待验收，不将整条标作已完成。",
+        note: "只登记本轮已做的特效优化部分；未做慢动作、动态模糊、额外震屏等备选。",
+        evidence: specialSkillEvidence
+      }
+    };
+    for (const [id, fix] of Object.entries(specialSkillFixes)) supplementalProgress[id] = {
+      ...defaultProgress, implementation: fix.state[0], verification: fix.state[1],
+      note: fix.note, evidence: fix.evidence
+    };
     const feedbackFixes = { ...censoredFixes, ...workCloseFixes, ...combatRuleUpdates,
-      ...personnelRangeFixes, ...armyRootFixes, ...redShoesFixes, ...galaxyWolfFixes, ...wolfHoodTeddyFixes, ...workArchiveFixes, ...singingGlowFixes, ...areaMoveFixes, ...skadiReviewUpdates, ...birdScorchedDiagnosisUpdates, ...placementRootFixes, ...overtimeEquipmentFixes, ...combatRootFixes, ...workGradeFixes, ...meltdownTodoFixes, ...groundImpactTodoFixes, ...groundWeightFixes, ...egoTrialVisualFixes };
+      ...personnelRangeFixes, ...armyRootFixes, ...redShoesFixes, ...galaxyWolfFixes, ...wolfHoodTeddyFixes, ...workArchiveFixes, ...singingGlowFixes, ...areaMoveFixes, ...skadiReviewUpdates, ...birdScorchedDiagnosisUpdates, ...placementRootFixes, ...overtimeEquipmentFixes, ...combatRootFixes, ...workGradeFixes, ...meltdownTodoFixes, ...groundImpactTodoFixes, ...groundWeightFixes, ...egoTrialVisualFixes, ...specialSkillFixes };
     const bundled = [...originalFeedback, ...supplemental].map(issue => ({
       ...issue,
       report: feedbackFixes[issue.id]?.report
@@ -1381,6 +1419,11 @@
         && previous.implementation === oldGroundWeight.implementation
         && previous.verification === oldGroundWeight.verification
         && previous.note === oldGroundWeight.note && previous.evidence === oldGroundWeight.evidence;
+      const oldSpecialTodo = previousSpecialTodoProgress[issue.id];
+      const staleSpecialTodo = oldSpecialTodo && !previous.owner && !previous.updatedAt
+        && previous.implementation === oldSpecialTodo.implementation
+        && previous.verification === oldSpecialTodo.verification
+        && previous.note === oldSpecialTodo.note && previous.evidence === oldSpecialTodo.evidence;
       const oldOvertime = previousOvertimeProgress[issue.id];
       const oldRoot = previousCombatRootDefaults[issue.id]?.progress;
       const staleRoot = combatRootFixes[issue.id] && oldRoot && !previous.owner && !previous.updatedAt
@@ -1408,7 +1451,7 @@
       return { ...initialProgress(issue), ...(untouched || staleBlueStar || staleCensoredSix
         || staleCombatDefault || staleArmyPending || staleAreaMoveReport || staleArmySix || staleWolfHoodDefault
         || stalePlacement || staleOvertime || staleOvertimeEvidence || staleRoot || staleVerifiedRoot
-        || staleMeltdownTodo || staleGroundImpactTodo || staleGroundWeight ? {} : previous) };
+        || staleMeltdownTodo || staleGroundImpactTodo || staleGroundWeight || staleSpecialTodo ? {} : previous) };
     }
     function getProgress(issue) { return { ...initialProgress(issue), ...(progress[issue.id] || {}) }; }
     function isTodo(issue) {

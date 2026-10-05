@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.init.ModParticleTypes;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.particles.SimpleParticleType;
+import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
@@ -19,7 +20,20 @@ public final class GeburahMajorAttackEffects {
     private GeburahMajorAttackEffects() {
     }
 
+    @FunctionalInterface
+    public interface ParticleSink {
+        void sendParticles(ParticleOptions type, double x, double y, double z, int count,
+                           double dx, double dy, double dz, double speed);
+    }
+
     public static void spawnFrame(ServerLevel level, GeburahMajorMove move, int tick,
+                                  Vec3 origin, Vec3 target, Vec3 forward) {
+        spawnFrame((type, x, y, z, count, dx, dy, dz, speed) ->
+                level.sendParticles(type, x, y, z, count, dx, dy, dz, speed),
+                move, tick, origin, target, forward);
+    }
+
+    public static void spawnFrame(ParticleSink level, GeburahMajorMove move, int tick,
                                   Vec3 origin, Vec3 target, Vec3 forward) {
         if (move.bloodMist()) {
             spawnBloodMistFrame(level, move == GeburahMajorMove.EGO_BLOOD_MIST,
@@ -30,6 +44,14 @@ public final class GeburahMajorAttackEffects {
     }
 
     public static void spawnImpact(ServerLevel level, GeburahMajorMove move,
+                                   GeburahMajorMove.Cue cue, Vec3 origin,
+                                   Vec3 target, Vec3 forward) {
+        spawnImpact((type, x, y, z, count, dx, dy, dz, speed) ->
+                level.sendParticles(type, x, y, z, count, dx, dy, dz, speed),
+                move, cue, origin, target, forward);
+    }
+
+    public static void spawnImpact(ParticleSink level, GeburahMajorMove move,
                                    GeburahMajorMove.Cue cue, Vec3 origin,
                                    Vec3 target, Vec3 forward) {
         Vec3 axis = horizontal(forward);
@@ -50,7 +72,7 @@ public final class GeburahMajorAttackEffects {
         }
     }
 
-    private static void spawnBloodMistFrame(ServerLevel level, boolean ego,
+    private static void spawnBloodMistFrame(ParticleSink level, boolean ego,
                                             int tick, Vec3 center) {
         int ribbons = ego ? 4 : 3;
         double baseRadius = 1.15D + Math.min(1.7D, tick * 0.014D);
@@ -76,7 +98,7 @@ public final class GeburahMajorAttackEffects {
         }
     }
 
-    private static void spawnBodiesFrame(ServerLevel level, int tick,
+    private static void spawnBodiesFrame(ParticleSink level, int tick,
                                          Vec3 origin, Vec3 forward) {
         Vec3 axis = horizontal(forward);
         Vec3 side = new Vec3(-axis.z, 0.0D, axis.x);
@@ -101,7 +123,7 @@ public final class GeburahMajorAttackEffects {
         }
     }
 
-    private static void radialBurst(ServerLevel level, Vec3 center,
+    private static void radialBurst(ParticleSink level, Vec3 center,
                                     int rays, double radius) {
         for (int ray = 0; ray < rays; ray++) {
             double angle = ray * Math.PI * 2.0D / rays + ray * 0.17D;
@@ -120,7 +142,7 @@ public final class GeburahMajorAttackEffects {
                 radius * 0.2D, 0.0D);
     }
 
-    private static void forwardRift(ServerLevel level, Vec3 origin, Vec3 axis,
+    private static void forwardRift(ParticleSink level, Vec3 origin, Vec3 axis,
                                     double length, double width, boolean impact) {
         Vec3 side = new Vec3(-axis.z, 0.0D, axis.x);
         int forwardSamples = Math.max(18, (int) Math.ceil(length * 3.0D));
@@ -153,5 +175,21 @@ public final class GeburahMajorAttackEffects {
         return horizontal.lengthSqr() < 1.0E-8D
                 ? new Vec3(0.0D, 0.0D, 1.0D)
                 : horizontal.normalize();
+    }
+
+    public static void spawnWill(ParticleSink sink, boolean ego, Vec3 start, Vec3 end, double height) {
+        Vec3 axis = end.subtract(start);
+        int samples = ego ? 30 : 24;
+        for (int i = 0; i < samples; i++) {
+            double p = i / (double) (samples - 1);
+            Vec3 point = start.add(axis.scale(p)).add(0, 0.35 + (i % 3) * 0.32, 0);
+            sink.sendParticles(DustParticleOptions.REDSTONE, point.x, point.y, point.z,
+                    1, 0.035, 0.055, 0.035, 0.018);
+            if (i % 6 == 0) sink.sendParticles(ParticleTypes.CRIT, point.x, point.y, point.z,
+                    1, 0.08, 0.08, 0.08, 0.04);
+        }
+        Vec3 center = start.lerp(end, 0.5).add(0, height * 0.5, 0);
+        sink.sendParticles(ParticleTypes.SWEEP_ATTACK, center.x, center.y, center.z,
+                ego ? 6 : 4, Math.abs(axis.x) * 0.2, 0.25, Math.abs(axis.z) * 0.2, 0);
     }
 }

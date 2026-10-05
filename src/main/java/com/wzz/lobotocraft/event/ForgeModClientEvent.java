@@ -15,6 +15,7 @@ import com.wzz.lobotocraft.client.core.GeburahBladeTrailState;
 import com.wzz.lobotocraft.client.core.GeburahEffectCompositor;
 import com.wzz.lobotocraft.client.core.GeburahGroundImpactEffects;
 import com.wzz.lobotocraft.client.core.GeburahEgoHitEffects;
+import com.wzz.lobotocraft.client.core.GeburahSpecialEffects;
 import com.wzz.lobotocraft.client.core.GeburahStatusClientState;
 import com.wzz.lobotocraft.client.core.CoreSuppressionPostProcessor;
 import com.wzz.lobotocraft.client.core.CoreSuppressionWarningClientState;
@@ -77,6 +78,7 @@ public class ForgeModClientEvent {
             GeburahEffectCompositor.tick();
             GeburahGroundImpactEffects.tick();
             GeburahEgoHitEffects.tick();
+            GeburahSpecialEffects.tick();
             GeburahStatusClientState.tick();
             WelcomeNoticeClientState.tick();
             FearClientState.tick();
@@ -110,6 +112,7 @@ public class ForgeModClientEvent {
             GeburahEffectCompositor.clear();
             GeburahGroundImpactEffects.clear();
             GeburahEgoHitEffects.clear();
+            GeburahSpecialEffects.clear();
             GeburahStatusClientState.clear();
             FearClientState.clear();
         }

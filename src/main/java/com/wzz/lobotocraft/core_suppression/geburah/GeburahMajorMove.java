@@ -24,6 +24,13 @@ public enum GeburahMajorMove {
     private final int durationTicks;
     private final int cooldownTicks;
     private final List<Cue> cues;
+    public static final Area BODIES_AREA = new Area(12, 15, 5);
+    public static final Area BLOOD_AREA = new Area(8, 3, 8);
+
+    public Area area() {
+        return this == BODIES_EVERYWHERE ? BODIES_AREA : this == EGO_BLOOD_MIST ? BLOOD_AREA : null;
+    }
+    public record Area(double length, double width, double height) {}
 
     GeburahMajorMove(String animation, int durationTicks, int cooldownTicks,
                      List<Cue> cues) {

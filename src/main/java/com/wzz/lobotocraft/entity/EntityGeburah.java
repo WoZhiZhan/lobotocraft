@@ -29,6 +29,7 @@ import com.wzz.lobotocraft.core_suppression.geburah.GeburahSafeTeleport;
 import com.wzz.lobotocraft.core_suppression.geburah.GeburahSoundscape;
 import com.wzz.lobotocraft.core_suppression.geburah.GeburahSpecialPolicy;
 import com.wzz.lobotocraft.core_suppression.geburah.GeburahSpecialController;
+import com.wzz.lobotocraft.core_suppression.geburah.GeburahSpecialVisuals;
 import com.wzz.lobotocraft.core_suppression.geburah.GeburahStatusEffectPolicy;
 import com.wzz.lobotocraft.core_suppression.geburah.GeburahVisualEffects;
 import com.wzz.lobotocraft.core_suppression.geburah.GeburahVisualEffectType;
@@ -85,6 +86,12 @@ import java.util.Optional;
 import java.util.Set;
 
 public final class EntityGeburah extends BaseGeoEntity {
+    // A process-local monotonic ID avoids stale closed-cast IDs after entity unload/reload.
+    private static final java.util.concurrent.atomic.AtomicLong VISUAL_CAST_IDS = new java.util.concurrent.atomic.AtomicLong();
+    private long visualCastId;
+    private int visualElapsed;
+    private GeburahSpecialVisuals.Skill visualSkill;
+    private boolean visualConnected;
     private static final double COMBO_START_RANGE = 5.0D;
     private static final String WILL_OF_BATTLE = "willofbattle";
     private static final String EGO_WILL_OF_BATTLE = "ego_willofbattle";
@@ -130,7 +137,7 @@ public final class EntityGeburah extends BaseGeoEntity {
     private ServerPlayer majorBoundPlayer;
     private final Set<java.util.UUID> majorPostureTargets = new HashSet<>();
     private boolean majorSoundPlayed;
-    private int majorLastWindupSoundTick;
+    private int majorLastSoftHitSoundTick;
     private boolean bodiesOpeningPending;
     private final GeburahCounterPassive counterPassive = new GeburahCounterPassive();
     private LivingEntity counterattackTarget;
@@ -368,7 +375,7 @@ public final class EntityGeburah extends BaseGeoEntity {
         majorBoundPlayer = null;
         majorPostureTargets.clear();
         majorSoundPlayed = false;
-        majorLastWindupSoundTick = 0;
+        majorLastSoftHitSoundTick = 0;
         bodiesOpeningPending = false;
         debugComboDepth = 0;
         debugCooldowns.put(move.animation().toLowerCase(java.util.Locale.ROOT),
@@ -383,6 +390,7 @@ public final class EntityGeburah extends BaseGeoEntity {
                         ? ModSounds.GEBURAH_BODIES_EVERYWHERE_WINDUP.get()
                         : ModSounds.GEBURAH_BLOOD_MIST_WINDUP.get(),
                 SoundSource.HOSTILE, 1.45F, 0.94F);
+        beginSpecialVisual(GeburahSpecialVisuals.Skill.of(move));
         return true;
     }
 
@@ -395,17 +403,19 @@ public final class EntityGeburah extends BaseGeoEntity {
         }
 
         GeburahMajorAttackController.Event event = major.tick();
+        visualElapsed = major.elapsedTicks();
         if (level() instanceof ServerLevel serverLevel) {
             Vec3 forward = Vec3.directionFromRotation(0.0F, getYRot()).normalize();
             Vec3 targetPosition = isValidTarget(majorTarget) ? majorTarget.position() : null;
-            GeburahMajorAttackEffects.spawnFrame(serverLevel, move, major.elapsedTicks(),
-                    position(), targetPosition, forward);
+            if (visualElapsed % GeburahSpecialVisuals.SYNC_INTERVAL == 0)
+                sendSpecialVisual(GeburahSpecialVisuals.Event.SYNC, -1, false, targetPosition);
             if (event == GeburahMajorAttackController.Event.HIT) {
                 GeburahMajorMove.Cue cue = major.currentCue();
-                GeburahMajorAttackEffects.spawnImpact(serverLevel, move, cue,
-                        position(), targetPosition, forward);
                 playMajorHitSound(move, cue);
+                visualConnected = false;
                 boolean connected = performMajorHit(move, cue, forward);
+                sendSpecialVisual(GeburahSpecialVisuals.Event.CUE, move.cues().indexOf(cue),
+                        visualConnected, targetPosition);
                 if (cue.opening() && !connected) {
                     abortMajorAttack();
                     return false;
@@ -435,10 +445,13 @@ public final class EntityGeburah extends BaseGeoEntity {
             if (cue.opening() && (distanceTo(majorTarget) > 8.0D
                     || !hasLineOfSight(majorTarget))) return false;
             float healthBefore = majorTarget.getHealth();
+            boolean escapedBefore = majorTarget instanceof AbstractAbnormality a && a.hasEscape();
             boolean hit = hurtWithoutVanillaReaction(majorTarget,
                     outgoingDamage(majorTarget, rollDamage(cue)));
             if (!hit) return false;
             float healthLoss = Math.max(0.0F, healthBefore - majorTarget.getHealth());
+            visualConnected = healthLoss > 0 || escapedBefore
+                    && majorTarget instanceof AbstractAbnormality a && !a.hasEscape();
             restoreMajorPosture(majorTarget);
             if (cue.opening() && majorTarget instanceof ServerPlayer player) {
                 majorBoundPlayer = player;
@@ -451,9 +464,9 @@ public final class EntityGeburah extends BaseGeoEntity {
             return true;
         }
 
-        GeburahHitbox hitbox = cue.hitKind() == GeburahMajorMove.HitKind.WIDE_AREA
-                ? GeburahHitbox.forwardBox(position(), forward, 12.0D, 15.0D, 5.0D)
-                : GeburahHitbox.forwardBox(position(), forward, 8.0D, 3.0D, 8.0D);
+        var area = move.area();
+        GeburahHitbox hitbox = GeburahHitbox.forwardBox(position(), forward,
+                area.length(), area.width(), area.height());
         List<LivingEntity> targets = serverLevel.getEntitiesOfClass(
                 LivingEntity.class, hitbox.searchBounds(), target ->
                         isValidTarget(target) && hitbox.intersects(target.getBoundingBox())
@@ -462,9 +475,12 @@ public final class EntityGeburah extends BaseGeoEntity {
         boolean connected = false;
         for (LivingEntity target : targets) {
             float healthBefore = target.getHealth();
+            boolean escapedBefore = target instanceof AbstractAbnormality a && a.hasEscape();
             if (!hurtWithoutVanillaReaction(target,
                     outgoingDamage(target, rollDamage(cue)))) continue;
             float healthLoss = Math.max(0.0F, healthBefore - target.getHealth());
+            visualConnected |= healthLoss > 0 || escapedBefore
+                    && target instanceof AbstractAbnormality a && !a.hasEscape();
             connected = true;
             restoreMajorPosture(target);
             if (move == GeburahMajorMove.BODIES_EVERYWHERE) {
@@ -480,11 +496,11 @@ public final class EntityGeburah extends BaseGeoEntity {
     private void playMajorHitSound(GeburahMajorMove move, GeburahMajorMove.Cue cue) {
         GeburahMajorAttackAudioPolicy.HitSound sound =
                 GeburahMajorAttackAudioPolicy.forCue(move, cue,
-                        major.elapsedTicks(), majorLastWindupSoundTick);
-        if (sound == GeburahMajorAttackAudioPolicy.HitSound.WINDUP) {
-            majorLastWindupSoundTick = major.elapsedTicks();
-            level().playSound(null, blockPosition(), ModSounds.GEBURAH_BLOOD_MIST_WINDUP.get(),
-                    SoundSource.HOSTILE, 1.45F, 0.94F);
+                        major.elapsedTicks(), majorLastSoftHitSoundTick);
+        if (sound == GeburahMajorAttackAudioPolicy.HitSound.SOFT_HIT) {
+            majorLastSoftHitSoundTick = major.elapsedTicks();
+            level().playSound(null, blockPosition(), ModSounds.GEBURAH_SLASH.get(),
+                    SoundSource.HOSTILE, 0.65F, 0.96F);
             GeburahSoundscape.playMajorImpact(level(), blockPosition(), move, false);
         } else if (sound == GeburahMajorAttackAudioPolicy.HitSound.IMPACT
                 && !majorSoundPlayed) {
@@ -527,23 +543,25 @@ public final class EntityGeburah extends BaseGeoEntity {
     }
 
     private void finishMajorAttack() {
+        stopSpecialVisual();
         releaseMajorTarget();
         major.reset();
         majorTarget = null;
         majorPostureTargets.clear();
         majorSoundPlayed = false;
-        majorLastWindupSoundTick = 0;
+        majorLastSoftHitSoundTick = 0;
         actionWindow = GeburahActionWindow.OTHER;
     }
 
     private void abortMajorAttack() {
+        stopSpecialVisual();
         releaseMajorTarget();
         major.abort();
         major.reset();
         majorTarget = null;
         majorPostureTargets.clear();
         majorSoundPlayed = false;
-        majorLastWindupSoundTick = 0;
+        majorLastSoftHitSoundTick = 0;
         actionWindow = GeburahActionWindow.OTHER;
     }
 
@@ -684,6 +702,7 @@ public final class EntityGeburah extends BaseGeoEntity {
         getNavigation().stop();
         actionWindow = GeburahActionWindow.WINDUP;
         announceSpecialAttack("attack.lobotocraft.geburah.will_of_battle");
+        beginSpecialVisual(ego ? GeburahSpecialVisuals.Skill.EGO_WILL : GeburahSpecialVisuals.Skill.WILL);
         return true;
     }
 
@@ -699,6 +718,9 @@ public final class EntityGeburah extends BaseGeoEntity {
     }
 
     private boolean tickWillOfBattle() {
+        visualElapsed++;
+        if (visualElapsed % GeburahSpecialVisuals.SYNC_INTERVAL == 0)
+            sendSpecialVisual(GeburahSpecialVisuals.Event.SYNC, -1, false, null);
         GeburahSpecialController.Event event = special.tick();
         if (event == GeburahSpecialController.Event.START_STRIKE) {
             Optional<Vec3> refreshed = isValidTarget(specialTarget)
@@ -707,13 +729,14 @@ public final class EntityGeburah extends BaseGeoEntity {
                     : Optional.empty();
             if (refreshed.isEmpty()) {
                 event = special.abortToRecovery();
+                stopSpecialVisual();
             } else {
                 Vec3 origin = position();
                 specialDestination = refreshed.get();
                 moveTo(specialDestination.x, specialDestination.y, specialDestination.z,
                         getYRot(), getXRot());
                 faceTarget(specialTarget, 180.0F);
-                spawnWillOfBattleParticles((ServerLevel) level(), origin, specialDestination);
+                sendSpecialVisual(GeburahSpecialVisuals.Event.DASH, -1, false, origin);
                 setAnimation(specialEgo ? "EGOwillofbattle" : "willofbattle");
                 level().playSound(null, blockPosition(), ModSounds.GEBURAH_SLASH.get(),
                         SoundSource.HOSTILE, 1.35F, specialEgo ? 0.88F : 0.96F);
@@ -722,10 +745,14 @@ public final class EntityGeburah extends BaseGeoEntity {
             }
         }
         if (event == GeburahSpecialController.Event.HIT) {
+            Vec3 contact = isValidTarget(specialTarget) ? specialTarget.position() : position();
+            visualConnected = false;
             performWillOfBattleHit();
+            sendSpecialVisual(GeburahSpecialVisuals.Event.CUE, 0, visualConnected, contact);
         } else if (event == GeburahSpecialController.Event.START_RECOVERY) {
             setAnimation(specialEgo ? "EGOwillofbattle_end" : "willofbattle_end");
         } else if (event == GeburahSpecialController.Event.FINISHED) {
+            stopSpecialVisual();
             specialTarget = null;
             specialDestination = null;
         }
@@ -753,11 +780,14 @@ public final class EntityGeburah extends BaseGeoEntity {
         if (!isValidTarget(target) || distanceTo(target) > 8.0D || !hasLineOfSight(target)) return;
         float damage = 19.0F + random.nextInt(8);
         float healthBefore = target.getHealth();
+        boolean escapedBefore = target instanceof AbstractAbnormality a && a.hasEscape();
         if (!hurtWithoutVanillaReaction(target,
                 outgoingDamage(target, damage))) return;
         GeburahSoundscape.playAttackImpact(level(), blockPosition(),
                 GeburahMove.STAB, specialEgo);
         float healthLoss = Math.max(0.0F, healthBefore - target.getHealth());
+        visualConnected = healthLoss > 0 || escapedBefore
+                && target instanceof AbstractAbnormality a && !a.hasEscape();
         if (GeburahPosturePolicy.restoresPostureOnHit(target instanceof AbstractAbnormality)) {
             combatState.restorePosture(12.0F);
         }
@@ -774,25 +804,34 @@ public final class EntityGeburah extends BaseGeoEntity {
         }
     }
 
-    private void spawnWillOfBattleParticles(ServerLevel level, Vec3 start, Vec3 end) {
-        Vec3 axis = end.subtract(start);
-        int samples = specialEgo ? 30 : 24;
-        for (int i = 0; i < samples; i++) {
-            double progress = i / (double) Math.max(1, samples - 1);
-            Vec3 point = start.add(axis.scale(progress)).add(0.0D,
-                    0.35D + (i % 3) * 0.32D, 0.0D);
-            level.sendParticles(DustParticleOptions.REDSTONE, point.x, point.y, point.z,
-                    1, 0.035D, 0.055D, 0.035D, 0.018D);
-            if (i % 6 == 0) {
-                level.sendParticles(ParticleTypes.CRIT, point.x, point.y, point.z,
-                        1, 0.08D, 0.08D, 0.08D, 0.04D);
-            }
+    private void beginSpecialVisual(GeburahSpecialVisuals.Skill skill) {
+        stopSpecialVisual();
+        visualSkill = skill;
+        visualCastId = VISUAL_CAST_IDS.incrementAndGet();
+        visualElapsed = 0;
+        sendSpecialVisual(GeburahSpecialVisuals.Event.START, -1, false, null);
+    }
+
+    private void stopSpecialVisual() {
+        if (visualSkill == null) return;
+        sendSpecialVisual(GeburahSpecialVisuals.Event.STOP, -1, false, null);
+        visualSkill = null;
+    }
+
+    private void sendSpecialVisual(GeburahSpecialVisuals.Event event, int cue, boolean connected, Vec3 targetOverride) {
+        if (visualSkill == null || !(level() instanceof ServerLevel serverLevel)) return;
+        LivingEntity target = visualSkill.major() == null ? specialTarget : majorTarget;
+        Vec3 targetPosition = targetOverride != null ? targetOverride
+                : isValidTarget(target) ? target.position() : position();
+        var snapshot = new GeburahSpecialVisuals.Snapshot(getUUID(), getId(), visualCastId,
+                visualSkill, event, Math.min(visualSkill.duration(), visualElapsed), cue, connected,
+                position(), targetPosition, Vec3.directionFromRotation(0, getYRot()));
+        var packet = new com.wzz.lobotocraft.network.packet.GeburahSpecialVisualPacket(
+                serverLevel.dimension().location(), snapshot);
+        for (ServerPlayer viewer : serverLevel.players()) {
+            if (viewer.distanceToSqr(this) <= GeburahSpecialVisuals.VIEW_DISTANCE * GeburahSpecialVisuals.VIEW_DISTANCE)
+                MessageLoader.getLoader().sendToPlayer(viewer, packet);
         }
-        Vec3 lineCenter = start.lerp(end, 0.5D).add(0.0D, getBbHeight() * 0.5D, 0.0D);
-        level.sendParticles(ParticleTypes.SWEEP_ATTACK,
-                lineCenter.x, lineCenter.y, lineCenter.z,
-                specialEgo ? 6 : 4, Math.abs(axis.x) * 0.2D, 0.25D,
-                Math.abs(axis.z) * 0.2D, 0.0D);
     }
 
     private void playMoveSound(GeburahMove move) {
@@ -985,6 +1024,7 @@ public final class EntityGeburah extends BaseGeoEntity {
     }
 
     private void cancelCombatActions() {
+        stopSpecialVisual();
         releaseMajorTarget();
         major.reset();
         combo.reset();
@@ -996,7 +1036,7 @@ public final class EntityGeburah extends BaseGeoEntity {
         majorTarget = null;
         majorPostureTargets.clear();
         majorSoundPlayed = false;
-        majorLastWindupSoundTick = 0;
+        majorLastSoftHitSoundTick = 0;
         debugComboDepth = 0;
         actionWindow = GeburahActionWindow.OTHER;
     }
@@ -1188,11 +1228,18 @@ public final class EntityGeburah extends BaseGeoEntity {
                     GeburahVisualEffectType.POSTURE_BREAK, 1.0F, 10);
         }
         if (result.defeated()) {
+            stopSpecialVisual();
             GeburahVisualEffects.broadcastStage(this,
                     GeburahVisualEffectType.DEFEAT, 1.0F, 24);
             GeburahEncounterService.INSTANCE.onLegitimateDefeat(this);
         }
         return result;
+    }
+
+    @Override
+    public void remove(Entity.RemovalReason reason) {
+        stopSpecialVisual();
+        super.remove(reason);
     }
 
     public boolean applyDebugDamage(float amount) {

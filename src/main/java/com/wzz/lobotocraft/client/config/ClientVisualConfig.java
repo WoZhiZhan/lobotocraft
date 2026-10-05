@@ -9,6 +9,7 @@ public final class ClientVisualConfig {
     public static final ForgeConfigSpec.BooleanValue FEAR_CAMERA_SHAKE_ENABLED;
     public static final ForgeConfigSpec.BooleanValue FEAR_AUDIO_ENABLED;
     public static final ForgeConfigSpec.BooleanValue GEBURAH_EGO_ATTACK_TRIAL;
+    public static final ForgeConfigSpec.BooleanValue GEBURAH_SPECIAL_VISUALS;
 
     static {
         ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
@@ -28,6 +29,9 @@ public final class ClientVisualConfig {
         GEBURAH_EGO_ATTACK_TRIAL = builder
                 .comment("Trial EGO slash/stab trails and contact effects. False restores legacy visuals; ground debris is unaffected.")
                 .define("geburahEgoAttackTrial", true);
+        GEBURAH_SPECIAL_VISUALS = builder
+                .comment("Enhanced Geburah special skills. False selects the legacy particle style without changing combat.")
+                .define("geburahSpecialVisuals", true);
         builder.pop();
         SPEC = builder.build();
     }

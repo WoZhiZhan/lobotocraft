@@ -6,6 +6,7 @@ import com.wzz.lobotocraft.client.core.GeburahBladeTrailProfile;
 import com.wzz.lobotocraft.client.core.GeburahBladeTrailRenderer;
 import com.wzz.lobotocraft.client.core.GeburahBladeTrailState;
 import com.wzz.lobotocraft.client.config.ClientVisualConfig;
+import com.wzz.lobotocraft.client.core.GeburahSpecialEffects;
 import com.wzz.lobotocraft.entity.EntityGeburah;
 import com.wzz.lobotocraft.core_suppression.geburah.GeburahEgoAttackVisuals;
 import com.wzz.lobotocraft.core_suppression.geburah.GeburahPhase;
@@ -50,6 +51,11 @@ public final class GeburahRenderer extends GeoEntityRenderer<EntityGeburah> {
             }
             GeburahBladeTrailProfile.Sample sample =
                     GeburahBladeTrailProfile.forAnimation(entity.getAnimation());
+            if (GeburahSpecialEffects.enhanced()) {
+                for (var candidate : GeburahBladeTrailProfile.specialCandidates(entity.getAnimation()))
+                    for (String name : candidate.locatorBoneNames())
+                        bakedModel.getBone(name).ifPresent(bone -> bone.setTrackingMatrices(true));
+            }
             if (sample == null) return;
             for (String locatorBoneName : sample.locatorBoneNames()) {
                 bakedModel.getBone(locatorBoneName)
@@ -64,6 +70,18 @@ public final class GeburahRenderer extends GeoEntityRenderer<EntityGeburah> {
                            float partialTick, int packedLight, int packedOverlay) {
             GeburahBladeTrailProfile.Sample sample =
                     GeburahBladeTrailProfile.forAnimation(entity.getAnimation());
+            if (GeburahSpecialEffects.captureBlade(entity.getUUID())) {
+                for (var candidate : GeburahBladeTrailProfile.specialCandidates(entity.getAnimation())) {
+                    var first = bakedModel.getBone(candidate.locatorBoneNames().get(0)).orElse(null);
+                    var last = bakedModel.getBone(candidate.locatorBoneNames()
+                            .get(candidate.locatorBoneNames().size() - 1)).orElse(null);
+                    if (first != null && last != null
+                            && first.getWorldPosition().distanceSquared(last.getWorldPosition()) > 0.0001) {
+                        sample = candidate;
+                        break;
+                    }
+                }
+            }
             if (sample == null) return;
             Vec3 currentEntityPosition = entity.position();
             Vec3 interpolatedEntityPosition = new Vec3(
@@ -83,7 +101,8 @@ public final class GeburahRenderer extends GeoEntityRenderer<EntityGeburah> {
             GeburahBladeTrailState.capture(entity.getId(), sampleTime, worldPositions,
                     sample.ego(), sample.move(), ClientVisualConfig.GEBURAH_EGO_ATTACK_TRIAL.get()
                             && GeburahEgoAttackVisuals.animationEligible(
-                            entity.getAnimation(), entity.syncedPhase() == GeburahPhase.EGO));
+                            entity.getAnimation(), entity.syncedPhase() == GeburahPhase.EGO),
+                    sample.locatorBoneNames().hashCode());
         }
     }
 }

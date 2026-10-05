@@ -36,6 +36,18 @@ public final class GeburahBladeTrailProfile {
         };
     }
 
+    /** Both EGO blood-mist weapons are tracked; capture picks the currently noncollapsed blade span. */
+    public static List<Sample> specialCandidates(String animation) {
+        if (animation == null) return List.of();
+        return switch (animation) {
+            case "bloodmist" -> List.of(new Sample(NITAI2, GeburahMove.SLASH, false));
+            case "EGObloodmist" -> List.of(new Sample(NITAI2, GeburahMove.SLASH, true),
+                    new Sample(ZHONGJIAN, GeburahMove.SLASH, true));
+            case "bodieseverywhere" -> List.of(new Sample(NITAI2, GeburahMove.SLASH, true));
+            default -> List.of();
+        };
+    }
+
     public record Sample(List<String> locatorBoneNames, GeburahMove move, boolean ego) {
         public Sample {
             locatorBoneNames = List.copyOf(locatorBoneNames);

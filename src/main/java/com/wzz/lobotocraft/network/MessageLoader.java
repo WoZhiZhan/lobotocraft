@@ -22,7 +22,7 @@ public class MessageLoader {
 	
 	public final SimpleChannel instance;
 	// Bump whenever packet layout/order or synced entity-data layout changes.
-    private static final String PROTOCOL_VERSION = "43";
+    private static final String PROTOCOL_VERSION = "44";
 	
 	public int id = 0;
 	

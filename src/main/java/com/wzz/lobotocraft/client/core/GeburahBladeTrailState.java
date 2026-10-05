@@ -22,6 +22,7 @@ public final class GeburahBladeTrailState {
     private static boolean currentEgo;
     private static boolean currentEnhanced;
     private static int currentPointCount;
+    private static int currentBladeSource;
 
     private GeburahBladeTrailState() {
     }
@@ -74,6 +75,12 @@ public final class GeburahBladeTrailState {
     public static void capture(int sampledEntityId, double sampleTime,
                                List<Vec3> bladePositions, boolean ego, GeburahMove move,
                                boolean enhanced) {
+        capture(sampledEntityId, sampleTime, bladePositions, ego, move, enhanced, 0);
+    }
+
+    public static void capture(int sampledEntityId, double sampleTime,
+                               List<Vec3> bladePositions, boolean ego, GeburahMove move,
+                               boolean enhanced, int bladeSource) {
         if (sampledEntityId < 0 || !Double.isFinite(sampleTime)
                 || bladePositions == null || bladePositions.isEmpty()
                 || bladePositions.stream().anyMatch(position -> position == null)) return;
@@ -83,6 +90,7 @@ public final class GeburahBladeTrailState {
                 || move != currentMove
                 || ego != currentEgo
                 || enhanced != currentEnhanced
+                || bladeSource != currentBladeSource
                 || positions.size() != currentPointCount
                 || sampleTime < currentSampleTime
                 || currentPosition.distanceToSqr(worldPosition) > 64.0D * 64.0D) {
@@ -96,6 +104,7 @@ public final class GeburahBladeTrailState {
             currentEgo = ego;
             currentEnhanced = enhanced;
             currentPointCount = positions.size();
+            currentBladeSource = bladeSource;
             TRAIL.addLast(new TimedPosition(sampleTime, positions, ego, move, enhanced));
             return;
         }
@@ -173,6 +182,7 @@ public final class GeburahBladeTrailState {
         currentEgo = false;
         currentEnhanced = false;
         currentPointCount = 0;
+        currentBladeSource = 0;
         TRAIL.clear();
     }
 

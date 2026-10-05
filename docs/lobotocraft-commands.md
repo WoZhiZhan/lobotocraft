@@ -216,11 +216,15 @@
 /lobotocraft_client geburah_trail_surface <true|false>
 /lobotocraft_client geburah_ego_attack_trial
 /lobotocraft_client geburah_ego_attack_trial <true|false>
+/lobotocraft_client geburah_special_visuals
+/lobotocraft_client geburah_special_visuals <true|false>
 ```
 
 不带布尔参数时读取当前状态；带参数时修改当前客户端显示。`damage_border` 是伤害边框开关；`geburah_trail_markers` 显示刀痕调试标记，`geburah_trail_surface` 控制刀痕表面绘制。后两者主要用于视觉调试。只影响执行命令的客户端，不改变服务端战斗逻辑。
 
 `geburah_ego_attack_trial`（2026-10-05）：E.G.O 横斩／突刺试验增强，默认开启。`false` 立即清理试验残留并恢复此前刀光及6 tick拖尾，禁用新增接触特效；`true`重新启用。命令保存到 `config/lobotocraft-client.toml` 的 `[visuals] geburahEgoAttackTrial`，重启后保持。不会关闭砸地碎块或改变战斗规则。此开关是表现回退，不代表可以让旧协议客户端连接新服务端。
+
+`geburah_special_visuals`（2026-10-05）：陷阵之志、血舞弥漫、尸横遍野的世界空间表现增强，默认开启。`false`切回旧粒子风格，不改变技能结算、现有震屏、横斩/突刺试验或砸地二版；`true`启用新刀光、换位轨迹及地面预警。保存到 `[visuals] geburahSpecialVisuals`。旧风格现在由客户端根据技能事件重放，不恢复逐tick服务端广播，也不回退声音或网络协议44。尸横遍野红框表达潜在几何范围，墙体遮挡/合法目标仍由原伤害管线判定。
 
 ### 7.2 客户端性能统计
 
