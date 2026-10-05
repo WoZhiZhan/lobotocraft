@@ -314,7 +314,7 @@
         category: "enhancement", triageState: "ready-for-human",
         section: "红姐陷阵之志／血舞弥漫／尸横遍野", number: 1,
         report: "2026-10-05 用户批准三招表现增强并要求建立Git基线。陷阵之志突出换位，血舞突出连续撕裂与轻重节奏，尸横遍野突出蓄力预警和宽斩面；不改伤害、范围、节点、冷却、位移、锁控、骨骼动画及现有震屏，保留关闭入口。",
-        after: "2026-10-05 已实现事件驱动的客户端世界特效：实际武器刀光、换位窄轨迹/起点残影、连续轻重斩痕、12×15潜在几何范围预警及宽弧斩面/短余痕。每8tick低频快照，旧风格客户端重放，移除逐tick服务器粒子广播。/lobotocraft_client geburah_special_visuals false切旧粒子风格，不影响横斩/突刺或砸地；连段改短击不再重播蓄力，协议43→44双方更新。基线9af78f5、首实现240bb51。初审Standards2、Spec2问题已修：走远观察者取消通知、新刀光降级、范围攻击有效接触、真实刀刃收束锚点。JUnit689/689、首轮实体4/4通过；修正后最终实体回归与独立复核进行中。客户端画面/声音/帧耗未实机验收，未打新JAR。"
+        after: "2026-10-05 已实现事件驱动的客户端世界特效：实际武器刀光、换位窄轨迹/起点残影、连续轻重斩痕、12×15潜在几何范围预警及宽弧斩面/短余痕。每8tick低频快照，旧风格客户端重放，移除逐tick服务器粒子广播。/lobotocraft_client geburah_special_visuals false切旧粒子风格，不影响横斩/突刺或砸地；连段改短击不再重播蓄力，协议43→44双方更新。基线9af78f5、实现240bb51、复核修正eb82256，均本地未推送。初审Standards2、Spec2问题全闭合，复核各新增0；已补走远观察者取消通知、新刀光降级、范围有效接触、真实刀刃收束锚点。最终JUnit689/689、实体4/4通过，退出0；台账脚本通过。客户端画面/声音/多人显示/帧耗未实机验收，未打新JAR。"
       },
       {
         id: "Todo / 红姐E.G.O横斩突刺试验 #1", bucket: "视觉试验",
@@ -391,8 +391,8 @@
     }));
     const specialSkillEvidence = "docs/bug-evidence/20261005-geburah-special-visual-spec.md\n"
       + "docs/bug-evidence/20261005-geburah-special-visual-implementation.md\n"
-      + "D:\\GongzuotaiD\\CodexDesk\\2026-09-12\\d-mcmodfolder-lobotocraft-integration-9d26841-docx\\work\\build-special-visuals-20261005-c.log\n"
-      + "D:\\GongzuotaiD\\CodexDesk\\2026-09-12\\d-mcmodfolder-lobotocraft-integration-9d26841-docx\\work\\run-special-visuals-20261005-b\\gametest.log";
+      + "D:\\GongzuotaiD\\CodexDesk\\2026-09-12\\d-mcmodfolder-lobotocraft-integration-9d26841-docx\\work\\build-special-visuals-final-20261005-g.log\n"
+      + "D:\\GongzuotaiD\\CodexDesk\\2026-09-12\\d-mcmodfolder-lobotocraft-integration-9d26841-docx\\work\\run-special-visuals-final-20261005-d\\gametest.log";
     supplementalProgress["Todo / 红姐三特殊技能表现 #1"] = {
       ...defaultProgress, implementation: "已改", verification: "自动测试通过",
       note: "基线9af78f5、本地未推送；新客户端技能世界表现待实机验收，不以自动回归冒称美术满意。旧粒子重放属于表现回退，非网络/音效回退。",
