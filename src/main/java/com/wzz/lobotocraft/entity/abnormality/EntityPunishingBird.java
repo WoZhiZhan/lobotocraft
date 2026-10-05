@@ -191,6 +191,19 @@ public class EntityPunishingBird extends AbstractAbnormality {
     }
 
     @Override
+    protected boolean usesCommonCombatTargetSelection() { return false; }
+
+    @Override
+    protected boolean canSelectCombatTarget(LivingEntity target) {
+        return !(target instanceof AbstractAbnormality) && super.canSelectCombatTarget(target);
+    }
+
+    @Override
+    public boolean isAbnormalityCombatTarget() {
+        return !isReturning() && super.isAbnormalityCombatTarget();
+    }
+
+    @Override
     public void checkFallDamage(double y, boolean onGround, net.minecraft.world.level.block.state.BlockState state, BlockPos pos) {
         // 飞行生物不受摔落伤害
     }
@@ -306,11 +319,8 @@ public class EntityPunishingBird extends AbstractAbnormality {
             if (doorSpawnedAndBirdInvolved) return false;
         }
         if (source.getEntity() instanceof AbstractAbnormality abnormality) {
-            if (hasEscape() && QueenOfHatredCombat.isQueenOfHatredCombatTarget(abnormality)) {
-                becomeAngry(abnormality);
-                return super.hurt(source, amount);
-            }
-            return false;
+            // Passive toward all abnormality species, not immune to their damage.
+            return super.hurt(source, amount);
         }
         if (source.getEntity() instanceof ServerPlayer player) {
             if (isPanickingAttacker(player)) {
@@ -559,7 +569,7 @@ public class EntityPunishingBird extends AbstractAbnormality {
 
         Entity angryEntity = level() instanceof ServerLevel serverLevel
                 ? serverLevel.getEntity(angryTarget) : null;
-        if (!(angryEntity instanceof LivingEntity target) || !target.isAlive()) {
+        if (!(angryEntity instanceof LivingEntity target) || !canSelectCombatTarget(target)) {
             startReturningToNest();
             return;
         }

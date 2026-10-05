@@ -474,13 +474,23 @@ public class EntityIsharmla extends AbstractAbnormality {
         for (int i = 0; i < 5; i++) {
             EntityIsharmlaTear tear = ModEntities.isharmla_tear.get().create(level);
             if (tear == null) continue;
-            double ox = (this.random.nextDouble() - 0.5) * 7;
-            double oz = (this.random.nextDouble() - 0.5) * 7;
-            tear.moveTo(this.getX() + ox, this.getY(), this.getZ() + oz,
+            BlockPos preferred = BlockPos.containing(this.getX() + (this.random.nextDouble() - .5) * 7,
+                    this.getY(), this.getZ() + (this.random.nextDouble() - .5) * 7);
+            BlockPos safe = EntityUtil.findSafeEntityPositionInCompany(level, tear, preferred, 3, 0,
+                    candidate -> Math.abs(candidate.getX() + .5 - getX()) <= 3.5
+                            && Math.abs(candidate.getZ() + .5 - getZ()) <= 3.5
+                            && candidate.getY() == blockPosition().getY()
+                            && isWithinReactorActivityArea(Vec3.atBottomCenterOf(candidate))
+                            && level.clip(new net.minecraft.world.level.ClipContext(
+                                    position().add(0, .6, 0), Vec3.atBottomCenterOf(candidate).add(0, .6, 0),
+                                    net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                                    net.minecraft.world.level.ClipContext.Fluid.NONE, this)).getType()
+                                    == net.minecraft.world.phys.HitResult.Type.MISS);
+            if (safe == null) continue;
+            tear.moveTo(safe.getX() + .5, safe.getY(), safe.getZ() + .5,
                     this.random.nextFloat() * 360f, 0f);
             tear.setAnimation("start");
-            level.addFreshEntity(tear);
-            currentTears.add(tear.getUUID());
+            if (level.addFreshEntity(tear)) currentTears.add(tear.getUUID());
         }
     }
 
@@ -636,10 +646,11 @@ public class EntityIsharmla extends AbstractAbnormality {
                 java.util.Set<java.util.UUID> hitThisImpact = new java.util.HashSet<>();
                 for (BeamTargetSpot spot : beamTargetSpots) {
                     hitEntitiesInBeamSpot(level, spot, hitThisImpact);
+                    // Impacts can be on the opposite side of a 48-block activity diameter.
+                    // Play at the visible impact, not only at the boss outside hearing range.
+                    level.playSound(null, spot.x, spot.y, spot.z, SoundEvents.WARDEN_SONIC_BOOM,
+                            SoundSource.HOSTILE, 2.0F, 1.0F);
                 }
-                level.playSound(null, this.blockPosition(),
-                        net.minecraft.sounds.SoundEvents.WARDEN_SONIC_BOOM,
-                        SoundSource.HOSTILE, 2.0f, 1.0f);
             }
         }
 
@@ -695,8 +706,12 @@ public class EntityIsharmla extends AbstractAbnormality {
                 continue;
             }
             hitThisImpact.add(target.getUUID());
+            if (com.wzz.lobotocraft.event.listener.ThornBusDefense.protects(target)) {
+                com.wzz.lobotocraft.event.listener.ThornBusDefense.feedback(target);
+                continue;
+            }
             EntityUtil.clearHurtTime(target);
-            target.hurt(com.wzz.lobotocraft.util.DamageHelper.getDamage(this, "blue"), 15f);
+            target.hurt(com.wzz.lobotocraft.util.DamageHelper.getRangedDamage(this, "blue"), 15f);
             if (target instanceof ServerPlayer player) {
                 MentalValueUtil.reduceMentalValue(player, 15f);
             }

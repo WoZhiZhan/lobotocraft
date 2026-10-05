@@ -58,7 +58,7 @@ public class EntityChildrenGalaxy extends AbstractAbnormality {
 
     @Override
     protected void resetForNewDay() {
-        qliphothCounter = 1;
+        setQliphothCounter(1);
     }
 
     @Override
@@ -217,23 +217,42 @@ public class EntityChildrenGalaxy extends AbstractAbnormality {
                                WorkType workType,
                                WorkResult result) {
         if (BuffUtil.hasFriendshipProof(player)) {
-            increaseQliphothCounter(1);
+            BuffUtil.bindLegacyProofOnWork(player, this);
             increaseQliphothCounter(1);
             player.sendSystemMessage(Component.translatable(
                     "message.lobotocraft.children_galaxy.friendship_counter"));
             return;
         }
-        increaseQliphothCounter(1);
         if (qliphothCounter <= 0) {
-            qliphothCounter = 1;
-            com.wzz.lobotocraft.util.BuffUtil.giveFriendshipProof(player, 1);
-            player.sendSystemMessage(Component.translatable(
-                    "message.lobotocraft.children_galaxy.friendship_obtained"));
-        } else if (!com.wzz.lobotocraft.util.BuffUtil.hasFriendshipProof(player)) {
-            com.wzz.lobotocraft.util.BuffUtil.giveFriendshipProof(player, qliphothCounter);
-            player.sendSystemMessage(Component.translatable(
-                    "message.lobotocraft.children_galaxy.friendship_obtained"));
+            setQliphothCounter(1);
         }
+        BuffUtil.giveFriendshipProof(player, this);
+        player.sendSystemMessage(Component.translatable(
+                "message.lobotocraft.children_galaxy.friendship_obtained"));
+    }
+
+    @Override
+    public void setQliphothCounter(int value) {
+        super.setQliphothCounter(Math.max(0, Math.min(5, value)));
+        syncFriendshipHolders();
+    }
+
+    @Override
+    public void increaseQliphothCounter(int amount) {
+        super.increaseQliphothCounter(Math.max(0, Math.min(amount, 5 - qliphothCounter)));
+        syncFriendshipHolders();
+    }
+
+    @Override
+    public void decreaseQliphothCounter(int amount) {
+        super.decreaseQliphothCounter(amount);
+        syncFriendshipHolders();
+    }
+
+    private void syncFriendshipHolders() {
+        if (!(level() instanceof ServerLevel level)) return;
+        for (var serverLevel : level.getServer().getAllLevels())
+            for (ServerPlayer holder : serverLevel.players()) BuffUtil.syncFriendshipProof(holder, this);
     }
 
     @Override
@@ -242,17 +261,18 @@ public class EntityChildrenGalaxy extends AbstractAbnormality {
 
     @Override
     public void onQliphothMeltdown() {
-        for (LivingEntity living : EntityUtil.findAllEntities(this, 400)) {
-            if (living instanceof Player player && com.wzz.lobotocraft.util.BuffUtil.hasFriendshipProof(player)) {
-                // 标记为"异想体机制处决",使死亡后不清空员工属性(避免变回原始人)
-                player.getPersistentData().putBoolean("lobotocraft_abnormality_executed", true);
-                com.wzz.lobotocraft.util.BuffUtil.removeFriendshipProof(player);
-                // 用带伤害源的致命伤致死,确保走完整死亡流程(触发 onPlayerDeath 备份属性),
-                // 而不是 setHealth(0) 可能绕过死亡事件导致备份缺失、重生后属性被清空
-                player.invulnerableTime = 0;
-                player.hurt(com.wzz.lobotocraft.util.DamageHelper.getDamage(this, "black"), Float.MAX_VALUE);
-                setAnimation("attack");
-                SoundUtil.playSound(living.level, living, ModSounds.CHILDREN_GALAXY_ATTACK.get());
+        if (!(level() instanceof ServerLevel level)) return;
+        for (var serverLevel : level.getServer().getAllLevels()) {
+            for (ServerPlayer player : List.copyOf(serverLevel.players())) {
+                if (BuffUtil.friendshipSource(player) == this) {
+                    // 保留原 Minecraft 致死与属性备份流程，只限制到本实例的持有者。
+                    player.getPersistentData().putBoolean("lobotocraft_abnormality_executed", true);
+                    BuffUtil.removeFriendshipProof(player);
+                    player.invulnerableTime = 0;
+                    player.hurt(DamageHelper.getDamage(this, "black"), Float.MAX_VALUE);
+                    setAnimation("attack");
+                    SoundUtil.playSound(player.level(), player, ModSounds.CHILDREN_GALAXY_ATTACK.get());
+                }
             }
         }
     }
@@ -262,6 +282,7 @@ public class EntityChildrenGalaxy extends AbstractAbnormality {
         super.tick();
         setNoAi(!hasEscape());
         if (this.level.isClientSide) return;
+        if (tickCount % 20 == 0) syncFriendshipHolders();
         if (qliphothCounter <= 0) {
             if (this.tickCount % 280 == 0) {
                 SoundUtil.playSound(this.level, this, ModSounds.CHILDREN_GALAXY_ATTACK.get());

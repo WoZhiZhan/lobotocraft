@@ -5,17 +5,24 @@ import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.EscapeTracker;
+import com.wzz.lobotocraft.entity.ai.FacilityMobNavigator;
+import com.wzz.lobotocraft.entity.ai.FacilityMobNavigationTarget;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.init.ModItems;
+import com.wzz.lobotocraft.init.ModDimensions;
+import com.wzz.lobotocraft.item.ego.base.IEgoArmor;
 import com.wzz.lobotocraft.event.definition.abnormality.AbnormalityEscapeStopEvent;
 import com.wzz.lobotocraft.item.TargetMarkerItem;
 import com.wzz.lobotocraft.util.*;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import com.wzz.lobotocraft.world.data.ArmyEscapeGroupData;
+import com.wzz.lobotocraft.world.data.FacilityWorldLayout;
+import com.wzz.lobotocraft.world.data.FacilityAreaType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -74,7 +81,6 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     private static final double ESCAPE_ATTACK_RADIUS = 12.0D;
     private static final double REACTOR_DETONATE_DISTANCE_SQR = 9.0D;
     private static final double ESCAPE_REACTOR_SPEED = 0.9D;
-    private static final double ARMY_ESCAPE_BLOCK_SEARCH_RADIUS_SQR = 24.0D * 24.0D;
     private static final int SELF_DETONATION_TICKS = 60;
     private static final int SELF_DETONATION_SOUND_LEAD_TICKS = 4;
 
@@ -85,6 +91,9 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     private int protectionAttackAnimationTicks = 0;
     private boolean protectionHealPending = false;
     private BlockPos targetReactorPos = null;
+    private BlockPos reactorOriginPos;
+    private BlockPos reactorWalkPos;
+    private final FacilityMobNavigator reactorNavigator;
     private UUID retaliateTargetId = null;
     private int attackChargeTicks = 0;
     private int attackCooldownTicks = 0;
@@ -107,6 +116,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
 
     public EntityArmyInBlack(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
+        this.reactorNavigator = new FacilityMobNavigator(this, ESCAPE_REACTOR_SPEED);
         this.setPersistenceRequired();
     }
 
@@ -115,7 +125,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         this.abnormalityCode = "D-01-106";
         this.abnormalityName = "深黯“军团”";
         this.riskLevel = RiskLevel.ALEPH;
-        this.damageType = "BLACK";
+        this.damageType = "WHITE";
         this.maxPEOutput = 30;
 
         float[] basePreferences = {0.45f, 0.45f, 1.0f, 0.0f};
@@ -180,6 +190,11 @@ public class EntityArmyInBlack extends AbstractAbnormality {
             return;
         }
 
+        if (isContainmentReturnPending()) {
+            stopReactorNavigation();
+            setDeltaMovement(Vec3.ZERO);
+            return;
+        }
         if (escapeGroupId != null && level() instanceof ServerLevel serverLevel
                 && ArmyEscapeGroupData.get(serverLevel).isClosed(escapeGroupId)) {
             UUID closedGroup = escapeGroupId;
@@ -255,7 +270,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         return new EGOEquipmentData.GiftData(
                 ResourceUtil.createInstance("textures/item/army_in_black_curio.png"),
                 "粉红军备",
-                "头部",
+                "头饰",
                 "army_in_black_curio",
                 "最大精神值+5",
                 "攻击速度+5",
@@ -280,14 +295,10 @@ public class EntityArmyInBlack extends AbstractAbnormality {
 
     @Override
     public EGOEquipmentData.ArmorData getEGOArmorData() {
-        return new EGOEquipmentData.ArmorData(
+        return EGOEquipmentData.armorFromItem(
                 ResourceUtil.createInstance("textures/gui/ego/army_in_black_armor.png"),
                 "粉红军备",
-                getRiskLevel(),
-                0.5f,
-                0.3f,
-                0.4f,
-                1.5f,
+                (IEgoArmor) ModItems.ARMY_IN_BLACK_CHESTPLATE.get(),
                 getArmorDevelopmentMaxCount(),
                 "army_in_black_armor"
         );
@@ -320,6 +331,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
 
     @Override
     public void remove(net.minecraft.world.entity.Entity.RemovalReason reason) {
+        stopReactorNavigation();
         if (!level().isClientSide && reason.shouldDestroy()) stopProtection();
         super.remove(reason);
     }
@@ -542,13 +554,15 @@ public class EntityArmyInBlack extends AbstractAbnormality {
                 UUID groupId = UUID.randomUUID();
                 createEscapeGroup(serverLevel, groupId, 1);
                 initializeEscapeGroup(groupId, 1);
-                targetReactorPos = findNearestReactor(serverLevel, blockPosition());
+                reactorOriginPos = blockPosition().immutable();
+                targetReactorPos = findNearestReactor(serverLevel, reactorOriginPos);
             }
         }
     }
 
     @Override
     public void stopEscape() {
+        stopReactorNavigation();
         TargetMarkerItem.clearTargetMark(this);
         if (escapeSpawnedCopy) {
             stopSpawnedEscape();
@@ -570,6 +584,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
 
     @Override
     public void die(DamageSource damageSource) {
+        stopReactorNavigation();
         if (!level().isClientSide) stopProtection();
         TargetMarkerItem.clearTargetMark(this);
         if (!selfDetonated && escapeGroupId != null && this.level() instanceof ServerLevel level) {
@@ -618,16 +633,19 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         if (attackCooldownTicks > 0) {
             attackCooldownTicks--;
         }
-        if (targetReactorPos == null || tickCount % 100 == 0
+        if (reactorOriginPos == null) reactorOriginPos = blockPosition().immutable();
+        if (targetReactorPos == null
                 || !(level.getBlockEntity(targetReactorPos) instanceof RegenerationReactorBlockEntity)
-                || !isOpenFacilityPosition(level, targetReactorPos)) {
-            targetReactorPos = findNearestReactor(level, blockPosition());
+                || !isOpenFacilityPosition(level, targetReactorPos)
+                || selectReactorForOrigin(level, List.of(targetReactorPos), reactorOriginPos) == null) {
+            stopReactorNavigation();
+            targetReactorPos = findNearestReactor(level, reactorOriginPos);
         }
         if (attackChargeTicks > 0) {
             tickEscapeAttackCharge(level);
             return;
         }
-        if (targetReactorPos != null && blockPosition().distSqr(targetReactorPos) <= REACTOR_DETONATE_DISTANCE_SQR) {
+        if (targetReactorPos != null && canDetonateAtReactor(level)) {
             beginSelfDetonation();
             return;
         }
@@ -635,6 +653,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     }
 
     private void beginEscapeAttack() {
+        stopReactorNavigation();
         attackChargeTicks = ESCAPE_ATTACK_CHARGE_TICKS;
         setAnimation("attack");
         getNavigation().stop();
@@ -673,19 +692,66 @@ public class EntityArmyInBlack extends AbstractAbnormality {
             getNavigation().stop();
             return;
         }
-        if (reactorRepathTicks > 0 && !getNavigation().isDone()) {
+        if (reactorRepathTicks > 0 && reactorWalkPos == null) {
             reactorRepathTicks--;
             return;
         }
-        // 反应堆目标必须稳定；随机大范围取点会让路径每次刷新都切到另一侧。
-        BlockPos walkPos = EntityUtil.findReactorSpawnPositionInCompany(level, targetReactorPos, 0);
-        if (walkPos == null || !isOpenFacilityPosition(level, walkPos))
-            return;
-        getNavigation().moveTo(walkPos.getX() + 0.5D, walkPos.getY(), walkPos.getZ() + 0.5D, ESCAPE_REACTOR_SPEED);
-        reactorRepathTicks = 20;
+        if (reactorWalkPos == null) {
+            reactorWalkPos = findReactorApproach(level);
+            if (reactorWalkPos == null) { reactorRepathTicks = 40; return; }
+            if (level.dimension().equals(ModDimensions.LOBOTO_KEY)) reactorNavigator.moveTo(reactorWalkPos);
+        }
+        if (level.dimension().equals(ModDimensions.LOBOTO_KEY)) {
+            reactorNavigator.tick();
+            if (reactorNavigator.isUnreachable()) {
+                stopReactorNavigation();
+                reactorRepathTicks = 80;
+            } else if (reactorNavigator.isComplete() && !canDetonateAtReactor(level)) {
+                // Finish the final short approach; navigator's 1.6-block arrival tolerance
+                // must not leave the entity just outside the reactor's detonation radius.
+                getMoveControl().setWantedPosition(reactorWalkPos.getX() + 0.5D, reactorWalkPos.getY(),
+                        reactorWalkPos.getZ() + 0.5D, ESCAPE_REACTOR_SPEED);
+            }
+        } else if (getNavigation().isDone() || tickCount % 20 == 0) {
+            getNavigation().moveTo(reactorWalkPos.getX() + 0.5D, reactorWalkPos.getY(),
+                    reactorWalkPos.getZ() + 0.5D, ESCAPE_REACTOR_SPEED);
+        }
+    }
+
+    private BlockPos findReactorApproach(ServerLevel level) {
+        var room = FacilityWorldLayout.areaAt(level.dimension().location(), targetReactorPos).orElse(null);
+        List<BlockPos> candidates = new ArrayList<>();
+        for (BlockPos cursor : BlockPos.betweenClosed(targetReactorPos.offset(-2, -2, -2),
+                targetReactorPos.offset(2, 2, 2))) {
+            BlockPos candidate = cursor.immutable();
+            if (candidate.distSqr(targetReactorPos) > 4 || room != null && !room.contains(candidate)) continue;
+            candidates.add(candidate);
+        }
+        candidates.sort(java.util.Comparator.comparingDouble(pos -> pos.distSqr(targetReactorPos)));
+        return candidates.stream().filter(pos -> isOpenFacilityPosition(level, pos)
+                && FacilityMobNavigationTarget.isNavigable(level, this, pos)).findFirst().orElse(null);
+    }
+
+    private boolean canDetonateAtReactor(ServerLevel level) {
+        if (blockPosition().distSqr(targetReactorPos) > REACTOR_DETONATE_DISTANCE_SQR) return false;
+        var room = FacilityWorldLayout.areaAt(level.dimension().location(), targetReactorPos).orElse(null);
+        if (room != null && !room.contains(blockPosition())) return false;
+        Vec3 point = Vec3.atCenterOf(targetReactorPos);
+        var hit = level.clip(new net.minecraft.world.level.ClipContext(getEyePosition(), point,
+                net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.NONE, this));
+        return hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS
+                || hit.getBlockPos().equals(targetReactorPos);
+    }
+
+    private void stopReactorNavigation() {
+        if (reactorNavigator != null) reactorNavigator.stop();
+        reactorWalkPos = null;
+        getNavigation().stop();
     }
 
     private void beginSelfDetonation() {
+        stopReactorNavigation();
         selfDetonationTicks = SELF_DETONATION_TICKS;
         selfDetonationSoundPlayed = false;
         getNavigation().stop();
@@ -806,7 +872,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         BlockPos bestReactor = null;
         double bestDistance = Double.MAX_VALUE;
         for (BlockPos escapeBlock : escapeBlocks) {
-            BlockPos nearestReactor = findNearestReactorPos(reactors, escapeBlock, ARMY_ESCAPE_BLOCK_SEARCH_RADIUS_SQR);
+            BlockPos nearestReactor = selectReactorForOrigin(level, reactors, escapeBlock);
             if (nearestReactor == null) {
                 continue;
             }
@@ -835,7 +901,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
             }
 
             for (BlockPos escapeBlock : escapeBlocks) {
-                BlockPos nearestReactor = findNearestReactorPos(reactors, escapeBlock, ARMY_ESCAPE_BLOCK_SEARCH_RADIUS_SQR);
+                BlockPos nearestReactor = selectReactorForOrigin(level, reactors, escapeBlock);
                 if (nearestReactor != null) {
                     candidates.add(new ArmySpawnPoint(level, escapeBlock, nearestReactor));
                 }
@@ -859,10 +925,21 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         return level.dimension().location() + ":" + pos.asLong();
     }
 
-    private BlockPos findNearestReactorPos(List<BlockPos> reactors, BlockPos origin, double maxDistanceSqr) {
+    private BlockPos selectReactorForOrigin(ServerLevel level, List<BlockPos> reactors, BlockPos origin) {
+        var area = FacilityWorldLayout.facilityAreaAt(level, origin).orElse(null);
+        var section = area == null ? java.util.Optional.<FacilityAccessService.Section>empty()
+                : FacilityAccessService.resolveSection(level.dimension().location(), area.groupId);
+        var halls = section.isEmpty() ? List.<FacilityWorldLayout.AreaDefinition>of()
+                : FacilityWorldLayout.fixedAreas(level.dimension().location()).stream()
+                .filter(hall -> hall.type() == FacilityAreaType.REST_ROOM
+                        && (hall.id().endsWith("/main") || hall.id().endsWith("-main")
+                        || hall.id().endsWith("/main-reactor") || hall.id().endsWith("-main-reactor")))
+                .filter(hall -> FacilityAccessService.resolveSection(level.dimension().location(), hall.groupId())
+                        .map(section.get()::equals).orElse(false)).toList();
         BlockPos best = null;
-        double bestDistance = maxDistanceSqr;
+        double bestDistance = Double.MAX_VALUE;
         for (BlockPos reactor : reactors) {
+            if (section.isPresent() && halls.stream().noneMatch(hall -> hall.contains(reactor))) continue;
             double distance = reactor.distSqr(origin);
             if (distance <= bestDistance) {
                 bestDistance = distance;
@@ -873,6 +950,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     }
 
     private void moveToArmySpawnPoint(ArmySpawnPoint spawnPoint) {
+        reactorOriginPos = spawnPoint.escapeBlockPos.immutable();
         BlockPos pos = spawnPoint.escapeBlockPos;
         moveTo(pos.getX() + 0.5D, pos.getY() + 1.0D, pos.getZ() + 0.5D,
                 level().getRandom().nextFloat() * 360.0F, 0.0F);
@@ -911,6 +989,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         resetEscapeState();
         initializeEscapeGroup(groupId, groupSize);
         this.targetReactorPos = spawnPoint.reactorPos;
+        this.reactorOriginPos = spawnPoint.escapeBlockPos.immutable();
         setNoAi(false);
         this.noPhysics = false;
     }
@@ -1008,19 +1087,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     }
 
     private BlockPos findNearestReactor(ServerLevel level, BlockPos origin) {
-        BlockPos best = null;
-        double bestDistance = Double.MAX_VALUE;
-        for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level, origin, 128)) {
-            if (blockEntity instanceof RegenerationReactorBlockEntity
-                    && isOpenFacilityPosition(level, blockEntity.getBlockPos())) {
-                double distance = blockEntity.getBlockPos().distSqr(origin);
-                if (distance < bestDistance) {
-                    bestDistance = distance;
-                    best = blockEntity.getBlockPos();
-                }
-            }
-        }
-        return best;
+        return selectReactorForOrigin(level, collectReactorPositions(level), origin);
     }
 
     private boolean isOpenFacilityPosition(ServerLevel level, BlockPos pos) {
@@ -1044,7 +1111,9 @@ public class EntityArmyInBlack extends AbstractAbnormality {
     }
 
     private void resetEscapeState() {
+        stopReactorNavigation();
         targetReactorPos = null;
+        reactorOriginPos = null;
         retaliateTargetId = null;
         attackChargeTicks = 0;
         attackCooldownTicks = 0;
@@ -1238,6 +1307,7 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         if (this.targetReactorPos != null) {
             tag.putLong("TargetReactorPos", this.targetReactorPos.asLong());
         }
+        if (reactorOriginPos != null) tag.putLong("ReactorOriginPos", reactorOriginPos.asLong());
         if (this.retaliateTargetId != null) {
             tag.putUUID("RetaliateTarget", this.retaliateTargetId);
         }
@@ -1257,7 +1327,21 @@ public class EntityArmyInBlack extends AbstractAbnormality {
 
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
+        stopReactorNavigation();
         super.readAdditionalSaveData(tag);
+        // Old saves persist attribute base values. Migrate only the complete former
+        // default tuple; leave custom tuning and all attribute modifiers untouched.
+        var red = getAttribute(ModAttributes.RED_DAMAGE_RESISTANCE.get());
+        var white = getAttribute(ModAttributes.WHITE_DAMAGE_RESISTANCE.get());
+        var black = getAttribute(ModAttributes.BLACK_DAMAGE_RESISTANCE.get());
+        var pale = getAttribute(ModAttributes.BLUE_DAMAGE_RESISTANCE.get());
+        if (red != null && white != null && black != null && pale != null
+                && red.getBaseValue() == 0.8D && white.getBaseValue() == 0.6D
+                && black.getBaseValue() == 0.6D && pale.getBaseValue() == 1.2D) {
+            red.setBaseValue(1.2D);
+            black.setBaseValue(1.0D);
+            pale.setBaseValue(0.8D);
+        }
         if (tag.hasUUID("ProtectedPlayer")) {
             this.protectedPlayerId = tag.getUUID("ProtectedPlayer");
         }
@@ -1271,6 +1355,8 @@ public class EntityArmyInBlack extends AbstractAbnormality {
         if (tag.contains("TargetReactorPos")) {
             this.targetReactorPos = BlockPos.of(tag.getLong("TargetReactorPos"));
         }
+        reactorOriginPos = tag.contains("ReactorOriginPos") ? BlockPos.of(tag.getLong("ReactorOriginPos"))
+                : escapePosition != null ? escapePosition.immutable() : blockPosition().immutable();
         if (tag.hasUUID("RetaliateTarget")) {
             this.retaliateTargetId = tag.getUUID("RetaliateTarget");
         }
@@ -1334,9 +1420,9 @@ public class EntityArmyInBlack extends AbstractAbnormality {
                 .add(Attributes.ATTACK_DAMAGE, 22.0D)
                 .add(Attributes.FOLLOW_RANGE, 32.0D)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 0.8D)
-                .add(ModAttributes.RED_DAMAGE_RESISTANCE.get(), 0.8D)
+                .add(ModAttributes.RED_DAMAGE_RESISTANCE.get(), 1.2D)
                 .add(ModAttributes.WHITE_DAMAGE_RESISTANCE.get(), 0.6D)
-                .add(ModAttributes.BLACK_DAMAGE_RESISTANCE.get(), 0.6D)
-                .add(ModAttributes.BLUE_DAMAGE_RESISTANCE.get(), 1.2D);
+                .add(ModAttributes.BLACK_DAMAGE_RESISTANCE.get(), 1.0D)
+                .add(ModAttributes.BLUE_DAMAGE_RESISTANCE.get(), 0.8D);
     }
 }

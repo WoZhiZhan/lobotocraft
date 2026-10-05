@@ -24,6 +24,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.TamableAnimal;
@@ -54,7 +55,7 @@ import java.util.UUID;
  * 出逃状态:无差别攻击所有目标,火铳贯穿前方20格。
  * 五种攻击:劈砍(30%)/火铳(30%)/连续劈砍(20%)/掷刀(20%)/远程走射(12-24格,每秒30%)。
  * 任何异想体突破收容时计数器-1(惩戒鸟除外)。
- * 狼(F-02-58)相关机制(须知Ⅱ/Ⅳ/Ⅴ/Ⅵ、狂暴)留有接口,待狼实装后接入。
+ * 狼(F-02-58)已接入目标与镇压通知：本人镇压不新增狂暴，他人镇压进入狂暴并回满血。
  */
 public class EntityRedHoodMercenary extends AbstractAbnormality {
 
@@ -310,19 +311,29 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
         if (!hasEscape()) triggerEscape();
     }
 
-    /**
-     * 狼被镇压时回调。
-     * @param byPlayerWhileMarked 狼在被"目标"标记期间被玩家击杀 → 目标机制3:狂暴(回满血,200%伤害,受伤+35%)
-     *                            否则 → 须知Ⅵ:陷入狂暴并无差别攻击
-     */
-    public void onWolfSuppressed(boolean byPlayerWhileMarked) {
+    /** Final accepted suppression actor, not a predicted lethal hit or a target-marker flag. */
+    public void onWolfSuppressed(EntityBigBadWolf wolf, Entity suppressor) {
+        TargetMarkerItem.clearTargetMark(wolf);
+        if (suppressor == this) {
+            // Original OnWolfSuppressedByRedHood does not install the rampage buff.
+            if (commissionMode && wolf.getUUID().equals(commissionTargetId) && level() instanceof ServerLevel level) {
+                actionTimer = 0;
+                actionType = -1;
+                actionTarget = null;
+                completeCommission(level);
+            }
+            return;
+        }
         this.commissionMode = false;
         this.commissionTargetId = null;
         this.wolfMode = true; // 移速保持150%
         this.rageMode = true;
-        if (byPlayerWhileMarked) {
-            this.setHealth(this.getMaxHealth()); // 生命恢复至最大值一次
-        }
+        this.setHealth(this.getMaxHealth()); // RedhoodRampageBuf.Init: every outsider suppression
+        actionTimer = 0;
+        actionType = -1;
+        actionTarget = null;
+        setTarget(null);
+        getNavigation().stop();
         syncMovementSpeed();
         if (!hasEscape()) triggerEscape();
     }
@@ -408,7 +419,7 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
         return new EGOEquipmentData.GiftData(
                 ResourceUtil.createInstance("textures/item/redhat_mercenary_curio.png"),
                 "猩红创痕",
-                "头饰",
+                "口罩",
                 "redhat_mercenary_curio",
                 "最大生命值+2",
                 "移动速度+4",
@@ -831,8 +842,7 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class,
                 new net.minecraft.world.phys.AABB(center.x - 1.5, getY() - 1, center.z - 1.5,
                         center.x + 1.5, getY() + 2, center.z + 1.5), this::isValidTarget)) {
-            e.hurt(DamageHelper.getDamage(this, "red"), damage);
-            markWounded(e);
+            if (e.hurt(DamageHelper.getDamage(this, "red"), damage)) markWounded(e);
         }
     }
 
@@ -840,6 +850,10 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
     private void markWounded(LivingEntity e) {
         e.getPersistentData().putLong("lobotocraft_redhat_wounded",
                 this.level().getGameTime() + 1200);
+    }
+
+    static boolean hasActiveBleed(LivingEntity entity, long gameTime) {
+        return entity.getPersistentData().getLong("lobotocraft_redhat_wounded") > gameTime;
     }
 
     /** 火铳:前方直线范围,枪口白烟粒子 */
@@ -857,8 +871,7 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
             if (along < 0 || along > maxRange) continue;
             double px = rel.x - forward.x * along, pz = rel.z - forward.z * along;
             if (Math.sqrt(px * px + pz * pz) > 1.2) continue;
-            e.hurt(DamageHelper.getDamage(this, "red"), dmg);
-            markWounded(e);
+            if (e.hurt(DamageHelper.getRangedDamage(this, "red"), dmg)) markWounded(e);
         }
     }
 
@@ -873,8 +886,7 @@ public class EntityRedHoodMercenary extends AbstractAbnormality {
             for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class,
                     new net.minecraft.world.phys.AABB(p.x - 0.8, p.y - 0.8, p.z - 0.8, p.x + 0.8, p.y + 0.8, p.z + 0.8),
                     this::isValidTarget)) {
-                e.hurt(DamageHelper.getDamage(this, "red"), dmg);
-                markWounded(e);
+                if (e.hurt(DamageHelper.getRangedDamage(this, "red"), dmg)) markWounded(e);
             }
         }
     }

@@ -90,7 +90,7 @@ public class EntityDarkSkadi extends AbstractAbnormality {
                 new ObservationLevelBonus(0.04f, 0),                       // Ⅰ 成功率+4%
                 new ObservationLevelBonus(0.0f, 2),                        // Ⅱ 工作速度+2
                 new ObservationLevelBonus(0.04f, 0),                       // Ⅲ 成功率+4%
-                new ObservationLevelBonus(0.0f, 2, false, true, true)      // Ⅳ 速度+2、解锁护甲/武器
+                new ObservationLevelBonus(0.0f, 2, true, true, true)       // Ⅳ 速度+2、解锁饰品信息/护甲/武器
         };
     }
 
@@ -109,9 +109,9 @@ public class EntityDarkSkadi extends AbstractAbnormality {
     @Override
     public int getArmorDevelopmentMaxCount() { return 1; }
 
-    /** The curio is a suppression trophy, not an observation/research unlock. */
+    /** Observation unlocks the information; only suppression awards the actual trophy. */
     @Override
-    public float getGiftProbability() { return -1.0F; }
+    public float getGiftProbability() { return 0.0F; }
 
     @Override
     public EGOEquipmentData.GiftData getEGOGiftData() {

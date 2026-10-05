@@ -12,6 +12,7 @@ import com.wzz.lobotocraft.client.renderer.item.BaseEgoCurioRenderer;
 import com.wzz.lobotocraft.client.screen.EmployeeInventoryScreen;
 import com.wzz.lobotocraft.client.screen.EmployeeWarehouseScreen;
 import com.wzz.lobotocraft.client.ui.LobotomyUiRenderer;
+import com.wzz.lobotocraft.entity.abnormality.EntityCensoredMinion;
 import com.wzz.lobotocraft.init.ModBlockEntities;
 import com.wzz.lobotocraft.init.ModEntities;
 import com.wzz.lobotocraft.init.ModItems;
@@ -134,7 +135,8 @@ public class ModClientEvent {
                 com.wzz.lobotocraft.client.renderer.entity.GeburahRenderer::new);
         event.registerEntityRenderer(ModEntities.censored.get(), EntityCensoredRenderer::new);
         event.registerEntityRenderer(ModEntities.censored_minion.get(),
-                (r) -> new GeoEntityRenderer<>(r, 1.0f, 1.0f));
+                (r) -> new GeoEntityRenderer<>(r,
+                        EntityCensoredMinion.MODEL_SCALE, EntityCensoredMinion.MODEL_SCALE));
         event.registerEntityRenderer(ModEntities.meat_idol.get(), (r) -> new AbnormalityRenderer<>(r, 1.2f, 1.0f));
         event.registerEntityRenderer(ModEntities.abandoned_murderer.get(), (r) -> new AbnormalityRenderer<>(r, 0.8f, 0.8f));
         event.registerBlockEntityRenderer(ModBlockEntities.REGENERATION_REACTOR.get(), context -> new BaseGeoBlockRenderer(

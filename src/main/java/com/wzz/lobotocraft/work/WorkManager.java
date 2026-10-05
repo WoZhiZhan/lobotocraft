@@ -75,7 +75,8 @@ public class WorkManager {
         /** The server-authoritative work type after Malkuth's mapping is applied. */
         public final WorkType workType;
         public final float baseSuccessRate;
-        public final float actualSuccessRate;  // 含所有加成和异想体修改
+        public final float actualSuccessRate;  // 开始时的展示快照；提取使用 currentSuccessRate()
+        private final float rateBeforeAbnormalityModifier;
         public final int baseExtractionInterval;
         public final int extractionInterval;   // 含自律和观察等级速度加成
         public final int temperance;  // 自律值
@@ -136,13 +137,12 @@ public class WorkManager {
             this.continuousMode = continuousMode;
             this.startingHealth = player.getHealth();
             this.startingMental = MentalValueUtil.getMentalValue(player);
-            final int[] empLevel = {1};
-            player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS)
-                    .ifPresent(stats -> empLevel[0] = stats.getEmployeeLevel());
+            WorkAttributeLevels attributes = player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS)
+                    .map(WorkAttributeLevels::from).orElse(WorkAttributeLevels.LOWEST);
 
             float[][] fullPrefs = abnormality.getFullWorkPreferences();
             int workIndex = workType.ordinal();
-            int levelIndex = Math.min(Math.max(empLevel[0] - 1, 0), 4);
+            int levelIndex = attributes.columnFor(workType);
             if (fullPrefs != null && workIndex < fullPrefs.length
                     && levelIndex < fullPrefs[workIndex].length) {
                 this.baseSuccessRate = fullPrefs[workIndex][levelIndex];
@@ -209,8 +209,14 @@ public class WorkManager {
             this.baseExtractionInterval = Math.max(10, intervalWithObservation - itemSpeedBonus);
             this.currentExtractionInterval = this.baseExtractionInterval;
             // 让异想体有机会修改成功率（优先级最高）
-            Float modifiedRate = abnormality.modifyWorkSuccessRate(player, workType, rateWithBonuses);
-            this.actualSuccessRate = Objects.requireNonNullElse(modifiedRate, rateWithBonuses);
+            this.rateBeforeAbnormalityModifier = rateWithBonuses;
+            this.actualSuccessRate = currentSuccessRate();
+        }
+
+        /** Re-evaluate the existing live modifier, always from the unmodified input. */
+        public float currentSuccessRate() {
+            Float modified = abnormality.modifyWorkSuccessRate(player, workType, rateBeforeAbnormalityModifier);
+            return Objects.requireNonNullElse(modified, rateBeforeAbnormalityModifier);
         }
 
         /**
@@ -701,7 +707,7 @@ public class WorkManager {
         WorkPreExtractionEvent preEvent = new WorkPreExtractionEvent(
                 player, abnormality, session.workType,
                 session.extractionCount + 1,  // 下一次提取的序号
-                session.actualSuccessRate,
+                session.currentSuccessRate(),
                 session
         );
 
@@ -815,7 +821,7 @@ public class WorkManager {
         handleWorkResult(player, abnormality, workType, result);
         if (!isCompletionValid(session)) return finishCompletion(session, false);
         applyAttributeGain(player, abnormality, workType, session);
-        abnormality.onWorkComplete(player, workType, result);
+        abnormality.onWorkComplete(player, workType, result, session);
         if (!isCompletionValid(session)) return finishCompletion(session, false);
         if (session.continuousMode && !session.stopContinuousAfterCurrent) {
             Component stopReason = getContinuousStopReason(session);
@@ -906,6 +912,7 @@ public class WorkManager {
             case "Player disconnected" -> "message.lobotocraft.work.reason.disconnected";
             case "调试命令取消工作" -> "message.lobotocraft.work.reason.debug_cancel";
             case "被冰雪女皇冰封，工作中断" -> "message.lobotocraft.work.reason.frozen";
+            case "被狼吞入，工作中断" -> "message.lobotocraft.work.reason.wolf_swallowed";
             case "被红舞鞋控制，工作中断" -> "message.lobotocraft.work.reason.red_shoes";
             case "展会停止工作" -> "message.lobotocraft.work.reason.exhibition_stop";
             default -> null;

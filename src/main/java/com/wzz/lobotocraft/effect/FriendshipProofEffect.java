@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.effect;
 import com.wzz.lobotocraft.item.ego.children_galaxy.ChildrenGalaxyCurio;
 import com.wzz.lobotocraft.util.EgoArmorHelper;
 import com.wzz.lobotocraft.util.MentalValueUtil;
+import com.wzz.lobotocraft.util.BuffUtil;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
@@ -10,9 +11,9 @@ import net.minecraft.world.entity.LivingEntity;
 
 /**
  * 友谊之证(原"鹅卵石"物品)。
- * 作用与原物品完全一致:每 100 tick(5秒)根据强度回血并恢复精神值。
- * 强度(amplifier)承载原 QliphothCounter:counter = amplifier + 1。
- * 即 amplifier=0 对应 counter=1,回血/回精神值 = counter * 2。
+ * 每 100 tick(5秒)根据来源的共享计数回血并恢复精神值。
+ * 强度显示共享计数器的投影；恢复实时读取绑定的银河之子，而非首次领取的快照。
+ * 保留现有 Minecraft 回复数值 counter * 2，本次只修计数来源与同步。
  */
 public class FriendshipProofEffect extends MobEffect {
 
@@ -33,7 +34,8 @@ public class FriendshipProofEffect extends MobEffect {
             if (player.isDeadOrDying()) {
                 return;
             }
-            int count = amplifier + 1; // 还原 QliphothCounter
+            int count = BuffUtil.getFriendshipProofCounter(player);
+            if (count <= 0) return;
             float amount = count * 2.0f;
             if (EgoArmorHelper.isWearingFullSet(player, "children_galaxy")) {
                 amount *= 2.0f;

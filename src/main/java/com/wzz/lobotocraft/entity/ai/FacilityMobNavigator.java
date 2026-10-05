@@ -54,6 +54,7 @@ public final class FacilityMobNavigator {
     private BlockPos target;
     private BlockPos elevator;
     private boolean elevatorUp;
+    private boolean elevatorExitVerified;
     private State state = State.DIRECT;
     private List<NavigationPathStep> path = List.of();
     private int pathIndex;
@@ -82,7 +83,7 @@ public final class FacilityMobNavigator {
         if (target == null || !mob.isAlive()) return;
         if (state == State.DIRECT && distanceTo(target) <= ARRIVAL_DISTANCE) {
             complete = true;
-            mob.getNavigation().stop();
+            haltMovement();
             cancelPlanning();
             return;
         }
@@ -93,7 +94,7 @@ public final class FacilityMobNavigator {
         if (state == State.TO_ELEVATOR && tryUseElevator()) return;
 
         if (pathIndex >= path.size()) {
-            mob.getNavigation().stop();
+            haltMovement();
             if (replanDelay > 0) {
                 replanDelay--;
                 return;
@@ -120,26 +121,31 @@ public final class FacilityMobNavigator {
         if (!prepareTransition(step)) {
             invalidatePath();
             replanDelay = 10;
-            if (++stuckChecks >= UNREACHABLE_STRIKES) unreachable = true;
+            recordBlockedLeg();
             return;
         }
         Vec3 waypoint = step.node().standingPosition();
         if (!trackProgress(waypoint)) {
             invalidatePath();
             replanDelay = 5;
-            if (++stuckChecks >= UNREACHABLE_STRIKES) unreachable = true;
+            recordBlockedLeg();
             return;
         }
         mob.getLookControl().setLookAt(waypoint.x, waypoint.y + mob.getEyeHeight(), waypoint.z);
-        if (mob.getNavigation().isDone() || mob.tickCount % 10 == 0) {
-            mob.getNavigation().moveTo(waypoint.x, waypoint.y, waypoint.z, speed);
-        }
+        // The facility planner has already validated this full-body transition.
+        // Asking vanilla navigation to plan it again can return a stationary
+        // partial path on custom facility floors, silently discarding our route.
+        mob.getNavigation().stop();
+        mob.getMoveControl().setWantedPosition(waypoint.x, waypoint.y, waypoint.z, speed);
+        if (waypoint.y - mob.getY() > mob.getStepHeight()
+                && mob.onGround()) mob.getJumpControl().jump();
     }
 
     public void stop() {
         target = null;
         elevator = null;
         elevatorUp = false;
+        elevatorExitVerified = false;
         state = State.DIRECT;
         complete = false;
         unreachable = false;
@@ -148,7 +154,14 @@ public final class FacilityMobNavigator {
         replanDelay = 0;
         rejectedElevators.clear();
         invalidatePath();
+        haltMovement();
+    }
+
+    private void haltMovement() {
         mob.getNavigation().stop();
+        mob.getMoveControl().setWantedPosition(mob.getX(), mob.getY(), mob.getZ(), 0.0D);
+        mob.setZza(0.0F);
+        mob.setXxa(0.0F);
     }
 
     public boolean isComplete() {
@@ -168,9 +181,20 @@ public final class FacilityMobNavigator {
                     FacilityNavigationCache.COMPANY_MIN, FacilityNavigationCache.COMPANY_MAX);
             if (snapshot == null) return PlanResult.PENDING;
             AtomicBoolean cancelled = new AtomicBoolean();
+            NavigationNode landing = null;
+            if (state == State.TO_ELEVATOR && elevator != null) {
+                if (!(level.getBlockEntity(elevator) instanceof ElevatorBlockEntity source))
+                    return PlanResult.NO_PATH;
+                BlockPos destination = source.findDestinationElevator(level, elevatorUp);
+                Vec3 safeLanding = destination == null ? null
+                        : ElevatorBlockEntity.findSafeLanding(level, mob, destination);
+                if (safeLanding == null) return PlanResult.NO_PATH;
+                if (Math.abs(safeLanding.y - target.getY()) <= 5.0D)
+                    landing = new NavigationNode(BlockPos.containing(safeLanding), safeLanding.y);
+            }
             PlanningRequest request = new PlanningRequest(
                     new NavigationNode(mob.blockPosition(), mob.getY()), legTarget,
-                    mob.getBbWidth(), mob.getBbHeight(), openNavigationAreas(level));
+                    mob.getBbWidth(), mob.getBbHeight(), openNavigationAreas(level), landing, target);
             CompletableFuture<PathSearchResult> future = CompletableFuture.supplyAsync(
                     () -> computePath(snapshot, request, cancelled), PATH_EXECUTOR);
             planningJob = new PlanningJob(cancelled, future);
@@ -185,6 +209,10 @@ public final class FacilityMobNavigator {
             return PlanResult.NO_PATH;
         }
         planningJob = null;
+        if (result.status() == PathSearchResult.Status.UNREACHABLE
+                || result.status() == PathSearchResult.Status.PARTIAL_UNREACHABLE)
+            return PlanResult.NO_PATH;
+        if (state == State.TO_ELEVATOR) elevatorExitVerified = true;
         NavigationPath candidate = result.path();
         if (candidate == null || candidate.steps().isEmpty()) {
             return isAtCurrentLeg() ? PlanResult.RETRY : PlanResult.NO_PATH;
@@ -195,14 +223,36 @@ public final class FacilityMobNavigator {
         }
         path = candidate.steps();
         pathIndex = 0;
-        stuckChecks = 0;
         resetWaypointProgress();
         return PlanResult.PLANNED;
+    }
+
+    private void recordBlockedLeg() {
+        if (++stuckChecks < UNREACHABLE_STRIKES) return;
+        if (state == State.TO_ELEVATOR && elevator != null) {
+            rejectedElevators.add(elevator);
+            stuckChecks = 0;
+            evaluateRoute(true);
+        } else {
+            unreachable = true;
+        }
     }
 
     private static PathSearchResult computePath(NavigationSnapshot snapshot,
                                                 PlanningRequest request,
                                                 AtomicBoolean cancelled) {
+        // A geometrically nearby lift can land in a disconnected room on the same
+        // target floor. Check that continuation in the existing worker, not on the
+        // server thread and not only after the passenger has become trapped there.
+        if (request.landing != null) {
+            PathSearchResult exit = computePath(snapshot,
+                    new PlanningRequest(request.landing, request.finalTarget,
+                            request.width, request.height, request.openAreas, null, null), cancelled);
+            // A partial path is not evidence that boarding this lift is safe.
+            if (!exit.reachedGoal())
+                return new PathSearchResult(PathSearchResult.Status.UNREACHABLE, null,
+                        exit.visitedNodes(), exit.generatedTransitions());
+        }
         NodeEvaluator evaluator = new NodeEvaluator(snapshot, request.width, request.height);
         TransitionGenerator transitions = new TransitionGenerator(evaluator, 1, 1, false);
         NavigationNode start = resolveStart(evaluator, transitions, request.start);
@@ -268,6 +318,7 @@ public final class FacilityMobNavigator {
         state = State.DIRECT;
         elevator = null;
         elevatorUp = false;
+        elevatorExitVerified = false;
         invalidatePath();
         if (target == null) return;
         double verticalGap = Math.abs(target.getY() - mob.getY());
@@ -279,6 +330,7 @@ public final class FacilityMobNavigator {
         if (choice == null) return false;
         elevator = choice.source;
         elevatorUp = choice.upward;
+        elevatorExitVerified = false;
         state = State.TO_ELEVATOR;
         invalidatePath();
         return true;
@@ -315,11 +367,14 @@ public final class FacilityMobNavigator {
     }
 
     private boolean tryUseElevator() {
-        if (!(mob.level() instanceof ServerLevel level) || elevator == null
+        if (!elevatorExitVerified || !(mob.level() instanceof ServerLevel level) || elevator == null
                 || !(level.getBlockEntity(elevator) instanceof ElevatorBlockEntity source)
                 || !source.isWithinInteractionRange(mob)) return false;
         ElevatorBlockEntity.TravelResult result = source.tryTravel(mob, elevatorUp);
-        if (result == ElevatorBlockEntity.TravelResult.COOLDOWN) return true;
+        if (result == ElevatorBlockEntity.TravelResult.COOLDOWN) {
+            haltMovement();
+            return true;
+        }
         if (result != ElevatorBlockEntity.TravelResult.SUCCESS) {
             rejectedElevators.add(elevator);
             evaluateRoute(true);
@@ -327,6 +382,7 @@ public final class FacilityMobNavigator {
         }
         state = State.WAITING_ELEVATOR;
         invalidatePath();
+        haltMovement();
         return true;
     }
 
@@ -469,7 +525,8 @@ public final class FacilityMobNavigator {
 
     private record PlanningRequest(NavigationNode start, BlockPos target,
                                    double width, double height,
-                                   List<FacilityWorldLayout.AreaDefinition> openAreas) {
+                                   List<FacilityWorldLayout.AreaDefinition> openAreas,
+                                   NavigationNode landing, BlockPos finalTarget) {
     }
 
     private record PlanningJob(AtomicBoolean cancelled,

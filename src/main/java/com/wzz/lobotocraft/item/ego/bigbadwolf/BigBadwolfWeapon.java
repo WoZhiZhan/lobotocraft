@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.item.ego.bigbadwolf;
 
 import com.wzz.lobotocraft.color.ExtendedColor;
+import com.wzz.lobotocraft.damagetype.AttackDamage.Targeting;
 import com.wzz.lobotocraft.init.ModParticleTypes;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.init.ModTier;
@@ -53,14 +54,17 @@ public class BigBadwolfWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapo
                 p -> p.broadcastBreakEvent(EquipmentSlot.MAINHAND)
         );
         float damage = 12 + new Random().nextInt(6);
-        if (player.getHealth() < player.getMaxHealth() / 2) {
+        boolean fury = player.getHealth() < player.getMaxHealth() / 2;
+        Targeting intent = fury ? Targeting.INDISCRIMINATE : Targeting.NORMAL;
+        if (fury) {
             damage = damage * 2;
         } else {
             SoundUtil.playSound(player.level, player, ModSounds.BIG_BADWOLF_WEAPON.get());
         }
-        target.hurt(DamageHelper.getDamage(player, "red"), damage);
-        DotHelper.applyDot("big_badwolf", player, target, 3f, "red", 20, 100, 1);
-        if (EgoArmorHelper.isFullEGO(player, "big_badwolf")) {
+        boolean hit = target.hurt(DamageHelper.getDamage(player, "red", intent), damage);
+        if (hit)
+            DotHelper.applyDot("big_badwolf", player, target, 3f, "red", 20, 100, 1, intent);
+        if (hit && EgoArmorHelper.isFullEGO(player, "big_badwolf")) {
             SlowTimer.applySlowEffect(target);
         }
         return true;
@@ -71,11 +75,13 @@ public class BigBadwolfWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapo
         if (entity instanceof Player player && !player.level.isClientSide && player.getHealth() < player.getMaxHealth() / 2) {
             SoundUtil.playSound(player.level, player, ModSounds.BIG_BADWOLF_WEAPON.get());
             float damage = 24 + new Random().nextInt(6);
-            DamageSource source = DamageHelper.getDamage(player, "red");
+            DamageSource source = DamageHelper.getDamage(player, "red", Targeting.INDISCRIMINATE);
             for (LivingEntity target : EntityUtil.findAllEntitiesInLookDirection(player, 4, 3, LivingEntity.class)) {
-                target.hurt(source, damage);
-                DotHelper.applyDot("big_badwolf", player, target, 3f, "red", 20, 100, 1);
-                if (EgoArmorHelper.isFullEGO(player, "big_badwolf")) {
+                boolean hit = target.hurt(source, damage);
+                if (hit)
+                    DotHelper.applyDot("big_badwolf", player, target, 3f, "red", 20, 100, 1,
+                            Targeting.INDISCRIMINATE);
+                if (hit && EgoArmorHelper.isFullEGO(player, "big_badwolf")) {
                     SlowTimer.applySlowEffect(target);
                 }
             }
@@ -105,11 +111,13 @@ public class BigBadwolfWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapo
             SoundUtil.playSound(level, player, ModSounds.BIG_BADWOLF_WEAPON.get());
             triggerAttackAnimation(player, stack);
             float damage = 15f;
-            if (player.getHealth() < player.getMaxHealth() / 2) {
+            boolean fury = player.getHealth() < player.getMaxHealth() / 2;
+            if (fury) {
                 damage = 30f;
             }
             for (LivingEntity target : EntityUtil.findAllLivingEntitiesInLookDirection(player, ATTACK_RANGE)) {
-                DamageTimer.addNewTimer(target, DamageHelper.getDamage(player, "red"), damage, player);
+                DamageTimer.addNewTimer(target, DamageHelper.getDamage(player, "red",
+                        fury ? Targeting.INDISCRIMINATE : Targeting.NORMAL), damage, player);
             }
         }
         return super.use(level, player, hand);
@@ -174,6 +182,11 @@ public class BigBadwolfWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapo
         private final DamageSource damageSource;
         private final float damage;
         private final Player player;
+        private boolean hit;
+        private long firstHitTick;
+        private long secondHitTick;
+        private boolean firstSettled;
+        private boolean secondSettled;
 
         private DamageTimer(DamageSource damageSource, float damage, Player player) {
             this.damageSource = damageSource;
@@ -182,29 +195,44 @@ public class BigBadwolfWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapo
         }
 
         public static void addNewTimer(LivingEntity living, DamageSource damageSource, float damage, Player player) {
+            if (!living.isAlive() || FacilityCombatRules.blocksEmployeeFriendlyFire(living, damageSource)
+                    || living instanceof Player target && (target.isCreative() || target.isSpectator())) return;
             DamageTimer timer = new DamageTimer(damageSource, damage, player);
             timer.addSkillTimer(living, 1200, 1000, 20, true);
         }
 
         @Override
         public void onStart(@NotNull LivingEntity entity) {
+            // The original delay is 24 ticks; callbacks #4/#15 nominally land at 27/38.
+            // Queue pressure must not turn an equality check on callback count into a missed hit.
+            firstHitTick = entity.level().getGameTime() + 27;
+            secondHitTick = entity.level().getGameTime() + 38;
             MovementLockUtil.acquire(entity, MOVEMENT_LOCK);
         }
 
         @Override
         public void onRunning(@NotNull LivingEntity entity) {
-            if (getExecutions() == 4) {
-                EntityUtil.clearHurtTime(entity, () -> entity.hurt(damageSource, damage));
+            settleDueHits(entity);
+        }
+
+        private void settleDueHits(LivingEntity entity) {
+            long now = entity.level().getGameTime();
+            if (!firstSettled && now >= firstHitTick) {
+                firstSettled = true;
+                EntityUtil.clearHurtTime(entity, () -> hit |= entity.hurt(damageSource, damage));
             }
-            if (getExecutions() == 15) {
-                EntityUtil.clearHurtTime(entity, () -> entity.hurt(damageSource, damage));
+            if (!secondSettled && now >= secondHitTick) {
+                secondSettled = true;
+                EntityUtil.clearHurtTime(entity, () -> hit |= entity.hurt(damageSource, damage));
             }
         }
 
         @Override
         public void onEnd(@NotNull LivingEntity entity) {
+            settleDueHits(entity);
             MovementLockUtil.release(entity, MOVEMENT_LOCK);
-            DotHelper.applyDot("big_badwolf", player, entity, 3f, "red", 20, 100, 1);
+            if (hit) DotHelper.applyDot("big_badwolf", player, entity, 3f, "red", 20, 100, 1,
+                    DamageHelper.targetingOf(damageSource));
         }
 
         @Override

@@ -55,6 +55,7 @@ public class DotHelper {
     /* ================= DOT 容器 ================= */
     private static final String TAG_DOTS = "LobotocraftDots";
     private static final String KEY_SOURCE = "src";
+    private static final String KEY_INDISCRIMINATE = "indiscriminate";
     private static final String KEY_DAMAGE = "dmg";
     private static final String KEY_COLOR = "color";
     private static final String KEY_INTERVAL = "interval";
@@ -88,6 +89,13 @@ public class DotHelper {
      */
     public static void applyDot(String id, LivingEntity attacker, LivingEntity target, float damagePerStack,
                                 String color, int intervalTicks, int durationTicks, int maxStacks) {
+        applyDot(id, attacker, target, damagePerStack, color, intervalTicks, durationTicks, maxStacks,
+                com.wzz.lobotocraft.damagetype.AttackDamage.Targeting.NORMAL);
+    }
+
+    public static void applyDot(String id, LivingEntity attacker, LivingEntity target, float damagePerStack,
+            String color, int intervalTicks, int durationTicks, int maxStacks,
+            com.wzz.lobotocraft.damagetype.AttackDamage.Targeting targeting) {
         if (id == null || attacker == null || target == null) return;
         if (target == attacker) return;
         if (target.level().isClientSide || !target.isAlive()) return;
@@ -108,6 +116,8 @@ public class DotHelper {
             dot.putInt(KEY_NEXT, intervalTicks);
         }
         dot.putUUID(KEY_SOURCE, attacker.getUUID());
+        dot.putBoolean(KEY_INDISCRIMINATE,
+                targeting == com.wzz.lobotocraft.damagetype.AttackDamage.Targeting.INDISCRIMINATE);
 
         dots.put(id, dot);
         target.getPersistentData().put(TAG_DOTS, dots);
@@ -279,7 +289,10 @@ public class DotHelper {
             }
 
             float damage = dot.getFloat(KEY_DAMAGE) * Math.max(1, dot.getInt(KEY_STACKS));
-            dealDotDamage(target, DamageHelper.getDamage(source, dot.getString(KEY_COLOR)), damage);
+            var targeting = dot.getBoolean(KEY_INDISCRIMINATE)
+                    ? com.wzz.lobotocraft.damagetype.AttackDamage.Targeting.INDISCRIMINATE
+                    : com.wzz.lobotocraft.damagetype.AttackDamage.Targeting.NORMAL;
+            dealDotDamage(target, DamageHelper.getDamage(source, dot.getString(KEY_COLOR), targeting), damage);
 
             if (!target.isAlive()) {
                 clearDots(target);

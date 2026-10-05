@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.entity.data;
 
 import com.mojang.logging.LogUtils;
+import com.wzz.lobotocraft.entity.abnormality.EntityOneBad;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -87,8 +88,10 @@ public class AbnormalityEncyclopediaData {
         // 一罪与百善 - 2个管理须知
         ENCYCLOPEDIA_DATA.put("O-03-03", new EntryData(
                 new String[]{
-                        "当工作结果为优时，一罪与百善会为完成工作的员工额外产生一些情绪值。某个员工对其进行工作时必须十分小心。",
-                        "如果员工在一次工作中成功的五次全部成功，那么一罪与百善会为该员工加5所有员工攻击情绪值。"
+                        "在本模组中，当工作结果为优时，“一罪与百善”为完成工作的员工恢复"
+                                + EntityOneBad.GOOD_WORK_MENTAL_RECOVERY + "点精神值；结果为良时恢复"
+                                + EntityOneBad.NORMAL_WORK_MENTAL_RECOVERY + "点精神值。",
+                        "在本模组中，当工作结果为差时，“一罪与百善”会进行祈祷，并为该员工恢复全部精神值。此效果只作用于该员工，不会恢复同部门其他员工的精神值。"
                 },
                 "计数器极限 无 | 不会突破收容"
         ));
@@ -119,7 +122,7 @@ public class AbnormalityEncyclopediaData {
                         "自律等级高于2级的员工完成了对“热心的樵夫”的工作后，“热心的樵夫”的逆卡巴拉计数器会立刻减少。",
                         "当“热心的樵夫”的逆卡巴拉计数器归零时，下一名开始工作的AI员工会立刻死亡。随后“热心的樵夫”将突破收容。"
                 },
-                "计数器极限：1 | 会突破收容 | 红色(1.5 抗性较低) 白色(0.8 抗性较高) 黑色(0.8 抗性较高) 蓝色(2.0 抗性较低)"
+                "计数器极限：1 | 会突破收容 | 红色(1.5 抗性较低) 白色(0.8 抗性较高) 黑色(0.8 抗性较高) PALE(1.0 抗性一般)"
         ));
 
         // 血肉偶像 (T-09-79) - 5个管理须知
@@ -235,7 +238,7 @@ public class AbnormalityEncyclopediaData {
         ENCYCLOPEDIA_DATA.put("O-01-55", new EntryData(
                 new String[]{
                         "完成工作的员工会从“银河之子”那儿得到「友谊之证」。「友谊之证」将根据“银河之子”的逆卡巴拉计数器为该员工持续恢复相应的生命值和精神值。",
-                        "当某个持有「友谊之证」的员工完成了对“银河之子”的任意工作后，“银河之子”的逆卡巴拉计数器会立刻增加2点。",
+                        "当某个持有「友谊之证」的员工完成了对“银河之子”的任意工作后，“银河之子”的逆卡巴拉计数器会立刻增加1点（上限5）。所有持有者的恢复强度共享各自绑定的银河之子的当前计数器。",
                         "当某个持有「友谊之证」的员工完成了对其他异想体的任意工作后，该员工将根据“银河之子”的逆卡巴拉计数器指数受到相应的伤害，且“银河之子”逆卡巴拉计数器会立刻减少。",
                         "当某个持有「友谊之证」的员工死亡且身边没有“银河之子”时，“银河之子”的逆卡巴拉计数器会立刻归零。",
                         "当“银河之子”的逆卡巴拉计数器归零时，持有「友谊之证」的所有员工都会立刻死亡。"
@@ -314,7 +317,7 @@ public class AbnormalityEncyclopediaData {
                         "当“F-01-57”经过“又大又可能很坏的狼”收容单元前的走廊时，“又大又可能很坏的狼”会直接突破收容。",
                         "一些员工报告说，他们从“又大又可能很坏的狼”的腹中听到员工的呼救声。据此，我们猜测可以委托异想体“F-01-57”镇压“又大又可能很坏的狼”以救出那些员工。"
                 },
-                "计数器极限：2 | 出逃恐惧伤害：否 | 红色(1.0 抗性一般) 白色(0.7 抗性较高) 黑色(0.7 抗性较高) 蓝色(1.2 抗性较低)"
+                "计数器极限：2 | 出逃恐惧伤害：否 | 红色(1.0 抗性一般) 白色(0.7 抗性较高) 黑色(0.7 抗性较高) PALE(1.0 抗性一般)"
         ));
 
         // 亡蝶葬仪 (T-01-68) - 3个管理须知
@@ -351,7 +354,7 @@ public class AbnormalityEncyclopediaData {
                         "每有一个异想体被成功镇压，“深黯“军团””的逆卡巴拉计数器会增加。",
                         "出逃后，等级低于3级员工遭遇20格内会失控攻击其他玩家；被它攻击陷入恐慌也一样。"
                 },
-                "计数器极限：3 | 会突破收容 | 沟通工作不会产出PE-BOX | 白色/黑色伤害 | 红色(0.8 抗性较高) 白色(0.6 抗性较高) 黑色(0.6 抗性较高) 蓝色(1.2 抗性较低)"
+                "计数器极限：3 | 会突破收容 | 沟通工作不会产出PE-BOX | 白色/黑色伤害 | RED(1.2 抗性较低) WHITE(0.6 抗性较高) BLACK(1.0 抗性一般) PALE(0.8 抗性较高)"
         ));
 
         // 破裂盔甲 (O-05-61) - 5个管理须知
@@ -462,6 +465,14 @@ public class AbnormalityEncyclopediaData {
     public static String getManual(String abnormalityCode, int index, String languageCode) {
         EntryData data = getData(abnormalityCode);
         if (storyLanguage(languageCode).equals("cn")) return data.getManual(index);
+        // The bundled original archive remains intact. Manuals for this adapted
+        // entity must describe the implemented mod behavior in both languages.
+        if ("O-03-03".equals(abnormalityCode)) {
+            if (index == 0) return "In this mod, a Good work result restores "
+                    + EntityOneBad.GOOD_WORK_MENTAL_RECOVERY + " SP to the employee who completed the work; a Normal result restores "
+                    + EntityOneBad.NORMAL_WORK_MENTAL_RECOVERY + " SP.";
+            if (index == 1) return "In this mod, a Poor work result makes One Sin pray and fully restore that employee's SP. This effect does not restore other employees' SP.";
+        }
         ensureOriginalStoriesLoaded("en");
         String normalized = "0-02-62".equals(abnormalityCode) ? "O-02-62" : abnormalityCode;
         String[] manuals = ORIGINAL_MANUAL_CACHE.getOrDefault("en", Map.of()).get(normalized);

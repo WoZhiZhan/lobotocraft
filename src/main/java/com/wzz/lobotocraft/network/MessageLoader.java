@@ -21,8 +21,8 @@ public class MessageLoader {
 	}
 	
 	public final SimpleChannel instance;
-	// Bump whenever PacketRegistry order or any IMessage wire layout changes.
-    private static final String PROTOCOL_VERSION = "39";
+	// Bump whenever packet layout/order or synced entity-data layout changes.
+    private static final String PROTOCOL_VERSION = "43";
 	
 	public int id = 0;
 	

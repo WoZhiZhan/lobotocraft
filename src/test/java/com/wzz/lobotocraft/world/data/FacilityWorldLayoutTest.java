@@ -23,7 +23,7 @@ class FacilityWorldLayoutTest {
     @Test
     void measuredLayoutContainsUpperAndMiddleAreasAndUsesOriginalNodes() {
         List<FacilityAreaEntry> areas = FacilityWorldLayout.mergeAreas(COMPANY, List.of());
-        assertEquals(83, areas.size());
+        assertEquals(88, areas.size());
         for (FacilityAreaEntry area : areas) {
             assertTrue(FacilityLayoutTemplate.defaultLayout().areaById(area.groupId).isPresent(),
                     () -> "Unknown original layout node: " + area.groupId);

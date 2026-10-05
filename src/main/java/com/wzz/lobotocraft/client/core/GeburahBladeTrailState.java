@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.client.core;
 
 import com.wzz.lobotocraft.core_suppression.geburah.GeburahMove;
+import com.wzz.lobotocraft.core_suppression.geburah.GeburahEgoAttackVisuals;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
@@ -19,6 +20,7 @@ public final class GeburahBladeTrailState {
     private static Vec3 currentPosition;
     private static GeburahMove currentMove;
     private static boolean currentEgo;
+    private static boolean currentEnhanced;
     private static int currentPointCount;
 
     private GeburahBladeTrailState() {
@@ -66,6 +68,12 @@ public final class GeburahBladeTrailState {
     public static void capture(int sampledEntityId, double sampleTime,
                                List<Vec3> bladePositions,
                                boolean ego, GeburahMove move) {
+        capture(sampledEntityId, sampleTime, bladePositions, ego, move, false);
+    }
+
+    public static void capture(int sampledEntityId, double sampleTime,
+                               List<Vec3> bladePositions, boolean ego, GeburahMove move,
+                               boolean enhanced) {
         if (sampledEntityId < 0 || !Double.isFinite(sampleTime)
                 || bladePositions == null || bladePositions.isEmpty()
                 || bladePositions.stream().anyMatch(position -> position == null)) return;
@@ -74,6 +82,7 @@ public final class GeburahBladeTrailState {
         if (sampledEntityId != entityId || currentPosition == null
                 || move != currentMove
                 || ego != currentEgo
+                || enhanced != currentEnhanced
                 || positions.size() != currentPointCount
                 || sampleTime < currentSampleTime
                 || currentPosition.distanceToSqr(worldPosition) > 64.0D * 64.0D) {
@@ -85,14 +94,15 @@ public final class GeburahBladeTrailState {
             currentPosition = worldPosition;
             currentMove = move;
             currentEgo = ego;
+            currentEnhanced = enhanced;
             currentPointCount = positions.size();
-            TRAIL.addLast(new TimedPosition(sampleTime, positions, ego, move));
+            TRAIL.addLast(new TimedPosition(sampleTime, positions, ego, move, enhanced));
             return;
         }
         if (sampleTime <= currentSampleTime + 1.0E-5D) {
             currentPosition = worldPosition;
             if (!TRAIL.isEmpty()) TRAIL.removeLast();
-            TRAIL.addLast(new TimedPosition(currentSampleTime, positions, ego, move));
+            TRAIL.addLast(new TimedPosition(currentSampleTime, positions, ego, move, enhanced));
             return;
         }
         previousSampleTime = currentSampleTime;
@@ -102,7 +112,7 @@ public final class GeburahBladeTrailState {
         currentMove = move;
         currentEgo = ego;
         currentPointCount = positions.size();
-        TRAIL.addLast(new TimedPosition(sampleTime, positions, ego, move));
+        TRAIL.addLast(new TimedPosition(sampleTime, positions, ego, move, enhanced));
         while (TRAIL.size() > MAX_SAMPLES) TRAIL.removeFirst();
     }
 
@@ -137,6 +147,22 @@ public final class GeburahBladeTrailState {
         return List.copyOf(points);
     }
 
+    /** Rollback uses the exact legacy six-tick query, including its age normalisation. */
+    public static List<TrailPoint> visualTrail(double now, boolean trialEnabled) {
+        if (!trialEnabled) return recentTrail(now, 6.0D);
+        if (!Double.isFinite(now)) return List.of();
+        TRAIL.removeIf(sample -> now - sample.time
+                > GeburahEgoAttackVisuals.trailLifetime(sample.enhanced, sample.move));
+        List<TrailPoint> points = new ArrayList<>(TRAIL.size());
+        for (TimedPosition sample : TRAIL) {
+            double lifetime = GeburahEgoAttackVisuals.trailLifetime(sample.enhanced, sample.move);
+            float age = (float) Math.max(0.0D, Math.min(1.0D, (now - sample.time) / lifetime));
+            points.add(new TrailPoint(sample.bladePositions, age, sample.ego,
+                    sample.move, sample.enhanced));
+        }
+        return List.copyOf(points);
+    }
+
     public static void clear() {
         entityId = -1;
         previousSampleTime = Double.NEGATIVE_INFINITY;
@@ -145,16 +171,20 @@ public final class GeburahBladeTrailState {
         currentPosition = null;
         currentMove = null;
         currentEgo = false;
+        currentEnhanced = false;
         currentPointCount = 0;
         TRAIL.clear();
     }
 
     private record TimedPosition(double time, List<Vec3> bladePositions,
-                                 boolean ego, GeburahMove move) {
+                                 boolean ego, GeburahMove move, boolean enhanced) {
     }
 
     public record TrailPoint(List<Vec3> bladePositions, float age,
-                             boolean ego, GeburahMove move) {
+                             boolean ego, GeburahMove move, boolean enhanced) {
+        public TrailPoint(List<Vec3> bladePositions, float age, boolean ego, GeburahMove move) {
+            this(bladePositions, age, ego, move, false);
+        }
         public TrailPoint {
             bladePositions = List.copyOf(bladePositions);
         }

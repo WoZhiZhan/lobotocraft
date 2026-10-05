@@ -30,6 +30,16 @@ public final class SafeTransformationUtil {
     public static Vec3 findPositionForDimensions(ServerLevel level, LivingEntity entity,
                                                   EntityDimensions targetDimensions,
                                                   int horizontalRange, int verticalRange) {
+        return findPositionForDimensions(level, entity, targetDimensions,
+                horizontalRange, verticalRange, false);
+    }
+
+    /** Opt-in local recovery for unregistered spawns; registered areas remain hard bounds. */
+    @Nullable
+    public static Vec3 findPositionForDimensions(ServerLevel level, LivingEntity entity,
+                                                  EntityDimensions targetDimensions,
+                                                  int horizontalRange, int verticalRange,
+                                                  boolean allowUnregisteredSearch) {
         AABB currentTargetBox = targetDimensions.makeBoundingBox(
                 entity.getX(), entity.getY(), entity.getZ());
         if (isValid(level, entity, currentTargetBox, true)) {
@@ -37,11 +47,11 @@ public final class SafeTransformationUtil {
         }
 
         FacilityAreaEntry area = findContainingArea(level, entity.position());
-        if (area == null) {
+        if (area == null && !allowUnregisteredSearch) {
             return null;
         }
 
-        AABB areaBounds = new AABB(
+        AABB areaBounds = area == null ? null : new AABB(
                 area.minPos.getX(), area.minPos.getY(), area.minPos.getZ(),
                 area.maxPos.getX() + 1.0D, area.maxPos.getY() + 1.0D, area.maxPos.getZ() + 1.0D);
         BlockPos origin = entity.blockPosition();
@@ -61,7 +71,7 @@ public final class SafeTransformationUtil {
                             double y = candidate.getY();
                             double z = candidate.getZ() + 0.5D;
                             AABB targetBox = targetDimensions.makeBoundingBox(x, y, z);
-                            if (!contains(areaBounds, targetBox)) continue;
+                            if (areaBounds != null && !contains(areaBounds, targetBox)) continue;
                             if (!level.getBlockState(candidate.below()).isFaceSturdy(
                                     level, candidate.below(), Direction.UP)) continue;
                             if (!isValid(level, entity, targetBox, true)) continue;

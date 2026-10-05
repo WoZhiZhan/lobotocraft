@@ -22,7 +22,7 @@ final class WorkAttributeExperience {
 
         float healthRatio = ratio(player.getHealth(), session.startingHealth);
         float mentalRatio = ratio(MentalValueUtil.getMentalValue(player), session.startingMental);
-        int statLevel = workedStatLevel(stats, workType);
+        int statLevel = WorkAttributeLevels.from(stats).levelFor(workType);
         float earned = successfulPeBoxes
                 * levelRiskFactor(statLevel, riskLevel)
                 * injuryFactor(workType, healthRatio, mentalRatio)
@@ -33,15 +33,6 @@ final class WorkAttributeExperience {
 
     private static float ratio(float current, float initial) {
         return initial <= 0.0F ? 1.0F : Math.max(0.0F, current / initial);
-    }
-
-    private static int workedStatLevel(IEmployeeStats stats, WorkType type) {
-        return switch (type) {
-            case INSTINCT -> stats.getFortitudeLevel();
-            case INSIGHT -> stats.getPrudenceLevel();
-            case ATTACHMENT -> stats.getTemperanceLevel();
-            case REPRESSION -> stats.getJusticeLevel();
-        };
     }
 
     private static float levelRiskFactor(int statLevel, String riskLevel) {

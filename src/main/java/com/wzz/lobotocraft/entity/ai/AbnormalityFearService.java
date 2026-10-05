@@ -67,6 +67,13 @@ public final class AbnormalityFearService {
                 .orElse(1);
     }
 
+    /** Suppression ends this threat's encounter; other living sources keep their memory. */
+    public static void resetSourceEncounters(Entity threat) {
+        if (threat != null && !threat.level().isClientSide) {
+            threat.getPersistentData().remove(ENCOUNTERED_EMPLOYEES_TAG);
+        }
+    }
+
     /** A new life may encounter every living fear source again. */
     public static void resetEncounter(ServerPlayer employee) {
         if (employee == null || employee.server == null) return;

@@ -95,6 +95,8 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
             SynchedEntityData.defineId(AbstractAbnormality.class, EntityDataSerializers.BOOLEAN);
     public static final EntityDataAccessor<String> DATA_JADE_NAME =
             SynchedEntityData.defineId(AbstractAbnormality.class, EntityDataSerializers.STRING);
+    private static final EntityDataAccessor<Boolean> DATA_CONTAINMENT_MELTDOWN_OUTLINE =
+            SynchedEntityData.defineId(AbstractAbnormality.class, EntityDataSerializers.BOOLEAN);
 
     // 基础数据
     public String abnormalityCode;    // 编号
@@ -109,6 +111,7 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
     private boolean pendingContainmentReturn;
     private boolean pendingStopEscapeEvent;
     private boolean containmentReturnWasSuppression;
+    private UUID containmentSuppressionAttacker;
     private boolean escapeRegistrationRecorded;
     private boolean escapedFromRegisteredContainment;
     private boolean unregisteredReturnInProgress;
@@ -168,8 +171,23 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         super.registerGoals();
         //this.goalSelector.addGoal(0, new LookAtTargetGoal(this, 16, false, target -> this.hasEscape() && target != null));
         if (canEscape() && !isContinuousUseTool() && !isToolType()) {
-            this.targetSelector.addGoal(0, new HurtByTargetGoal(this));
+            this.targetSelector.addGoal(0, new HurtByTargetGoal(this) {
+                @Override
+                public boolean canUse() {
+                    return canRetaliateAgainst(getLastHurtByMob()) && super.canUse();
+                }
+
+                @Override
+                public boolean canContinueToUse() {
+                    return canRetaliateAgainst(getTarget()) && super.canContinueToUse();
+                }
+            });
         }
+    }
+
+    @Override
+    protected net.minecraft.world.entity.ai.navigation.PathNavigation createNavigation(Level level) {
+        return new com.wzz.lobotocraft.entity.ai.DoorAwareGroundNavigation(this, level);
     }
 
     public String getAbnormalityJadeName() {
@@ -207,7 +225,23 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
 
     private boolean isValidFacilityPursuitTarget(@Nullable LivingEntity target) {
         return target != null && target.isAlive() && !target.isRemoved()
-                && target.level() == level();
+                && target.level() == level() && canSelectCombatTarget(target);
+    }
+
+    /** Attacker intent is independent of whether this abnormality can receive damage. */
+    protected boolean usesCommonCombatTargetSelection() {
+        return true;
+    }
+
+    protected boolean canSelectCombatTarget(@Nullable LivingEntity target) {
+        return isAlive() && !isRemoved() && !isContainmentReturnPending()
+                && target != null && target != this && target.isAlive() && !target.isRemoved()
+                && (!(target instanceof AbstractAbnormality abnormality)
+                    || abnormality.isAbnormalityCombatTarget());
+    }
+
+    protected boolean canRetaliateAgainst(@Nullable LivingEntity attacker) {
+        return canSelectCombatTarget(attacker);
     }
 
     public Component getLocalizedAbnormalityName() {
@@ -216,7 +250,8 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
 
     @Override
     public void setTarget(@Nullable LivingEntity target) {
-        if (target instanceof EntityIsharmla
+        if (target != null && !canSelectCombatTarget(target)
+                || target instanceof EntityIsharmla
                 || (this instanceof EntityIsharmla && target instanceof AbstractAbnormality)) {
             super.setTarget(null);
             return;
@@ -326,6 +361,7 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
                 stopEscape();
             }
             recoverForNewFacilityDay();
+            updateContainmentMeltdownOutline();
             if (this.tickCount == 1 || this.tickCount % 100 == 0) {
                 syncNearbyPlayers();
             }
@@ -418,13 +454,15 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
     @Override
     protected void customServerAiStep() {
         super.customServerAiStep();
+        if (getTarget() != null && !canSelectCombatTarget(getTarget())) {
+            setTarget(null);
+            getNavigation().stop();
+        }
+        if (!usesCommonCombatTargetSelection()) return;
         if (this.tickCount - lastHurtTimestamp < 100 && getTarget() != null && getTarget().isAlive()) {
             return;
         }
         if (!hasEscape() || level().isClientSide) return;
-
-        // 三鸟不参与异想体间战斗
-        if (isBirdOfBlackForest()) return;
 
         // 每秒重新评估目标
         if (targetReevaluationCooldown > 0) {
@@ -445,7 +483,6 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
                         this.getBoundingBox().inflate(32.0),
                         ab -> ab != this
                                 && ab.isAbnormalityCombatTarget()
-                                && !ab.isBirdOfBlackForest()  // 不攻击三鸟
                                 && ab.isAlive()
                 ).stream()
                 .min(Comparator.comparingDouble(this::distanceToSqr))
@@ -574,17 +611,35 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
     /** Starts the common escape lifecycle, preferring a subtype-specific spawn anchor when supplied. */
     protected final boolean beginEscape(@Nullable BlockPos preferredDestination) {
         if (hasEscape() || this.level().isClientSide || !canEscape()) return false;
-        escapeRegistrationRecorded = true;
-        escapedFromRegisteredContainment = AbnormalityWorkRules.isRegistered(this);
         BlockPos teleportTarget = preferredDestination == null
                 ? null : findSafeEscapePosition(preferredDestination);
         if (teleportTarget == null) teleportTarget = findAvailableEscapePosition();
+        return startEscapeLifecycle(teleportTarget == null ? null : Vec3.atBottomCenterOf(teleportTarget));
+    }
+
+    /** Uses an already resolved safe destination exactly, with no ordinary-exit fallback. */
+    protected final boolean beginEscapeAtSafePosition(Vec3 destination) {
+        if (hasEscape() || this.level().isClientSide || !canEscape()
+                || !(level() instanceof ServerLevel serverLevel) || destination == null) return false;
+        BlockPos feet = BlockPos.containing(destination);
+        AABB box = getDimensions(getPose()).makeBoundingBox(destination.x, destination.y, destination.z);
+        if (!FacilityAccessService.isPositionOpen(serverLevel.getServer(),
+                serverLevel.dimension().location(), feet)
+                || !serverLevel.noCollision(this, box)
+                || serverLevel.noCollision(this, box.move(0, -0.05D, 0))
+                || !serverLevel.getEntities(this, box,
+                        other -> other.isAlive() && !other.isRemoved()).isEmpty()) return false;
+        return startEscapeLifecycle(destination);
+    }
+
+    private boolean startEscapeLifecycle(@Nullable Vec3 teleportTarget) {
+        escapeRegistrationRecorded = true;
+        escapedFromRegisteredContainment = AbnormalityWorkRules.isRegistered(this);
         escapeDimension = this.level().dimension().location();
         escapePosition = this.blockPosition();
         setEscape(true);
         if (teleportTarget != null) {
-            teleportTo(teleportTarget.getX() + 0.5, teleportTarget.getY(),
-                    teleportTarget.getZ() + 0.5);
+            teleportTo(teleportTarget.x, teleportTarget.y, teleportTarget.z);
         }
         stopAmbientSoundForAllPlayers();
         playEscapeWarningSound();
@@ -760,8 +815,9 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         if (result == ContainmentReturnResult.TRANSFERRED) return;
         pendingStopEscapeEvent = false;
         MinecraftForge.EVENT_BUS.post(new AbnormalityEscapeStopEvent(
-                this, containmentReturnWasSuppression));
+                this, containmentReturnWasSuppression, containmentSuppressionAttacker));
         containmentReturnWasSuppression = false;
+        containmentSuppressionAttacker = null;
     }
 
     /**
@@ -848,16 +904,37 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         super.defineSynchedData();
         this.entityData.define(DATA_ESCAPED, false);
         this.entityData.define(DATA_JADE_NAME, "???");
+        this.entityData.define(DATA_CONTAINMENT_MELTDOWN_OUTLINE, false);
+    }
+
+    /** A derived visual projection, not an owner of vanilla glow effects or scoreboard teams. */
+    private void updateContainmentMeltdownOutline() {
+        boolean visible = false;
+        if (level() instanceof ServerLevel level && isAlive() && !isRemoved() && !hasEscape()
+                && !isContainmentReturnPending() && canBeContained()
+                && homeRoomMarker != null && level.dimension().location().equals(homeRoomDimension)
+                && FacilityDayData.get(level).getActiveMeltdowns().containsKey(getUUID())
+                && level.hasChunkAt(homeRoomMarker)
+                && level.getBlockEntity(homeRoomMarker) instanceof RoomMarkerBlockEntity marker) {
+            visible = AbnormalityWorkRules.isRegistered(this) && marker.getScanBox().contains(position());
+        }
+        entityData.set(DATA_CONTAINMENT_MELTDOWN_OUTLINE, visible);
+    }
+
+    private boolean hasContainmentMeltdownOutline() {
+        return !hasEscape() && isAlive() && !isContainmentReturnPending()
+                && entityData.get(DATA_CONTAINMENT_MELTDOWN_OUTLINE);
     }
 
     @Override
     public boolean isCurrentlyGlowing() {
-        return this.hasEscape() || super.isCurrentlyGlowing();
+        return hasContainmentMeltdownOutline() || this.hasEscape() || super.isCurrentlyGlowing();
     }
 
     @Override
     public int getTeamColor() {
-        return this.hasEscape() ? 0xFFFF00 : super.getTeamColor();
+        return hasContainmentMeltdownOutline() ? 0xFF0000
+                : this.hasEscape() ? 0xFFFF00 : super.getTeamColor();
     }
 
     @Override
@@ -881,11 +958,12 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
     }
 
     public boolean isAbnormalityCombatTarget() {
-        return hasEscape();
+        return isAlive() && !isRemoved() && !isContainmentReturnPending() && hasEscape();
     }
 
     public void setEscape(boolean value) {
         this.entityData.set(DATA_ESCAPED, value);
+        if (value) this.entityData.set(DATA_CONTAINMENT_MELTDOWN_OUTLINE, false);
     }
 
     @Override
@@ -924,7 +1002,7 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
             if (FacilityCombatRules.isImmuneEnvironment(damageSource)) clearFire();
             return false;
         }
-        if (!hasEscape() && !DamageHelper.isKill(damageSource))
+        if (!isAbnormalityCombatTarget() && !DamageHelper.isKill(damageSource))
             return false;
         if (!this.canEscape()) {
             if (!DamageHelper.isKill(damageSource))
@@ -948,6 +1026,8 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
     public void die(DamageSource damageSource) {
         if (level instanceof ServerLevel && canEscape() && usesContainmentReturnOnDeath() && hasEscape()) {
             containmentReturnWasSuppression = true;
+            Player responsible = FacilityCombatRules.resolvePlayerAttacker(damageSource);
+            containmentSuppressionAttacker = responsible == null ? null : responsible.getUUID();
             // Use dynamic dispatch so each abnormality clears its own temporary escape state.
             stopEscape();
             if (!isRemoved() && pendingContainmentReturn) {
@@ -997,6 +1077,7 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         if (targetLevel != currentLevel) {
             BlockPos destination = safe.immutable();
             boolean suppression = containmentReturnWasSuppression;
+            UUID suppressionAttacker = containmentSuppressionAttacker;
             Entity moved = changeDimension(targetLevel, new ITeleporter() {
                 @Override
                 public Entity placeEntity(Entity entity, ServerLevel source, ServerLevel destinationLevel,
@@ -1014,6 +1095,7 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
             }
             if (returned.level() != targetLevel) return ContainmentReturnResult.DEFERRED;
             returned.containmentReturnWasSuppression = suppression;
+            returned.containmentSuppressionAttacker = suppressionAttacker;
             returned.pendingContainmentReturn = false;
             returned.pendingStopEscapeEvent = false;
             returned.stopEscape();
@@ -1103,6 +1185,7 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
                                                                 ServerLevel originLevel,
                                                                 BlockPos destination) {
         boolean suppression = containmentReturnWasSuppression;
+        UUID suppressionAttacker = containmentSuppressionAttacker;
         Entity moved = changeDimension(originLevel, new ITeleporter() {
             @Override
             public Entity placeEntity(Entity entity, ServerLevel source, ServerLevel destinationLevel,
@@ -1122,6 +1205,7 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
             return ContainmentReturnResult.COMPLETED;
         }
         returned.containmentReturnWasSuppression = suppression;
+        returned.containmentSuppressionAttacker = suppressionAttacker;
         returned.pendingContainmentReturn = false;
         returned.pendingStopEscapeEvent = false;
         returned.unregisteredReturnInProgress = true;
@@ -1152,8 +1236,9 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         EscapeTracker.getInstance().onEscapeStop(this);
         if (postStopEvent) {
             MinecraftForge.EVENT_BUS.post(new AbnormalityEscapeStopEvent(
-                    this, containmentReturnWasSuppression));
+                    this, containmentReturnWasSuppression, containmentSuppressionAttacker));
             containmentReturnWasSuppression = false;
+            containmentSuppressionAttacker = null;
         }
     }
 
@@ -1250,25 +1335,32 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         // layers. That is outside the containment room, so only search at the
         // anchor height or above while a room marker is authoritative.
         int minDy = marker == null ? -2 : 0;
-        for (int radius = 0; radius <= maxRadius; radius++) {
-            for (int dy = minDy; dy <= 3; dy++) {
-                for (int dx = -radius; dx <= radius; dx++) {
-                    for (int dz = -radius; dz <= radius; dz++) {
-                        if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
-                        BlockPos pos = center.offset(dx, dy, dz);
-                        if (!level.hasChunkAt(pos)) continue;
-                        if (roomBounds != null && !roomBounds.contains(
-                                pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D)) continue;
-                        AABB destination = getBoundingBox().move(
-                                pos.getX() + 0.5D - getX(), pos.getY() - getY(), pos.getZ() + 0.5D - getZ());
-                        if (!level.noCollision(this, destination)) continue;
-                        if (!level.getEntities(this, destination,
-                                entity -> entity.isAlive() && !entity.isRemoved() && entity.isPickable()).isEmpty()) {
-                            continue;
+        // Prefer the original floor at every radius, then above, then below.
+        // Keep downward recovery for genuinely airborne/unusable legacy origins.
+        for (int pass = 0; pass < (minDy < 0 ? 3 : 2); pass++) {
+            for (int radius = 0; radius <= maxRadius; radius++) {
+                int firstDy = pass == 0 ? 0 : pass == 1 ? 1 : -1;
+                int lastDy = pass == 0 ? 0 : pass == 1 ? 3 : minDy;
+                for (int dy = firstDy; pass < 2 ? dy <= lastDy : dy >= lastDy;
+                     dy += pass < 2 ? 1 : -1) {
+                    for (int dx = -radius; dx <= radius; dx++) {
+                        for (int dz = -radius; dz <= radius; dz++) {
+                            if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
+                            BlockPos pos = center.offset(dx, dy, dz);
+                            if (!level.hasChunkAt(pos)) continue;
+                            if (roomBounds != null && !roomBounds.contains(
+                                    pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D)) continue;
+                            AABB destination = getBoundingBox().move(
+                                    pos.getX() + 0.5D - getX(), pos.getY() - getY(), pos.getZ() + 0.5D - getZ());
+                            if (!level.noCollision(this, destination)) continue;
+                            if (!level.getEntities(this, destination,
+                                    entity -> entity.isAlive() && !entity.isRemoved() && entity.isPickable()).isEmpty()) {
+                                continue;
+                            }
+                            if (!isNoGravity() && !level.getBlockState(pos.below()).isFaceSturdy(
+                                    level, pos.below(), net.minecraft.core.Direction.UP)) continue;
+                            return pos;
                         }
-                        if (!isNoGravity() && !level.getBlockState(pos.below()).isFaceSturdy(
-                                level, pos.below(), net.minecraft.core.Direction.UP)) continue;
-                        return pos;
                     }
                 }
             }
@@ -1459,6 +1551,9 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         pendingContainmentReturn = loadedReturn.pending();
         pendingStopEscapeEvent = loadedReturn.stopEventPending();
         containmentReturnWasSuppression = loadedReturn.suppression();
+        containmentSuppressionAttacker = containmentReturnWasSuppression
+                && tag.hasUUID("ContainmentSuppressionAttacker")
+                ? tag.getUUID("ContainmentSuppressionAttacker") : null;
         if (loadedReturn.escaped() != this.entityData.get(DATA_ESCAPED)) {
             this.entityData.set(DATA_ESCAPED, loadedReturn.escaped());
         }
@@ -1489,6 +1584,8 @@ public abstract class AbstractAbnormality extends BaseGeoEntity implements IAbno
         tag.putBoolean("EscapedFromRegisteredContainment", escapedFromRegisteredContainment);
         tag.putBoolean("PendingStopEscapeEvent", pendingStopEscapeEvent);
         tag.putBoolean("ContainmentReturnWasSuppression", containmentReturnWasSuppression);
+        if (containmentReturnWasSuppression && containmentSuppressionAttacker != null)
+            tag.putUUID("ContainmentSuppressionAttacker", containmentSuppressionAttacker);
         tag.putInt("LastFacilityDaySeen", lastFacilityDaySeen);
     }
 }

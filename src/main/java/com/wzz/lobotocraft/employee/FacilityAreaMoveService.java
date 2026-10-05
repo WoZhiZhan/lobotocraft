@@ -26,6 +26,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.function.BooleanSupplier;
+import java.util.function.Predicate;
+import java.util.function.LongSupplier;
 
 /** Server-authoritative monitor command that scatters selected employees inside one logical area. */
 public final class FacilityAreaMoveService {
@@ -33,11 +39,19 @@ public final class FacilityAreaMoveService {
     public static final int MAX_EMPLOYEES = 64;
     private static final int SAMPLE_ATTEMPTS = MAX_EMPLOYEES * 2;
     private static final int TARGET_ALTERNATIVES = 12;
+    // Allows one cold/JIT-startup region proof; this is a cooperative safety
+    // ceiling, not the normal latency target (the warm 64-employee test is 100ms).
+    private static final long COMMAND_SAMPLING_BUDGET_NANOS = 250_000_000L;
 
     private FacilityAreaMoveService() {
     }
 
     public static Result dispatch(ServerPlayer issuer, String groupId, Collection<UUID> requestedIds) {
+        return dispatch(issuer, groupId, requestedIds, System::nanoTime);
+    }
+
+    static Result dispatch(ServerPlayer issuer, String groupId, Collection<UUID> requestedIds,
+                           LongSupplier nanoTime) {
         if (issuer.serverLevel().dimension() != ModDimensions.LOBOTO_KEY) {
             return Result.failure("message.lobotocraft.area_move.failure.company_only");
         }
@@ -67,6 +81,7 @@ public final class FacilityAreaMoveService {
         int assigned = 0;
         int rejected = 0;
         Component firstFailure = null;
+        Map<BodyProfile, List<EmployeeRecord>> groups = new LinkedHashMap<>();
 
         for (UUID employeeId : uniqueIds) {
             EmployeeRecord record = personnel.get(employeeId);
@@ -77,29 +92,52 @@ public final class FacilityAreaMoveService {
                 continue;
             }
             EmployeeServerPlayer employee = EmployeeRuntimeManager.activePlayer(employeeId);
-            List<BlockPos> targets = FacilityMoveTargetSampler.sampleCandidates(
-                    targetAreas, random, SAMPLE_ATTEMPTS, TARGET_ALTERNATIVES,
-                    candidate -> !occupiedTargets.contains(candidate)
-                            && isNavigableTarget(level, employee, candidate));
-            if (targets.isEmpty()) {
-                targets = FacilityMoveTargetSampler.sampleCandidates(
-                        targetAreas, random, SAMPLE_ATTEMPTS, TARGET_ALTERNATIVES,
-                        candidate -> isNavigableTarget(level, employee, candidate));
-            }
-            if (targets.isEmpty() || !EmployeeRuntimeManager.assignManualMove(record, targets)) {
-                rejected++;
-                if (firstFailure == null) {
-                    firstFailure = Component.translatable(
-                            "message.lobotocraft.area_move.failure.no_reachable_target");
+            BodyProfile body = new BodyProfile(employee.getBbWidth(), employee.getBbHeight());
+            groups.computeIfAbsent(body, ignored -> new ArrayList<>()).add(record);
+        }
+
+        if (!groups.isEmpty()) {
+            long startedAt = nanoTime.getAsLong();
+            BooleanSupplier withinBudget = () ->
+                    nanoTime.getAsLong() - startedAt < COMMAND_SAMPLING_BUDGET_NANOS;
+            // One immutable geometry view per command, not one copied overlay per
+            // candidate/employee. A loading cache fails closed; no weaker 12-node
+            // fallback may accidentally accept a sealed roof.
+            NavigationSnapshot snapshot = FacilityNavigationCache.snapshot(level,
+                    FacilityNavigationCache.COMPANY_MIN, FacilityNavigationCache.COMPANY_MAX);
+            if (snapshot == null)
+                return new Result(0, uniqueIds.size(),
+                        Component.translatable("message.lobotocraft.navigation_cache.loading"));
+            for (List<EmployeeRecord> group : groups.values()) {
+                EmployeeServerPlayer representative = EmployeeRuntimeManager.activePlayer(group.get(0).id());
+                Predicate<BlockPos> validator = targetValidator(level, representative, snapshot, withinBudget);
+                List<BlockPos> pool = FacilityMoveTargetSampler.sampleCandidates(
+                        targetAreas, random, SAMPLE_ATTEMPTS,
+                        Math.max(TARGET_ALTERNATIVES, group.size() + TARGET_ALTERNATIVES - 1), validator);
+                int cursor = 0;
+                for (EmployeeRecord record : group) {
+                    List<BlockPos> targets = alternatives(pool, occupiedTargets, cursor++);
+                    EmployeeServerPlayer player = EmployeeRuntimeManager.activePlayer(record.id());
+                    // Same dimensions justify sharing immutable geometry work,
+                    // not skipping this employee's live collision context.
+                    while (!targets.isEmpty() && !isStandable(level, player, targets.get(0)))
+                        targets = targets.subList(1, targets.size());
+                    if (targets.isEmpty() || !EmployeeRuntimeManager.assignManualMove(record, targets)) {
+                        rejected++;
+                        if (firstFailure == null) firstFailure = Component.translatable(
+                                withinBudget.getAsBoolean()
+                                        ? "message.lobotocraft.area_move.failure.no_reachable_target"
+                                        : "message.lobotocraft.area_move.failure.sampling_budget");
+                        continue;
+                    }
+                    occupiedTargets.add(targets.get(0));
+                    assigned++;
                 }
-                continue;
             }
-            occupiedTargets.add(targets.get(0));
-            assigned++;
         }
 
         if (assigned == 0) {
-            return Result.failure(firstFailure == null
+            return new Result(0, rejected, firstFailure == null
                     ? Component.translatable("message.lobotocraft.area_move.failure.none_accepted")
                     : firstFailure);
         }
@@ -107,6 +145,48 @@ public final class FacilityAreaMoveService {
                 ? Component.translatable("message.lobotocraft.area_move.success", assigned)
                 : Component.translatable("message.lobotocraft.area_move.partial", assigned, rejected);
         return new Result(assigned, rejected, message);
+    }
+
+    private record BodyProfile(float width, float height) { }
+
+    private static List<BlockPos> alternatives(List<BlockPos> pool, Set<BlockPos> occupied, int cursor) {
+        if (pool.isEmpty()) return List.of();
+        BlockPos primary = pool.stream().filter(candidate -> !occupied.contains(candidate))
+                .findFirst().orElse(pool.get(cursor % pool.size()));
+        List<BlockPos> result = new ArrayList<>(TARGET_ALTERNATIVES);
+        result.add(primary);
+        for (int i = 0; i < pool.size() && result.size() < TARGET_ALTERNATIVES; i++) {
+            BlockPos candidate = pool.get((cursor + i) % pool.size());
+            if (!candidate.equals(primary)) result.add(candidate);
+        }
+        return List.copyOf(result);
+    }
+
+    /** One idle-sampling operation shares its probe. Do not impose a short
+     * per-candidate deadline that prevents its first full region proof. */
+    static Predicate<BlockPos> targetValidator(ServerLevel level, EmployeeServerPlayer employee) {
+        NavigationSnapshot snapshot = FacilityNavigationCache.snapshot(level,
+                FacilityNavigationCache.COMPANY_MIN, FacilityNavigationCache.COMPANY_MAX);
+        if (snapshot == null) return candidate -> false;
+        return targetValidator(level, employee, snapshot, () -> true);
+    }
+
+    private static Predicate<BlockPos> targetValidator(ServerLevel level, EmployeeServerPlayer employee,
+            NavigationSnapshot snapshot, BooleanSupplier withinBudget) {
+        NodeEvaluator evaluator = new NodeEvaluator(snapshot, employee.getBbWidth(), employee.getBbHeight(), true);
+        TransitionGenerator transitions = new TransitionGenerator(evaluator, 1, 1, false);
+        var probe = new NavigationCandidatePolicy.FacilityRegionProbe(transitions::generate);
+        return candidate -> {
+            if (!withinBudget.getAsBoolean()) return false;
+            Double y = candidateStandingY(level, candidate);
+            if (y == null) return false;
+            NavigationNode node = new NavigationNode(candidate, y);
+            return evaluator.evaluate(node, false).traversable()
+                    && probe.isConnected(node, withinBudget)
+                    // Keep the actual live full-body/support check, but only
+                    // after the snapshot cheaply rejects solid/unsafe points.
+                    && standingY(level, employee, candidate) != null;
+        };
     }
 
     private static Component validateEmployee(ServerPlayer issuer, EmployeeRecord record,
@@ -127,6 +207,9 @@ public final class FacilityAreaMoveService {
         }
         if (employee.serverLevel() != issuer.serverLevel()) {
             return Component.translatable("message.lobotocraft.area_move.failure.employee_outside");
+        }
+        if (com.wzz.lobotocraft.entity.control.WolfSwallowControl.isActive(employee)) {
+            return Component.translatable("message.lobotocraft.work.reason.wolf_swallowed");
         }
         if (WorkManager.isPlayerWorking(employee)) {
             return Component.translatable("message.lobotocraft.area_move.failure.employee_working");
@@ -168,6 +251,22 @@ public final class FacilityAreaMoveService {
 
     private static Double standingY(ServerLevel level, EmployeeServerPlayer employee,
                                     BlockPos candidate) {
+        Double standingY = candidateStandingY(level, candidate);
+        if (standingY == null) return null;
+        Vec3 standing = new Vec3(candidate.getX() + 0.5D, standingY,
+                candidate.getZ() + 0.5D);
+        AABB box = employee.getDimensions(employee.getPose())
+                .makeBoundingBox(standing.x, standing.y, standing.z);
+        if (!level.noCollision(employee, box)) return null;
+        double halfWidth = employee.getBbWidth() / 2.0D;
+        AABB support = new AABB(standing.x - halfWidth, standing.y - 0.0625D,
+                standing.z - halfWidth, standing.x + halfWidth,
+                standing.y + 1.0E-6D, standing.z + halfWidth);
+        return level.getBlockCollisions(employee, support).iterator().hasNext()
+                ? standingY : null;
+    }
+
+    private static Double candidateStandingY(ServerLevel level, BlockPos candidate) {
         if (!level.getWorldBorder().isWithinBounds(candidate)) return null;
         // Movement sampling must not turn an unreachable or command-injected
         // coordinate into a synchronous chunk load.
@@ -180,17 +279,7 @@ public final class FacilityAreaMoveService {
             // Carpet, thin snow and similar floor dressings share the feet block.
             if (surface <= 0.25D) standingY += surface;
         }
-        Vec3 standing = new Vec3(candidate.getX() + 0.5D, standingY,
-                candidate.getZ() + 0.5D);
-        AABB box = employee.getDimensions(employee.getPose())
-                .makeBoundingBox(standing.x, standing.y, standing.z);
-        if (!level.noCollision(employee, box)) return null;
-        double halfWidth = employee.getBbWidth() / 2.0D;
-        AABB support = new AABB(standing.x - halfWidth, standing.y - 0.0625D,
-                standing.z - halfWidth, standing.x + halfWidth,
-                standing.y + 1.0E-6D, standing.z + halfWidth);
-        return level.getBlockCollisions(employee, support).iterator().hasNext()
-                ? standingY : null;
+        return standingY;
     }
 
     public record Result(int assigned, int rejected, Component message) {

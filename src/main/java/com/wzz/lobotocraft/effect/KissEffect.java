@@ -16,7 +16,7 @@ import java.util.UUID;
 public class KissEffect extends MobEffect {
 
     private static final UUID SPEED_MODIFIER_UUID = UUID.fromString("76f4b1f4-a691-4099-99e1-173b77fd896f");
-    private static final float SPEED_REDUCTION_PER_LEVEL = 0.4f; // 每层减速40%
+    private static final float SPEED_REDUCTION_PER_LEVEL = 0.1f; // 每层减速10%，第三层另外冻结
     private static final int FREEZE_AMPLIFIER = 2; // 3层时(amplifier=2)触发冰冻
 
     public KissEffect() {
@@ -33,7 +33,7 @@ public class KissEffect extends MobEffect {
         if (living instanceof Player) return;
         Level level = living.level();
 
-        // 每层减速40%：amplifier 0=1层减速40%, 1=2层减速80%, 2=3层减速120%(超过100%)
+        // Display levels I/II/III correspond to amplifiers 0/1/2.
         double speedReduction = Math.min(1.0, (amplifier + 1) * SPEED_REDUCTION_PER_LEVEL);
 
         // 动态添加减速属性
@@ -57,6 +57,7 @@ public class KissEffect extends MobEffect {
     }
 
     private void applySpeedModifier(LivingEntity living, double speedReduction) {
+        if (living.getAttribute(Attributes.MOVEMENT_SPEED) == null) return;
         // 移除旧的修饰符
         living.getAttribute(Attributes.MOVEMENT_SPEED).removeModifier(SPEED_MODIFIER_UUID);
 

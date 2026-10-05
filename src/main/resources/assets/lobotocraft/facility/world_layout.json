@@ -88,9 +88,14 @@
     {"id":"disciplinary/lower-corridor","department":"disciplinary","type":"corridor","group":"dept/disciplinary/passage/geburah-rb-way1","from":[335,91,47],"to":[371,102,55]},
     {"id":"disciplinary/lower-elevator","department":"disciplinary","type":"elevator","group":"dept/disciplinary/passage/geburah-down-hub","from":[384,91,47],"to":[373,102,55]},
 
+    {"id":"record/main-reactor","department":"record","type":"rest_room","group":"dept/record/passage/sefira-chokhmah-1","from":[47,45,40],"to":[63,74,56]},
     {"id":"record/spawn-corridor","department":"record","type":"corridor","group":"dept/record/passage/sefira-chokhmah-1","from":[97,44,47],"to":[147,49,57]},
+    {"id":"extraction/main-reactor","department":"extraction","type":"rest_room","group":"dept/extraction/passage/sefira-binah-1","from":[327,45,34],"to":[343,74,50]},
     {"id":"extraction/spawn-corridor","department":"extraction","type":"corridor","group":"dept/extraction/passage/sefira-binah-1","from":[244,44,46],"to":[294,49,57]},
 
+    {"id":"architecture/left-main-reactor","department":"architecture","type":"rest_room","group":"dept/architecture/passage/sefira-keter1","from":[140,5,26],"to":[156,32,42]},
+    {"id":"architecture/center-main-reactor","department":"architecture","type":"rest_room","group":"dept/architecture/passage/sefira-keter1","from":[189,5,30],"to":[205,32,46]},
+    {"id":"architecture/right-main-reactor","department":"architecture","type":"rest_room","group":"dept/architecture/passage/sefira-keter1","from":[238,5,26],"to":[254,32,42]},
     {"id":"architecture/left-spawn-corridor","department":"architecture","type":"corridor","group":"dept/architecture/passage/sefira-keter1","from":[38,4,47],"to":[107,9,57]},
     {"id":"architecture/right-spawn-corridor","department":"architecture","type":"corridor","group":"dept/architecture/passage/sefira-keter1","from":[283,4,46],"to":[354,9,57]}
   ],

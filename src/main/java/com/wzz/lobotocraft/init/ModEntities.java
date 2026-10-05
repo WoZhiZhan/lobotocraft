@@ -366,7 +366,7 @@ public class ModEntities {
     public static final RegistryObject<EntityType<EntityCensoredMinion>> censored_minion =
             ENTITIES.register("censored_minion",
                     () -> EntityType.Builder.of(EntityCensoredMinion::new, MobCategory.MONSTER)
-                            .sized(0.8F, 1.2F)
+                            .sized(2.0F, 1.2F)
                             .clientTrackingRange(8)
                             .updateInterval(3)
                             .build("censored_minion"));

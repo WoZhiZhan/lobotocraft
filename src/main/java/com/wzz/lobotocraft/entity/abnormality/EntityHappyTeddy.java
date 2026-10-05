@@ -332,7 +332,7 @@ public class EntityHappyTeddy extends AbstractAbnormality {
         return new EGOEquipmentData.GiftData(
                 ResourceUtil.createInstance("textures/item/happy_teddy_curio.png"),
                 "熊熊抱",
-                "眼部",
+                "头部",
                 "happy_teddy_curio",
                 "最大精神值+4",
                 "沟通工作的成功率+3%"

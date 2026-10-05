@@ -9,6 +9,7 @@ import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.AbnormalityEncyclopediaData;
 import com.wzz.lobotocraft.entity.base.IAbnormality;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
+import com.wzz.lobotocraft.entity.data.WorkPreferenceDisplay;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.item.PEBoxItem;
 import com.wzz.lobotocraft.network.MessageLoader;
@@ -645,23 +646,20 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
             }
             for (int level = 0; level < 5; level++) {
                 int lineY = y + 45 + level * 22;
-                float rate = work < workPreferences.length
-                        && workPreferences[work] != null
-                        && level < workPreferences[work].length
-                        ? workPreferences[work][level] : -1.0F;
+                float rate = WorkPreferenceDisplay.valueAt(workPreferences, work, level);
                 drawScaledText(graphics, toRoman(level + 1), x + 82, lineY,
                         2.0F, ARCHIVE_DIM, 32);
                 int barX = x + 116;
                 int barW = 60;
                 graphics.fill(barX, lineY + 7, barX + barW, lineY + 11, 0xFF282A25);
-                if (rate >= 0.0F) {
-                    graphics.fill(barX, lineY + 7, barX + Mth.clamp((int) (barW * rate), 0, barW),
+                if (!WorkPreferenceDisplay.isMissing(rate)) {
+                    graphics.fill(barX, lineY + 7, barX + WorkPreferenceDisplay.barWidth(rate, barW),
                             lineY + 11, EncyclopediaGUIConfig.Colors.getWorkRateColor(rate));
                 }
                 drawRightAlignedScaledText(graphics,
-                        rate < 0.0F ? "/" : String.format("%.0f%%", rate * 100.0F),
+                        WorkPreferenceDisplay.text(rate),
                         x + w - 10, lineY, 2.0F,
-                        rate < 0.0F ? ARCHIVE_DIM : ARCHIVE_PALE, 54);
+                        WorkPreferenceDisplay.isMissing(rate) ? ARCHIVE_DIM : ARCHIVE_PALE, 54);
             }
         }
     }
@@ -1791,7 +1789,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                     EncyclopediaGUIConfig.Colors.TEXT_WHITE);
 
             for (int level = 0; level < 5; level++) {
-                float rate = workPreferences[work][level];
+                float rate = WorkPreferenceDisplay.valueAt(workPreferences, work, level);
                 int lineY = workY + 5 + level * 9;
 
                 String levelText = switch (level) {
@@ -1809,7 +1807,7 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
 
                 int barX = workX + 45;
                 int barWidth = EncyclopediaGUIConfig.Layout.CenterColumn.WORK_PREF_BAR_WIDTH;
-                int barFilled = (int)(barWidth * rate);
+                int barFilled = WorkPreferenceDisplay.barWidth(rate, barWidth);
 
                 // 绘制背景条（灰色）
                 graphics.fill(barX, lineY + 2, barX + barWidth,
@@ -1823,15 +1821,10 @@ public class AbnormalityEncyclopediaScreen extends AbnormalityMusicScreen {
                             EncyclopediaGUIConfig.Colors.getWorkRateColor(rate));
                 }
 
-                String rateText;
-                if (rate <= -0.01f) {  // 负数或 -1 都显示 "/"
-                    rateText = "/";
-                } else {
-                    rateText = String.format("%.0f%%", rate * 100);
-                }
+                String rateText = WorkPreferenceDisplay.text(rate);
                 graphics.drawString(this.font, rateText,
                         barX + barWidth + 3, lineY,
-                        rate <= -0.01f ? EncyclopediaGUIConfig.Colors.TEXT_GRAY : EncyclopediaGUIConfig.Colors.TEXT_WHITE);
+                        WorkPreferenceDisplay.isMissing(rate) ? EncyclopediaGUIConfig.Colors.TEXT_GRAY : EncyclopediaGUIConfig.Colors.TEXT_WHITE);
             }
         }
     }

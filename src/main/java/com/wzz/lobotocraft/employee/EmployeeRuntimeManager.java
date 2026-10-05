@@ -18,6 +18,7 @@ import com.wzz.lobotocraft.entity.abnormality.EntityPunishingBird;
 import com.wzz.lobotocraft.entity.abnormality.EntitySnowQueen;
 import com.wzz.lobotocraft.entity.control.HostileControlState;
 import com.wzz.lobotocraft.entity.control.SingingMachineControl;
+import com.wzz.lobotocraft.entity.control.WolfSwallowControl;
 import com.wzz.lobotocraft.entity.ordeal.OrdealEntity;
 import com.wzz.lobotocraft.event.listener.EmployeeStatsApplier;
 import com.wzz.lobotocraft.event.listener.EgoAttackOwnershipPolicy;
@@ -350,6 +351,7 @@ public final class EmployeeRuntimeManager {
         if (runtime == null || !runtime.player.isAlive() || runtime.player.isRemoved()) return false;
         if (com.wzz.lobotocraft.work.UniqueWorkRequest.isControlled(runtime.player)
                 || EntitySnowQueen.isFrozen(runtime.player)
+                || WolfSwallowControl.isActive(runtime.player)
                 || HostileControlState.isActive(runtime.player)) return false;
         if (runtime.order != null && runtime.order.type == EmployeeTaskType.WORK
                 && CoreSuppressionManager.isMalkuthWorkCancellationLocked(runtime.player.level())) {
@@ -627,11 +629,18 @@ public final class EmployeeRuntimeManager {
             player.clearNavigationInput();
             player.setDeltaMovement(Vec3.ZERO);
         }
+        // Clear an old route/combat input before vanilla movement runs. Spectator
+        // game mode alone does not stop this manager's autonomous combat loop.
+        if (WolfSwallowControl.isActive(player)) suspendSwallowed(runtime);
         player.doTick();
         // doTick() 内部可能触发死亡（此时 onEmployeeDeath 已将其移出 ACTIVE 并安排移除），
         // 继续跑下面的订单/存档逻辑等于操作一个已死实体，故在此复查一次
         if (player.isRemoved() || !player.isAlive()) {
             retireDead(runtime);
+            return;
+        }
+        if (WolfSwallowControl.isActive(player)) {
+            suspendSwallowed(runtime);
             return;
         }
         if (facilityPaused) {
@@ -714,6 +723,17 @@ public final class EmployeeRuntimeManager {
 
     private static boolean isPanicking(EmployeeServerPlayer player) {
         return MentalValueUtil.isPanic(player);
+    }
+
+    private static void suspendSwallowed(RuntimeEmployee runtime) {
+        if (runtime.order != null) fail(runtime, "被狼吞入，任务中断");
+        runtime.navigator.stop();
+        runtime.idleMoving = false;
+        clearAutonomousCombat(runtime);
+        clearPanicCombat(runtime);
+        WolfSwallowControl.tick(runtime.player);
+        if (WorkManager.isPlayerWorking(runtime.player))
+            WorkManager.cancelWork(runtime.player, "被狼吞入，工作中断");
     }
 
     private static boolean isBerserkPanic(EmployeeServerPlayer player) {
@@ -1180,10 +1200,11 @@ public final class EmployeeRuntimeManager {
         }
         List<FacilityWorldLayout.AreaDefinition> targetAreas =
                 FacilityWorldLayout.targetAreas(player.serverLevel(), groupId);
+        java.util.function.Predicate<BlockPos> navigable =
+                FacilityAreaMoveService.targetValidator(player.serverLevel(), player);
         Optional<BlockPos> target = FacilityMoveTargetSampler.sample(targetAreas, player.getRandom(),
                 IDLE_WANDER_ATTEMPTS, candidate -> candidate.distToCenterSqr(player.position()) >= 9.0D
-                        && FacilityAreaMoveService.isNavigableTarget(
-                        player.serverLevel(), player, candidate));
+                        && navigable.test(candidate));
         if (target.isEmpty()) {
             scheduleNextIdleMove(runtime, now);
             return;

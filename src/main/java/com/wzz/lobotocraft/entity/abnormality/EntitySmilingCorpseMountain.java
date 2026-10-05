@@ -119,6 +119,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     private int lastTombstoneScan = -100;
     private LivingEntity retaliationTarget;
     private int retaliationTicks;
+    private final java.util.Map<UUID, Integer> unreachableVictims = new java.util.HashMap<>();
 
     private int transitionCooldown = 0;
     private int readyRunTransition = 0;
@@ -339,7 +340,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         // 目标选择：三阶段=区块级仇恨；所有阶段都不主动仇恨未出逃异想体。
         this.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(this, LivingEntity.class, 10, true, false,
                 (entity) -> {
-                    if (!hasEscape()) return false;
+                    if (!hasEscape() || isUnreachableVictim(entity)) return false;
                     if (getPhase() >= 3) return isPhase3Target(entity);
                     return entity instanceof Villager || entity instanceof EntityClerk
                             || (entity instanceof Player player
@@ -357,7 +358,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     //  目标判定
     // ============================================================
     private boolean isValidVictim(LivingEntity e) {
-        if (e == this || !e.isAlive()) return false;
+        if (e == this || !e.isAlive() || isUnreachableVictim(e)) return false;
         if (e instanceof AbstractAbnormality ab) return ab.isAbnormalityCombatTarget();
         if (e instanceof Player p) return !p.isCreative() && !p.isSpectator();
         return true;
@@ -365,17 +366,25 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
     /** 三阶段仇恨：一切有效生物，但不主动仇恨未出逃异想体。 */
     private boolean isPhase3Target(LivingEntity e) {
-        if (e == this || !e.isAlive()) return false;
+        if (e == this || !e.isAlive() || isUnreachableVictim(e)) return false;
         if (e instanceof AbstractAbnormality ab) return ab.isAbnormalityCombatTarget();
         if (e instanceof Player p) return !p.isCreative() && !p.isSpectator();
         return true;
     }
 
     private boolean isHowlTrigger(LivingEntity e) {
-        if (e == this || !e.isAlive()) return false;
+        if (e == this || !e.isAlive() || isUnreachableVictim(e)) return false;
         if (e instanceof AbstractAbnormality ab) return ab.isAbnormalityCombatTarget();
         if (e instanceof Player p) return !p.isCreative() && !p.isSpectator();
         return e instanceof Villager || e instanceof EntityClerk;
+    }
+
+    private boolean isUnreachableVictim(LivingEntity victim) {
+        Integer until = unreachableVictims.get(victim.getUUID());
+        if (until == null) return false;
+        if (tickCount < until) return true;
+        unreachableVictims.remove(victim.getUUID());
+        return false;
     }
 
     private boolean hasTombstonePriority() {
@@ -391,11 +400,19 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     }
 
     private LivingEntity findNearestVictim(double range) {
+        return findNearestVictim(range, false);
+    }
+
+    private LivingEntity findNearestVisibleVictim(double range) {
+        return findNearestVictim(range, true);
+    }
+
+    private LivingEntity findNearestVictim(double range, boolean requireSight) {
         java.util.function.Predicate<LivingEntity> pred = victimPredicate();
         LivingEntity best = null;
         double bestSq = range * range;
         for (LivingEntity e : EntityUtil.findLivingEntitiesAround(this, 6, range)) {
-            if (!pred.test(e)) continue;
+            if (!pred.test(e) || requireSight && !hasLineOfSight(e)) continue;
             double dsq = distanceToSqr(e);
             if (dsq <= bestSq) { bestSq = dsq; best = e; }
         }
@@ -404,7 +421,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
     private boolean hasHowlTarget(double range) {
         for (LivingEntity e : EntityUtil.findLivingEntitiesAround(this, 6, range)) {
-            if (isHowlTrigger(e)) return true;
+            if (isHowlTrigger(e) && hasLineOfSight(e)) return true;
         }
         return false;
     }
@@ -424,6 +441,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         List<LivingEntity> list = level().getEntitiesOfClass(LivingEntity.class,
                 getBoundingBox().inflate(reach, yRange + 1, reach), pred::test);
         for (LivingEntity e : list) {
+            if (!hasLineOfSight(e)) continue;
             Vec3 d = e.position().subtract(self);
             double proj = d.x * fwd.x + d.z * fwd.z;
             if (proj > forward || proj < -back) continue;
@@ -441,7 +459,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     private void dealRadiusDamage(double radius, float min, float max, String dmgId) {
         if (level().isClientSide) return;
         for (LivingEntity e : EntityUtil.findLivingEntitiesAround(this, 6, radius)) {
-            if (!isValidVictim(e)) continue;
+            if (!isValidVictim(e) || !hasLineOfSight(e)) continue;
             float dmg = min + random.nextFloat() * (max - min);
             e.hurt(DamageHelper.getDamage(this, dmgId), dmg);
         }
@@ -507,7 +525,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         List<LivingEntity> list = level().getEntitiesOfClass(LivingEntity.class,
                 getBoundingBox().inflate(P3S_LEN + 1, 3, P3S_LEN + 1), this::isPhase3Target);
         for (LivingEntity e : list) {
-            if (hit.contains(e)) continue;
+            if (hit.contains(e) || !hasLineOfSight(e)) continue;
             Vec3 d = e.position().subtract(self);
             double proj = d.x * fwd.x + d.z * fwd.z;
             if (proj < 0 || proj > P3S_LEN) continue;
@@ -614,6 +632,16 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     public void onWorkComplete(ServerPlayer player, WorkType workType, WorkResult result) {
         if (!hasEscape() && getQliphothCounter() <= 0) {
             triggerEscape();
+        }
+    }
+
+    @Override
+    public void onWorkInterrupted(ServerPlayer player, WorkType workType, String reason) {
+        // WorkManager atomically releases a dead worker's session through interruption,
+        // not the normal result callback. Living cancellation/logout grants no decrease.
+        if (player != null && (!player.isAlive() || player.isDeadOrDying())) {
+            decreaseQliphothCounter(1);
+            if (getQliphothCounter() == 1) triggerClerkDieCount();
         }
     }
 
@@ -767,7 +795,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
                 getRiskLevel(),
                 0.5f,
                 0.5f,
-                0.5f,
+                0.2f,
                 1.0f,
                 getArmorDevelopmentMaxCount(),
                 "smiling_corpse_mountain_armor"
@@ -786,6 +814,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         lastTombstoneScan = -100;
         transitionCooldown = 0;
         readyRunTransition = 0;
+        unreachableVictims.clear();
         setAnimation("idle1");
     }
 
@@ -1001,18 +1030,25 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
     //  Goals
     // ============================================================
 
-    /** 统一移动：优先吞噬墓碑（阶段<3），否则追击最近有效目标；攻击期间也持续移动 */
+    /** 优先吞噬墓碑，否则追击可达目标；攻击时暂停，动画结束后重新请求移动。 */
     private static class CorpseMoveGoal extends Goal {
         private final EntitySmilingCorpseMountain e;
         private final FacilityMobNavigator facilityNavigator;
         private BlockPos tomb;
         private BlockPos commandedTarget;
         private boolean commandedTombstone;
+        private LivingEntity pursuedVictim;
+        private int failedPathAttempts;
 
         CorpseMoveGoal(EntitySmilingCorpseMountain e) {
             this.e = e;
             this.facilityNavigator = new FacilityMobNavigator(e, 1.0D);
             setFlags(EnumSet.of(Flag.MOVE));
+        }
+
+        @Override
+        public boolean requiresUpdateEveryTick() {
+            return true;
         }
 
         private boolean wantTombstone() {
@@ -1052,6 +1088,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         public void start() {
             commandedTarget = null;
             commandedTombstone = false;
+            failedPathAttempts = 0;
         }
 
         @Override
@@ -1059,6 +1096,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
             if (e.getAnimation().startsWith("attack")) {
                 facilityNavigator.stop();
                 e.getNavigation().stop();
+                commandedTarget = null;
                 return;
             }
             if (hasRetaliationTarget()) {
@@ -1083,6 +1121,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
             }
             LivingEntity t = chaseTarget();
             if (t != null) {
+                pursuedVictim = t;
                 navigateTo(t.blockPosition(), false);
                 e.getLookControl().setLookAt(t, 30, 30);
             }
@@ -1091,14 +1130,23 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         private void navigateTo(BlockPos target, boolean tombstone) {
             if (target == null) return;
             BlockPos immutable = target.immutable();
-            if (!immutable.equals(commandedTarget) || tombstone != commandedTombstone) {
+            boolean changed = !immutable.equals(commandedTarget) || tombstone != commandedTombstone;
+            if (changed || e.level().dimension() != ModDimensions.LOBOTO_KEY
+                    && e.getNavigation().isDone() && e.tickCount % 10 == 0) {
+                if (changed) failedPathAttempts = 0;
                 commandedTarget = immutable;
                 commandedTombstone = tombstone;
                 if (e.level().dimension() == ModDimensions.LOBOTO_KEY) {
                     facilityNavigator.moveTo(immutable);
                 } else {
-                    e.getNavigation().moveTo(immutable.getX() + 0.5D, immutable.getY(),
+                    boolean started = e.getNavigation().moveTo(immutable.getX() + 0.5D, immutable.getY(),
                             immutable.getZ() + 0.5D, 1.0D);
+                    var path = e.getNavigation().getPath();
+                    if (!tombstone && (!started || path == null || !path.canReach())) {
+                        if (++failedPathAttempts >= 3) rejectPursuedVictim();
+                    } else {
+                        failedPathAttempts = 0;
+                    }
                 }
             }
             if (e.level().dimension() == ModDimensions.LOBOTO_KEY) {
@@ -1108,6 +1156,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
 
         @Override
         public void stop() {
+            if (facilityNavigator.isUnreachable() && !commandedTombstone) rejectPursuedVictim();
             facilityNavigator.stop();
             e.getNavigation().stop();
             tomb = null;
@@ -1115,6 +1164,18 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
             commandedTombstone = false;
             e.retaliationTarget = null;
             e.retaliationTicks = 0;
+            pursuedVictim = null;
+            failedPathAttempts = 0;
+        }
+
+        private void rejectPursuedVictim() {
+            if (pursuedVictim == null) return;
+            e.unreachableVictims.put(pursuedVictim.getUUID(), e.tickCount + 100);
+            if (e.getTarget() == pursuedVictim) e.setTarget(null);
+            if (e.retaliationTarget == pursuedVictim) e.clearRetaliation();
+            e.getNavigation().stop();
+            commandedTarget = null;
+            failedPathAttempts = 0;
         }
     }
 
@@ -1135,7 +1196,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         public boolean canUse() {
             return e.canAct() && e.getPhase() == 1 && e.tickCount >= cd
                     && e.canUseVictimCombat()
-                    && e.findNearestVictim(P1_FWD + 0.5) != null;
+                    && e.findNearestVisibleVictim(P1_FWD + 0.5) != null;
         }
 
         @Override
@@ -1148,9 +1209,9 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         public void start() {
             active = true;
             t = 0;
-            primary = e.findNearestVictim(P1_FWD + 1);
+            primary = e.findNearestVisibleVictim(P1_FWD + 1);
             if (e.retaliationTarget != null && e.retaliationTarget.isAlive()
-                    && e.retaliationTicks > 0) {
+                    && e.retaliationTicks > 0 && e.hasLineOfSight(e.retaliationTarget)) {
                 primary = e.retaliationTarget;
             }
             e.faceTarget(primary);
@@ -1167,7 +1228,9 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
                 e.playPositionalSound(ModSounds.SMILING_CORPSE_MOUNTAIN_ONE_STAGES_ATTACK.get());
                 List<LivingEntity> hit = e.dealDirectionalDamage(P1_FWD, P1_BACK, P1_HALF, 2.5,
                         7, 11, "lobotocraft:red", false);
-                if (primary != null && primary.isAlive() && e.victimPredicate().test(primary) && !hit.contains(primary)) {
+                if (primary != null && primary.isAlive() && e.victimPredicate().test(primary)
+                        && e.hasLineOfSight(primary) && e.distanceToSqr(primary) <= (P1_FWD + 1) * (P1_FWD + 1)
+                        && !hit.contains(primary)) {
                     primary.hurt(DamageHelper.getDamage(e, "lobotocraft:red"), 7 + e.random.nextFloat() * 4);
                     hit.add(primary);
                 }
@@ -1223,7 +1286,8 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
             active = true;
             t = 0;
             LivingEntity target = e.retaliationTarget != null && e.retaliationTarget.isAlive()
-                    && e.retaliationTicks > 0 ? e.retaliationTarget : e.findNearestVictim(P2_TRIGGER);
+                    && e.retaliationTicks > 0 && e.hasLineOfSight(e.retaliationTarget)
+                    ? e.retaliationTarget : e.findNearestVisibleVictim(P2_TRIGGER);
             e.faceTarget(target);
             e.setAnimation("attack2");
         }
@@ -1275,7 +1339,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         public boolean canUse() {
             return e.canAct() && e.getPhase() == 3 && e.tickCount >= cd
                     && e.canUseVictimCombat()
-                    && e.findNearestVictim(P3_FWD + 0.5) != null;
+                    && e.findNearestVisibleVictim(P3_FWD + 0.5) != null;
         }
 
         @Override
@@ -1292,7 +1356,8 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
             t = 0;
             sweepHit.clear();
             LivingEntity target = e.retaliationTarget != null && e.retaliationTarget.isAlive()
-                    && e.retaliationTicks > 0 ? e.retaliationTarget : e.findNearestVictim(P3S_LEN);
+                    && e.retaliationTicks > 0 && e.hasLineOfSight(e.retaliationTarget)
+                    ? e.retaliationTarget : e.findNearestVisibleVictim(P3S_LEN);
             e.faceTarget(target);
             special = e.random.nextFloat() < 0.30f;
             if (special) {
@@ -1319,7 +1384,7 @@ public class EntitySmilingCorpseMountain extends AbstractAbnormality {
         @Override
         public void tick() {
             e.lockMovementForAttack();
-            e.faceTarget(e.findNearestVictim(P3S_LEN)); // 持续转向（喷吐随头部移动）
+            e.faceTarget(e.findNearestVisibleVictim(P3S_LEN)); // 喷吐不能锁定墙后目标
             int previousTick = t;
             t++;
             if (special) {

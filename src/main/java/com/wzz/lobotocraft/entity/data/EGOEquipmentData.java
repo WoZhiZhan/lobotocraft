@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.entity.data;
 
 import com.wzz.lobotocraft.util.ResourceUtil;
+import com.wzz.lobotocraft.item.ego.base.IEgoArmor;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -60,6 +61,14 @@ public class EGOEquipmentData {
     public record ArmorData(ResourceLocation iconTexture, String name, RiskLevel riskLevel, float redResistance,
                             float whiteResistance, float blackResistance, float paleResistance, int developmentMaxCount,
                             String armorId) {
+    }
+
+    /** Display consumes the equipped armor's actual tuning, never a second resistance table. */
+    public static ArmorData armorFromItem(ResourceLocation iconTexture, String name,
+                                          IEgoArmor armor, int developmentMaxCount, String armorId) {
+        return new ArmorData(iconTexture, name, armor.riskLevel(), armor.getRedResistance(),
+                armor.getWhiteResistance(), armor.getBlackResistance(), armor.getPaleResistance(),
+                developmentMaxCount, armorId);
     }
 
     /* =========================================================

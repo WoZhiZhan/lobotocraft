@@ -3,9 +3,9 @@ package com.wzz.lobotocraft.util;
 import com.wzz.lobotocraft.effect.KissEffect;
 import com.wzz.lobotocraft.entity.abnormality.EntityLargeBird;
 import com.wzz.lobotocraft.entity.control.HostileControlState;
+import com.wzz.lobotocraft.entity.control.WolfSwallowControl;
 import com.wzz.lobotocraft.event.listener.PlayerControlLock;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.GameType;
 
 public final class ControlStateRecoveryService {
     private ControlStateRecoveryService() {
@@ -29,10 +29,6 @@ public final class ControlStateRecoveryService {
         player.getPersistentData().remove("isAddBigBadwolf");
         player.setTicksFrozen(0);
 
-        if (player.getPersistentData().getBoolean("wolf_swallowed")) {
-            player.getPersistentData().remove("wolf_swallowed");
-            player.setCamera(player);
-            player.setGameMode(GameType.SURVIVAL);
-        }
+        WolfSwallowControl.clear(player);
     }
 }

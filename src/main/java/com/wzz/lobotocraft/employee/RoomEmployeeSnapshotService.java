@@ -160,6 +160,10 @@ public final class RoomEmployeeSnapshotService {
                 eligible = false;
                 reason = "被冰雪女皇冰封";
                 reasonKey = "screen.lobotocraft.monitor.employee.unavailable.frozen";
+            } else if (com.wzz.lobotocraft.entity.control.WolfSwallowControl.isActive(employee)) {
+                eligible = false;
+                reason = "被狼吞入";
+                reasonKey = "screen.lobotocraft.monitor.employee.unavailable.wolf_swallowed";
             } else if (HostileControlState.isActive(employee)
                     || com.wzz.lobotocraft.work.UniqueWorkRequest.isControlled(employee)) {
                 eligible = false;

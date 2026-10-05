@@ -2,6 +2,8 @@ package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.EscapeTracker;
+import com.wzz.lobotocraft.entity.ordeal.OrdealEntity;
+import com.wzz.lobotocraft.entity.ai.FacilityAbnormalityTargetPolicy;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.entity.ai.AbnormalityFearResponse;
 import com.wzz.lobotocraft.entity.ai.AbnormalityFearService;
@@ -37,6 +39,8 @@ import java.util.UUID;
 
 /** CENSORED-1 spawned after CENSORED consumes a victim or tombstone. */
 public class EntityCensoredMinion extends AbstractAbnormality implements AbnormalityFearSource {
+    // The 21-pixel-wide model at 1.5x spans nearly two Minecraft blocks.
+    public static final float MODEL_SCALE = 1.5F;
     private static final int DAMAGE_INTERVAL_TICKS = 50;
     private static final double DAMAGE_RANGE = 2.0D;
     private static final double TARGET_SCAN_RANGE = 24.0D;
@@ -132,7 +136,7 @@ public class EntityCensoredMinion extends AbstractAbnormality implements Abnorma
 
     private LivingEntity findTarget() {
         if (cachedTarget != null
-                && cachedTarget.isAlive()
+                && isValidCombatTarget(cachedTarget)
                 && !cachedTarget.isRemoved()
                 && cachedTarget.level() == level()
                 && distanceToSqr(cachedTarget) <= TARGET_SCAN_RANGE * TARGET_SCAN_RANGE) {
@@ -146,12 +150,22 @@ public class EntityCensoredMinion extends AbstractAbnormality implements Abnorma
         targetScanCooldown = TARGET_SCAN_INTERVAL;
 
         AABB box = getBoundingBox().inflate(TARGET_SCAN_RANGE);
-        List<LivingEntity> employees = level().getEntitiesOfClass(LivingEntity.class, box,
-                EntityCensored::isEmployeeTarget);
-        cachedTarget = employees.stream()
+        List<LivingEntity> targets = level().getEntitiesOfClass(LivingEntity.class, box,
+                this::isValidCombatTarget);
+        cachedTarget = targets.stream()
                 .min(Comparator.comparingDouble(this::distanceToSqr))
                 .orElse(null);
         return cachedTarget;
+    }
+
+    boolean isValidCombatTarget(LivingEntity entity) {
+        if (entity == null || !entity.isAlive() || entity.isRemoved()
+                || entity instanceof EntityCensored || entity instanceof EntityCensoredMinion) return false;
+        if (FacilityAbnormalityTargetPolicy.isPersonnel(entity)
+                || entity instanceof OrdealEntity
+                || FacilityAbnormalityTargetPolicy.isCoreSuppressionCombatant(entity)) return true;
+        return entity instanceof AbstractAbnormality abnormality
+                && abnormality.isAbnormalityCombatTarget();
     }
 
     @Override

@@ -48,6 +48,7 @@ public final class SingingMachineControl {
     private static final double ATTACK_RANGE_SQR = 9.0D;
     private static final double SOURCE_RANGE_SQR = 9.0D;
     private static final double TARGET_SEARCH_RANGE = 64.0D;
+    private static final int CLERK_GLOW_DURATION = 40;
 
     private SingingMachineControl() {
     }
@@ -84,7 +85,19 @@ public final class SingingMachineControl {
             mob.setNoAi(false);
             mob.setTarget(null);
         }
+        revealControlledClerk(target);
         return true;
+    }
+
+    private static void revealControlledClerk(LivingEntity entity) {
+        if (!(entity instanceof EntityClerk)) return;
+        MobEffectInstance glow = entity.getEffect(MobEffects.GLOWING);
+        if (glow == null || !glow.isInfiniteDuration() && glow.getDuration() < 20) {
+            // Short refreshes expire naturally after recovery. Never remove a
+            // longer/infinite glow that may belong to another mechanic.
+            entity.addEffect(new MobEffectInstance(MobEffects.GLOWING,
+                    CLERK_GLOW_DURATION, 0, false, false));
+        }
     }
 
     public static void clearForRecovery(LivingEntity entity) {
@@ -130,6 +143,7 @@ public final class SingingMachineControl {
             clearForRecovery(attacker);
             return;
         }
+        revealControlledClerk(attacker);
 
         decrement(data, ATTACK_COOLDOWN);
         if (data.getBoolean(RETURNING)) {

@@ -5,7 +5,6 @@ import com.lobotocraft.facility.data.OrdealTier;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
-import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.base.EscapeTracker;
 import com.wzz.lobotocraft.entity.ordeal.EntityBloodySmall;
 import com.wzz.lobotocraft.entity.ordeal.EntityCrimsonNoon;
@@ -223,48 +222,23 @@ public class CrimsonNoonEvent {
                 35, 1.1D, 0.7D, 1.1D, 0.02D);
 
         int spawned = 0;
-        List<AbstractAbnormality> abnormalities = new ArrayList<>(CrimsonDawnEvent.findCandidateAbnormalities(level));
         for (int i = 0; i < BLOODY_SMALL_SPAWN_COUNT; i++) {
-            AbstractAbnormality abnormality = chooseCrimsonNoonClownTarget(level, crimsonNoon, abnormalities);
-            if (spawnCrimsonNoonClown(level, crimsonNoon.blockPosition(), abnormality)) {
+            if (spawnCrimsonNoonClown(level, crimsonNoon.blockPosition())) {
                 spawned++;
             }
         }
         return spawned;
     }
 
-    private static AbstractAbnormality chooseCrimsonNoonClownTarget(ServerLevel level, EntityCrimsonNoon crimsonNoon,
-                                                                   List<AbstractAbnormality> abnormalities) {
-        if (abnormalities.isEmpty()) {
-            return null;
-        }
-        return abnormalities.stream()
-                .filter(abnormality -> FacilityAccessService.isPositionOpen(level.getServer(),
-                        level.dimension().location(), abnormality.blockPosition()))
-                .min(java.util.Comparator.comparingDouble(crimsonNoon::distanceToSqr))
-                .orElse(null);
-    }
-
-    private static boolean spawnCrimsonNoonClown(ServerLevel level, BlockPos fallbackCenter,
-                                                AbstractAbnormality abnormality) {
+    private static boolean spawnCrimsonNoonClown(ServerLevel level, BlockPos deathSite) {
         EntityBloodySmall clown = ModEntities.bloody_small.get().create(level);
         if (clown == null) {
             return false;
         }
 
-        BlockPos spawnPos = null;
-        if (abnormality != null) {
-            spawnPos = CrimsonDawnEvent.findBloodySmallSpawnPosition(level, clown, abnormality.blockPosition(), 4);
-            if (spawnPos == null) {
-                spawnPos = CrimsonDawnEvent.findBloodySmallSpawnPosition(level, clown, abnormality.blockPosition(), 8);
-            }
-            if (spawnPos == null) {
-                spawnPos = CrimsonDawnEvent.findBloodySmallSpawnPosition(level, clown, abnormality.blockPosition(), 12);
-            }
-        }
-        if (spawnPos == null) {
-            spawnPos = CrimsonDawnEvent.findBloodySmallSpawnPosition(level, clown, fallbackCenter, 6);
-        }
+        // Death only creates dawns at the corpse. Their later autonomous
+        // teleport/counter behavior remains owned by EntityBloodySmall.
+        BlockPos spawnPos = CrimsonDawnEvent.findBloodySmallSpawnPosition(level, clown, deathSite, 6);
         if (spawnPos == null) {
             return false;
         }
@@ -276,9 +250,6 @@ public class CrimsonNoonEvent {
         clown.setCrimsonNoonSpawn(true);
         clown.getPersistentData().putBoolean(CRIMSON_NOON_CLOWN_TAG, true);
         clown.addEffect(new MobEffectInstance(MobEffects.GLOWING, Integer.MAX_VALUE, 0, false, false));
-        if (abnormality != null) {
-            clown.setTrackedAbnormality(abnormality);
-        }
         return level.addFreshEntity(clown);
     }
 

@@ -5,7 +5,10 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.wzz.lobotocraft.client.core.GeburahBladeTrailProfile;
 import com.wzz.lobotocraft.client.core.GeburahBladeTrailRenderer;
 import com.wzz.lobotocraft.client.core.GeburahBladeTrailState;
+import com.wzz.lobotocraft.client.config.ClientVisualConfig;
 import com.wzz.lobotocraft.entity.EntityGeburah;
+import com.wzz.lobotocraft.core_suppression.geburah.GeburahEgoAttackVisuals;
+import com.wzz.lobotocraft.core_suppression.geburah.GeburahPhase;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
@@ -78,7 +81,9 @@ public final class GeburahRenderer extends GeoEntityRenderer<EntityGeburah> {
             }
             double sampleTime = entity.level().getGameTime() + partialTick;
             GeburahBladeTrailState.capture(entity.getId(), sampleTime, worldPositions,
-                    sample.ego(), sample.move());
+                    sample.ego(), sample.move(), ClientVisualConfig.GEBURAH_EGO_ATTACK_TRIAL.get()
+                            && GeburahEgoAttackVisuals.animationEligible(
+                            entity.getAnimation(), entity.syncedPhase() == GeburahPhase.EGO));
         }
     }
 }

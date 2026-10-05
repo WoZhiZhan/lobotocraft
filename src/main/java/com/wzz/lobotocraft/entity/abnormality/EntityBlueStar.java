@@ -1,19 +1,22 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
-import com.wzz.lobotocraft.block.RegenerationReactorBlock;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
+import com.wzz.lobotocraft.block.entity.RegenerationReactorBlockEntity;
 import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModAttributes;
+import com.wzz.lobotocraft.init.ModDimensions;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.ElevatorTeleportPacket;
 import com.wzz.lobotocraft.network.packet.ScreenDistortionEffectPacket;
 import com.wzz.lobotocraft.network.packet.ShockwaveEffectPacket;
 import com.wzz.lobotocraft.util.*;
+import com.wzz.lobotocraft.world.data.FacilityAreaType;
+import com.wzz.lobotocraft.world.data.FacilityWorldLayout;
 import com.wzz.lobotocraft.work.WorkManager;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
@@ -34,7 +37,9 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.ForgeMod;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -50,6 +55,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class EntityBlueStar extends AbstractAbnormality {
     private final Random random = new Random();
+    private boolean escapeDestinationPending;
     /** Timers started by this escape instance; they must not outlive containment. */
     private final Set<EscapeTimerHandle> activeEscapeTimers = ConcurrentHashMap.newKeySet();
 
@@ -77,35 +83,6 @@ public class EntityBlueStar extends AbstractAbnormality {
         float[] basePreferences = {0.3f, 0.5f, 0.0f, 0.4f};
         initializeWorkPreferences(basePreferences);
         initializeQliphothCounter(2);
-    }
-
-    @Override
-    public void onWorkTick(ServerPlayer player, WorkManager.WorkSession session, WorkType workType) {
-        if ((session.workDuration / 20) >= 70 && !session.forcedEnd) {
-            session.forcedEnd = true;
-            player.displayClientMessage(Component.translatable(
-                    "message.lobotocraft.blue_star.work_devoured"), false);
-            player.displayClientMessage(Component.translatable(
-                    "message.lobotocraft.blue_star.counter_minus_one"), false);
-            decreaseQliphothCounter(1);
-            killMob(player, false);
-        }
-    }
-
-    @Override
-    public boolean onWorkStart(ServerPlayer player, WorkType workType) {
-        AtomicBoolean shouldDec = new AtomicBoolean(false);
-        player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(data -> {
-            if (data.getPrudenceLevel() < 5) {
-                shouldDec.set(true);
-            }
-        });
-        if (shouldDec.get()) {
-            decreaseQliphothCounter(1);
-            player.displayClientMessage(Component.translatable(
-                    "message.lobotocraft.blue_star.careless_counter"), false);
-        }
-        return super.onWorkStart(player, workType);
     }
 
     @Override
@@ -141,16 +118,86 @@ public class EntityBlueStar extends AbstractAbnormality {
     public void triggerEscape() {
         if (hasEscape() || this.level().isClientSide || !canEscape()) return;
         ServerLevel serverLevel = (ServerLevel) this.level();
-        BlockPos reactorDestination = null;
-        for (BlockEntity blockEntity : EntityUtil.findBlockEntities(level, getOnPos(), 8)) {
-            if (level.getBlockState(blockEntity.getBlockPos()).getBlock() instanceof RegenerationReactorBlock
-                    && FacilityAccessService.isPositionOpen(serverLevel.getServer(),
-                    serverLevel.dimension().location(), blockEntity.getBlockPos())) {
-                reactorDestination = blockEntity.getBlockPos();
-                break;
+        if (!serverLevel.dimension().equals(ModDimensions.LOBOTO_KEY)) {
+            beginEscape(null);
+            return;
+        }
+        escapeDestinationPending = !beginEscapeAtSafePosition(findHomeReactorLanding(serverLevel));
+    }
+
+    /** MC adaptation: the containment department's main room, indoors near its reactor. */
+    private Vec3 findHomeReactorLanding(ServerLevel level) {
+        ResourceLocation dimension = level.dimension().location();
+        BlockPos home = dimension.equals(getHomeRoomDimension()) && getHomeRoomMarker() != null
+                ? getHomeRoomMarker() : blockPosition();
+        var binding = FacilityWorldLayout.containmentAt(dimension, home);
+        var homeArea = FacilityWorldLayout.facilityAreaAt(level, home);
+        String group = binding.map(FacilityWorldLayout.ContainmentBinding::groupId)
+                .orElseGet(() -> homeArea.map(area -> area.groupId).orElse(""));
+        var section = FacilityAccessService.resolveSection(dimension, group);
+        if (section.isEmpty()) return null;
+        var rooms = FacilityWorldLayout.fixedAreas(dimension).stream()
+                .filter(area -> area.type() == FacilityAreaType.REST_ROOM
+                        && (area.id().endsWith("/main") || area.id().endsWith("-main")
+                        || area.id().endsWith("/main-reactor") || area.id().endsWith("-main-reactor")))
+                .filter(area -> FacilityAccessService.resolveSection(dimension, area.groupId())
+                        .filter(section.get()::equals).isPresent())
+                .filter(area -> FacilityAccessService.isGroupOpen(
+                        level.getServer(), dimension, area.groupId()))
+                .sorted(Comparator.comparingDouble(area -> area.minPos().distSqr(home)))
+                .toList();
+        for (var room : rooms) {
+            List<BlockPos> reactors = new ArrayList<>();
+            for (int cx = room.minPos().getX() >> 4; cx <= room.maxPos().getX() >> 4; cx++) {
+                for (int cz = room.minPos().getZ() >> 4; cz <= room.maxPos().getZ() >> 4; cz++) {
+                    for (var blockEntity : level.getChunk(cx, cz).getBlockEntities().values()) {
+                        if (blockEntity instanceof RegenerationReactorBlockEntity
+                                && room.contains(blockEntity.getBlockPos())) {
+                            reactors.add(blockEntity.getBlockPos().immutable());
+                        }
+                    }
+                }
+            }
+            reactors.sort(Comparator.comparingDouble(pos -> pos.distSqr(home)));
+            for (BlockPos reactor : reactors) {
+                for (int radius = 0; radius <= 6; radius++) {
+                    for (int y = room.minPos().getY(); y <= room.maxPos().getY(); y++) {
+                        for (int dx = -radius; dx <= radius; dx++) {
+                            for (int dz = -radius; dz <= radius; dz++) {
+                                if (Math.max(Math.abs(dx), Math.abs(dz)) != radius) continue;
+                                BlockPos candidate = new BlockPos(
+                                        reactor.getX() + dx, y, reactor.getZ() + dz);
+                                if (candidate.distSqr(reactor) > 100) continue;
+                                // Carpets and low trapdoors require fractional feet heights.
+                                var surface = level.getBlockState(candidate).getCollisionShape(level, candidate);
+                                double offset = surface.isEmpty() ? 0
+                                        : surface.max(net.minecraft.core.Direction.Axis.Y);
+                                if (offset >= 1) continue;
+                                Vec3 landing = new Vec3(candidate.getX() + 0.5D,
+                                        y + offset, candidate.getZ() + 0.5D);
+                                AABB box = getDimensions(getPose()).makeBoundingBox(
+                                        landing.x, landing.y, landing.z);
+                                if (box.minX < room.minPos().getX() || box.maxX > room.maxPos().getX() + 1
+                                        || box.minY < room.minPos().getY() || box.maxY > room.maxPos().getY() + 1
+                                        || box.minZ < room.minPos().getZ() || box.maxZ > room.maxPos().getZ() + 1) continue;
+                                if (!level.getBlockState(candidate.below()).isFaceSturdy(
+                                        level, candidate.below(), net.minecraft.core.Direction.UP)) continue;
+                                // Measured open room geometry is authoritative, not the legacy
+                                // generation radius (which excludes parts of the actual facility).
+                                if (!FacilityAccessService.isPositionOpen(
+                                                level.getServer(), dimension, candidate)
+                                        || !level.noCollision(this, box)
+                                        || level.noCollision(this, box.move(0, -0.05D, 0))
+                                        || !level.getEntities(this, box,
+                                                other -> other.isAlive() && !other.isRemoved()).isEmpty()) continue;
+                                return landing;
+                            }
+                        }
+                    }
+                }
             }
         }
-        beginEscape(reactorDestination);
+        return null;
     }
 
     @Override
@@ -175,11 +222,32 @@ public class EntityBlueStar extends AbstractAbnormality {
 
     @Override
     public void onWorkComplete(ServerPlayer player, WorkType workType, WorkResult result) {
+        if (getQliphothCounter() > 0 && player.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS)
+                .map(stats -> stats.getPrudenceLevel() <= 4).orElse(false)) {
+            decreaseQliphothCounter(1);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.blue_star.careless_counter"), false);
+        }
         if (MentalValueUtil.isPanic(player)) {
             decreaseQliphothCounter(1);
             player.sendSystemMessage(Component.translatable(
                     "message.lobotocraft.blue_star.panic_counter"));
         }
+    }
+
+    @Override
+    public void onWorkComplete(ServerPlayer player, WorkType workType, WorkResult result,
+                               WorkManager.WorkSession session) {
+        // Original OnWorkClosed: timeout first, then prudence only while a counter remains.
+        if (session.workDuration >= 60 * 20) {
+            decreaseQliphothCounter(1);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.blue_star.work_devoured"), false);
+            player.displayClientMessage(Component.translatable(
+                    "message.lobotocraft.blue_star.counter_minus_one"), false);
+            killMob(player, false);
+        }
+        onWorkComplete(player, workType, result);
     }
 
     @Override
@@ -212,6 +280,7 @@ public class EntityBlueStar extends AbstractAbnormality {
 
     @Override
     public void stopEscape() {
+        escapeDestinationPending = false;
         boolean wasEscaped = hasEscape();
         if (wasEscaped) {
             for (EscapeTimerHandle handle : activeEscapeTimers) {
@@ -223,6 +292,12 @@ public class EntityBlueStar extends AbstractAbnormality {
         if (!wasEscaped || hasEscape()) return;
         setAnimation("animation.blue_star.idle");
         setTarget(null);
+    }
+
+    @Override
+    protected void resetForNewDay() {
+        super.resetForNewDay();
+        escapeDestinationPending = false;
     }
 
     private void trackEscapeTimer(TimerEntry<?> timer, LivingEntity target) {
@@ -305,6 +380,10 @@ public class EntityBlueStar extends AbstractAbnormality {
         setNoAi(!isEscapeCombatActive());
         if (level().isClientSide) {
             return;
+        }
+        if (!hasEscape() && !isContainmentReturnPending() && this.tickCount % 20 == 0
+                && (escapeDestinationPending || getQliphothCounter() == 0)) {
+            triggerEscape();
         }
         if (this.tickCount % 20 == 0) {
             for (Player player : EntityUtil.findPlayersAround(this, 4, 4)) {

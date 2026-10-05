@@ -33,8 +33,11 @@ public abstract class MixinServerPlayer {
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/server/level/ServerPlayer;canHarmPlayer(Lnet/minecraft/world/entity/player/Player;)Z")
     )
-    private boolean lobotocraft$allowRedShoesRescueDamage(ServerPlayer victim, Player attacker) {
-        return HostileControlState.isActive(victim) || victim.canHarmPlayer(attacker);
+    private boolean lobotocraft$allowExplicitCombatDamage(ServerPlayer victim, Player attacker,
+            net.minecraft.world.damagesource.DamageSource source, float amount) {
+        return HostileControlState.isActive(victim)
+                || com.wzz.lobotocraft.util.DamageHelper.isIndiscriminate(source)
+                || victim.canHarmPlayer(attacker);
     }
 
 }

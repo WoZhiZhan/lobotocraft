@@ -2,10 +2,12 @@ package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.control.WolfSwallowControl;
 import com.wzz.lobotocraft.employee.FacilityAccessService;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.init.ModItems;
+import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModSounds;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.FullScreenRenderMessage;
@@ -15,6 +17,12 @@ import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.util.MentalValueUtil;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.util.SafeTransformationUtil;
+import com.wzz.lobotocraft.util.AbnormalityCombatUtil;
+import com.wzz.lobotocraft.world.data.CompanyRoomData;
+import com.wzz.lobotocraft.world.data.FacilityAreaSelection;
+import com.wzz.lobotocraft.world.data.FacilityAreaType;
+import com.wzz.lobotocraft.world.data.FacilityWorldLayout;
+import com.wzz.lobotocraft.work.WorkManager;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.core.BlockPos;
@@ -32,6 +40,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityDimensions;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
@@ -41,8 +50,8 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
@@ -55,6 +64,9 @@ import software.bernie.geckolib.core.object.PlayState;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * 又大又可能很坏的狼 (F-02-58) —— WAW 级异想体。
@@ -96,7 +108,8 @@ public class EntityBigBadWolf extends AbstractAbnormality {
     private boolean inFog = false;
     private int fogTimer = 0;
     private BlockPos fogTargetReactor = null;
-    private boolean killedByRedHood = false;
+    private final Set<UUID> checkedBleedingUnits = new HashSet<>();
+    private int pendingPassageDecrease;
 
     public EntityBigBadWolf(EntityType<? extends TamableAnimal> entityType, Level level) {
         super(entityType, level);
@@ -266,10 +279,8 @@ public class EntityBigBadWolf extends AbstractAbnormality {
 
     /** 吞入腹中:玩家切旁观并附身狼 */
     private void swallowPlayer(ServerPlayer player) {
-        swallowedPlayers.add(player.getUUID());
-        player.getPersistentData().putBoolean("wolf_swallowed", true);
-        player.setGameMode(GameType.SPECTATOR);
-        player.setCamera(this);
+        if (!swallowedPlayers.contains(player.getUUID())) swallowedPlayers.add(player.getUUID());
+        WolfSwallowControl.start(player, this);
         setTexture("bigbadwolf_swallowed");
         setAnimation("idle2");
         if (this.level() instanceof ServerLevel sl) {
@@ -284,12 +295,14 @@ public class EntityBigBadWolf extends AbstractAbnormality {
     private void checkAllSwallowed() {
         if (!(this.level() instanceof ServerLevel level)) return;
         boolean anyFree = false;
-        for (ServerPlayer p : level.getServer().getPlayerList().getPlayers()) {
-            if (!p.getPersistentData().getBoolean("wolf_swallowed")
-                    && !p.isSpectator() && p.isAlive()) {
-                anyFree = true;
-                break;
+        for (var serverLevel : level.getServer().getAllLevels()) {
+            for (ServerPlayer p : serverLevel.players()) {
+                if (!WolfSwallowControl.isActive(p) && !p.isSpectator() && p.isAlive()) {
+                    anyFree = true;
+                    break;
+                }
             }
+            if (anyFree) break;
         }
         if (!anyFree) {
             releaseSwallowed(false);
@@ -303,11 +316,10 @@ public class EntityBigBadWolf extends AbstractAbnormality {
     public void releaseSwallowed(boolean spitOut) {
         if (!(this.level() instanceof ServerLevel level)) return;
         for (UUID id : new ArrayList<>(swallowedPlayers)) {
-            ServerPlayer p = level.getServer().getPlayerList().getPlayer(id);
+            ServerPlayer p = WolfSwallowControl.findPlayer(level.getServer(), id);
             if (p == null) continue;
-            p.getPersistentData().putBoolean("wolf_swallowed", false);
-            p.setCamera(p);
-            p.setGameMode(GameType.SURVIVAL);
+            if (!WolfSwallowControl.belongsTo(p, this)) continue;
+            WolfSwallowControl.clear(p);
             p.teleportTo(getX(), getY(), getZ());
             if (spitOut) {
                 p.setHealth(Math.max(1f, p.getMaxHealth() * 0.5f));
@@ -336,6 +348,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
 
     @Override
     public void onQliphothMeltdown() {
+        triggerEscape();
         triggerEscape();
     }
 
@@ -404,7 +417,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         inFog = false;
         fogTimer = 0;
         fogTargetReactor = null;
-        killedByRedHood = false;
+        resetPassageObservations();
         damageSinceLastFog = 0.0F;
         this.removeEffect(MobEffects.INVISIBILITY);
         this.removeEffect(MobEffects.GLOWING);
@@ -438,11 +451,6 @@ public class EntityBigBadWolf extends AbstractAbnormality {
             if (DamageHelper.isWhiteDamage(source)) m = 0.7f;
             else if (DamageHelper.isBlackDamage(source)) m = 0.7f;
             amount *= m;
-            // 死亡来源记录:是否被小红帽击杀
-            if (this.getHealth() - amount <= 0
-                    && source.getEntity() instanceof EntityRedHoodMercenary) {
-                killedByRedHood = true;
-            }
         }
         float healthBefore = getHealth();
         boolean result = super.hurt(source, amount);
@@ -473,10 +481,12 @@ public class EntityBigBadWolf extends AbstractAbnormality {
 
     @Override
     public void die(DamageSource source) {
+        if (!level().isClientSide && !hasEscape() && hasSwallowedPlayers()) releaseSwallowed(true);
         if (!this.level().isClientSide && hasEscape()) {
+            Entity suppressor = responsibleAttacker(source);
             boolean hadSwallowed = hasSwallowedPlayers();
             // 机制8:腹中有员工时被小红帽击杀 → 掉落"羊皮"
-            if (hadSwallowed && (killedByRedHood || source.getEntity() instanceof EntityRedHoodMercenary)) {
+            if (hadSwallowed && suppressor instanceof EntityRedHoodMercenary) {
                 this.level().addFreshEntity(new ItemEntity(this.level(),
                         getX(), getY(), getZ(), new ItemStack(ModItems.SHEEPSKIN_CURIO.get())));
             }
@@ -484,10 +494,9 @@ public class EntityBigBadWolf extends AbstractAbnormality {
             releaseSwallowed(true);
             // 小红帽须知Ⅵ/目标机制3:狼被镇压 → 通知所有小红帽
             if (this.level() instanceof ServerLevel level) {
-                boolean byPlayer = source.getEntity() instanceof Player;
                 for (EntityRedHoodMercenary redhat : level.getEntitiesOfClass(EntityRedHoodMercenary.class,
                         getBoundingBox().inflate(2048), LivingEntity::isAlive)) {
-                    redhat.onWolfSuppressed(byPlayer && this.getPersistentData().getBoolean("redhat_marked"));
+                    redhat.onWolfSuppressed(this, suppressor);
                 }
             }
         }
@@ -495,6 +504,68 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         // 镇压重置后回到出逃前形态贴图
         if (!this.isRemoved()) {
             setTexture("bigbadwolf");
+        }
+    }
+
+    private static Entity responsibleAttacker(DamageSource source) {
+        Entity causing = source.getEntity();
+        if (causing instanceof Projectile projectile && projectile.getOwner() != null)
+            return projectile.getOwner();
+        if (causing != null) return causing;
+        Entity direct = source.getDirectEntity();
+        return direct instanceof Projectile projectile ? projectile.getOwner() : direct;
+    }
+
+    @Override
+    protected void resetForNewDay() {
+        super.resetForNewDay();
+        resetPassageObservations();
+    }
+
+    private void resetPassageObservations() {
+        checkedBleedingUnits.clear();
+        pendingPassageDecrease = 0;
+    }
+
+    /** Original entry passage, mapped through the already measured facility geometry. */
+    private void tickEntrancePassage(ServerLevel level) {
+        if (level.dimension().location().equals(getHomeRoomDimension()) && getHomeRoomMarker() != null) {
+            var binding = FacilityWorldLayout.containmentAt(level.dimension().location(), getHomeRoomMarker());
+            var entrance = binding.flatMap(value -> FacilityWorldLayout.areaAt(
+                    level.dimension().location(), value.escapePos().above()));
+            if (entrance.isPresent()) {
+                var passage = entrance.get();
+                int floorY = binding.get().escapePos().getY() + 1;
+                var areas = FacilityWorldLayout.mergeAreas(level.dimension().location(),
+                        CompanyRoomData.get(level).getAreas(level.dimension().location()));
+                Set<LivingEntity> candidates = new LinkedHashSet<>();
+                for (var cuboid : FacilityWorldLayout.areasForGroup(level.dimension().location(), passage.groupId())) {
+                    var bounds = new net.minecraft.world.phys.AABB(cuboid.minPos(), cuboid.maxPos().offset(1, 1, 1));
+                    candidates.addAll(level.getEntitiesOfClass(LivingEntity.class, bounds, entity ->
+                            AbnormalityCombatUtil.isValidSuppressorTarget(this, entity)
+                            && Math.abs(entity.getY() - floorY) <= 1.5D
+                            && FacilityAreaSelection.containing(areas, level.dimension().location(), entity.blockPosition())
+                            .filter(area -> area.type != FacilityAreaType.CONTAINMENT
+                                    && area.groupId.equals(passage.groupId())).isPresent()));
+                }
+                if (candidates.stream().anyMatch(entity -> entity instanceof EntityRedHoodMercenary)) {
+                    // Original assigns two, not an endlessly growing per-tick debt.
+                    pendingPassageDecrease = 2;
+                } else {
+                    for (LivingEntity candidate : candidates) {
+                        if (EntityRedHoodMercenary.hasActiveBleed(candidate, level.getGameTime())
+                                && checkedBleedingUnits.add(candidate.getUUID()))
+                            pendingPassageDecrease++;
+                    }
+                }
+            }
+        }
+        // Unknown geometry does not reopen the old radius fallback. Previously
+        // collected debt still settles when the formal work session ends.
+        if (pendingPassageDecrease > 0 && !WorkManager.isAbnormalityBeingWorked(this)) {
+            int debt = pendingPassageDecrease;
+            pendingPassageDecrease = 0;
+            for (int i = 0; i < debt && !hasEscape(); i++) decreaseQliphothCounter(1);
         }
     }
 
@@ -543,7 +614,7 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         return new EGOEquipmentData.GiftData(
                 ResourceUtil.createInstance("textures/item/big_badwolf_curio.png"),
                 "郁蓝创痕",
-                "头饰",
+                "面部",
                 "big_badwolf_curio",
                 "最大生命值+4",
                 "移动速度+2",
@@ -587,26 +658,21 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         super.tick();
         if (this.level().isClientSide) return;
         ServerLevel level = (ServerLevel) this.level();
+        for (UUID id : List.copyOf(swallowedPlayers)) {
+            ServerPlayer swallowed = WolfSwallowControl.findPlayer(level.getServer(), id);
+            if (swallowed == null) continue;
+            if (!swallowed.isAlive() || !WolfSwallowControl.belongsTo(swallowed, this)) {
+                swallowedPlayers.remove(id);
+                setTexture(textureForCurrentState());
+            } else {
+                WolfSwallowControl.tick(swallowed);
+            }
+        }
         retryPendingDimensions(level);
         syncMovementSpeed();
         if (!hasEscape()) {
-            // 收容期检测(每秒,以收容单元附近16格近似"收容单元前的走廊")
             if (this.tickCount % 20 == 0) {
-                // 须知Ⅴ:小红帽(出逃/委托状态)经过附近 → 直接突破收容
-                if (!level.getEntitiesOfClass(EntityRedHoodMercenary.class,
-                        getBoundingBox().inflate(16), r -> r.isAlive() && r.hasEscape()).isEmpty()) {
-                    triggerEscape();
-                    return;
-                }
-                // 须知Ⅳ:被小红帽所伤且正在流血(未满血)的单位经过附近 → 计数器立刻减少
-                for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class,
-                        getBoundingBox().inflate(16),
-                        en -> en.isAlive() && en.getHealth() < en.getMaxHealth()
-                                && en.getPersistentData().getLong("lobotocraft_redhat_wounded") > level.getGameTime())) {
-                    e.getPersistentData().remove("lobotocraft_redhat_wounded");
-                    decreaseQliphothCounter(1);
-                    break;
-                }
+                tickEntrancePassage(level);
             }
             return;
         }
@@ -858,7 +924,8 @@ public class EntityBigBadWolf extends AbstractAbnormality {
                 .add(Attributes.MOVEMENT_SPEED, ESCAPED_MOVEMENT_SPEED)
                 .add(Attributes.ATTACK_DAMAGE, 0.0D)
                 .add(Attributes.FOLLOW_RANGE, 48.0D)
-                .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D);
+                .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D)
+                .add(ModAttributes.BLUE_DAMAGE_RESISTANCE.get(), 1.0D);
     }
 
     // ==================== NBT ====================
@@ -874,11 +941,33 @@ public class EntityBigBadWolf extends AbstractAbnormality {
         for (UUID id : swallowedPlayers) list.putUUID("p" + (i++), id);
         list.putInt("count", i);
         tag.put("Swallowed", list);
+        CompoundTag checked = new CompoundTag();
+        i = 0;
+        for (UUID id : checkedBleedingUnits) checked.putUUID("p" + i++, id);
+        checked.putInt("count", i);
+        tag.put("CheckedPassageBleed", checked);
+        tag.putInt("PendingPassageDecrease", pendingPassageDecrease);
+        tag.putInt("WolfPaleResistanceVersion", 1);
     }
 
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        // The old class relied on the globally injected 1/1/1.5/2 defaults.
+        // Migrate only that exact legacy tuple; stamped/custom tuning survives.
+        var red = getAttribute(ModAttributes.RED_DAMAGE_RESISTANCE.get());
+        var white = getAttribute(ModAttributes.WHITE_DAMAGE_RESISTANCE.get());
+        var black = getAttribute(ModAttributes.BLACK_DAMAGE_RESISTANCE.get());
+        var pale = getAttribute(ModAttributes.BLUE_DAMAGE_RESISTANCE.get());
+        if (!tag.contains("WolfPaleResistanceVersion") && red != null && white != null
+                && black != null && pale != null && red.getBaseValue() == 1.0D
+                && white.getBaseValue() == 1.0D && black.getBaseValue() == 1.5D
+                && pale.getBaseValue() == 2.0D) pale.setBaseValue(1.0D);
+        checkedBleedingUnits.clear();
+        CompoundTag checked = tag.getCompound("CheckedPassageBleed");
+        for (int i = 0; i < Math.min(4096, checked.getInt("count")); i++)
+            if (checked.hasUUID("p" + i)) checkedBleedingUnits.add(checked.getUUID("p" + i));
+        pendingPassageDecrease = Math.max(0, Math.min(4096, tag.getInt("PendingPassageDecrease")));
         boolean collisionEscaped = tag.contains("CollisionEscaped") && tag.getBoolean("CollisionEscaped");
         this.entityData.set(DATA_COLLISION_ESCAPED, collisionEscaped);
         this.refreshDimensions();

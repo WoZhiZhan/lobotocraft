@@ -89,8 +89,8 @@ public class EntityAbandonedMurderer extends AbstractAbnormality {
         this.maxPEOutput = 14;
 
         // 工作偏好
-        float[] basePreferences = {0.5f, 0.3f, 0.4f, -0.8f};
-        // 本能50%，洞察30%，沟通40%，压迫-80%
+        // BaseMod candidate StraitJacket_stat.txt, ordered I -> V.
+        float[] basePreferences = {0.6f, 0.4f, 0.5f, 0.3f};
         initializeWorkPreferences(basePreferences);
         initializeQliphothCounter(1);
     }
@@ -115,11 +115,10 @@ public class EntityAbandonedMurderer extends AbstractAbnormality {
     protected float[][] getWorkPreferencesLevelModifiers() {
         float[][] levelModifiers = new float[4][5];
 
-        // 使用加法：级别1-3不变，级别4-5提升
-        levelModifiers[0] = new float[] {0.0f, 0.0f, 0.0f, 0.1f, 0.1f};  // 本能: 50→50→50→60→60
-        levelModifiers[1] = new float[] {0.0f, 0.0f, 0.0f, 0.1f, 0.1f};  // 洞察: 30→30→30→40→40
-        levelModifiers[2] = new float[] {0.0f, 0.0f, 0.0f, 0.1f, 0.1f};  // 沟通: 40→40→40→50→50
-        levelModifiers[3] = new float[] {0.0f, 0.0f, 0.8f, 1.0f, 1.1f}; // 压迫: -80→-80→0→20→30
+        levelModifiers[0] = new float[] {0.0f, 0.0f, -0.1f, -0.1f, -0.1f};
+        levelModifiers[1] = new float[] {0.0f, 0.0f, -0.1f, -0.1f, -0.1f};
+        levelModifiers[2] = new float[] {0.0f, 0.0f, -0.1f, -0.1f, -0.1f};
+        levelModifiers[3] = new float[] {0.0f, -0.1f, -0.3f, -1.1f, -1.1f};
 
         return levelModifiers;
     }

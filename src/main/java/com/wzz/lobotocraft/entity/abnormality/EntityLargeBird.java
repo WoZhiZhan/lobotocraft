@@ -36,9 +36,6 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
-import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
-import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
-import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.SoundType;
@@ -62,6 +59,7 @@ public class EntityLargeBird extends AbstractAbnormality {
     // 攻击动画计时器
     private int attackAnimationTimer = 0;
     private boolean attackPending = false;
+    private LivingEntity executionTarget;
 
     // 音效播放计时器
     private int ambientSoundCooldown = 0;
@@ -155,16 +153,16 @@ public class EntityLargeBird extends AbstractAbnormality {
     protected void registerGoals() {
         super.registerGoals();
         this.goalSelector.addGoal(0, new FloatGoal(this));
-        this.goalSelector.addGoal(1, new TargetPlayerGoal(this));
-        this.goalSelector.addGoal(2, new MeleeAttackGoal(this, 1.0D, true));
         this.goalSelector.addGoal(3, new net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal(this, 0.8D));
         this.goalSelector.addGoal(4, new LookAtPlayerGoal(this, Player.class, 16.0F));
         this.goalSelector.addGoal(5, new net.minecraft.world.entity.ai.goal.RandomLookAroundGoal(this));
-        this.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(this, LivingEntity.class, 10, true, false,
-                (entity) -> (entity instanceof Villager || entity instanceof EntityClerk
-                        || (entity instanceof Player player
-                        && EntityUtil.getDistanceBetweenEntities(this, player) <= 3.1D)) && hasEscape()));
     }
+
+    @Override
+    protected boolean usesCommonCombatTargetSelection() { return false; }
+
+    @Override
+    protected boolean canSelectCombatTarget(LivingEntity target) { return false; }
 
     @Override
     public List<String> getWorkLogs() {
@@ -220,10 +218,6 @@ public class EntityLargeBird extends AbstractAbnormality {
 
     @Override
     public boolean hurt(DamageSource damageSource, float f) {
-        if (damageSource.getEntity() instanceof AbstractAbnormality abnormality
-                && !QueenOfHatredCombat.isQueenOfHatredCombatTarget(abnormality)) {
-            return false;
-        }
         if (!level.isClientSide) {
             BlackForestEvent.BlackForestSavedData data =
                     BlackForestEvent.BlackForestSavedData.get((ServerLevel) level());
@@ -280,6 +274,7 @@ public class EntityLargeBird extends AbstractAbnormality {
         if (!wasEscaped || hasEscape()) return;
         attackAnimationTimer = 0;
         attackPending = false;
+        executionTarget = null;
         attackCooldown = 0;
         attackSoundTimer = 0;
         getNavigation().stop();
@@ -295,6 +290,7 @@ public class EntityLargeBird extends AbstractAbnormality {
         setEscape(false);
         attackAnimationTimer = 0;
         attackPending = false;
+        executionTarget = null;
         attackCooldown = 0;
         attackSoundTimer = 0;
         setAnimation("model.5");
@@ -305,20 +301,16 @@ public class EntityLargeBird extends AbstractAbnormality {
     @Override
     public boolean doHurtTarget(Entity target) {
         // 检查攻击冷却
-        if (attackCooldown > 0) {
+        if (attackCooldown > 0 || attackPending || !hasEscape() || isContainmentReturnPending()) {
             return false;
         }
 
-        if (target instanceof LivingEntity livingTarget) {
-            // 不攻击创造模式玩家
-            if (target instanceof Player player && (player.isCreative() || player.isSpectator())) {
-                return false;
-            }
+        if (target instanceof LivingEntity livingTarget && canExecuteCharmedPersonnel(livingTarget)) {
 
             // 开始攻击动画
             attackPending = true;
             attackAnimationTimer = 0;
-            setTarget(livingTarget);
+            executionTarget = livingTarget;
             setAnimation("model.1");
             this.playSound(ModSounds.LARGE_BIRD_OPEN_MOUTH.get());
             setDeltaMovement(0,0,0);
@@ -332,6 +324,14 @@ public class EntityLargeBird extends AbstractAbnormality {
 
     public boolean isAttackPending() {
         return attackPending;
+    }
+
+    private boolean canExecuteCharmedPersonnel(LivingEntity target) {
+        return !isContainmentReturnPending()
+                && com.wzz.lobotocraft.entity.ai.FacilityAbnormalityTargetPolicy.isPersonnel(target)
+                && (!(target instanceof Player player) || !hasCharmImmunity(player))
+                && target.level() == level() && isCharmFromThisBird(target.getPersistentData())
+                && distanceToSqr(target) <= 9.0D && hasLineOfSight(target);
     }
 
     @Override
@@ -369,6 +369,7 @@ public class EntityLargeBird extends AbstractAbnormality {
                 // 门已生成，清除攻击状态
                 setTarget(null);
                 attackPending = false;
+                executionTarget = null;
                 setAnimation("model.5");
                 clearCharmedPlayersForThisBird();
                 ensureDoorGoalExists();
@@ -392,18 +393,19 @@ public class EntityLargeBird extends AbstractAbnormality {
         if (attackPending && !this.level().isClientSide) {
             attackAnimationTimer++;
             if (attackAnimationTimer == 20) {
-                if (this.target != null && EntityUtil.getDistanceBetweenEntities(this, target) <= 3D) {
+                LivingEntity target = executionTarget;
+                if (target != null && canExecuteCharmedPersonnel(target)) {
                     this.playSound(ModSounds.LARGE_BIRD_KILLER_PLAYER.get());
-                    this.target.hurt(level.damageSources().fellOutOfWorld(), Float.POSITIVE_INFINITY);
-                    this.target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 100, 225));
-                    if (this.target instanceof Player player) {
+                    target.hurt(level.damageSources().fellOutOfWorld(), Float.POSITIVE_INFINITY);
+                    target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 100, 225));
+                    if (target instanceof Player player) {
                         clearLargeBirdCharm(player);
                     } else {
-                        this.target.getPersistentData().remove(CHARM_TAG);
+                        clearPersonnelCharm(target);
                     }
                     boolean hasPlayer = false;
                     for (Player player : EntityUtil.findPlayersAround(this, 10, 32)) {
-                        if (player != getTarget()) {
+                        if (player != target) {
                             hasPlayer = true;
                             break;
                         }
@@ -417,6 +419,7 @@ public class EntityLargeBird extends AbstractAbnormality {
             // 清除攻击动画
             if (attackAnimationTimer >= 40) {
                 attackPending = false;
+                executionTarget = null;
                 attackAnimationTimer = 0;
                 attackCooldown = 40;
                 setAnimation("model.5");
@@ -424,55 +427,69 @@ public class EntityLargeBird extends AbstractAbnormality {
         }
         if (!this.level().isClientSide && hasEscape()) {
             if (this.tickCount % 40 == 0) {
-                if (this.target != null && EntityUtil.getDistanceBetweenEntities(this, target) <= 3D) {
-                    lookAt(target, 0.5f, 0.5f);
-                    doHurtTarget(target);
-                }
+                level().getEntitiesOfClass(LivingEntity.class, getBoundingBox().inflate(3.0D),
+                                this::canExecuteCharmedPersonnel).stream()
+                        .min(java.util.Comparator.comparingDouble(this::distanceToSqr))
+                        .ifPresent(this::doHurtTarget);
             }
         }
-        if (hasEscape() && this.isAlive()) {
+        if (!level().isClientSide && hasEscape() && this.isAlive()) {
             if (this.tickCount % 500 == 0) {
                 setAnimation("model.3");
                 setDeltaMovement(0,0,0);
-                for (Player player : EntityUtil.findAllPlayerWithDimension(this, 256, ModDimensions.LOBOTO_KEY)) {
-                    if (!player.getPersistentData().getBoolean(CHARM_IMMUNITY_TAG) && !player.isCreative() && !player.isSpectator() && player == getTarget()) {
-                        if (!canCharm(player)) {
-                            PlayerControlLock.lock(player, this, 0.1d, 2.5d);
-                            player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 100, 225));
-                            player.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 100, 225));
-                            startLargeBirdCharm(player);
-                        } else {
-                            if (player.getPersistentData().getBoolean(CHARM_TAG)) {
-                                clearLargeBirdCharm(player);
+                for (LivingEntity personnel : level().getEntitiesOfClass(LivingEntity.class,
+                        getBoundingBox().inflate(256),
+                        com.wzz.lobotocraft.entity.ai.FacilityAbnormalityTargetPolicy::isPersonnel)) {
+                    if (personnel instanceof Player player) {
+                        if (!player.getPersistentData().getBoolean(CHARM_IMMUNITY_TAG)) {
+                            if (!hasCharmImmunity(player)) {
+                                PlayerControlLock.lock(player, this, 0.1d, 2.5d);
+                                player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 100, 225));
+                                player.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 100, 225));
+                                startLargeBirdCharm(player);
+                            } else {
+                                if (isCharmFromThisBird(player.getPersistentData())) {
+                                    clearLargeBirdCharm(player);
+                                }
+                                ParticleUtil.spawnParticlesAroundEntity(player, ModParticleTypes.BLUE_GLINT.get(), 30, 0.1d);
+                                player.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP);
                             }
-                            ParticleUtil.spawnParticlesAroundEntity(player, ModParticleTypes.BLUE_GLINT.get(), 30, 0.1d);
-                            player.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP);
                         }
+                    } else {
+                        startPersonnelCharm(personnel);
                     }
                 }
             }
             if (this.tickCount % 20 == 0) {
                 checkCharmedPlayers();
+                guideCharmedClerks();
             }
         }
     }
 
-    private boolean canCharm(Player player) {
-        if (EgoArmorHelper.hasEquipmentCombination(player, "large_bird", true, false, true)) {
+    private boolean hasCharmImmunity(Player player) {
+        // Use the equipment's declared set identity, not the abnormality's entity/resource name.
+        if (EgoArmorHelper.hasEquipmentCombination(player,
+                ((com.wzz.lobotocraft.item.ego.base.BaseEgoCurio) ModItems.LARGEBIRD_CURIO.get()).curioName(),
+                true, false, true)) {
             return true;
         }
         return EgoArmorHelper.isFullEGO(player, "end_bird") && CuriosUtil.hasCurios(player, ModItems.LARGEBIRD_CURIO.get());
     }
 
     private void startLargeBirdCharm(Player player) {
-        CompoundTag data = player.getPersistentData();
+        startPersonnelCharm(player);
+    }
+
+    private void startPersonnelCharm(LivingEntity personnel) {
+        CompoundTag data = personnel.getPersistentData();
         boolean alreadyCharmedByThisBird = isCharmFromThisBird(data);
         data.putBoolean(CHARM_TAG, true);
         data.putUUID(CHARM_TARGET_TAG, this.getUUID());
         if (!alreadyCharmedByThisBird || !data.contains(CHARM_START_TIME_TAG, Tag.TAG_LONG)) {
-            data.putLong(CHARM_START_TIME_TAG, player.level().getGameTime());
+            data.putLong(CHARM_START_TIME_TAG, personnel.level().getGameTime());
         }
-        if (!alreadyCharmedByThisBird && player instanceof ServerPlayer serverPlayer) {
+        if (!alreadyCharmedByThisBird && personnel instanceof ServerPlayer serverPlayer) {
             MessageLoader.getLoader().sendToPlayer(serverPlayer, new LargeBirdBorderPacket(CHARM_BORDER_DURATION_MS));
         }
     }
@@ -490,7 +507,7 @@ public class EntityLargeBird extends AbstractAbnormality {
     }
 
     private void clearCharmedPlayersForThisBird() {
-        for (Player player : EntityUtil.findAllPlayerWithDimension(this, 256, ModDimensions.LOBOTO_KEY)) {
+        for (Player player : level().players()) {
             CompoundTag data = player.getPersistentData();
             if (!data.getBoolean(CHARM_TAG)) {
                 continue;
@@ -499,8 +516,30 @@ public class EntityLargeBird extends AbstractAbnormality {
                 clearLargeBirdCharm(player);
             }
         }
+        if (level() instanceof ServerLevel serverLevel) {
+            for (Entity entity : serverLevel.getAllEntities()) {
+                if (entity instanceof EntityClerk clerk && isCharmFromThisBird(clerk.getPersistentData())) {
+                    clearPersonnelCharm(clerk);
+                    clerk.getNavigation().stop();
+                }
+            }
+        }
     }
 
+    private static void clearPersonnelCharm(LivingEntity target) {
+        CompoundTag data = target.getPersistentData();
+        data.remove(CHARM_TAG);
+        data.remove(CHARM_TARGET_TAG);
+        data.remove(CHARM_START_TIME_TAG);
+        data.remove(CHARM_ESCAPE_ATTEMPTS_TAG);
+    }
+
+    private void guideCharmedClerks() {
+        for (EntityClerk clerk : level().getEntitiesOfClass(EntityClerk.class, getBoundingBox().inflate(256),
+                clerk -> clerk.isAlive() && isCharmFromThisBird(clerk.getPersistentData()))) {
+            clerk.getNavigation().moveTo(this, 0.6D);
+        }
+    }
     private boolean isCharmFromThisBird(CompoundTag data) {
         return data.getBoolean(CHARM_TAG)
                 && data.hasUUID(CHARM_TARGET_TAG)
@@ -526,7 +565,7 @@ public class EntityLargeBird extends AbstractAbnormality {
      */
     private void checkCharmedPlayers() {
         if (this.level().isClientSide) return;
-        for (Player player : EntityUtil.findAllPlayerWithDimension(this, 256, ModDimensions.LOBOTO_KEY)) {
+        for (Player player : level().players()) {
             CompoundTag data = player.getPersistentData();
             if (!data.getBoolean(CHARM_TAG)) {
                 continue;
@@ -544,6 +583,10 @@ public class EntityLargeBird extends AbstractAbnormality {
 
             UUID targetUUID = data.getUUID(CHARM_TARGET_TAG);
             if (targetUUID.equals(this.getUUID())) {
+                if (hasCharmImmunity(player)) {
+                    clearLargeBirdCharm(player);
+                    continue;
+                }
                 if (!data.contains(CHARM_START_TIME_TAG, Tag.TAG_LONG)) {
                     data.putLong(CHARM_START_TIME_TAG, player.level().getGameTime());
                     continue;
@@ -698,7 +741,7 @@ public class EntityLargeBird extends AbstractAbnormality {
         return new EGOEquipmentData.GiftData(
                 ResourceUtil.createInstance("textures/item/largebird_curio.png"),
                 "目灯",
-                "头部",
+                "头饰",
                 "largebird_curio",
                 "最大生命值+3,成功率+3,工作速度+3"
         );
@@ -841,47 +884,12 @@ public class EntityLargeBird extends AbstractAbnormality {
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
         this.entityData.set(DATA_ANIMATION, tag.getString("CurrentAnimation"));
-        attackAnimationTimer = tag.getInt("AttackAnimationTimer");
-        attackPending = tag.getBoolean("AttackPending");
+        // A persisted ordinary Mob target must never resume as an unqualified execution.
+        executionTarget = null;
+        attackAnimationTimer = 0;
+        attackPending = false;
         ambientSoundCooldown = tag.getInt("AmbientSoundCooldown");
         attackSoundTimer = tag.getInt("AttackSoundTimer");
     }
 
-    public static class TargetPlayerGoal extends Goal {
-        private final EntityLargeBird entity;
-
-        public TargetPlayerGoal(EntityLargeBird entity) {
-            this.entity = entity;
-        }
-
-        @Override
-        public boolean canUse() {
-            return entity.hasEscape();
-        }
-
-        @Override
-        public boolean canContinueToUse() {
-            return canUse();
-        }
-
-        @Override
-        public void start() {
-            entity.setAnimation("walk");
-        }
-
-        @Override
-        public void tick() {
-            LivingEntity target = entity.target;
-            if (!(target instanceof ServerPlayer)) {
-                return;
-            }
-            entity.getNavigation().moveTo(target, 1.2);
-            entity.getLookControl().setLookAt(target, 30.0f, 30.0f);
-        }
-
-        @Override
-        public void stop() {
-            entity.getNavigation().stop();
-        }
-    }
 }

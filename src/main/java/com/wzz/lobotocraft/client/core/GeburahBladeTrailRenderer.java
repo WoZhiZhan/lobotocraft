@@ -7,6 +7,8 @@ import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.core_suppression.geburah.GeburahMove;
+import com.wzz.lobotocraft.core_suppression.geburah.GeburahEgoAttackVisuals;
+import com.wzz.lobotocraft.client.config.ClientVisualConfig;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
@@ -23,7 +25,6 @@ import java.util.List;
 @Mod.EventBusSubscriber(modid = ModMain.MODID, value = Dist.CLIENT,
         bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class GeburahBladeTrailRenderer {
-    private static final double TRAIL_LIFETIME_TICKS = 6.0D;
     private static final ResourceLocation FLESH_TEXTURE =
             ResourceUtil.createInstance("textures/effect/geburah_blade_flesh.png");
     private static boolean debugMarkers;
@@ -40,7 +41,7 @@ public final class GeburahBladeTrailRenderer {
         if (minecraft.level == null) return;
         double now = minecraft.level.getGameTime() + event.getPartialTick();
         List<GeburahBladeTrailState.TrailPoint> points =
-                GeburahBladeTrailState.recentTrail(now, TRAIL_LIFETIME_TICKS);
+                GeburahBladeTrailState.visualTrail(now, ClientVisualConfig.GEBURAH_EGO_ATTACK_TRIAL.get());
         if (points.isEmpty()) return;
 
         Vec3 camera = event.getCamera().getPosition();
@@ -141,8 +142,8 @@ public final class GeburahBladeTrailRenderer {
     private static void drawFleshSegment(BufferBuilder builder, Matrix4f matrix, Vec3 camera,
                                          GeburahBladeTrailState.TrailPoint previous,
                                          GeburahBladeTrailState.TrailPoint current) {
-        float previousAlpha = fade(previous.age()) * (current.ego() ? 0.94F : 0.78F);
-        float currentAlpha = fade(current.age()) * (current.ego() ? 1.0F : 0.86F);
+        float previousAlpha = trailFade(previous) * (current.ego() ? 0.94F : 0.78F);
+        float currentAlpha = trailFade(current) * (current.ego() ? 1.0F : 0.86F);
         float previousTrailCoordinate = trailCoordinate(previous.age());
         float currentTrailCoordinate = trailCoordinate(current.age());
         List<Vec3> previousBlade = previous.bladePositions();
@@ -171,7 +172,7 @@ public final class GeburahBladeTrailRenderer {
         Vec3 side = axis.cross(camera.subtract(midpoint));
         if (side.lengthSqr() < 1.0E-6D) side = axis.cross(new Vec3(0.0D, 1.0D, 0.0D));
         if (side.lengthSqr() < 1.0E-6D) side = new Vec3(1.0D, 0.0D, 0.0D);
-        double width = current.ego() ? 0.24D : 0.16D;
+        double width = enhanced(current) ? 0.15D : current.ego() ? 0.24D : 0.16D;
         Vec3 half = side.normalize().scale(width);
         drawTexturedQuad(builder, matrix, camera,
                 start.subtract(half), end.subtract(half),
@@ -204,6 +205,12 @@ public final class GeburahBladeTrailRenderer {
                     0.20F, 0.0F, 0.006F,
                     segment.startAlpha() * 0.48F, segment.endAlpha() * 0.48F);
         }
+        if (enhanced(current) && current.move() == GeburahMove.SLASH) {
+            drawRibbon(builder, matrix, camera, segment.start(), segment.end(), segment.side(),
+                    segment.width() * 0.14D, segment.width() * 1.15D,
+                    0.24F, 0.005F, 0.015F,
+                    segment.startAlpha() * 0.4F, segment.endAlpha() * 0.4F);
+        }
     }
 
     private static void drawHighlightSegment(BufferBuilder builder, Matrix4f matrix, Vec3 camera,
@@ -232,6 +239,19 @@ public final class GeburahBladeTrailRenderer {
                     Math.min(segment.startAlpha(), segment.endAlpha())
                             * (segment.ego() ? 1.0F : 0.58F));
         }
+        if (enhanced(current) && current.move() == GeburahMove.STAB) {
+            Vec3 direction = segment.end().subtract(segment.start()).normalize();
+            double length = Math.min(0.7D, segment.start().distanceTo(segment.end()) * 1.4D);
+            drawPatch(builder, matrix, camera, segment.end(), direction, segment.side(),
+                    0.10D, 0.045D, 1.0F, 0.72F, 0.63F, segment.endAlpha());
+            for (int streak = 0; streak < 2; streak++) {
+                double offset = streak == 0 ? -0.22D : 0.22D;
+                Vec3 tip = segment.end().add(segment.side().scale(offset));
+                drawRibbon(builder, matrix, camera, tip.subtract(direction.scale(length)),
+                        tip, segment.side(), 0.018D, 0,
+                        0.85F, 0.05F, 0.06F, 0.0F, segment.endAlpha() * 0.5F);
+            }
+        }
     }
 
     private static TrailSegment createSegment(Vec3 camera,
@@ -248,8 +268,8 @@ public final class GeburahBladeTrailRenderer {
         if (side.lengthSqr() < 1.0E-6D) side = new Vec3(1.0D, 0.0D, 0.0D);
         side = side.normalize();
 
-        float startAlpha = fade(previous.age());
-        float endAlpha = fade(current.age());
+        float startAlpha = trailFade(previous);
+        float endAlpha = trailFade(current);
         GeburahMove move = current.move() == null ? GeburahMove.SLASH : current.move();
         double moveWidth = switch (move) {
             case SLASH -> 0.42D;
@@ -259,6 +279,7 @@ public final class GeburahBladeTrailRenderer {
         double formScale = current.ego() ? 1.0D : 0.72D;
         double ragged = 0.88D + Math.sin(index * 2.43D + current.age() * 19.0D) * 0.12D;
         double width = moveWidth * formScale * ragged;
+        if (enhanced(current)) width *= GeburahEgoAttackVisuals.widthScale(move, current.age());
         return new TrailSegment(start, end, side, width, startAlpha, endAlpha,
                 current.age(), current.ego(), move);
     }
@@ -422,6 +443,14 @@ public final class GeburahBladeTrailRenderer {
     private static float fade(float age) {
         float remaining = Math.max(0.0F, 1.0F - age);
         return remaining * remaining;
+    }
+
+    private static boolean enhanced(GeburahBladeTrailState.TrailPoint point) {
+        return point.enhanced() && ClientVisualConfig.GEBURAH_EGO_ATTACK_TRIAL.get();
+    }
+
+    private static float trailFade(GeburahBladeTrailState.TrailPoint point) {
+        return enhanced(point) ? GeburahEgoAttackVisuals.trailFade(point.age()) : fade(point.age());
     }
 
     private static float trailCoordinate(float age) {

@@ -39,6 +39,7 @@ public final class FacilityCombatRules {
         }
         return living instanceof AbstractAbnormality
                 || isOrdealCombatant(living)
+                || HostileControlState.isActive(living)
                 || AbnormalityCombatUtil.isAbnormalitySuppressor(living);
     }
 
@@ -48,6 +49,7 @@ public final class FacilityCombatRules {
     }
 
     public static boolean blocksEmployeeFriendlyFire(Entity victim, DamageSource source) {
+        if (DamageHelper.isIndiscriminate(source)) return false;
         // Controlled employees are rescue targets; normal employee friendly-fire
         // protection must not prevent players or other employees from hitting them.
         if (victim instanceof LivingEntity living && HostileControlState.isActive(living)) {

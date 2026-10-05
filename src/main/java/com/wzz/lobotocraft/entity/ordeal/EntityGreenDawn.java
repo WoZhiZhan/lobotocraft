@@ -235,7 +235,7 @@ public class EntityGreenDawn extends BaseGeoEntity implements OrdealEntity {
         boolean hit = false;
         for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class,
                 this.getBoundingBox().inflate(10.0D, 5.0D, 10.0D), this::isValidSpecialTarget)) {
-            hit |= target.hurt(DamageHelper.getDamage(this, "white"), 3.0F);
+            hit |= target.hurt(DamageHelper.getRangedDamage(this, "white"), 3.0F);
         }
         return hit;
     }

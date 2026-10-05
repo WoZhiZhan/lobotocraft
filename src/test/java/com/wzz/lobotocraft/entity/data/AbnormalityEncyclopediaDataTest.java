@@ -13,6 +13,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AbnormalityEncyclopediaDataTest {
 
+    @Test
+    void oneSinManualsMatchCurrentModRecoveryRatherThanOriginalDepartmentHealing() {
+        String first = AbnormalityEncyclopediaData.getManual("O-03-03", 0, "zh_cn");
+        String second = AbnormalityEncyclopediaData.getManual("O-03-03", 1, "zh_cn");
+        assertTrue(first.contains("精神值") && first.contains("10") && first.contains("5"));
+        assertFalse(first.contains("情绪值"));
+        assertTrue(second.contains("祈祷") && second.contains("全部精神值"));
+        assertFalse(AbnormalityEncyclopediaData.getManual("O-03-03", 1, "en_us")
+                .contains("every employee in the department"));
+    }
+
+    @Test
+    void lumberjackPaleDescriptionUsesUserConfirmedOne() {
+        String text = AbnormalityEncyclopediaData.getData("F-05-32").sensitiveInfo();
+        assertTrue(text.contains("PALE(1.0"), text);
+        assertFalse(text.contains("蓝色(2.0"), text);
+    }
+
     private static final Pattern LONG_ENGLISH_PASSAGE = Pattern.compile("[A-Za-z]{4,}(?:\\s+[^\\s]+){8,}");
 
     @Test
@@ -150,6 +168,13 @@ class AbnormalityEncyclopediaDataTest {
         }
         assertFalse(stories[8].isUnlockedAt(3));
         assertTrue(stories[8].isUnlockedAt(4));
+    }
+
+    @Test
+    void armyBodyFallbackTracksApprovedDefenseNotArmor() {
+        String info = AbnormalityEncyclopediaData.getData("D-01-106").sensitiveInfo();
+        assertTrue(info.contains("RED(1.2") && info.contains("WHITE(0.6")
+                && info.contains("BLACK(1.0") && info.contains("PALE(0.8"));
     }
 
     @Test

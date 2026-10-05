@@ -24,6 +24,8 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.ForgeMod;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -277,8 +279,12 @@ public class EntityThornBus extends AbstractAbnormality {
                 && activeAttackTarget.isAlive()
                 && !activeAttackTarget.isRemoved()
                 && activeAttackTarget.level() == level()
-                && getBoundingBox().inflate(ATTACK_REACH)
-                .intersects(activeAttackTarget.getBoundingBox());
+                && canSelectCombatTarget(activeAttackTarget)
+                && attackBounds().intersects(activeAttackTarget.getBoundingBox());
+    }
+
+    private AABB attackBounds() {
+        return getBoundingBox().inflate(ATTACK_REACH);
     }
 
     @Override
@@ -320,7 +326,9 @@ public class EntityThornBus extends AbstractAbnormality {
         tickAttackSequence();
         if (hasEscape() && this.tickCount % 40 == 0) {
             if (getAnimation().contains("idle")) {
-                for (LivingEntity e : EntityUtil.findAllEntities(this, 1.8D)) {
+                for (LivingEntity e : level().getEntitiesOfClass(LivingEntity.class,
+                        attackBounds(), e -> e != this && canSelectCombatTarget(e)).stream()
+                        .sorted(java.util.Comparator.comparingDouble(this::distanceToSqr)).toList()) {
                     if (e instanceof Villager) {
                         killMob(e);
                         break;
@@ -386,8 +394,14 @@ public class EntityThornBus extends AbstractAbnormality {
 
     @Override
     public boolean hurt(DamageSource damageSource, float f) {
-        if (DamageHelper.isRangedAttack(damageSource))
-            return false;
+        if (hasEscape() && !DamageHelper.isKill(damageSource)) {
+            // Range belongs to the attacker, not the projectile currently touching this entity.
+            Entity attacker = damageSource.getEntity();
+            if (attacker != null && (attacker.level() != level()
+                    || !attackBounds().intersects(attacker.getBoundingBox()))) return false;
+            Vec3 origin = damageSource.getSourcePosition();
+            if (attacker == null && origin != null && !attackBounds().contains(origin)) return false;
+        }
         return super.hurt(damageSource, f);
     }
 

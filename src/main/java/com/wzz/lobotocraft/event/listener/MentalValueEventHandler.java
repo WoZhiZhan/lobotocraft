@@ -147,6 +147,9 @@ public class MentalValueEventHandler {
         }
 
         DamageSource source = event.getSource();
+        // Snapshot before BLACK consumes sanity; this incoming hit qualified at its start.
+        boolean fullSanityCap = com.wzz.lobotocraft.item.ego.army_in_black.ArmyInBlackBaseArmor
+                .hasFullSanityCap(player);
         float damage = event.getAmount();
         float suppressionMultiplier = player instanceof ServerPlayer serverPlayer
                 ? CoreSuppressionDamageHooks.incomingDamageMultiplier(serverPlayer, source)
@@ -187,6 +190,7 @@ public class MentalValueEventHandler {
             // resistance = 1: 正常伤害
             // resistance > 1: 增加伤害 (例如 2.0 = 双倍伤害)
             float actualDamage = damage * (float) resistance * suppressionMultiplier;
+            if (fullSanityCap) actualDamage = Math.min(actualDamage, player.getMaxHealth() * .3F);
             float adjustedDamage = actualDamage;
 
             // 白色伤害：只扣精神值
@@ -198,7 +202,10 @@ public class MentalValueEventHandler {
                 if (panicRecovery) {
                     mental.addMentalValue(adjustedDamage, MentalValueEvent.ChangeType.ADD);
                 } else {
+                    float mentalBefore = mental.getMentalValue();
                     mental.reduceMentalValue(adjustedDamage, MentalValueEvent.ChangeType.DAMAGE);
+                    com.wzz.lobotocraft.event.ForgeModEvent.recoverFragmentAfterDamage(
+                            player, source, mentalBefore - mental.getMentalValue());
                 }
                 event.setCanceled(true); // 取消血量伤害
                 if (player instanceof ServerPlayer serverPlayer) {
@@ -249,6 +256,8 @@ public class MentalValueEventHandler {
                 // 应用红抗
                 event.setAmount(damage * (float) redResistance * suppressionMultiplier);
             }
+            if (fullSanityCap && !event.isCanceled())
+                event.setAmount(Math.min(event.getAmount(), player.getMaxHealth() * .3F));
         });
     }
 

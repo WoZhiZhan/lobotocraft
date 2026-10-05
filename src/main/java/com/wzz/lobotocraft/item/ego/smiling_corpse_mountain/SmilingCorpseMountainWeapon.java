@@ -96,6 +96,7 @@ public class SmilingCorpseMountainWeapon extends BaseEgoWeapon implements AiSpec
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
+        if (!canUseItem(player)) return InteractionResultHolder.pass(stack);
         if (isOnCooldown(player, stack)) {
             player.displayClientMessage(Component.translatable(
                     "message.lobotocraft.ego.cooldown_ticks",
@@ -105,19 +106,46 @@ public class SmilingCorpseMountainWeapon extends BaseEgoWeapon implements AiSpec
         startCooldown(player, stack);
         if (!level.isClientSide) {
             triggerAttackAnimation(player, stack);
-            LivingEntity target = EntityUtil.findLivingEntityInLookDirection(player, ATTACK_RANGE);
+            LivingEntity target = findSpecialTarget(player);
             if (target != null) {
-                TimerEntry<LivingEntity> timerEntry = new TimerEntry<>() {
+                TimerEntry<Player> timerEntry = new TimerEntry<>() {
                     @Override
-                    public void onEnd(@NotNull LivingEntity entity) {
+                    public void onEnd(@NotNull Player entity) {
+                        if (!entity.isAlive() || !isForwardSkillTarget(entity, target)) return;
                         SoundUtil.playSound(player, ModSounds.SMILING_CORPSE_MOUNTAIN_SPECIAL_ATTACK.get());
-                        resolveSpecialAttack(player, entity);
+                        resolveSpecialAttack(entity, target);
                     }
                 };
-                timerEntry.addSkillTimer(target, 500, 310, 1);
+                timerEntry.addSkillTimer(player, 500, 310, 1, true);
             }
         }
         return super.use(level, player, hand);
+    }
+
+    /** Ground-slam targets use horizontal facing and body occupancy, not the camera's pitch ray. */
+    private static LivingEntity findSpecialTarget(Player player) {
+        return player.level().getEntitiesOfClass(LivingEntity.class,
+                        player.getBoundingBox().inflate(ATTACK_RANGE, 1.5D, ATTACK_RANGE),
+                        e -> isForwardSkillTarget(player, e)).stream()
+                .min(java.util.Comparator.comparingDouble(player::distanceToSqr)).orElse(null);
+    }
+
+    private static boolean isLegalSkillTarget(Player player, LivingEntity target) {
+        return target != player && target.isAlive() && !target.isRemoved() && target.level() == player.level()
+                && (!(target instanceof Player other) || !other.isCreative() && !other.isSpectator())
+                && (!(target instanceof com.wzz.lobotocraft.entity.base.AbstractAbnormality ab)
+                    || ab.isAbnormalityCombatTarget());
+    }
+
+    private static boolean isForwardSkillTarget(Player player, LivingEntity target) {
+        if (!isLegalSkillTarget(player, target) || !player.hasLineOfSight(target)) return false;
+        Vec3 forward = Vec3.directionFromRotation(0, player.getYRot());
+        Vec3 offset = target.position().subtract(player.position());
+        double along = offset.x * forward.x + offset.z * forward.z;
+        double side = Math.abs(offset.x * forward.z - offset.z * forward.x);
+        double radius = target.getBbWidth() * .5;
+        return along > 0 && along <= ATTACK_RANGE + radius && side <= 2D + radius
+                && Math.abs(target.getY() - player.getY()) <= 1.5D;
     }
 
     /**
@@ -143,9 +171,10 @@ public class SmilingCorpseMountainWeapon extends BaseEgoWeapon implements AiSpec
                 impact.x - SPECIAL_AOE_RADIUS, impact.y - SPECIAL_AOE_RADIUS, impact.z - SPECIAL_AOE_RADIUS,
                 impact.x + SPECIAL_AOE_RADIUS, impact.y + SPECIAL_AOE_RADIUS, impact.z + SPECIAL_AOE_RADIUS);
         List<LivingEntity> targets = level.getEntitiesOfClass(LivingEntity.class, area,
-                e -> e != player && e.isAlive());
+                e -> isLegalSkillTarget(player, e) && Math.abs(e.getY() - impact.y) <= 1.5D
+                        && player.hasLineOfSight(e));
         // 主目标可能因过滤/边界未被 getEntitiesOfClass 命中,兜底补上
-        if (primaryTarget.isAlive() && !targets.contains(primaryTarget)) {
+        if (isLegalSkillTarget(player, primaryTarget) && !targets.contains(primaryTarget)) {
             targets.add(primaryTarget);
         }
 

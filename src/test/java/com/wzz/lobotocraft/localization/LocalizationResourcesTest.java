@@ -37,6 +37,15 @@ class LocalizationResourcesTest {
             "register\\s*\\(\\s*\"([a-z0-9_]+)\"");
 
     @Test
+    void headAndHeadwearHaveDistinctAuthoritativeNames() throws IOException {
+        Map<String, String> chinese = readLanguage("zh_cn.json");
+        Map<String, String> english = readLanguage("en_us.json");
+        assertEquals("头部", chinese.get("curios.identifier.head"));
+        assertEquals("头饰", chinese.get("curios.identifier.headwear"));
+        assertEquals("Head", english.get("curios.identifier.head"));
+    }
+
+    @Test
     void languageFilesDoNotContainDuplicateKeys() throws IOException {
         assertNoDuplicateKeys("zh_cn.json");
         assertNoDuplicateKeys("en_us.json");

@@ -97,8 +97,9 @@ public class HelperWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapon {
         if (!level.isClientSide) {
             SoundUtil.playSound(level, player, ModSounds.HELPER_WEAPON.get());
             triggerAttackAnimation(player, stack);
+            RecoveryOnce recovery = new RecoveryOnce();
             for (LivingEntity target : EntityUtil.findAllLivingEntitiesInLookDirection(player, ATTACK_RANGE)) {
-                DamageTimer.addNewTimer(target, DamageHelper.getDamage(player, "red"), player);
+                DamageTimer.addNewTimer(target, DamageHelper.getDamage(player, "red"), player, recovery);
             }
         }
         return super.use(level, player, hand);
@@ -146,13 +147,18 @@ public class HelperWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapon {
         private int attackCount = 0;
         private static final int MAX_ATTACKS = 6;
 
-        private DamageTimer(DamageSource damageSource, Player attacker) {
-            this.damageSource = damageSource;
+        private DamageTimer(DamageSource damageSource, Player attacker, RecoveryOnce recovery) {
+            this.damageSource = new SpecialDamageSource(damageSource, recovery);
             this.attacker = attacker;
         }
 
         public static void addNewTimer(LivingEntity living, DamageSource damageSource, Player attacker) {
-            DamageTimer timer = new DamageTimer(damageSource, attacker);
+            addNewTimer(living, damageSource, attacker, new RecoveryOnce());
+        }
+
+        private static void addNewTimer(LivingEntity living, DamageSource damageSource, Player attacker,
+                                        RecoveryOnce recovery) {
+            DamageTimer timer = new DamageTimer(damageSource, attacker, recovery);
             timer.addSkillTimer(living, 170, 580, 10, true);
         }
 
@@ -172,16 +178,41 @@ public class HelperWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapon {
 
         private void performAttack(LivingEntity entity) {
             if (entity.isAlive() && !entity.isRemoved()) {
-                if (attacker != null) {
-                    if (EgoArmorHelper.isFullEGO(attacker, "helper")) {
-                        attacker.heal(1f);
-                    }
-                }
                 AtomicReference<Float> damage = new AtomicReference<>(2f);
                 if (EgoArmorHelper.isFullEGO(attacker, "helper")) {
                     attacker.getCapability(EmployeeStatsProvider.EMPLOYEE_STATS).ifPresent(data -> damage.updateAndGet(v -> v + data.getJusticeLevel()));
                 }
                 EntityUtil.clearHurtTime(entity, () -> entity.hurt(damageSource, damage.get()));
+            }
+        }
+    }
+
+    /** The source keeps the activation identity through the real damage pipeline, even on a fatal return. */
+    public static void recoverSpecialDamage(net.minecraftforge.event.entity.living.LivingDamageEvent event) {
+        if (!event.isCanceled() && event.getAmount() > 0
+                && event.getSource() instanceof SpecialDamageSource source
+                && source.getEntity() instanceof Player player && player != event.getEntity()) {
+            source.recovery.afterDamage(player);
+        }
+    }
+
+    private static final class SpecialDamageSource extends DamageSource {
+        private final RecoveryOnce recovery;
+
+        private SpecialDamageSource(DamageSource source, RecoveryOnce recovery) {
+            super(source.typeHolder(), source.getDirectEntity(), source.getEntity());
+            this.recovery = recovery;
+        }
+    }
+
+    /** All target timers from one activation share this token (callbacks run on the server thread). */
+    private static final class RecoveryOnce {
+        private boolean restored;
+
+        private void afterDamage(Player player) {
+            if (!restored && player != null && player.isAlive() && EgoArmorHelper.isFullEGO(player, "helper")) {
+                restored = true;
+                player.heal(6F);
             }
         }
     }

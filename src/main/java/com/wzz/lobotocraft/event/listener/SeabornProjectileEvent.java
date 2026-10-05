@@ -20,6 +20,7 @@ public class SeabornProjectileEvent {
 
     @SubscribeEvent
     public static void onProjectileImpact(ProjectileImpactEvent event) {
+        if (event.getImpactResult() == ProjectileImpactEvent.ImpactResult.SKIP_ENTITY) return;
         if (!(event.getProjectile() instanceof AbstractArrow arrow)) return;
         if (!arrow.getPersistentData().contains("ridgesea_spit_damage")) return;
         if (arrow.level().isClientSide) return;

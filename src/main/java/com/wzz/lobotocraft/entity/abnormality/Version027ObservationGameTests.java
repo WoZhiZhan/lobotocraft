@@ -89,6 +89,10 @@ public final class Version027ObservationGameTests {
     @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
             timeoutTicks = 220, required = false, batch = "v027_corpse_move")
     public static void smilingCorpseMountainLeavesSpawnWhenEscapedNearPlayer(GameTestHelper helper) {
+        // This is a movement observation, not a fall from an empty template.
+        for (int x = 1; x <= 14; x++) {
+            for (int z = 1; z <= 12; z++) helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
+        }
         EntitySmilingCorpseMountain corpse = spawn(helper, ModEntities.smiling_corpse_mountain.get(),
                 new BlockPos(3, 1, 3));
         EmployeeServerPlayer employee = employee(helper, new BlockPos(8, 1, 3), "v027_corpse_bait");
@@ -96,7 +100,9 @@ public final class Version027ObservationGameTests {
         Vec3 start = corpse.position();
         helper.runAfterDelay(200, () -> {
             try {
-                helper.assertTrue(corpse.position().distanceToSqr(start) > 1.0D,
+                double dx = corpse.getX() - start.x;
+                double dz = corpse.getZ() - start.z;
+                helper.assertTrue(dx * dx + dz * dz > 1.0D,
                         "escaped corpse mountain stayed within 1 block for 10 seconds");
                 helper.succeed();
             } finally {
@@ -108,7 +114,7 @@ public final class Version027ObservationGameTests {
 
     @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
             timeoutTicks = 40, required = false, batch = "v027_censored_work_anim")
-    public static void censoredWorkStartKeepsIdleUntilFailureSacrifice(GameTestHelper helper) {
+    public static void censoredWorkDamageKeepsIdleUntilUniqueSacrifice(GameTestHelper helper) {
         EntityCensored censored = spawn(helper, ModEntities.censored.get(), new BlockPos(3, 1, 3));
         EmployeeServerPlayer employee = employee(helper, new BlockPos(4, 1, 3), "v027_work_anim");
         try {
@@ -122,8 +128,11 @@ public final class Version027ObservationGameTests {
                     "work start switched CENSORED into an escape conversion animation: "
                             + censored.getAnimation());
             censored.attackPlayerOnFailure(employee, WorkType.INSTINCT);
+            helper.assertTrue("idle".equals(censored.getAnimation()),
+                    "ordinary work damage played sacrifice: " + censored.getAnimation());
+            censored.beginUniqueSacrificeAnimation();
             helper.assertTrue("sacrifice".equals(censored.getAnimation()),
-                    "work failure did not play sacrifice: " + censored.getAnimation());
+                    "unique sacrifice did not play its animation: " + censored.getAnimation());
             helper.succeed();
         } finally {
             censored.discard();
@@ -154,7 +163,10 @@ public final class Version027ObservationGameTests {
         EmployeeServerPlayer employee = employee(helper, new BlockPos(4, 1, 3), "v027_fear");
         try {
             MentalValueUtil.setMentalValue(employee, MentalValueUtil.getEffectiveMaxMentalValue(employee));
-            AbnormalityFearService.apply(employee, censored.encounterFear(employee));
+            employee.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES,
+                    censored.getEyePosition());
+            censored.tickCount = 5;
+            AbnormalityFearService.tickEncounter(censored, censored);
             float afterFirst = MentalValueUtil.getMentalValue(employee);
             helper.assertTrue(MentalValueUtil.isPanic(employee) || afterFirst == 0.0F,
                     "first CENSORED encounter did not panic a low-level employee");
@@ -163,6 +175,10 @@ public final class Version027ObservationGameTests {
                     .getCompound("lobotocraft_fear_encountered_employees");
             helper.assertTrue(encountered.getBoolean(employee.getUUID().toString()),
                     "first encounter was not recorded on CENSORED");
+            AbnormalityFearService.tickEncounter(censored, censored);
+            helper.assertTrue(MentalValueUtil.getMentalValue(employee)
+                            == MentalValueUtil.getEffectiveMaxMentalValue(employee),
+                    "same escape triggered first-encounter fear twice");
             helper.succeed();
         } finally {
             censored.discard();

@@ -28,6 +28,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class EntityOneBad extends AbstractAbnormality {
+    public static final int GOOD_WORK_MENTAL_RECOVERY = 10;
+    public static final int NORMAL_WORK_MENTAL_RECOVERY = 5;
     private int animationTickCounter = 0;
     private String animationprocedure = "empty";
 
@@ -131,21 +133,21 @@ public class EntityOneBad extends AbstractAbnormality {
     @Override
     public void onGoodWork(net.minecraft.server.level.ServerPlayer player) {
         // 优秀工作：恢复10点精神值
-        MentalValueUtil.addMentalValue(player, 10);
+        MentalValueUtil.addMentalValue(player, GOOD_WORK_MENTAL_RECOVERY);
 
         // 发送消息
         player.sendSystemMessage(Component.translatable(
-                "message.lobotocraft.one_sin.good_work", 10));
+                "message.lobotocraft.one_sin.good_work", GOOD_WORK_MENTAL_RECOVERY));
     }
 
     @Override
     public void onNormalWork(net.minecraft.server.level.ServerPlayer player) {
         // 良好工作：恢复5点精神值
-        MentalValueUtil.addMentalValue(player, 5);
+        MentalValueUtil.addMentalValue(player, NORMAL_WORK_MENTAL_RECOVERY);
 
         // 发送消息
         player.sendSystemMessage(Component.translatable(
-                "message.lobotocraft.one_sin.normal_work", 5));
+                "message.lobotocraft.one_sin.normal_work", NORMAL_WORK_MENTAL_RECOVERY));
     }
 
     @Override

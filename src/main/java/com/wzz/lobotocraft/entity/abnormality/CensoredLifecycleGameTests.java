@@ -14,6 +14,7 @@ import com.wzz.lobotocraft.work.AbnormalityWorkRules;
 import com.wzz.lobotocraft.entity.ordeal.EntityGreenDawn;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.abnormality.EntityRedHoodMercenary;
+import com.wzz.lobotocraft.work.WorkType;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -106,6 +107,26 @@ public final class CensoredLifecycleGameTests {
         @Override
         protected void playAttackSound() {
             attackSounds++;
+        }
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = ModMain.MODID,
+            timeoutTicks = 40, required = true, batch = "censored_work_animation")
+    public static void failedWorkDamageKeepsContainedIdleAnimation(GameTestHelper helper) {
+        EntityCensored censored = spawnCensored(helper, new BlockPos(3, 1, 3));
+        EmployeeServerPlayer employee = employee(helper, "censored_work_animation", 85);
+        try {
+            helper.assertTrue("idle".equals(censored.getAnimation()), "fixture is not idle");
+            censored.attackPlayerOnFailure(employee, WorkType.INSTINCT);
+            helper.assertTrue("idle".equals(censored.getAnimation()),
+                    "normal failed work played the corpse-conversion sacrifice animation");
+            censored.beginUniqueSacrificeAnimation();
+            helper.assertTrue("sacrifice".equals(censored.getAnimation()),
+                    "the separate unique sacrifice no longer plays its animation");
+            helper.succeed();
+        } finally {
+            censored.discard();
+            employee.discard();
         }
     }
 
@@ -225,6 +246,71 @@ public final class CensoredLifecycleGameTests {
             hero.discard();
             villain.discard();
         }
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = ModMain.MODID,
+            timeoutTicks = 50, required = true, batch = "censored_hero_hit")
+    public static void censoredAttackActuallyDamagesHeroQueen(GameTestHelper helper) {
+        RecordingCensored censored = recordingCensored(helper);
+        EntityQueenOfHatred hero = ModEntities.queen_of_hatred.get().create(helper.getLevel());
+        if (hero == null) throw new IllegalStateException("Queen fixture could not be created");
+        BlockPos pos = helper.absolutePos(new BlockPos(4, 1, 3));
+        hero.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, 0.0F, 0.0F);
+        helper.getLevel().addFreshEntity(hero);
+        hero.setHeroDamageStateForTest(false);
+        hero.setNoAi(true);
+        float before = hero.getHealth();
+        helper.assertTrue(censored.doHurtTarget(hero), "CENSORED rejected HERO Queen attack");
+        helper.runAfterDelay(29, () -> {
+            try {
+                helper.assertTrue(hero.getHealth() < before,
+                        "CENSORED selected HERO Queen but dealt no actual damage");
+                helper.succeed();
+            } finally {
+                censored.discard();
+                hero.discard();
+            }
+        });
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = ModMain.MODID,
+            timeoutTicks = 100, required = true, batch = "censored_child_combat")
+    public static void censoredChildDamagesEscapedAbnormalityButNotItsFamily(GameTestHelper helper) {
+        EntityCensoredMinion child = ModEntities.censored_minion.get().create(helper.getLevel());
+        EntityCensored parent = ModEntities.censored.get().create(helper.getLevel());
+        EntityCensoredMinion sibling = ModEntities.censored_minion.get().create(helper.getLevel());
+        EntityAbandonedMurderer escaped = ModEntities.abandoned_murderer.get().create(helper.getLevel());
+        if (child == null || parent == null || sibling == null || escaped == null) {
+            helper.fail("CENSORED child target fixtures could not be created");
+            return;
+        }
+        BlockPos origin = helper.absolutePos(new BlockPos(3, 1, 3));
+        child.moveTo(origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D, 0.0F, 0.0F);
+        parent.moveTo(origin.getX() + 1.5D, origin.getY(), origin.getZ() + 0.5D, 0.0F, 0.0F);
+        escaped.moveTo(origin.getX() + 1.5D, origin.getY(), origin.getZ() + 1.5D, 0.0F, 0.0F);
+        child.setParentCensoredUuid(parent.getUUID());
+        helper.getLevel().addFreshEntity(child);
+        helper.getLevel().addFreshEntity(escaped);
+        parent.setEscape(true);
+        sibling.setEscape(true);
+        escaped.setEscape(true);
+        escaped.setNoAi(true);
+        helper.assertFalse(child.isValidCombatTarget(parent), "child accepts the CENSORED body");
+        helper.assertFalse(child.isValidCombatTarget(sibling), "child accepts another CENSORED child");
+        helper.assertTrue(child.isValidCombatTarget(escaped), "child rejects escaped abnormality");
+        float escapedBefore = escaped.getHealth();
+        helper.runAfterDelay(20, () -> {
+            try {
+                helper.assertTrue(escaped.getHealth() < escapedBefore,
+                        "CENSORED child did not damage a nearby escaped abnormality");
+                helper.succeed();
+            } finally {
+                child.discard();
+                parent.discard();
+                sibling.discard();
+                escaped.discard();
+            }
+        });
     }
 
     @GameTest(template = "navigation_empty", templateNamespace = ModMain.MODID,
@@ -359,6 +445,91 @@ public final class CensoredLifecycleGameTests {
     }
 
     @GameTest(template = "navigation_empty", templateNamespace = ModMain.MODID,
+            timeoutTicks = 180, required = true, batch = "censored_tombstone_reach")
+    public static void censoredCanConvertTombstoneAcrossNarrowDoor(GameTestHelper helper) {
+        for (int x = 1; x <= 10; x++) {
+            for (int z = 1; z <= 10; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
+                if (x == 1 || x == 10 || z == 1 || z == 10 || x == 6 && z != 7) {
+                    for (int y = 1; y <= 6; y++) {
+                        helper.setBlock(new BlockPos(x, y, z), Blocks.STONE);
+                    }
+                }
+            }
+        }
+        EntityCensored censored = spawnCensored(helper, new BlockPos(3, 1, 7));
+        censored.triggerEscape();
+        BlockPos tombstone = helper.absolutePos(new BlockPos(7, 1, 7));
+        helper.getLevel().setBlockAndUpdate(tombstone, ModBlocks.TOMBSTONE.get().defaultBlockState());
+        helper.runAfterDelay(145, () -> {
+            try {
+                helper.assertFalse(helper.getLevel().getBlockState(tombstone).is(ModBlocks.TOMBSTONE.get()),
+                        "CENSORED could not convert the visible tombstone across a narrow doorway"
+                                + " (position=" + censored.position()
+                                + ", animation=" + censored.getAnimation()
+                                + ", pathActive=" + censored.getNavigation().isInProgress() + ")");
+                helper.assertTrue(!helper.getLevel().getEntitiesOfClass(EntityCensoredMinion.class,
+                                new AABB(tombstone).inflate(2.0D)).isEmpty(),
+                        "CENSORED consumed tombstone but did not create a child");
+                helper.succeed();
+            } finally {
+                censored.discard();
+                helper.getLevel().getEntitiesOfClass(EntityCensoredMinion.class,
+                        censored.getBoundingBox().inflate(12.0D)).forEach(EntityCensoredMinion::discard);
+            }
+        });
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = ModMain.MODID,
+            timeoutTicks = 40, required = true, batch = "censored_fear")
+    public static void suppressionAllowsANewFearEncounterWithoutHealingEmployee(GameTestHelper helper) {
+        helper.setBlock(new BlockPos(3, 0, 3), Blocks.STONE);
+        EntityCensored body = spawnCensored(helper, new BlockPos(3, 1, 3));
+        EntityCensored other = spawnCensored(helper, new BlockPos(10, 1, 10));
+        EmployeeServerPlayer employee = employee(helper, "censored_reencounter", 85);
+        String tag = "lobotocraft_fear_encountered_employees";
+        try {
+            CompoundTag otherMemory = new CompoundTag();
+            otherMemory.putBoolean(employee.getUUID().toString(), true);
+            other.getPersistentData().put(tag, otherMemory);
+            body.triggerEscape();
+            employee.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES,
+                    body.getEyePosition());
+            body.tickCount = 5;
+            float maximum = com.wzz.lobotocraft.util.MentalValueUtil.getEffectiveMaxMentalValue(employee);
+            com.wzz.lobotocraft.util.MentalValueUtil.setMentalValue(employee, maximum);
+            AbnormalityFearService.tickEncounter(body, body);
+            float afterFirst = com.wzz.lobotocraft.util.MentalValueUtil.getMentalValue(employee);
+            helper.assertTrue(afterFirst < maximum, "first visible encounter did not cause fear");
+            com.wzz.lobotocraft.util.MentalValueUtil.setMentalValue(employee, maximum);
+            AbnormalityFearService.tickEncounter(body, body);
+            helper.assertTrue(com.wzz.lobotocraft.util.MentalValueUtil.getMentalValue(employee) == maximum,
+                    "fear repeated within the same escape");
+            com.wzz.lobotocraft.util.MentalValueUtil.setMentalValue(employee, maximum - 5.0F);
+            body.die(body.damageSources().genericKill());
+            helper.assertFalse(body.hasEscape(), "suppression did not return CENSORED");
+            helper.assertFalse(body.getPersistentData().contains(tag),
+                    "suppression retained this CENSORED's encounter memory");
+            helper.assertTrue(other.getPersistentData().getCompound(tag)
+                            .getBoolean(employee.getUUID().toString()),
+                    "suppression erased another source's encounter memory");
+            helper.assertTrue(com.wzz.lobotocraft.util.MentalValueUtil.getMentalValue(employee) == maximum - 5.0F,
+                    "suppression incorrectly healed the employee");
+            body.triggerEscape();
+            employee.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES,
+                    body.getEyePosition());
+            AbnormalityFearService.tickEncounter(body, body);
+            helper.assertTrue(com.wzz.lobotocraft.util.MentalValueUtil.getMentalValue(employee) < maximum - 5.0F,
+                    "a new escape did not cause a new fear encounter");
+            helper.succeed();
+        } finally {
+            body.discard();
+            other.discard();
+            employee.discard();
+        }
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = ModMain.MODID,
             timeoutTicks = 40, required = true, batch = "censored_fear")
     public static void censoredFearUsesOriginalBodyAndChildLevels(GameTestHelper helper) {
         EntityCensored body = spawnCensored(helper, new BlockPos(2, 1, 2));
@@ -441,6 +612,21 @@ public final class CensoredLifecycleGameTests {
             helper.succeed();
         } finally {
             censored.discard();
+        }
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = ModMain.MODID,
+            timeoutTicks = 40, required = true, batch = "censored_child_dimensions")
+    public static void censoredChildCollisionCoversScaledModel(GameTestHelper helper) {
+        EntityCensoredMinion child = ModEntities.censored_minion.get().create(helper.getLevel());
+        if (child == null) throw new IllegalStateException("CENSORED child fixture could not be created");
+        try {
+            EntityDimensions dimensions = child.getDimensions(child.getPose());
+            helper.assertTrue(dimensions.width >= 1.9F && dimensions.height >= 1.15F,
+                    "CENSORED child collision remains smaller than its intended scaled model");
+            helper.succeed();
+        } finally {
+            child.discard();
         }
     }
 

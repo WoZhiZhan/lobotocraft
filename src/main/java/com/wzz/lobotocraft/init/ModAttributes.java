@@ -17,7 +17,9 @@ public class ModAttributes {
     public static final DeferredRegister<Attribute> ATTRIBUTES =
             DeferredRegister.create(ForgeRegistries.ATTRIBUTES, ModMain.MODID);
 
-    // 四种伤害抗性属性，默认值1.0（正常伤害），0为免疫，-1为免疫并吸收
+    // Missing attributes are injected with RED/WHITE=1.0, BLACK=1.5, PALE(legacy BLUE)=2.0.
+    // An abnormality with different tuning must declare it explicitly; absence is not neutral.
+    // 0 is immunity; negative values represent absorption where supported by the damage pipeline.
     public static final RegistryObject<Attribute> RED_DAMAGE_RESISTANCE = ATTRIBUTES.register("red_damage_resistance",
             () -> new RangedAttribute("attribute.lobotocraft.red_damage_resistance", 1.0D, -1.0D, 10.0D).setSyncable(true));
 

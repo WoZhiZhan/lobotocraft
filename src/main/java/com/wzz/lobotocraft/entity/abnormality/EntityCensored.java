@@ -15,6 +15,7 @@ import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EntityUtil;
 import com.wzz.lobotocraft.work.WorkType;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
@@ -44,6 +45,7 @@ import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 
 import java.util.Comparator;
+import java.util.ArrayList;
 import java.util.List;
 
 /** O-03-89. Containment and escape forms share one authoritative lifecycle entity. */
@@ -71,6 +73,7 @@ public class EntityCensored extends AbstractAbnormality {
     private static final int TOMBSTONE_SCAN_INTERVAL = 10;
     private static final double TOMBSTONE_TRIGGER_DISTANCE = 2.0D;
     private static final double TOMBSTONE_TRIGGER_DISTANCE_Y = 1.5D;
+    private static final double TOMBSTONE_BODY_REACH = 3.0D;
 
     private int containedSacrificeTimer;
     private int attackTimer;
@@ -270,8 +273,7 @@ public class EntityCensored extends AbstractAbnormality {
                 return;
             }
             if (!seekingTombstone || getNavigation().isDone()) {
-                seekingTombstone = getNavigation().moveTo(
-                        tombstone.getX() + 0.5D, tombstone.getY(), tombstone.getZ() + 0.5D, 1.0D);
+                seekingTombstone = moveTowardTombstone(tombstone);
             }
             getLookControl().setLookAt(
                     tombstone.getX() + 0.5D, tombstone.getY(), tombstone.getZ() + 0.5D);
@@ -461,10 +463,34 @@ public class EntityCensored extends AbstractAbnormality {
 
     private boolean isAdjacentToTombstone(BlockPos tombstone) {
         double dx = getX() - (tombstone.getX() + 0.5D);
-        double dy = getY() - tombstone.getY();
         double dz = getZ() - (tombstone.getZ() + 0.5D);
-        return dx * dx + dz * dz <= TOMBSTONE_TRIGGER_DISTANCE * TOMBSTONE_TRIGGER_DISTANCE
-                && Math.abs(dy) <= TOMBSTONE_TRIGGER_DISTANCE_Y;
+        boolean centerClose = dx * dx + dz * dz
+                <= TOMBSTONE_TRIGGER_DISTANCE * TOMBSTONE_TRIGGER_DISTANCE;
+        if (Math.abs(getY() - tombstone.getY()) > TOMBSTONE_TRIGGER_DISTANCE_Y
+                || !(centerClose || getBoundingBox().inflate(
+                        TOMBSTONE_BODY_REACH, 0.0D, TOMBSTONE_BODY_REACH)
+                        .intersects(new AABB(tombstone)))) return false;
+        // The tombstone conversion is a proximity interaction. A wide CENSORED
+        // body may be blocked by a one-block doorway before its center reaches
+        // the block center; collision must not prevent the conversion event.
+        return true;
+    }
+
+    private boolean moveTowardTombstone(BlockPos tombstone) {
+        if (getNavigation().moveTo(tombstone.getX() + 0.5D,
+                tombstone.getY(), tombstone.getZ() + 0.5D, 1.0D)) return true;
+        // A wide body may not fit at the tombstone's center. Approach a reachable
+        // side instead, then let the body-reach and unobstructed-ray check trigger it.
+        List<BlockPos> approaches = new ArrayList<>(4);
+        for (Direction direction : Direction.Plane.HORIZONTAL) {
+            approaches.add(tombstone.relative(direction, 3));
+        }
+        approaches.sort(Comparator.comparingDouble(pos -> pos.distSqr(blockPosition())));
+        for (BlockPos approach : approaches) {
+            if (getNavigation().moveTo(approach.getX() + 0.5D,
+                    approach.getY(), approach.getZ() + 0.5D, 1.0D)) return true;
+        }
+        return false;
     }
 
     private void playContainedSacrifice() {
@@ -475,10 +501,7 @@ public class EntityCensored extends AbstractAbnormality {
 
     @Override
     public void attackPlayerOnFailure(Player player, WorkType workType) {
-        if (!level().isClientSide) {
-            containedSacrificeTimer = CONTAINED_SACRIFICE_TICKS;
-            setAnimation("sacrifice");
-        }
+        // Ordinary work damage does not start the unique corpse-conversion sequence.
         player.hurt(DamageHelper.getDamage(this, "lobotocraft:black"), 5 + random.nextInt(6));
     }
 
@@ -512,6 +535,7 @@ public class EntityCensored extends AbstractAbnormality {
     }
 
     private void resetContainmentState() {
+        AbnormalityFearService.resetSourceEncounters(this);
         containedSacrificeTimer = 0;
         clearEscapeCombatState();
         setNoAi(true);

@@ -1,5 +1,7 @@
 package com.wzz.lobotocraft.core_suppression.geburah;
 
+import com.wzz.lobotocraft.network.MessageLoader;
+import com.wzz.lobotocraft.network.packet.GeburahGroundImpactPacket;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.DustParticleOptions;
@@ -19,7 +21,7 @@ public final class GeburahAttackEffects {
     private GeburahAttackEffects() {
     }
 
-    public static void spawn(ServerLevel level, GeburahMove move, boolean ego,
+    public static void spawn(ServerLevel level, GeburahMove move, boolean ego, boolean egoManifested,
                              Vec3 origin, Vec3 forward) {
         Vec3 axis = horizontalDirection(forward);
         GeburahHitbox.Profile profile = GeburahHitbox.profile(move, ego);
@@ -44,13 +46,25 @@ public final class GeburahAttackEffects {
                         impact.x, impact.y + 0.18D, impact.z,
                         ego ? 12 : 8, profile.halfWidth() * 0.48D,
                         0.08D, profile.halfWidth() * 0.48D, 0.025D);
-                spawnGroundDebris(level, impact, profile.halfWidth(), ego);
+                boolean volumetric = GeburahGroundImpact.enabled(move, ego, egoManifested);
+                spawnGroundDebris(level, impact, profile.halfWidth(), ego, volumetric);
+                if (volumetric) {
+                    GeburahGroundImpactPacket packet = new GeburahGroundImpactPacket(
+                            level.dimension().location(), impact,
+                            (float) profile.halfWidth(), level.random.nextInt());
+                    for (var player : level.players()) {
+                        if (player.position().distanceToSqr(impact)
+                                <= GeburahGroundImpact.VIEW_DISTANCE * GeburahGroundImpact.VIEW_DISTANCE) {
+                            MessageLoader.getLoader().sendToPlayer(player, packet);
+                        }
+                    }
+                }
             }
         }
     }
 
     private static void spawnGroundDebris(ServerLevel level, Vec3 impact,
-                                          double radius, boolean ego) {
+                                          double radius, boolean ego, boolean volumetric) {
         BlockPos sample = BlockPos.containing(impact.x, impact.y + 0.2D, impact.z);
         BlockState state = level.getBlockState(sample);
         for (int depth = 0; depth < 3 && state.isAir(); depth++) {
@@ -62,7 +76,7 @@ public final class GeburahAttackEffects {
                 SoundSource.HOSTILE, ego ? 1.65F : 1.28F, ego ? 0.52F : 0.62F);
         BlockParticleOption debris = new BlockParticleOption(ParticleTypes.BLOCK, state);
         level.sendParticles(debris, impact.x, sample.getY() + 1.08D, impact.z,
-                ego ? 54 : 36, radius * 0.82D, 0.12D, radius * 0.82D,
+                volumetric ? 18 : ego ? 54 : 36, radius * 0.82D, 0.12D, radius * 0.82D,
                 ego ? 0.34D : 0.25D);
         level.sendParticles(ParticleTypes.POOF, impact.x, sample.getY() + 1.04D, impact.z,
                 ego ? 18 : 12, radius * 0.68D, 0.08D, radius * 0.68D, 0.045D);

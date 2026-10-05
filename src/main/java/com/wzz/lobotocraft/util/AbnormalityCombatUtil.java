@@ -14,14 +14,14 @@ public final class AbnormalityCombatUtil {
     }
 
     public static boolean isValidSuppressorTarget(LivingEntity attacker, LivingEntity target) {
-        if (target == null || target == attacker || !target.isAlive()) {
+        if (target == null || target == attacker || !target.isAlive() || target.isRemoved()) {
             return false;
         }
         if (target instanceof Player player) {
             return !player.isCreative() && !player.isSpectator();
         }
         if (target instanceof AbstractAbnormality abnormality) {
-            return abnormality.canEscape() && abnormality.hasEscape();
+            return abnormality.isAbnormalityCombatTarget();
         }
         return true;
     }

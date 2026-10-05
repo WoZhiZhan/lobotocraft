@@ -1,6 +1,7 @@
 package com.wzz.lobotocraft.entity.abnormality;
 
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
+import com.wzz.lobotocraft.entity.ai.FacilityAbnormalityTargetPolicy;
 import com.wzz.lobotocraft.entity.ai.goal.MoveToBlockPosWithElevatorGoal;
 import com.wzz.lobotocraft.entity.data.EGOEquipmentData;
 import com.wzz.lobotocraft.entity.data.RiskLevel;
@@ -23,7 +24,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.*;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
-import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -97,7 +97,7 @@ public class EntityPpodae extends AbstractAbnormality {
         if (SafeTransformationUtil.isPureShrink(current, target)) {
             safePosition = this.position();
         } else {
-            safePosition = SafeTransformationUtil.findPositionForDimensions(level, this, target, 10, 3);
+            safePosition = SafeTransformationUtil.findPositionForDimensions(level, this, target, 10, 3, true);
             if (safePosition == null) {
                 this.setNoAi(true);
                 return false;
@@ -175,8 +175,19 @@ public class EntityPpodae extends AbstractAbnormality {
                 this::shouldAttackEntity));
     }
 
+    @Override
+    protected boolean usesCommonCombatTargetSelection() {
+        return false;
+    }
+
+    @Override
+    protected boolean canSelectCombatTarget(LivingEntity target) {
+        return super.canSelectCombatTarget(target) && hasEscape() && !isReturning()
+                && FacilityAbnormalityTargetPolicy.isPersonnel(target);
+    }
+
     private boolean shouldAttackEntity(LivingEntity entity) {
-        if (!hasEscape() || isReturning()) {
+        if (!canSelectCombatTarget(entity)) {
             return false;
         }
 
@@ -185,9 +196,8 @@ public class EntityPpodae extends AbstractAbnormality {
             return entity.getUUID().equals(lockedTarget);
         }
 
-        // 离开维度后或没有锁定目标时，攻击最近的玩家或村民
-        return (entity instanceof Player player && !player.isCreative() && !player.isSpectator())
-                || entity instanceof Villager;
+        // 玩家（包括 AI 员工）和设施文职使用同一人员身份规则。
+        return true;
     }
 
     @Override
@@ -270,6 +280,7 @@ public class EntityPpodae extends AbstractAbnormality {
     }
 
     private void startAttack(LivingEntity target) {
+        if (!canSelectCombatTarget(target)) return;
         // 随机选择攻击动画
         String attackAnim = random.nextBoolean() ? "attack1" : "attack2";
         setAnimation(attackAnim);
@@ -281,9 +292,10 @@ public class EntityPpodae extends AbstractAbnormality {
     }
 
     private void executeDamage(LivingEntity target) {
+        if (!canSelectCombatTarget(target)) return;
         // 造成伤害
         double distance = this.distanceTo(target);
-        if (distance <= 3.0D) {
+        if (distance <= 3.0D && this.hasLineOfSight(target)) {
             float damage = 4.0f + random.nextFloat() * 2.0f;
             target.hurt(DamageHelper.getDamage(this, "lobotocraft:red"), damage);
         }
@@ -381,8 +393,8 @@ public class EntityPpodae extends AbstractAbnormality {
                         "message.lobotocraft.abnormality.ppodae.escaped_you"));
             }
 
-            this.setTarget(player);
             triggerEscape();
+            this.setTarget(player);
         }
     }
 
@@ -414,7 +426,7 @@ public class EntityPpodae extends AbstractAbnormality {
 
     @Override
     public boolean doHurtTarget(Entity entity) {
-        return entity instanceof LivingEntity;
+        return entity instanceof LivingEntity living && canSelectCombatTarget(living);
     }
 
     // ========== 数据同步器 Getter/Setter ==========

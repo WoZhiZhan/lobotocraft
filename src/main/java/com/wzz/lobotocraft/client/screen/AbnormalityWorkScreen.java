@@ -9,6 +9,7 @@ import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.StartWorkPacket;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.WorkType;
+import com.wzz.lobotocraft.work.WorkAttributeLevels;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -35,19 +36,20 @@ public class AbnormalityWorkScreen extends Screen {
     private final float[][] fullWorkPreferences;
     private final RiskLevel riskLevel;
     private final int observationLevel; // 观察等级
-    private final int employeeLevel;
+    private final WorkAttributeLevels attributeLevels;
     private final boolean[] workPrefsUnlocked;
     private final int repeatedWorkPenaltyPercent;
 
     private int selectedWork = 0; // 0=本能, 1=洞察, 2=沟通, 3=压迫
 
-    public AbnormalityWorkScreen(int abnormalityId, float[][] fullWorkPreferences, RiskLevel riskLevel, int observationLevel, int employeeLevel, boolean[] workPrefsUnlocked) {
-        this(abnormalityId, fullWorkPreferences, riskLevel, observationLevel, employeeLevel,
+    public AbnormalityWorkScreen(int abnormalityId, float[][] fullWorkPreferences, RiskLevel riskLevel,
+                                 int observationLevel, WorkAttributeLevels attributeLevels, boolean[] workPrefsUnlocked) {
+        this(abnormalityId, fullWorkPreferences, riskLevel, observationLevel, attributeLevels,
                 workPrefsUnlocked, 0);
     }
 
     public AbnormalityWorkScreen(int abnormalityId, float[][] fullWorkPreferences, RiskLevel riskLevel,
-                                 int observationLevel, int employeeLevel, boolean[] workPrefsUnlocked,
+                                 int observationLevel, WorkAttributeLevels attributeLevels, boolean[] workPrefsUnlocked,
                                  int repeatedWorkPenaltyPercent) {
         super(Component.translatable("screen.lobotocraft.work.title"));
         this.minecraft = Minecraft.getInstance();
@@ -55,7 +57,7 @@ public class AbnormalityWorkScreen extends Screen {
         this.fullWorkPreferences = fullWorkPreferences;
         this.riskLevel = riskLevel;
         this.observationLevel = observationLevel;
-        this.employeeLevel = employeeLevel;
+        this.attributeLevels = attributeLevels == null ? WorkAttributeLevels.LOWEST : attributeLevels;
         this.workPrefsUnlocked = workPrefsUnlocked;
         this.repeatedWorkPenaltyPercent = Math.max(0, repeatedWorkPenaltyPercent);
     }
@@ -181,8 +183,8 @@ public class AbnormalityWorkScreen extends Screen {
 
         if (!malkuthScramble && workPrefsUnlocked != null && workIndex < workPrefsUnlocked.length
                 && workPrefsUnlocked[workIndex]) {
-            // 已解锁，显示真实成功率
-            int levelIndex = Math.min(Math.max(employeeLevel - 1, 0), 4);
+            // Display the worked attribute's base preference; final extraction also includes bonuses.
+            int levelIndex = attributeLevels.columnFor(WorkType.values()[workIndex]);
             if (fullWorkPreferences != null && workIndex < fullWorkPreferences.length
                     && levelIndex < fullWorkPreferences[workIndex].length) {
                 float successRate = fullWorkPreferences[workIndex][levelIndex];

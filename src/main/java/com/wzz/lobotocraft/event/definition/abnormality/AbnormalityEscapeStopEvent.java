@@ -2,6 +2,8 @@ package com.wzz.lobotocraft.event.definition.abnormality;
 
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import net.minecraftforge.eventbus.api.Event;
+import java.util.UUID;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * 异想体停止出逃事件 - 在异想体停止出逃时触发
@@ -11,10 +13,23 @@ public class AbnormalityEscapeStopEvent extends Event {
     
     private final AbstractAbnormality abnormality;
     private final boolean wasKilled; // 是否因为被击杀而停止出逃
+    private final UUID suppressionAttacker;
     
     public AbnormalityEscapeStopEvent(AbstractAbnormality abnormality, boolean wasKilled) {
+        this(abnormality, wasKilled, null);
+    }
+
+    public AbnormalityEscapeStopEvent(AbstractAbnormality abnormality, boolean wasKilled,
+                                     @Nullable UUID suppressionAttacker) {
         this.abnormality = abnormality;
         this.wasKilled = wasKilled;
+        this.suppressionAttacker = wasKilled ? suppressionAttacker : null;
+    }
+
+    /** Responsibility captured at the lethal hit; not the mob's later targeting memory. */
+    @Nullable
+    public UUID getSuppressionAttackerUUID() {
+        return suppressionAttacker;
     }
     
     /**

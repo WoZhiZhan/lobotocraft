@@ -82,44 +82,45 @@ public class SnowQueenWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapon
         }
         if (!canUseItem(player))
             return false;
-        Random random = new Random();
-        float damage = 6 + random.nextInt(7);
-        target.hurt(DamageHelper.getDamage(player, "white"), damage);
-        if (!(target instanceof Player) && fullyCharged) {
-            int i = random.nextInt(101);
-            if (i <= 10) {
-                if (EgoArmorHelper.isFullEGO(player, "snowqueen"))
-                    target.addEffect(new MobEffectInstance(ModMobEffects.KISS.get(), 200));
-            }
-            target.getPersistentData().putInt("SnowQueenWeaponIce", target.getPersistentData().getInt("SnowQueenWeaponIce") + 1);
-            if (target.getPersistentData().getInt("SnowQueenWeaponIce") >= 10) {
-                if (!EgoArmorHelper.isFullEGO(player, "snowqueen"))
-                    target.addEffect(new MobEffectInstance(ModMobEffects.KISS.get(), 200));
-                else applyKissEffect(target);
-                target.getPersistentData().putInt("SnowQueenWeaponIce", 0);
-            }
+        float damage = 6 + player.getRandom().nextInt(7);
+        float before = target.getHealth();
+        if (target.hurt(DamageHelper.getDamage(player, "white"), damage) && target.getHealth() < before) {
+            recordKissHit(player, target, fullyCharged);
         }
         return true;
     }
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
+        if (world.isClientSide || !canUseItem(player)) return super.use(world, player, hand);
         triggerAttackAnimation(player, player.getItemInHand(hand));
         player.getCooldowns().addCooldown(this, 20);
         float damage = 6 + new Random().nextInt(7);
         for (LivingEntity living : EntityUtil.findAllEntitiesInLookDirection(player, 6, LivingEntity.class)) {
-            living.hurt(DamageHelper.getDamage(player, "white"), damage);
-            if (!(living instanceof Player)) {
-                living.getPersistentData().putInt("SnowQueenWeaponIce", living.getPersistentData().getInt("SnowQueenWeaponIce") + 1);
-                if (living.getPersistentData().getInt("SnowQueenWeaponIce") >= 10) {
-                    if (!EgoArmorHelper.isFullEGO(player, "snowqueen"))
-                        living.addEffect(new MobEffectInstance(ModMobEffects.KISS.get(), 200));
-                    else applyKissEffect(living);
-                    living.getPersistentData().putInt("SnowQueenWeaponIce", 0);
-                }
-            }
+            float before = living.getHealth();
+            if (living.hurt(DamageHelper.getDamage(player, "white"), damage) && living.getHealth() < before)
+                recordKissHit(player, living, true);
         }
         return super.use(world, player, hand);
+    }
+
+    private void recordKissHit(Player player, LivingEntity target, boolean fullyCharged) {
+        if (target instanceof Player || target.level().isClientSide || !target.isAlive()) return;
+        boolean fullSet = EgoArmorHelper.isFullEGO(player, weaponName());
+        boolean proc = fullSet && player.getRandom().nextFloat() < .1F;
+        if (fullyCharged) {
+            int hits = target.getPersistentData().getInt("SnowQueenWeaponIce") + 1;
+            if (hits >= 10) {
+                proc = true;
+                hits = 0;
+            }
+            target.getPersistentData().putInt("SnowQueenWeaponIce", hits);
+        }
+        if (!proc) return;
+        if (fullSet) applyKissEffect(target);
+        else if (!target.hasEffect(ModMobEffects.KISS.get())
+                || target.getEffect(ModMobEffects.KISS.get()).getAmplifier() == 0)
+            target.addEffect(new MobEffectInstance(ModMobEffects.KISS.get(), 200));
     }
 
     public void applyKissEffect(LivingEntity target) {
@@ -127,14 +128,16 @@ public class SnowQueenWeapon extends BaseEgoWeapon implements AiSpecialEgoWeapon
         if (existingEffect != null) {
             // 已有效果，叠加层数（最高3层）
             int currentAmplifier = existingEffect.getAmplifier();
+            // An already frozen target does not restart its six-second freeze on each hit.
+            if (currentAmplifier >= 2) return;
             int newAmplifier = Math.min(currentAmplifier + 1, 2); // 最高3层(amplifier=2)
-            int remainingDuration = existingEffect.getDuration();
-            SoundUtil.playSound(target.level, target, ModSounds.SNOWQUEEN_WEAPON_ICEBOUND.get());
+            if (newAmplifier == 2)
+                SoundUtil.playSound(target.level, target, ModSounds.SNOWQUEEN_WEAPON_ICEBOUND.get());
             // 移除旧效果，添加新效果
             target.removeEffect(ModMobEffects.KISS.get());
             target.addEffect(new MobEffectInstance(
                     ModMobEffects.KISS.get(),
-                    remainingDuration + 100, // 刷新持续时间
+                    newAmplifier == 2 ? 120 : 200,
                     newAmplifier
             ));
         } else {

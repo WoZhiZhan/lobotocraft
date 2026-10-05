@@ -180,10 +180,11 @@ public class EntityApprovalBird extends AbstractAbnormality {
     private List<LivingEntity> findRoomTargets() {
         return EntityUtil.findLivingEntitiesAround(this, ROOM_Y_RANGE, ROOM_HORIZONTAL)
                 .stream()
-                .filter(e -> e.isAlive() && (e instanceof Player player
-                        && (!player.isSpectator() || player.isCreative())
-                        || e instanceof Villager
-                        || QueenOfHatredCombat.isQueenOfHatredCombatTarget(e)))
+                .filter(e -> canSelectCombatTarget(e)
+                        && (com.wzz.lobotocraft.entity.ai.FacilityAbnormalityTargetPolicy.isPersonnel(e)
+                            || e instanceof Villager
+                            || e instanceof AbstractAbnormality abnormality
+                                && abnormality.isAbnormalityCombatTarget()))
                 .collect(Collectors.toList());
     }
 
@@ -197,14 +198,14 @@ public class EntityApprovalBird extends AbstractAbnormality {
             if (target instanceof Player player && (player.isCreative() || player.isSpectator())) continue;
             float damage = 30.0f + random.nextInt(11); // 30-40
             // 清除无敌帧确保伤害生效
-            EntityUtil.clearHurtTime(target, () -> {
-                boolean wasAlive = target.getHealth() - damage <= 0;
-                if (!wasAlive)
-                    target.hurt(DamageHelper.getDamage(this, "lobotocraft:blue"), damage);
-                if (wasAlive) {
-                    spawnGallows(target);
-                }
-            });
+            // tick/skill execution already runs on the server thread. The callback
+            // overload queues work and can defer damage beyond the skill's lifetime.
+            EntityUtil.clearHurtTime(target);
+            boolean aliveBefore = target.isAlive();
+            boolean accepted = target.hurt(DamageHelper.getDamage(this, "lobotocraft:blue"), damage);
+            if (accepted && aliveBefore && !target.isAlive()) {
+                spawnGallows(target);
+            }
         }
         // 播放攻击音效
         playAttackSound();
@@ -240,7 +241,8 @@ public class EntityApprovalBird extends AbstractAbnormality {
         // 在目标脚下位置生成
         gallows.moveTo(victim.getX(), victim.getY(), victim.getZ(), 0f, 0f);
         // 绑定被处决者（用于动画同步）
-        gallows.setVictim(victim);
+        // The real damage already settled death (or abnormality suppression).
+        // This is presentation only; never bind a living target for a later kill().
         serverLevel.addFreshEntity(gallows);
     }
 

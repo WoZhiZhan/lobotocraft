@@ -14,6 +14,41 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class NodeEvaluatorTest {
+    @Test
+    void memoizedSnapshotEvaluationReusesResultsWithoutMixingBreakPermissions() {
+        SnapshotBuilder world = new SnapshotBuilder();
+        world.solid(new BlockPos(0, 0, 0));
+        var node = new NavigationNode(new BlockPos(0, 1, 0));
+        var evaluator = new NodeEvaluator(world.build(), PLAYER_WIDTH, PLAYER_HEIGHT, true);
+        var walk = evaluator.evaluate(node, false);
+        org.junit.jupiter.api.Assertions.assertSame(walk, evaluator.evaluate(node, false));
+        var breaking = evaluator.evaluate(node, true);
+        org.junit.jupiter.api.Assertions.assertNotSame(walk, breaking);
+        org.junit.jupiter.api.Assertions.assertSame(breaking, evaluator.evaluate(node, true));
+    }
+
+    @Test
+    void memoizedBoxIntersectionMatchesVoxelBooleanChecksForNonConvexAndThinShapes() {
+        List<VoxelShape> shapes = List.of(Shapes.block(),
+                Shapes.box(0, 0, 0, 1, 0.5D, 1),
+                Shapes.box(0, 0, 0, 1, 0.0625D, 1),
+                Shapes.or(Shapes.box(0, 0, 0, 0.2D, 1, 1),
+                        Shapes.box(0.8D, 0, 0, 1, 1, 1)));
+        for (VoxelShape shape : shapes) {
+            SnapshotBuilder world = new SnapshotBuilder();
+            for (int x = -2; x <= 2; x++) for (int z = -2; z <= 2; z++)
+                world.shape(new BlockPos(x, 0, z), shape, false);
+            var snapshot = world.build();
+            var original = new NodeEvaluator(snapshot, PLAYER_WIDTH, PLAYER_HEIGHT);
+            var memoized = new NodeEvaluator(snapshot, PLAYER_WIDTH, PLAYER_HEIGHT, true);
+            for (double y : new double[]{0.0625D, 0.5D - 1.0E-6D, 0.5D - 1.0E-8D,
+                    0.5D, 0.5D + 1.0E-8D, 0.5D + 1.0E-6D, 1.0D}) {
+                var node = new NavigationNode(new BlockPos(0, (int) Math.floor(y), 0), y);
+                for (boolean breaking : new boolean[]{false, true})
+                    assertEquals(original.evaluate(node, breaking), memoized.evaluate(node, breaking));
+            }
+        }
+    }
     private static final double PLAYER_WIDTH = 0.6D;
     private static final double PLAYER_HEIGHT = 1.8D;
 

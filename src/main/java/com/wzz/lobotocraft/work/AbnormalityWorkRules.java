@@ -5,6 +5,7 @@ import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
 import com.wzz.lobotocraft.entity.abnormality.EntitySnowQueen;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
 import com.wzz.lobotocraft.entity.control.HostileControlState;
+import com.wzz.lobotocraft.entity.control.WolfSwallowControl;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -61,6 +62,9 @@ public final class AbnormalityWorkRules {
 
     /** Returns the authoritative denial for transient states that forbid work. */
     public static Component controlStateDenial(ServerPlayer player) {
+        if (WolfSwallowControl.isActive(player)) {
+            return Component.translatable("message.lobotocraft.work.reason.wolf_swallowed");
+        }
         if (UniqueWorkRequest.isControlled(player)) {
             return Component.translatable("message.lobotocraft.sacrifice.busy");
         }

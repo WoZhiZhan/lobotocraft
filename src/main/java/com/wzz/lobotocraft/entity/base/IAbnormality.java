@@ -384,6 +384,12 @@ public interface IAbnormality {
                                 com.wzz.lobotocraft.work.WorkResult result) {
     }
 
+    /** Completion context; existing implementations retain their three-argument callback. */
+    default void onWorkComplete(ServerPlayer player, WorkType workType, WorkResult result,
+                                WorkManager.WorkSession session) {
+        onWorkComplete(player, workType, result);
+    }
+
     /**
      * 是否发放本次工作的 PE-BOX。
      */
@@ -514,7 +520,8 @@ public interface IAbnormality {
      *
      * @param player 进行工作的玩家
      * @param workType 工作类型
-     * @param baseRate 基础成功率（来自工作偏好）
+     * 在会话创建和每次提取判定前调用；实现应只读取状态，不在此修改工作生命周期。
+     * @param baseRate 含常规加成、尚未经本异想体修正的概率；不是上一次修正结果
      * @return 修改后的成功率，返回null表示使用基础成功率
      */
     default Float modifyWorkSuccessRate(net.minecraft.server.level.ServerPlayer player,

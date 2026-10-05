@@ -20,6 +20,15 @@ import java.util.Map;
 import static com.wzz.lobotocraft.util.MentalValueUtil.getMentalValue;
 
 public abstract class ArmyInBlackBaseArmor extends BaseEgoArmor {
+    public static boolean hasFullSanityCap(Player player) {
+        return EgoArmorHelper.isFullEGO(player, "army_in_black")
+                && getMentalValue(player) >= com.wzz.lobotocraft.util.MentalValueUtil
+                .getEffectiveMaxMentalValue(player);
+    }
+
+    public static float capFullSanityHit(Player player, float damage) {
+        return hasFullSanityCap(player) ? Math.min(damage, player.getMaxHealth() * .3F) : damage;
+    }
 
     public ArmyInBlackBaseArmor(Type type) {
         super(ModArmorMaterial.ARMOR_MATERIAL, type, new Properties().stacksTo(1).fireResistant());
@@ -75,7 +84,7 @@ public abstract class ArmyInBlackBaseArmor extends BaseEgoArmor {
 
     @Override
     public float getPaleResistance() {
-        return 1.5f;
+        return 1.0f;
     }
 
     @Override
@@ -85,9 +94,9 @@ public abstract class ArmyInBlackBaseArmor extends BaseEgoArmor {
         for (int index = 1; index <= 4; index++) {
             EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.army_in_black_armor.story." + index);
         }
-        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.army_in_black_armor.resistance.red");
-        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.army_in_black_armor.resistance.white");
-        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.army_in_black_armor.resistance.black");
-        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.army_in_black_armor.resistance.pale");
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.army_in_black_armor.resistance.red", getRedResistance());
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.army_in_black_armor.resistance.white", getWhiteResistance());
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.army_in_black_armor.resistance.black", getBlackResistance());
+        EgoTooltipUtil.add(p_41423_, "tooltip.lobotocraft.army_in_black_armor.resistance.pale", getPaleResistance());
     }
 }

@@ -15,14 +15,22 @@ import com.wzz.lobotocraft.event.definition.living.LivingSwingEvent;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.init.ModEntities;
+import com.wzz.lobotocraft.init.ModItems;
+import com.wzz.lobotocraft.item.ego.base.IEgoArmor;
 import com.wzz.lobotocraft.network.MessageLoader;
 import com.wzz.lobotocraft.network.packet.CompanyDailySyncPacket;
 import com.wzz.lobotocraft.util.DamageHelper;
+import com.wzz.lobotocraft.util.AbnormalityCombatUtil;
 import com.wzz.lobotocraft.util.FacilityCombatRules;
 import com.wzz.lobotocraft.util.ParticleUtil;
 import com.wzz.lobotocraft.util.ResourceUtil;
 import com.wzz.lobotocraft.work.WorkResult;
 import com.wzz.lobotocraft.work.WorkType;
+import com.wzz.lobotocraft.world.data.CompanyRoomData;
+import com.wzz.lobotocraft.world.data.FacilityAreaEntry;
+import com.wzz.lobotocraft.world.data.FacilityAreaSelection;
+import com.wzz.lobotocraft.world.data.FacilityAreaType;
+import com.wzz.lobotocraft.world.data.FacilityWorldLayout;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -98,6 +106,7 @@ public class EntityRedShoes extends AbstractAbnormality {
     private static final double CHARM_MOB_NAV_SPEED = 1.2D;
     private static final double CHARM_DIRECT_SPEED = 0.12D;
     private static final double BLOODLUST_TARGET_RANGE = 24.0D;
+    private static final double BLOODLUST_FLOOR_TOLERANCE = 1.5D;
 
     private static final UUID BLOODLUST_HEALTH_UUID = UUID.fromString("ee65501e-910d-49d1-81f7-2536782f8b02");
     private static final UUID BLOODLUST_RED_RESIST_UUID = UUID.fromString("70ae224a-ec64-451b-82ac-2292fefc07d1");
@@ -219,7 +228,7 @@ public class EntityRedShoes extends AbstractAbnormality {
         return new EGOEquipmentData.GiftData(
                 ResourceUtil.createInstance("textures/curio/red_shoes_curio.png"),
                 "血之渴望",
-                "特殊",
+                "口部",
                 "red_shoes_curio",
                 "最大生命值+4"
         );
@@ -242,14 +251,10 @@ public class EntityRedShoes extends AbstractAbnormality {
 
     @Override
     public EGOEquipmentData.ArmorData getEGOArmorData() {
-        return new EGOEquipmentData.ArmorData(
+        return EGOEquipmentData.armorFromItem(
                 ResourceUtil.createInstance("textures/gui/ego/red_shoes_armor.png"),
                 "血之渴望",
-                getRiskLevel(),
-                0.6f,
-                0.9f,
-                0.9f,
-                2.0f,
+                (IEgoArmor) ModItems.RED_SHOES_CHESTPLATE.get(),
                 getArmorDevelopmentMaxCount(),
                 "red_shoes_armor"
         );
@@ -683,6 +688,7 @@ public class EntityRedShoes extends AbstractAbnormality {
     }
 
     public static boolean isRedShoesControlled(LivingEntity entity) {
+        if (entity instanceof EntityRedShoesClerk) return true;
         CompoundTag data = entity.getPersistentData();
         return data.getBoolean(JUDGEMENT_TAG)
                 || data.getBoolean(CHARMED_TAG)
@@ -816,14 +822,13 @@ public class EntityRedShoes extends AbstractAbnormality {
             data.putInt(BLOODLUST_ATTACK_COOLDOWN_TAG, cooldown - 1);
         }
 
-        LivingEntity target = getStoredBloodlustTarget(entity);
-        if (!isValidBloodlustTarget(entity, target, source)) {
-            target = findBloodlustTarget(entity, source);
-            if (target != null) {
-                data.putUUID(BLOODLUST_TARGET_UUID_TAG, target.getUUID());
-            } else {
-                data.remove(BLOODLUST_TARGET_UUID_TAG);
-            }
+        // Original control selects the nearest attackable unit in the current passage.
+        // A still-living cached target must not mask a nearer unit or a changed combat state.
+        LivingEntity target = findBloodlustTarget(entity);
+        if (target != null) {
+            data.putUUID(BLOODLUST_TARGET_UUID_TAG, target.getUUID());
+        } else {
+            data.remove(BLOODLUST_TARGET_UUID_TAG);
         }
 
         if (target == null) {
@@ -851,32 +856,50 @@ public class EntityRedShoes extends AbstractAbnormality {
         }
     }
 
-    private static LivingEntity getStoredBloodlustTarget(LivingEntity entity) {
-        CompoundTag data = entity.getPersistentData();
-        if (!data.hasUUID(BLOODLUST_TARGET_UUID_TAG) || !(entity.level() instanceof ServerLevel serverLevel)) {
-            return null;
-        }
-        Entity target = serverLevel.getEntity(data.getUUID(BLOODLUST_TARGET_UUID_TAG));
-        return target instanceof LivingEntity living ? living : null;
-    }
-
-    private static LivingEntity findBloodlustTarget(LivingEntity entity, EntityRedShoes source) {
+    private static LivingEntity findBloodlustTarget(LivingEntity entity) {
+        if (!(entity.level() instanceof ServerLevel level)) return null;
+        // Merge geometry once per selection, not once per candidate.
+        var dimension = level.dimension().location();
+        var areas = FacilityWorldLayout.mergeAreas(dimension, CompanyRoomData.get(level).getAreas(dimension));
         AABB area = entity.getBoundingBox().inflate(BLOODLUST_TARGET_RANGE);
         return entity.level().getEntitiesOfClass(LivingEntity.class, area,
-                        candidate -> isValidBloodlustTarget(entity, candidate, source))
+                        candidate -> isValidControlledAttackTarget(entity, candidate, areas))
                 .stream()
                 .min(Comparator.comparingDouble(entity::distanceToSqr))
                 .orElse(null);
     }
 
-    private static boolean isValidBloodlustTarget(LivingEntity attacker, LivingEntity target, EntityRedShoes source) {
-        if (target == null || target == attacker || !target.isAlive()) {
-            return false;
+    /** Shared by controlled personnel's selection, target assignment and final hit validation. */
+    public static boolean isValidControlledAttackTarget(LivingEntity attacker, LivingEntity target) {
+        if (!(attacker.level() instanceof ServerLevel level)) return false;
+        var dimension = level.dimension().location();
+        return isValidControlledAttackTarget(attacker, target,
+                FacilityWorldLayout.mergeAreas(dimension, CompanyRoomData.get(level).getAreas(dimension)));
+    }
+
+    private static boolean isValidControlledAttackTarget(LivingEntity attacker, LivingEntity target,
+                                                         List<FacilityAreaEntry> areas) {
+        if (!AbnormalityCombatUtil.isValidSuppressorTarget(attacker, target)
+                || attacker.level() != target.level()
+                || attacker.distanceToSqr(target) > BLOODLUST_TARGET_RANGE * BLOODLUST_TARGET_RANGE
+                || Math.abs(attacker.getY() - target.getY()) > BLOODLUST_FLOOR_TOLERANCE) return false;
+        var dimension = attacker.level().dimension().location();
+        var originArea = FacilityAreaSelection.containing(areas, dimension, attacker.blockPosition());
+        var targetArea = FacilityAreaSelection.containing(areas, dimension, target.blockPosition());
+        if (originArea.isPresent() || targetArea.isPresent()) {
+            if (originArea.isEmpty() || targetArea.isEmpty()) return false;
+            var origin = originArea.get();
+            var destination = targetArea.get();
+            // One passage may have multiple measured cuboids. A containment room
+            // can share its monitor group, but is not part of that passage.
+            return origin.key.equals(destination.key)
+                    || origin.type != FacilityAreaType.CONTAINMENT
+                    && destination.type != FacilityAreaType.CONTAINMENT
+                    && origin.groupId.equals(destination.groupId);
         }
-        if (target instanceof EntityRedShoes || target == source || isRedShoesControlled(target)) {
-            return false;
-        }
-        return !(target instanceof Player player) || (!player.isCreative() && !player.isSpectator());
+        // Unmeasured/custom worlds have no original passage graph: use a conservative
+        // same-floor visible neighborhood, not the old cross-floor radius alone.
+        return attacker.hasLineOfSight(target);
     }
 
     private static void chaseBloodlustTarget(LivingEntity entity, LivingEntity target) {
@@ -907,7 +930,8 @@ public class EntityRedShoes extends AbstractAbnormality {
     private static void tryBloodlustAttack(LivingEntity attacker, LivingEntity target,
                                            EntityRedShoes source) {
         CompoundTag data = attacker.getPersistentData();
-        if (data.getInt(BLOODLUST_ATTACK_COOLDOWN_TAG) > 0 || attacker.distanceToSqr(target) > 9.0D) {
+        if (!isValidControlledAttackTarget(attacker, target) || !attacker.hasLineOfSight(target)
+                || data.getInt(BLOODLUST_ATTACK_COOLDOWN_TAG) > 0 || attacker.distanceToSqr(target) > 9.0D) {
             return;
         }
         boolean needsPvpBypass = target instanceof ServerPlayer && attacker instanceof Player

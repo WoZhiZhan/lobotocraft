@@ -798,6 +798,13 @@ public class EntityUtil {
     /** Finds a company-local position that fits the entity's full bounding box. */
     public static BlockPos findSafeEntityPositionInCompany(Level level, LivingEntity entity, BlockPos origin,
                                                             int horizontalRange, int verticalRange) {
+        return findSafeEntityPositionInCompany(level, entity, origin, horizontalRange, verticalRange,
+                candidate -> true);
+    }
+
+    /** Adds caller-specific room/visibility constraints to the shared physical placement rules. */
+    public static BlockPos findSafeEntityPositionInCompany(Level level, LivingEntity entity, BlockPos origin,
+            int horizontalRange, int verticalRange, java.util.function.Predicate<BlockPos> allowed) {
         if (level == null || entity == null || origin == null) return null;
         for (int radius = 0; radius <= Math.max(0, horizontalRange); radius++) {
             for (int dy = -Math.max(0, verticalRange); dy <= Math.max(0, verticalRange); dy++) {
@@ -806,6 +813,7 @@ public class EntityUtil {
                         if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
                         BlockPos candidate = origin.offset(dx, dy, dz);
                         if (!isInCompany(level, candidate) || !level.hasChunkAt(candidate)) continue;
+                        if (!allowed.test(candidate)) continue;
                         if (!entity.isNoGravity() && !level.getBlockState(candidate.below()).isFaceSturdy(
                                 level, candidate.below(), net.minecraft.core.Direction.UP)) continue;
                         double x = candidate.getX() + 0.5D;

@@ -1047,7 +1047,10 @@ public class EntityQueenOfHatred extends AbstractAbnormality {
 
     @Override
     public boolean isAbnormalityCombatTarget() {
-        return hasEscape() || isHeroState(state) && state != State.HERO_DYING;
+        return isAlive() && !isRemoved() && !isContainmentReturnPending()
+                && state != State.HERO_DYING && state != State.VILLAIN_RETURN_SNAKE
+                && state != State.VILLAIN_RETURN_HUMAN
+                && (hasEscape() || isHeroState(state));
     }
 
     @Override
@@ -1058,10 +1061,13 @@ public class EntityQueenOfHatred extends AbstractAbnormality {
             Entity attacker = source.getEntity();
             boolean hostileAttacker = attacker instanceof AbstractAbnormality abnormality && abnormality.hasEscape()
                     || FacilityCombatRules.isOrdealCombatant(attacker)
+                    || com.wzz.lobotocraft.util.AbnormalityCombatUtil.isAbnormalitySuppressor(attacker)
+                    || (attacker instanceof LivingEntity controlled
+                    && com.wzz.lobotocraft.entity.control.HostileControlState.isActive(controlled))
                     || (attacker instanceof LivingEntity living
                     && FacilityAbnormalityTargetPolicy.isCoreSuppressionCombatant(living));
             if (!hostileAttacker && !DamageHelper.isKill(source)) return false;
-            return baseHurt(source, amount);
+            return super.hurt(source, amount);
         }
         boolean hurt = super.hurt(source, amount);
         if (hurt && isVillainState(state)) {

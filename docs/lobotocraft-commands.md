@@ -214,9 +214,13 @@
 /lobotocraft_client geburah_trail_markers <true|false>
 /lobotocraft_client geburah_trail_surface
 /lobotocraft_client geburah_trail_surface <true|false>
+/lobotocraft_client geburah_ego_attack_trial
+/lobotocraft_client geburah_ego_attack_trial <true|false>
 ```
 
 不带布尔参数时读取当前状态；带参数时修改当前客户端显示。`damage_border` 是伤害边框开关；`geburah_trail_markers` 显示刀痕调试标记，`geburah_trail_surface` 控制刀痕表面绘制。后两者主要用于视觉调试。只影响执行命令的客户端，不改变服务端战斗逻辑。
+
+`geburah_ego_attack_trial`（2026-10-05）：E.G.O 横斩／突刺试验增强，默认开启。`false` 立即清理试验残留并恢复此前刀光及6 tick拖尾，禁用新增接触特效；`true`重新启用。命令保存到 `config/lobotocraft-client.toml` 的 `[visuals] geburahEgoAttackTrial`，重启后保持。不会关闭砸地碎块或改变战斗规则。此开关是表现回退，不代表可以让旧协议客户端连接新服务端。
 
 ### 7.2 客户端性能统计
 

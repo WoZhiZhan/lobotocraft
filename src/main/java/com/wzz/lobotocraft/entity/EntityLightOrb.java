@@ -21,7 +21,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Optional;
 import java.util.UUID;
 
-public class EntityLightOrb extends Entity {
+public class EntityLightOrb extends Entity implements com.wzz.lobotocraft.entity.projectile.DeflectableAttack {
 
     private static final EntityDataAccessor<Optional<UUID>> TARGET_UUID =
             SynchedEntityData.defineId(EntityLightOrb.class, EntityDataSerializers.OPTIONAL_UUID);
@@ -103,10 +103,13 @@ public class EntityLightOrb extends Entity {
         Vec3 targetCenter = target.position().add(0, target.getBbHeight() * 0.5, 0);
 
         if (currentPos.distanceTo(targetCenter) < HIT_DIST) {
+            if (com.wzz.lobotocraft.event.listener.ThornBusDefense.tryDeflect(target, this)) return;
             float damage = entityData.get(DAMAGE);
             LivingEntity owner = getOwner();
             if (owner != null) {
-                EntityUtil.clearHurtTime(target, () -> {target.hurt(DamageHelper.getDamage(owner, "black"), damage);});
+                EntityUtil.clearHurtTime(target, () -> target.hurt(DamageHelper.getDamage(this, owner, "black",
+                        com.wzz.lobotocraft.damagetype.AttackDamage.Targeting.NORMAL,
+                        com.wzz.lobotocraft.damagetype.AttackDamage.Delivery.RANGED), damage));
             }
             discard();
             return;
@@ -134,6 +137,16 @@ public class EntityLightOrb extends Entity {
 
         Vec3 newPos = currentPos.add(velocity);
         setPos(newPos.x, newPos.y, newPos.z);
+    }
+
+    @Override
+    public void deflect(LivingEntity defender) {
+        LivingEntity originalOwner = getOwner();
+        setOwner(defender);
+        setTarget(originalOwner != null && originalOwner != defender && originalOwner.isAlive()
+                ? originalOwner : null);
+        velocity = velocity.lengthSqr() > 1.0E-6 ? velocity.scale(-1) : defender.getLookAngle().scale(.5);
+        setPos(position().add(velocity.normalize().scale(.7)));
     }
 
     private Vec3 getSmoothOffset(int life) {

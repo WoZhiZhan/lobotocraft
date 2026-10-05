@@ -12,6 +12,7 @@ import com.wzz.lobotocraft.core_suppression.geburah.GeburahCounterPassive;
 import com.wzz.lobotocraft.core_suppression.geburah.GeburahDamageResponsibility;
 import com.wzz.lobotocraft.core_suppression.geburah.GeburahDamageTuning;
 import com.wzz.lobotocraft.core_suppression.geburah.GeburahEgoReleasePulse;
+import com.wzz.lobotocraft.core_suppression.geburah.GeburahEgoAttackVisuals;
 import com.wzz.lobotocraft.core_suppression.geburah.GeburahEncounterService;
 import com.wzz.lobotocraft.core_suppression.geburah.GeburahHitbox;
 import com.wzz.lobotocraft.core_suppression.geburah.GeburahMajorAttackController;
@@ -75,6 +76,7 @@ import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Comparator;
 import java.util.List;
@@ -810,7 +812,8 @@ public final class EntityGeburah extends BaseGeoEntity {
         if (!(level() instanceof ServerLevel serverLevel)) return;
         Vec3 forward = Vec3.directionFromRotation(0.0F, getYRot()).normalize();
         GeburahHitbox hitbox = GeburahHitbox.forMove(move, comboEgo, position(), forward);
-        GeburahAttackEffects.spawn(serverLevel, move, comboEgo, position(), forward);
+        GeburahAttackEffects.spawn(serverLevel, move, comboEgo,
+                combatState.phase() == GeburahPhase.EGO, position(), forward);
         GeburahSoundscape.playAttackImpact(level(), blockPosition(), move, comboEgo);
 
         List<LivingEntity> targets = serverLevel.getEntitiesOfClass(
@@ -822,13 +825,35 @@ public final class EntityGeburah extends BaseGeoEntity {
 
         int postureEligibleHits = 0;
         boolean primaryTargetHit = false;
+        boolean enhancedContacts = GeburahEgoAttackVisuals.enabled(true, comboEgo,
+                combatState.phase() == GeburahPhase.EGO, move);
+        List<Vec3> visualContacts = enhancedContacts
+                ? new ArrayList<>(GeburahEgoAttackVisuals.MAX_CONTACTS) : List.of();
         for (LivingEntity target : targets) {
             float damage = move.minDamage(comboEgo)
                     + random.nextInt(move.maxDamage(comboEgo) - move.minDamage(comboEgo) + 1);
             float healthBefore = target.getHealth();
+            boolean wantsContact = enhancedContacts
+                    && visualContacts.size() < GeburahEgoAttackVisuals.MAX_CONTACTS;
+            boolean escapedBefore = wantsContact && target instanceof AbstractAbnormality abnormality
+                    && abnormality.hasEscape();
+            // Snapshot before suppression can return the entity to its containment home.
+            Vec3 contact = null;
+            if (wantsContact) {
+                var bounds = target.getBoundingBox();
+                contact = new Vec3(net.minecraft.util.Mth.clamp(getX(), bounds.minX, bounds.maxX),
+                        bounds.minY + bounds.getYsize() * 0.55D,
+                        net.minecraft.util.Mth.clamp(getZ(), bounds.minZ, bounds.maxZ));
+            }
             if (!hurtWithoutVanillaReaction(target,
                     outgoingDamage(target, damage))) continue;
             float healthLoss = Math.max(0.0F, healthBefore - target.getHealth());
+            boolean suppressed = escapedBefore && target instanceof AbstractAbnormality abnormality
+                    && !abnormality.hasEscape();
+            if (wantsContact
+                    && GeburahEgoAttackVisuals.validHit(true, healthLoss, suppressed)) {
+                visualContacts.add(contact);
+            }
             if (target == comboTarget) primaryTargetHit = true;
 
             if (GeburahPosturePolicy.restoresPostureOnHit(
@@ -841,6 +866,18 @@ public final class EntityGeburah extends BaseGeoEntity {
                 CombatControlLockService.lock(player, this, comboEgo ? 10 : 6);
             }
             if (target instanceof ServerPlayer player) sendMoveShake(player, move, healthLoss);
+        }
+        if (!visualContacts.isEmpty()) {
+            // Visual randomness must not consume the entity's damage/AI random stream.
+            var packet = new com.wzz.lobotocraft.network.packet.GeburahEgoContactPacket(
+                    serverLevel.dimension().location(), move, forward, visualContacts,
+                    (int) serverLevel.getGameTime() ^ getId());
+            for (var viewer : serverLevel.players()) {
+                if (viewer.distanceToSqr(this) <= GeburahEgoAttackVisuals.VIEW_DISTANCE
+                        * GeburahEgoAttackVisuals.VIEW_DISTANCE) {
+                    MessageLoader.getLoader().sendToPlayer(viewer, packet);
+                }
+            }
         }
         combatState.restorePostureFromAttackHits(postureEligibleHits);
         if (primaryTargetHit && isValidTarget(comboTarget)) {

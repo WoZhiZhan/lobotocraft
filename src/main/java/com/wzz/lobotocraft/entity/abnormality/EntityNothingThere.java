@@ -1087,14 +1087,13 @@ public class EntityNothingThere extends AbstractAbnormality {
 
     @Override
     public Float modifyWorkSuccessRate(ServerPlayer player, WorkType workType, float baseRate) {
-
+        if (player == null) return baseRate;
         int courageLevel = getCourageLevel(player);
-        float bonus = courageLevel * 0.05f;
-        return Math.min(0.95f, baseRate + bonus);
+        return baseRate * Math.max(1, Math.min(5, courageLevel)) * 0.2F;
     }
 
     private int getCourageLevel(ServerPlayer player) {
-        final int[] level = {0};
+        final int[] level = {1};
         player.getCapability(com.wzz.lobotocraft.capability.EmployeeStatsProvider.EMPLOYEE_STATS)
                 .ifPresent(stats -> level[0] = stats.getFortitudeLevel());
         return level[0];

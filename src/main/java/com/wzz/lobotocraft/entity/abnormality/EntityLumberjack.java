@@ -85,7 +85,7 @@ public class EntityLumberjack extends AbstractAbnormality {
         setResistance(ModAttributes.RED_DAMAGE_RESISTANCE.get(), 1.5D);
         setResistance(ModAttributes.WHITE_DAMAGE_RESISTANCE.get(), 0.8D);
         setResistance(ModAttributes.BLACK_DAMAGE_RESISTANCE.get(), 0.8D);
-        setResistance(ModAttributes.BLUE_DAMAGE_RESISTANCE.get(), 2.0D);
+        setResistance(ModAttributes.BLUE_DAMAGE_RESISTANCE.get(), 1.0D);
     }
 
     private void setResistance(net.minecraft.world.entity.ai.attributes.Attribute attribute, double value) {
@@ -629,7 +629,7 @@ public class EntityLumberjack extends AbstractAbnormality {
                 .add(ModAttributes.RED_DAMAGE_RESISTANCE.get(), 1.5D)
                 .add(ModAttributes.WHITE_DAMAGE_RESISTANCE.get(), 0.8D)
                 .add(ModAttributes.BLACK_DAMAGE_RESISTANCE.get(), 0.8D)
-                .add(ModAttributes.BLUE_DAMAGE_RESISTANCE.get(), 2.0D);
+                .add(ModAttributes.BLUE_DAMAGE_RESISTANCE.get(), 1.0D);
     }
 
     @Override
@@ -650,6 +650,8 @@ public class EntityLumberjack extends AbstractAbnormality {
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        // Old worlds persisted the previous 2.0 base; keep the confirmed rule after reload.
+        setResistance(ModAttributes.BLUE_DAMAGE_RESISTANCE.get(), 1.0D);
         state = tag.getInt("LumberjackState");
         actionTimer = tag.getInt("LumberjackActionTimer");
         actionElapsed = tag.getInt("LumberjackActionElapsed");

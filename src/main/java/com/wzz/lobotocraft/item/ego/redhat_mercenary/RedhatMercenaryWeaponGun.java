@@ -90,7 +90,10 @@ public class RedhatMercenaryWeaponGun extends RedhatMercenaryWeapon implements A
         spawnBlackTrail(level, player);
 
         float damage = 11f + player.getRandom().nextInt(3); // 11~13
-        DamageSource source = DamageHelper.getDamage(player, "red");
+        DamageSource source = DamageHelper.getDamage(player, player, "red",
+                RedhatMercenaryWeaponKnife.isFury(player) ? com.wzz.lobotocraft.damagetype.AttackDamage.Targeting.INDISCRIMINATE
+                        : com.wzz.lobotocraft.damagetype.AttackDamage.Targeting.NORMAL,
+                com.wzz.lobotocraft.damagetype.AttackDamage.Delivery.RANGED);
         LivingEntity nearest = null;
         double nearestDist = Double.MAX_VALUE;
 
@@ -101,8 +104,10 @@ public class RedhatMercenaryWeaponGun extends RedhatMercenaryWeapon implements A
             }
             // 贯穿：清掉无敌帧，保证路径上每个目标都吃到伤害
             float finalDamage = damage;
+            boolean[] hit = {false};
             EntityUtil.clearHurtTime(target,
-                    () -> target.hurt(source, finalDamage));
+                    () -> hit[0] = target.hurt(source, finalDamage));
+            if (!hit[0]) continue;
             if (EgoArmorHelper.isFullEGO(player, "redhat_mercenary")) {
                 SlowTimer.applySlowEffect(target);
             }

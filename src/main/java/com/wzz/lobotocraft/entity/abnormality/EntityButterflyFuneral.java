@@ -62,6 +62,8 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
     private static final double CHASE_STOP_RANGE = 3.0D;
     private static final double NORMAL_ATTACK_RANGE = 12.0D;
     private static final double SKILL_RANGE = 50.0D;
+    // Minecraft floor adaptation of the original effect's current-passage restriction.
+    private static final double SKILL_MAX_FOOT_HEIGHT_DIFFERENCE = 1.5D;
     private static final double SKILL_CONE_DEGREES = 42.0D;
     private static final double SKILL_CONE_HALF_DOT = Math.cos(Math.toRadians(SKILL_CONE_DEGREES / 2.0D));
     private static final int NORMAL_ATTACK_ANIMATION_TICKS = 49;
@@ -174,7 +176,7 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
         return new EGOEquipmentData.GiftData(
                 ResourceUtil.createInstance("textures/item/butterfly_funeral_curio.png"),
                 "圣宣",
-                "眼部",
+                "右背",
                 "butterfly_funeral_curio",
                 "工作成功率+4",
                 "工作速度+4",
@@ -500,20 +502,30 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
 
     /** 白色伤害:通过统一伤害流程结算玩家精神值,并检查处决条件 */
     private void dealWhiteDamage(LivingEntity target, float amount) {
+        dealWhiteDamage(target, amount, false);
+    }
+
+    private void dealWhiteDamage(LivingEntity target, float amount, boolean ranged) {
+        if (ranged && com.wzz.lobotocraft.event.listener.ThornBusDefense.protects(target)) {
+            com.wzz.lobotocraft.event.listener.ThornBusDefense.feedback(target);
+            return;
+        }
+        DamageSource source = ranged ? DamageHelper.getRangedDamage(this, "white")
+                : DamageHelper.getDamage(this, "white");
         if (target instanceof ServerPlayer player) {
             boolean wasPanic = isPanicking(player);
-            player.hurt(DamageHelper.getDamage(this, "white"), amount);
+            player.hurt(source, amount);
             boolean nowPanic = isPanicking(player);
             // 处决:恐慌状态下受到攻击,或因本次攻击而恐慌
             if (wasPanic || nowPanic) {
                 triggerSalvation(player);
             }
         } else if (target instanceof Villager villager) {
-            villager.hurt(DamageHelper.getDamage(this, "white"), amount);
+            villager.hurt(source, amount);
             // 蝴蝶使村民无法移动
             villager.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 255, false, false));
         } else {
-            target.hurt(DamageHelper.getDamage(this, "white"), amount);
+            target.hurt(source, amount);
         }
     }
 
@@ -633,12 +645,14 @@ public class EntityButterflyFuneral extends AbstractAbnormality {
         double coveredDistance = getCurrentSkillCoveredDistance();
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class,
                 this.getBoundingBox().inflate(SKILL_RANGE), this::isValidTarget)) {
+            if (Math.abs(e.getY() - start.y) > SKILL_MAX_FOOT_HEIGHT_DIFFERENCE
+                    || !this.hasLineOfSight(e)) continue;
             Vec3 rel = e.position().subtract(start);
             double horizontalDistance = Math.sqrt(rel.x * rel.x + rel.z * rel.z);
             if (horizontalDistance <= 0.0D || horizontalDistance > SKILL_RANGE || horizontalDistance > coveredDistance) continue;
             double dot = (rel.x * skillDirection.x + rel.z * skillDirection.z) / horizontalDistance;
             if (dot < SKILL_CONE_HALF_DOT) continue;
-            dealWhiteDamage(e, 3 + this.random.nextInt(2));
+            dealWhiteDamage(e, 3 + this.random.nextInt(2), true);
         }
     }
 

@@ -51,11 +51,25 @@ public final class LumberjackGameTests {
             assertResistance(helper, lumberjack, ModAttributes.RED_DAMAGE_RESISTANCE.get(), 1.5D);
             assertResistance(helper, lumberjack, ModAttributes.WHITE_DAMAGE_RESISTANCE.get(), 0.8D);
             assertResistance(helper, lumberjack, ModAttributes.BLACK_DAMAGE_RESISTANCE.get(), 0.8D);
-            assertResistance(helper, lumberjack, ModAttributes.BLUE_DAMAGE_RESISTANCE.get(), 2.0D);
+            assertResistance(helper, lumberjack, ModAttributes.BLUE_DAMAGE_RESISTANCE.get(), 1.0D);
             helper.succeed();
         } finally {
             lumberjack.discard();
         }
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 40, required = true, batch = "lumberjack_data")
+    public static void legacyPaleResistanceRestoresTheConfirmedValue(GameTestHelper helper) {
+        EntityLumberjack lumberjack = spawn(helper, new BlockPos(4, 1, 2));
+        try {
+            lumberjack.getAttribute(ModAttributes.BLUE_DAMAGE_RESISTANCE.get()).setBaseValue(2.0D);
+            net.minecraft.nbt.CompoundTag saved = new net.minecraft.nbt.CompoundTag();
+            lumberjack.addAdditionalSaveData(saved);
+            lumberjack.readAdditionalSaveData(saved);
+            assertResistance(helper, lumberjack, ModAttributes.BLUE_DAMAGE_RESISTANCE.get(), 1.0D);
+            helper.succeed();
+        } finally { lumberjack.discard(); }
     }
 
     @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,

@@ -2,6 +2,7 @@ package com.wzz.lobotocraft.network.packet;
 
 import com.wzz.lobotocraft.entity.data.RiskLevel;
 import com.wzz.lobotocraft.world.data.AbnormalityCandidate;
+import com.wzz.lobotocraft.work.WorkAttributeLevels;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
@@ -94,7 +95,7 @@ final class PacketCollectionBoundsTest {
         FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
         try {
             new OpenWorkScreenPacket(1, new float[][]{{0.25F}}, RiskLevel.HE,
-                    2, 3, new boolean[]{true, false, true, false, true}).toBytes(buffer);
+                    2, new WorkAttributeLevels(1, 2, 3, 4), new boolean[]{true, false, true, false, true}).toBytes(buffer);
             assertEquals(1, buffer.readInt());
             assertEquals(4, buffer.readInt());
             assertEquals(5, buffer.readInt());
@@ -102,7 +103,7 @@ final class PacketCollectionBoundsTest {
             for (int i = 1; i < 20; i++) buffer.readFloat();
             assertEquals(RiskLevel.HE, buffer.readEnum(RiskLevel.class));
             assertEquals(2, buffer.readInt());
-            assertEquals(3, buffer.readInt());
+            for (int grade = 1; grade <= 4; grade++) assertEquals(grade, buffer.readInt());
             assertEquals(4, buffer.readInt());
             for (int i = 0; i < 4; i++) buffer.readBoolean();
             assertEquals(0, buffer.readVarInt());
@@ -110,6 +111,22 @@ final class PacketCollectionBoundsTest {
         } finally {
             buffer.release();
         }
+    }
+
+    @Test
+    void workScreenRoundTripPreservesIndependentAttributeGradesAndNoTrailingBytes() throws Exception {
+        var buffer = new FriendlyByteBuf(Unpooled.buffer());
+        try {
+            var levels = new WorkAttributeLevels(5, 2, 1, 4);
+            var packet = new OpenWorkScreenPacket(1, null, RiskLevel.HE, 2, levels, null);
+            packet.toBytes(buffer);
+            var decoded = new OpenWorkScreenPacket(0, null, RiskLevel.HE, 0, null, null);
+            decoded.fromBytes(buffer);
+            var field = OpenWorkScreenPacket.class.getDeclaredField("attributeLevels");
+            field.setAccessible(true);
+            assertEquals(levels, field.get(decoded));
+            assertEquals(0, buffer.readableBytes());
+        } finally { buffer.release(); }
     }
 
     private static AbnormalityCandidate candidate(int index) {

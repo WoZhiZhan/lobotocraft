@@ -93,8 +93,14 @@ public class EntityRedShoesClerk extends EntityClerk {
     }
 
     @Override
+    public boolean canAttack(LivingEntity target) {
+        return super.canAttack(target) && isValidAttackTarget(target);
+    }
+
+    @Override
     public boolean doHurtTarget(Entity target) {
-        if (!(target instanceof LivingEntity living) || !isValidAttackTarget(living)) {
+        if (!(target instanceof LivingEntity living) || !isValidAttackTarget(living)
+                || !hasLineOfSight(living)) {
             return false;
         }
         return living.hurt(DamageHelper.getDamage(this, "lobotocraft:red"), ATTACK_DAMAGE);
@@ -106,16 +112,7 @@ public class EntityRedShoesClerk extends EntityClerk {
     }
 
     private boolean isValidAttackTarget(LivingEntity target) {
-        if (target == null || target == this || !target.isAlive()) {
-            return false;
-        }
-        if (target instanceof EntityRedShoes || target instanceof EntityRedShoesClerk) {
-            return false;
-        }
-        if (EntityRedShoes.isRedShoesControlled(target)) {
-            return false;
-        }
-        return !(target instanceof Player player) || (!player.isCreative() && !player.isSpectator());
+        return EntityRedShoes.isValidControlledAttackTarget(this, target);
     }
 
     @SubscribeEvent

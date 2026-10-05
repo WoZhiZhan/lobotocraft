@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.Map;
 
 public final class NodeEvaluator {
     private static final double COLLISION_EPSILON = 1.0E-6D;
@@ -23,8 +24,17 @@ public final class NodeEvaluator {
     private final NavigationSnapshot snapshot;
     private final double width;
     private final double height;
+    private static final int MAX_MEMOIZED_NODES = 16_384;
+    private final Map<NavigationNode, Evaluation> walkEvaluations;
+    private final Map<NavigationNode, Evaluation> breakEvaluations;
+    private final Map<VoxelShape, List<AABB>> collisionBoxes;
 
     public NodeEvaluator(NavigationSnapshot snapshot, double width, double height) {
+        this(snapshot, width, height, false);
+    }
+
+    /** Opt-in memoization for repeated queries over this evaluator's immutable snapshot. */
+    public NodeEvaluator(NavigationSnapshot snapshot, double width, double height, boolean memoize) {
         this.snapshot = Objects.requireNonNull(snapshot, "snapshot");
         if (!Double.isFinite(width) || width <= 0.0D
                 || !Double.isFinite(height) || height <= 0.0D) {
@@ -32,9 +42,22 @@ public final class NodeEvaluator {
         }
         this.width = width;
         this.height = height;
+        walkEvaluations = memoize ? new java.util.HashMap<>() : null;
+        breakEvaluations = memoize ? new java.util.HashMap<>() : null;
+        collisionBoxes = memoize ? new java.util.IdentityHashMap<>() : null;
     }
 
     public Evaluation evaluate(NavigationNode node, boolean allowBreaking) {
+        Map<NavigationNode, Evaluation> cache = allowBreaking ? breakEvaluations : walkEvaluations;
+        if (cache == null) return evaluateUncached(node, allowBreaking);
+        Evaluation existing = cache.get(node);
+        if (existing != null) return existing;
+        Evaluation evaluation = evaluateUncached(node, allowBreaking);
+        if (cache.size() < MAX_MEMOIZED_NODES) cache.put(node, evaluation);
+        return evaluation;
+    }
+
+    private Evaluation evaluateUncached(NavigationNode node, boolean allowBreaking) {
         Evaluation body = evaluateBody(bodyBox(node.standingPosition().x, node.standingY(),
                 node.standingPosition().z), allowBreaking);
         if (!body.traversable()) return body;
@@ -186,8 +209,7 @@ public final class NodeEvaluator {
                     if (cell.hazard() == CellData.Hazard.DANGEROUS) {
                         return Evaluation.blocked(Failure.DANGEROUS);
                     }
-                    VoxelShape moved = cell.collisionShape().move(x, y, z);
-                    if (!Shapes.joinIsNotEmpty(Shapes.create(body), moved, BooleanOp.AND)) continue;
+                    if (!intersects(cell.collisionShape(), body, x, y, z)) continue;
                     if (cell.traversableClosedDoor()) {
                         doors.add(position);
                         continue;
@@ -226,8 +248,7 @@ public final class NodeEvaluator {
                     BlockPos position = new BlockPos(x, y, z);
                     CellData cell = snapshot.cell(position).orElse(null);
                     if (cell == null) return new Support(false, false, Failure.OUTSIDE_SNAPSHOT);
-                    VoxelShape moved = cell.collisionShape().move(x, y, z);
-                    if (!Shapes.joinIsNotEmpty(Shapes.create(probe), moved, BooleanOp.AND)) continue;
+                    if (!intersects(cell.collisionShape(), probe, x, y, z)) continue;
                     if (cell.hazard() == CellData.Hazard.DANGEROUS) {
                         return new Support(false, false, Failure.DANGEROUS);
                     }
@@ -243,6 +264,21 @@ public final class NodeEvaluator {
         double halfWidth = width / 2.0D;
         return new AABB(centerX - halfWidth, standingY, centerZ - halfWidth,
                 centerX + halfWidth, standingY + height, centerZ + halfWidth);
+    }
+
+    private boolean intersects(VoxelShape shape, AABB body, int x, int y, int z) {
+        if (collisionBoxes == null) return Shapes.joinIsNotEmpty(Shapes.create(body),
+                shape.move(x, y, z), BooleanOp.AND);
+        if (shape.isEmpty()) return false;
+        List<AABB> boxes = collisionBoxes.computeIfAbsent(shape, VoxelShape::toAabbs);
+        for (AABB local : boxes) {
+            // Shapes' coordinate merger uses a 1e-7 intersection tolerance.
+            // Do not reuse the larger standing-surface epsilon here.
+            if (body.maxX > x + local.minX + 1.0E-7D && body.minX < x + local.maxX - 1.0E-7D
+                    && body.maxY > y + local.minY + 1.0E-7D && body.minY < y + local.maxY - 1.0E-7D
+                    && body.maxZ > z + local.minZ + 1.0E-7D && body.minZ < z + local.maxZ - 1.0E-7D) return true;
+        }
+        return false;
     }
 
     private static boolean overlaps(double firstMin, double firstMax,

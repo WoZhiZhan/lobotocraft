@@ -138,7 +138,7 @@ public class AbnormalityWorkHandler {
 															abnormality.getFullWorkPreferences(),
 															abnormality.getRiskLevel(),
 															obsLevel,
-															employeeStats.getEmployeeLevel(),
+															WorkAttributeLevels.from(employeeStats),
 															workPrefsUnlocked,
                                                             abnormality instanceof AbstractAbnormality concrete
                                                                     ? FacilityManager.repeatedWorkPenaltyPercent(

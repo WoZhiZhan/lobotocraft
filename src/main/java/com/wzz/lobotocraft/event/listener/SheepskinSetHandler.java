@@ -4,6 +4,7 @@ import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.init.ModItems;
 import com.wzz.lobotocraft.init.ModSounds;
+import com.wzz.lobotocraft.event.definition.abnormality.AbnormalityEscapeStopEvent;
 import com.wzz.lobotocraft.item.ego.redhat_mercenary.RedhatMercenaryWeaponGun;
 import com.wzz.lobotocraft.util.*;
 import net.minecraft.core.particles.ParticleTypes;
@@ -33,7 +34,7 @@ import java.util.UUID;
  *   2. 穿“郁蓝创痕”：潜狼强化 —— 累计损失 10% 生命值后进入潜狼模式 6 秒，
  *      期间免疫一切伤害，且造成的红色伤害 +6
  *   3. 穿“猩红创痕”：暴怒（血量 < 50%）时攻速 +25%、火铳 CD 降至 1.5s；
- *      对【猎物】伤害额外 +3；击杀【猎物】回复 5% 生命值与精神值
+ *      对【猎物】伤害额外 +3；击杀或成功镇压回复 5% 生命值与精神值
  */
 @Mod.EventBusSubscriber(modid = ModMain.MODID)
 public class SheepskinSetHandler {
@@ -61,7 +62,7 @@ public class SheepskinSetHandler {
     public static final int FURY_GUN_COOLDOWN_TICKS = 30;
     /** 对猎物伤害 +3 */
     private static final float PREY_DAMAGE_BONUS = 3.0f;
-    /** 击杀猎物回复比例 */
+    /** 击杀／成功镇压回复比例；旧常量名保留，恢复不要求猎物。 */
     private static final float PREY_KILL_RESTORE_RATIO = 0.05f;
 
     /* ============ NBT / 属性 UUID ============ */
@@ -275,15 +276,34 @@ public class SheepskinSetHandler {
         }
     }
 
-    /** 套装第3条：击杀【猎物】回复 5% 生命值与精神值 */
+    /** Normal death and containment-bound suppression are two exclusive completion paths. */
     @SubscribeEvent
     public static void onLivingDeath(LivingDeathEvent event) {
         LivingEntity dead = event.getEntity();
         if (dead.level().isClientSide) return;
-        if (!(event.getSource().getEntity() instanceof ServerPlayer player)) return;
-        if (!isRedhatSetActive(player)) return;
-        if (!RedhatMercenaryWeaponGun.Prey.isPreyOf(player, dead)) return;
+        if (!(FacilityCombatRules.resolvePlayerAttacker(event.getSource()) instanceof ServerPlayer player)) return;
+        restoreAfterKill(player);
+    }
 
+    @SubscribeEvent
+    public static void onSuppressionComplete(AbnormalityEscapeStopEvent event) {
+        if (!event.wasKilled() || event.getSuppressionAttackerUUID() == null) return;
+        var server = event.getAbnormality().getServer();
+        if (server == null) return;
+        ServerPlayer player = server.getPlayerList().getPlayer(event.getSuppressionAttackerUUID());
+        if (player == null) {
+            for (var level : server.getAllLevels()) {
+                if (level.getEntity(event.getSuppressionAttackerUUID()) instanceof ServerPlayer employee) {
+                    player = employee;
+                    break;
+                }
+            }
+        }
+        if (player != null) restoreAfterKill(player);
+    }
+
+    private static void restoreAfterKill(ServerPlayer player) {
+        if (!player.isAlive() || !isRedhatSetActive(player)) return;
         player.heal(player.getMaxHealth() * PREY_KILL_RESTORE_RATIO);
         MentalValueUtil.addMentalValue(player,
                 MentalValueUtil.getEffectiveMaxMentalValue(player) * PREY_KILL_RESTORE_RATIO);

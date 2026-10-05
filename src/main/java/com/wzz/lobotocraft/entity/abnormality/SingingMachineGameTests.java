@@ -29,6 +29,69 @@ public final class SingingMachineGameTests {
     }
 
     @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 100, required = true, batch = "singing_machine_glow")
+    public static void controlledClerkGlowsWhileControlledAndExpiresAfterRecovery(GameTestHelper helper) {
+        for (int x=1;x<=14;x++) for (int z=1;z<=10;z++)
+            helper.setBlock(new BlockPos(x,0,z),net.minecraft.world.level.block.Blocks.STONE);
+        var machine=ModEntities.singing_machine.get().create(helper.getLevel());
+        var clerk=ModEntities.clerk.get().create(helper.getLevel());
+        if(machine==null||clerk==null)throw new IllegalStateException("missing glow fixture");
+        var pos=helper.absolutePos(new BlockPos(4,1,4));
+        machine.moveTo(pos.getX()+0.5,pos.getY(),pos.getZ()+0.5,0,0);
+        clerk.moveTo(pos.getX()+3.5,pos.getY(),pos.getZ()+0.5,0,0);
+        helper.getLevel().addFreshEntity(machine);helper.getLevel().addFreshEntity(clerk);
+        clerk.setInvulnerable(true);
+        try {
+            helper.assertTrue(SingingMachineControl.start(clerk,machine),"clerk control rejected");
+            helper.assertTrue(clerk.hasEffect(net.minecraft.world.effect.MobEffects.GLOWING),
+                    "controlled clerk has no glow at activation");
+        } catch(RuntimeException failure) {
+            SingingMachineControl.clearForRecovery(clerk);clerk.discard();machine.discard();throw failure;
+        }
+        helper.runAfterDelay(45,()->{
+            helper.assertTrue(clerk.hasEffect(net.minecraft.world.effect.MobEffects.GLOWING),
+                    "glow was not refreshed during control");
+            SingingMachineControl.clearForRecovery(clerk);
+            clerk.setNoAi(true);
+        });
+        helper.runAfterDelay(90,()->{
+            try {
+                helper.assertFalse(clerk.hasEffect(net.minecraft.world.effect.MobEffects.GLOWING),
+                        "control glow leaked permanently after recovery");
+                helper.succeed();
+            }finally{SingingMachineControl.clearForRecovery(clerk);clerk.discard();machine.discard();}
+        });
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
+            timeoutTicks = 40, required = true, batch = "singing_machine_glow_preservation")
+    public static void glowFixPreservesOtherGlowAndDoesNotMarkPlayers(GameTestHelper helper) {
+        var machine=ModEntities.singing_machine.get().create(helper.getLevel());
+        var clerk=ModEntities.clerk.get().create(helper.getLevel());
+        if(machine==null||clerk==null)throw new IllegalStateException("missing fixture");
+        var pos=helper.absolutePos(new BlockPos(4,1,4));
+        machine.moveTo(pos.getX()+0.5,pos.getY(),pos.getZ()+0.5,0,0);
+        clerk.moveTo(pos.getX()+3.5,pos.getY(),pos.getZ()+0.5,0,0);
+        helper.getLevel().addFreshEntity(machine);helper.getLevel().addFreshEntity(clerk);
+        var player=employee(helper,"singing_glow_player",new BlockPos(8,1,4),50,50);
+        clerk.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                net.minecraft.world.effect.MobEffects.GLOWING,200,0,false,false));
+        try {
+            SingingMachineControl.start(clerk,machine);
+            SingingMachineControl.start(player,machine);
+            helper.assertFalse(player.hasEffect(net.minecraft.world.effect.MobEffects.GLOWING),
+                    "clerk-only fix also marks a player/AI employee");
+            SingingMachineControl.clearForRecovery(clerk);
+            helper.assertTrue(clerk.getEffect(net.minecraft.world.effect.MobEffects.GLOWING).getDuration()==200,
+                    "control shortens or clears an unrelated glow effect");
+            helper.succeed();
+        }finally{
+            SingingMachineControl.clearForRecovery(clerk);SingingMachineControl.clearForRecovery(player);
+            clerk.discard();machine.discard();player.kill();
+        }
+    }
+
+    @GameTest(template = "navigation_empty", templateNamespace = TEST_NAMESPACE,
             timeoutTicks = 150, required = true, batch = "singing_machine_cycle")
     public static void consumedWorkerStartsSongAndCreatesControlledCombatant(
             GameTestHelper helper) {

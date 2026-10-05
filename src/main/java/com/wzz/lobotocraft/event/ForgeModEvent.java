@@ -138,6 +138,9 @@ public class ForgeModEvent {
 			}
 			if (EgoArmorHelper.isFullEGO(player, "thorn_bus")) {
 				if (isRangedAttack(event.getSource())) {
+					if (!com.wzz.lobotocraft.event.listener.ThornBusDefense.tryDeflect(
+							player, event.getSource().getDirectEntity()))
+						com.wzz.lobotocraft.event.listener.ThornBusDefense.feedback(player);
 					event.setCanceled(true);
 				}
 			}
@@ -196,13 +199,6 @@ public class ForgeModEvent {
 			}
 			if (CuriosUtil.hasCurios(attacker, ModItems.END_BIRD_CURIO.get())) {
 				event.setAmount(event.getAmount() * 1.1f);
-			}
-			if (EgoArmorHelper.isFullEGO(attacker, "fragment_of_the_universe") && !attacker.level.isClientSide) {
-				for (ServerPlayer serverPlayer : EntityUtil.findAllPlayer(attacker)) {
-					if (!MentalValueUtil.isPanic(serverPlayer)) {
-						MentalValueUtil.addMentalValue(serverPlayer, 3f);
-					}
-				}
 			}
 			if (EgoArmorHelper.isFullEGO(attacker, "crumbling_armor")) {
 				boolean hasPlayer = false;
@@ -371,13 +367,6 @@ public class ForgeModEvent {
 					event.setCanceled(true);
 				} else {
 					player.getPersistentData().putLong("lastSuperWolfHurtTick", currentTick);
-				}
-			}
-			if (EgoArmorHelper.isWearingFullSet(player, "army_in_black", false)) {
-				float mentalValue = MentalValueUtil.getMentalValue(player);
-				if (mentalValue >= MentalValueUtil.getEffectiveMaxMentalValue(player)) {
-					float reduction = Math.min((mentalValue / 10) * 0.05f, 0.30f);
-					event.setAmount(event.getAmount() * (1 - reduction));
 				}
 			}
 		}
@@ -590,22 +579,11 @@ public class ForgeModEvent {
 				}
 			}
 			if (com.wzz.lobotocraft.util.BuffUtil.hasFriendshipProof(player)) {
-				boolean has = false;
-				for (Entity entity : EntityUtil.findAllEntities(event.getEntity(), 8)) {
-					if (entity instanceof EntityChildrenGalaxy) {
-						has = true;
-						break;
-					}
-				}
-				if (!has) {
-					for (Entity entity : EntityUtil.findAllEntities(event.getEntity(), 400)) {
-						if (entity instanceof EntityChildrenGalaxy childrenGalaxy) {
-							childrenGalaxy.decreaseQliphothCounter(999);
-							player.displayClientMessage(Component.translatable(
-									"message.lobotocraft.children_galaxy.timer_depleted"), false);
-							break;
-						}
-					}
+				EntityChildrenGalaxy source = BuffUtil.friendshipSource(player);
+				if (source != null && (source.level() != player.level() || source.distanceToSqr(player) > 64)) {
+					source.decreaseQliphothCounter(999);
+					player.displayClientMessage(Component.translatable(
+							"message.lobotocraft.children_galaxy.timer_depleted"), false);
 				}
 				com.wzz.lobotocraft.util.BuffUtil.removeFriendshipProof(player);
 			}
@@ -648,6 +626,7 @@ public class ForgeModEvent {
 	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public static void onLivingDeathLow(LivingDeathEvent event) {
 		if (event.getEntity() instanceof ServerPlayer player) {
+			com.wzz.lobotocraft.entity.control.WolfSwallowControl.clear(player);
 			stopLowHealthSound(player);
 			player.playNotifySound(ModSounds.PLAYER_DEATH.get(), SoundSource.PLAYERS, 1, 1);
 			player.playNotifySound(ModSounds.PLAYER_DEATH_AFTER.get(), SoundSource.PLAYERS, 1, 1);
@@ -791,14 +770,13 @@ public class ForgeModEvent {
 		if (!(event.getAbnormality() instanceof EntityChildrenGalaxy)
 				&& com.wzz.lobotocraft.util.BuffUtil.hasFriendshipProof(event.getEntity())) {
 			int count = com.wzz.lobotocraft.util.BuffUtil.getFriendshipProofCounter(event.getEntity());
-			if (count != -1) {
+			EntityChildrenGalaxy friendshipSource = BuffUtil.friendshipSource(event.getEntity());
+			if (count > 0 && friendshipSource != null) {
 				event.getEntity().setHealth(event.getEntity().getHealth() - (count * 4));
 				MentalValueUtil.setMentalValue(event.getEntity(), MentalValueUtil.getMentalValue(event.getEntity()) - (count * 4));
 				int childrenAffected = 0;
-				for (EntityChildrenGalaxy entityChildrenGalaxy : EntityUtil.findAllEntities(event.getEntity(), 400, EntityChildrenGalaxy.class)) {
-					entityChildrenGalaxy.decreaseQliphothCounter(1);
-					childrenAffected++;
-				}
+				friendshipSource.decreaseQliphothCounter(1);
+				childrenAffected++;
 				if (childrenAffected > 0) {
 					event.getEntity().sendSystemMessage(Component.translatable(
 							"message.lobotocraft.children_galaxy.counter_reduced", childrenAffected));
@@ -814,7 +792,7 @@ public class ForgeModEvent {
 		if (!event.isForcedEnd() && event.getWorkType() == WorkType.REPRESSION) {
 			EntityCrumblingArmor.recordRepressionWork(event.getEntity());
 		}
-		if (!event.isForcedEnd() && event.getWorkType() == WorkType.INSIGHT) {
+		if (!event.isForcedEnd() && event.getWorkType() == WorkType.INSTINCT) {
 			if (EgoArmorHelper.isFullEGO(event.getEntity(), "ppodae")) {
 				event.getEntity().heal(event.getEntity().getMaxHealth() * 0.1f);
 				event.getEntity().playNotifySound(
@@ -1027,11 +1005,17 @@ public class ForgeModEvent {
 			}
 		}
 		if (event.isCanceled() || event.getAmount() <= 0.0F) return;
+		if (event.getEntity() instanceof Player player) {
+			event.setAmount(com.wzz.lobotocraft.item.ego.army_in_black.ArmyInBlackBaseArmor
+					.capFullSanityHit(player, event.getAmount()));
+		}
 		LivingEntity target = event.getEntity();
 		if (!(event.getSource().getEntity() instanceof Player attacker) || attacker == target) return;
 		float actualDamage = com.wzz.lobotocraft.item.ego.base.EgoDamageRecoveryPolicy
 				.finalDamageToHealth(target.getHealth(), event.getAmount());
 		if (actualDamage <= 0.0F) return;
+		com.wzz.lobotocraft.item.ego.helper.HelperWeapon.recoverSpecialDamage(event);
+		recoverFragmentAfterDamage(target, event.getSource(), actualDamage);
 		if (CuriosUtil.hasCurios(attacker, ModItems.NOTHING_THERE_CURIO.get())) {
 			attacker.heal(actualDamage * 0.05F);
 		}
@@ -1044,6 +1028,18 @@ public class ForgeModEvent {
 				&& CuriosUtil.hasCurios(attacker, ModItems.PUNISHING_BIRD_CURIO.get())
 				&& !com.wzz.lobotocraft.item.ego.end_bird.EndBirdWeapon.isThinDuskSpecialDamage(attacker)) {
 			attacker.heal(actualDamage * 0.1F);
+		}
+	}
+
+	/** Both health damage and the mental-only WHITE path settle this proc after a positive loss. */
+	public static void recoverFragmentAfterDamage(LivingEntity target, DamageSource source, float actualDamage) {
+		Player attacker = FacilityCombatRules.resolvePlayerAttacker(source);
+		if (actualDamage <= 0 || target.level().isClientSide || attacker == null || attacker == target
+				|| !EgoArmorHelper.isFullEGO(attacker, "fragment_of_the_universe")) return;
+		for (Player player : attacker.level().players()) {
+			if (player.isAlive() && !MentalValueUtil.isPanic(player)) {
+				MentalValueUtil.addMentalValue(player, 3F);
+			}
 		}
 	}
 

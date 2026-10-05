@@ -252,7 +252,11 @@ public final class DamageHelper {
      */
     public static boolean isRangedAttack(DamageSource damageSource) {
         if (damageSource == null) return false;
-        return isArrow(damageSource)
+        return damageSource instanceof AttackDamage attack && attack.delivery() == AttackDamage.Delivery.RANGED
+                || damageSource.getDirectEntity() instanceof net.minecraft.world.entity.projectile.Projectile
+                || damageSource.getDirectEntity() instanceof com.wzz.lobotocraft.entity.projectile.DeflectableAttack
+                || damageSource.is(net.minecraft.tags.DamageTypeTags.IS_PROJECTILE)
+                || isArrow(damageSource)
                 || isTrident(damageSource)
                 || isFireball(damageSource)
                 || isWitherSkull(damageSource)
@@ -307,6 +311,28 @@ public final class DamageHelper {
 
     @SuppressWarnings("all")
     public static DamageSource getDamage(Entity directAttacker, Entity causingEntity, String msg) {
+        return getDamage(directAttacker, causingEntity, msg,
+                AttackDamage.Targeting.NORMAL, AttackDamage.Delivery.DIRECT);
+    }
+
+    public static DamageSource getDamage(Entity attacker, String color, AttackDamage.Targeting targeting) {
+        return getDamage(attacker, attacker, color, targeting, AttackDamage.Delivery.DIRECT);
+    }
+
+    public static DamageSource getRangedDamage(Entity attacker, String color) {
+        return getDamage(attacker, attacker, color, AttackDamage.Targeting.NORMAL, AttackDamage.Delivery.RANGED);
+    }
+
+    public static boolean isIndiscriminate(DamageSource source) {
+        return source instanceof AttackDamage attack && attack.targeting() == AttackDamage.Targeting.INDISCRIMINATE;
+    }
+
+    public static AttackDamage.Targeting targetingOf(DamageSource source) {
+        return isIndiscriminate(source) ? AttackDamage.Targeting.INDISCRIMINATE : AttackDamage.Targeting.NORMAL;
+    }
+
+    public static DamageSource getDamage(Entity directAttacker, Entity causingEntity, String msg,
+            AttackDamage.Targeting targeting, AttackDamage.Delivery delivery) {
         if (msg.equals("pale")) msg = "blue";
         MinecraftServer server = directAttacker.getServer();
         if (server == null) return directAttacker.level.damageSources.generic();
@@ -317,7 +343,7 @@ public final class DamageHelper {
                 ResourceKey.create(Registries.DAMAGE_TYPE, ResourceUtil.createInstanceWithColon(msg));
         Holder<DamageType> damageTypeHolder =
                 damageTypeRegistry.getHolderOrThrow(damageTypeKey);
-        AttackDamage attackDamage = new AttackDamage(damageTypeHolder, directAttacker, causingEntity);
+        AttackDamage attackDamage = new AttackDamage(damageTypeHolder, directAttacker, causingEntity, targeting, delivery);
         if (attackDamage instanceof IDamageSource iDamageSource) {
             iDamageSource.setDamageType(StringUtil.extractTypeName(msg));
         }
