@@ -39,6 +39,7 @@ public final class GeburahBladeTrailRenderer {
         if (GeburahEffectCompositor.mode() == GeburahEffectCompositor.Mode.OFF) return;
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null) return;
+        if (!GeburahSpecialEffects.allowCapturedTrail(GeburahBladeTrailState.capturedEntityId())) return;
         double now = minecraft.level.getGameTime() + event.getPartialTick();
         List<GeburahBladeTrailState.TrailPoint> points =
                 GeburahBladeTrailState.visualTrail(now, ClientVisualConfig.GEBURAH_EGO_ATTACK_TRIAL.get());

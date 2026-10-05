@@ -84,6 +84,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 public final class EntityGeburah extends BaseGeoEntity {
     // A process-local monotonic ID avoids stale closed-cast IDs after entity unload/reload.
@@ -92,6 +93,8 @@ public final class EntityGeburah extends BaseGeoEntity {
     private int visualElapsed;
     private GeburahSpecialVisuals.Skill visualSkill;
     private boolean visualConnected;
+    private Vec3 visualContactPosition;
+    private final Set<UUID> visualAudience = new HashSet<>();
     private static final double COMBO_START_RANGE = 5.0D;
     private static final String WILL_OF_BATTLE = "willofbattle";
     private static final String EGO_WILL_OF_BATTLE = "ego_willofbattle";
@@ -413,9 +416,10 @@ public final class EntityGeburah extends BaseGeoEntity {
                 GeburahMajorMove.Cue cue = major.currentCue();
                 playMajorHitSound(move, cue);
                 visualConnected = false;
+                visualContactPosition = null;
                 boolean connected = performMajorHit(move, cue, forward);
                 sendSpecialVisual(GeburahSpecialVisuals.Event.CUE, move.cues().indexOf(cue),
-                        visualConnected, targetPosition);
+                        visualConnected, visualContactPosition == null ? targetPosition : visualContactPosition);
                 if (cue.opening() && !connected) {
                     abortMajorAttack();
                     return false;
@@ -445,6 +449,7 @@ public final class EntityGeburah extends BaseGeoEntity {
             if (cue.opening() && (distanceTo(majorTarget) > 8.0D
                     || !hasLineOfSight(majorTarget))) return false;
             float healthBefore = majorTarget.getHealth();
+            Vec3 beforePosition = majorTarget.position();
             boolean escapedBefore = majorTarget instanceof AbstractAbnormality a && a.hasEscape();
             boolean hit = hurtWithoutVanillaReaction(majorTarget,
                     outgoingDamage(majorTarget, rollDamage(cue)));
@@ -452,6 +457,7 @@ public final class EntityGeburah extends BaseGeoEntity {
             float healthLoss = Math.max(0.0F, healthBefore - majorTarget.getHealth());
             visualConnected = healthLoss > 0 || escapedBefore
                     && majorTarget instanceof AbstractAbnormality a && !a.hasEscape();
+            if (visualConnected) visualContactPosition = beforePosition;
             restoreMajorPosture(majorTarget);
             if (cue.opening() && majorTarget instanceof ServerPlayer player) {
                 majorBoundPlayer = player;
@@ -475,12 +481,15 @@ public final class EntityGeburah extends BaseGeoEntity {
         boolean connected = false;
         for (LivingEntity target : targets) {
             float healthBefore = target.getHealth();
+            Vec3 beforePosition = target.position();
             boolean escapedBefore = target instanceof AbstractAbnormality a && a.hasEscape();
             if (!hurtWithoutVanillaReaction(target,
                     outgoingDamage(target, rollDamage(cue)))) continue;
             float healthLoss = Math.max(0.0F, healthBefore - target.getHealth());
-            visualConnected |= healthLoss > 0 || escapedBefore
+            boolean madeContact = healthLoss > 0 || escapedBefore
                     && target instanceof AbstractAbnormality a && !a.hasEscape();
+            visualConnected |= madeContact;
+            if (madeContact && visualContactPosition == null) visualContactPosition = beforePosition;
             connected = true;
             restoreMajorPosture(target);
             if (move == GeburahMajorMove.BODIES_EVERYWHERE) {
@@ -816,6 +825,8 @@ public final class EntityGeburah extends BaseGeoEntity {
         if (visualSkill == null) return;
         sendSpecialVisual(GeburahSpecialVisuals.Event.STOP, -1, false, null);
         visualSkill = null;
+        visualAudience.clear();
+        visualContactPosition = null;
     }
 
     private void sendSpecialVisual(GeburahSpecialVisuals.Event event, int cue, boolean connected, Vec3 targetOverride) {
@@ -828,9 +839,14 @@ public final class EntityGeburah extends BaseGeoEntity {
                 position(), targetPosition, Vec3.directionFromRotation(0, getYRot()));
         var packet = new com.wzz.lobotocraft.network.packet.GeburahSpecialVisualPacket(
                 serverLevel.dimension().location(), snapshot);
-        for (ServerPlayer viewer : serverLevel.players()) {
-            if (viewer.distanceToSqr(this) <= GeburahSpecialVisuals.VIEW_DISTANCE * GeburahSpecialVisuals.VIEW_DISTANCE)
+        // Online client connections, not synthetic employee ServerPlayers in the entity list.
+        for (ServerPlayer viewer : serverLevel.getServer().getPlayerList().getPlayers()) {
+            if (viewer.serverLevel() != serverLevel) continue;
+            boolean nearby = viewer.distanceToSqr(this) <= GeburahSpecialVisuals.VIEW_DISTANCE * GeburahSpecialVisuals.VIEW_DISTANCE;
+            if (GeburahSpecialVisuals.deliver(event, nearby, visualAudience.contains(viewer.getUUID()))) {
                 MessageLoader.getLoader().sendToPlayer(viewer, packet);
+                if (event != GeburahSpecialVisuals.Event.STOP) visualAudience.add(viewer.getUUID());
+            }
         }
     }
 

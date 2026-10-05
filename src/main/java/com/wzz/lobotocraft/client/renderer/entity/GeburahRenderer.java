@@ -51,7 +51,7 @@ public final class GeburahRenderer extends GeoEntityRenderer<EntityGeburah> {
             }
             GeburahBladeTrailProfile.Sample sample =
                     GeburahBladeTrailProfile.forAnimation(entity.getAnimation());
-            if (GeburahSpecialEffects.enhanced()) {
+            if (GeburahSpecialEffects.canCapture(entity.getUUID())) {
                 for (var candidate : GeburahBladeTrailProfile.specialCandidates(entity.getAnimation()))
                     for (String name : candidate.locatorBoneNames())
                         bakedModel.getBone(name).ifPresent(bone -> bone.setTrackingMatrices(true));
@@ -70,18 +70,31 @@ public final class GeburahRenderer extends GeoEntityRenderer<EntityGeburah> {
                            float partialTick, int packedLight, int packedOverlay) {
             GeburahBladeTrailProfile.Sample sample =
                     GeburahBladeTrailProfile.forAnimation(entity.getAnimation());
-            if (GeburahSpecialEffects.captureBlade(entity.getUUID())) {
+            var candidates = GeburahBladeTrailProfile.specialCandidates(entity.getAnimation());
+            boolean specialAnimation = !candidates.isEmpty();
+            if (specialAnimation && GeburahSpecialEffects.canCapture(entity.getUUID())) {
                 for (var candidate : GeburahBladeTrailProfile.specialCandidates(entity.getAnimation())) {
                     var first = bakedModel.getBone(candidate.locatorBoneNames().get(0)).orElse(null);
                     var last = bakedModel.getBone(candidate.locatorBoneNames()
                             .get(candidate.locatorBoneNames().size() - 1)).orElse(null);
                     if (first != null && last != null
                             && first.getWorldPosition().distanceSquared(last.getWorldPosition()) > 0.0001) {
-                        sample = candidate;
+                        double time = entity.level().getGameTime() + partialTick;
+                        Vec3 interpolation = new Vec3(
+                                Mth.lerp(partialTick, entity.xOld, entity.getX()) - entity.getX(),
+                                Mth.lerp(partialTick, entity.yOld, entity.getY()) - entity.getY(),
+                                Mth.lerp(partialTick, entity.zOld, entity.getZ()) - entity.getZ());
+                        var tip = last.getWorldPosition();
+                        GeburahSpecialEffects.captureFocus(entity.getUUID(),
+                                new Vec3(tip.x, tip.y, tip.z).add(interpolation), time);
+                        sample = GeburahSpecialEffects.captureBlade(entity.getUUID()) ? candidate : null;
                         break;
                     }
                 }
             }
+            if (specialAnimation && GeburahSpecialEffects.enhanced()
+                    && !GeburahSpecialEffects.sampleBlade(entity.getUUID(), entity.level().getGameTime() + partialTick))
+                sample = null;
             if (sample == null) return;
             Vec3 currentEntityPosition = entity.position();
             Vec3 interpolatedEntityPosition = new Vec3(

@@ -43,12 +43,21 @@ public final class GeburahSpecialVisualGameTests {
                     f.boss.getRandom().setSeed(812);
                     var expected = net.minecraft.util.RandomSource.create(812);
                     for (var cue : move.cues()) expected.nextInt(cue.maxDamage() - cue.minDamage() + 1);
-                    for (int tick = 0; tick < move.durationTicks(); tick++)
+                    for (int tick = 0; tick < move.durationTicks(); tick++) {
+                        int before = hurtTicks.size();
                         invoke(f.boss, "tickMajorAttack", new Class[0]);
+                        if (hurtTicks.size() > before) {
+                            h.assertTrue((boolean) field(f.boss, "visualConnected"),
+                                    "successful cue lost its contact signal");
+                            h.assertTrue(f.target.position().equals(field(f.boss, "visualContactPosition")),
+                                    "contact point did not match the successfully hit target");
+                        }
+                    }
                     h.assertTrue(hurtTicks.equals(move.cues().stream().map(GeburahMajorMove.Cue::tick).toList()),
                             move + " damage cues changed: " + hurtTicks);
                     h.assertTrue(f.boss.getRandom().nextInt() == expected.nextInt(), "visual consumed combat RNG");
                     h.assertTrue(field(f.boss, "visualSkill") == null, "completed major kept its visual state");
+                    h.assertTrue(((Set<?>) field(f.boss, "visualAudience")).isEmpty(), "finished cast kept its audience");
                 } finally { MinecraftForge.EVENT_BUS.unregister(listener); }
             }
         }

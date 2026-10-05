@@ -40,6 +40,10 @@ public final class GeburahBladeTrailProfile {
     public static List<Sample> specialCandidates(String animation) {
         if (animation == null) return List.of();
         return switch (animation) {
+            case "willofbattle_begin", "willofbattle" ->
+                    List.of(new Sample(NITAI2, GeburahMove.SLASH, false));
+            case "EGOwillofbattle_begin", "EGOwillofbattle" ->
+                    List.of(new Sample(NITAI2, GeburahMove.SLASH, true));
             case "bloodmist" -> List.of(new Sample(NITAI2, GeburahMove.SLASH, false));
             case "EGObloodmist" -> List.of(new Sample(NITAI2, GeburahMove.SLASH, true),
                     new Sample(ZHONGJIAN, GeburahMove.SLASH, true));

@@ -27,6 +27,8 @@ public final class GeburahSpecialEffects {
     private static final GeburahSpecialVisualState STATE = new GeburahSpecialVisualState();
     private static final Map<UUID, Integer> LEGACY_TICKS = new HashMap<>();
     private static final Set<GeburahSpecialVisualState.Accent> PLAYED = new HashSet<>();
+    private static final Map<UUID, Focus> FOCUS = new HashMap<>();
+    private static final Map<UUID, Double> BLADE_SAMPLES = new HashMap<>();
     private static ClientLevel owner;
     private static int particleBudget;
     private static final int PARTICLE_BUDGET = 192;
@@ -39,17 +41,25 @@ public final class GeburahSpecialEffects {
         ClientLevel level = Minecraft.getInstance().level;
         if (level == null || !level.dimension().location().equals(dimension)) return;
         ensureOwner(level);
+        var previous = frame(snapshot.caster());
         STATE.accept(snapshot, level.getGameTime());
+        if (snapshot.event() == Event.STOP && previous != null
+                && previous.snapshot().castId() == snapshot.castId()
+                && GeburahBladeTrailState.capturedEntityId() == snapshot.entityId()) {
+            var entity = level.getEntity(snapshot.entityId());
+            if (entity != null && entity.getUUID().equals(snapshot.caster())) GeburahBladeTrailState.clear();
+        }
     }
 
     private static void ensureOwner(ClientLevel level) {
         if (owner != level) { clear(); owner = level; }
     }
     public static void clear() {
-        STATE.clear(); LEGACY_TICKS.clear(); PLAYED.clear(); owner = null;
+        STATE.clear(); LEGACY_TICKS.clear(); PLAYED.clear(); FOCUS.clear(); BLADE_SAMPLES.clear(); owner = null;
     }
     public static void clearAccents() {
         STATE.clearAccents(); PLAYED.clear(); GeburahBladeTrailState.clear();
+        FOCUS.clear(); BLADE_SAMPLES.clear();
     }
     public static GeburahSpecialVisualState.Frame frame(UUID caster) {
         var level = Minecraft.getInstance().level;
@@ -58,10 +68,41 @@ public final class GeburahSpecialEffects {
                 .filter(frame -> frame.snapshot().caster().equals(caster)).findFirst().orElse(null);
     }
     public static boolean captureBlade(UUID caster) {
-        if (GeburahEffectCompositor.mode() == GeburahEffectCompositor.Mode.OFF) return false;
+        if (!canCapture(caster)) return false;
         var frame = frame(caster);
-        return enhanced() && frame != null
+        var mc = Minecraft.getInstance();
+        return frame != null && GeburahSpecialVisuals.bladeQuality(mc.options.particles().get().getId(),
+                mc.gameRenderer.getMainCamera().getPosition().distanceToSqr(frame.snapshot().origin()))
                 && GeburahSpecialVisuals.bladeWindow(frame.snapshot().skill(), frame.elapsed());
+    }
+    public static boolean allowCapturedTrail(int entityId) {
+        var level = Minecraft.getInstance().level;
+        if (level == null) return false;
+        var entity = level.getEntity(entityId);
+        if (!enhanced() || entity == null || frame(entity.getUUID()) == null) return true;
+        return captureBlade(entity.getUUID());
+    }
+    public static boolean canCapture(UUID caster) {
+        if (!enhanced() || GeburahEffectCompositor.mode() == GeburahEffectCompositor.Mode.OFF) return false;
+        var frame = frame(caster);
+        if (frame == null) return false;
+        var entity = Minecraft.getInstance().level.getEntity(frame.snapshot().entityId());
+        return entity != null && entity.getUUID().equals(caster) && withinView(entity.position());
+    }
+    public static boolean sampleBlade(UUID caster, double sampleTime) {
+        if (!captureBlade(caster)) return false;
+        double minimum = Minecraft.getInstance().options.particles().get().getId() == 1 ? 0.5 : 0;
+        if (sampleTime - BLADE_SAMPLES.getOrDefault(caster, Double.NEGATIVE_INFINITY) < minimum) return false;
+        BLADE_SAMPLES.put(caster, sampleTime);
+        return true;
+    }
+    public static void captureFocus(UUID caster, Vec3 position, double sampleTime) {
+        if (canCapture(caster) && GeburahSpecialVisuals.worldPoint(position))
+            FOCUS.put(caster, new Focus(position, sampleTime));
+    }
+    private static Vec3 focus(UUID caster, double now) {
+        var focus = FOCUS.get(caster);
+        return focus == null || now - focus.sampleTime > 2 ? null : focus.position;
     }
 
     public static void tick() {
@@ -122,6 +163,8 @@ public final class GeburahSpecialEffects {
         Set<UUID> active = new HashSet<>();
         STATE.frames(now).forEach(frame -> active.add(frame.snapshot().caster()));
         LEGACY_TICKS.keySet().retainAll(active);
+        FOCUS.keySet().retainAll(active);
+        BLADE_SAMPLES.keySet().retainAll(active);
     }
 
     private static boolean withinView(Vec3 point) {
@@ -185,15 +228,16 @@ public final class GeburahSpecialEffects {
                     strip(buffer, matrix, camera, c, d, s.forward(), 0.035, 0.45F, 0.01F, 0.02F, alpha);
                     strip(buffer, matrix, camera, d, a, side, 0.035, 0.45F, 0.01F, 0.02F, alpha);
                     // A small converging blade-side accent, not a screen-wide flashing overlay.
-                    Vec3 focus = s.origin().add(s.forward().scale(0.8)).add(0, 1.4, 0);
-                    for (int i = 0; i < 3; i++) {
-                        Vec3 from = focus.add(side.scale((i - 1) * (1.2 - charge)))
+                    Vec3 bladeFocus = focus(s.caster(), now);
+                    for (int i = 0; bladeFocus != null && i < 3; i++) {
+                        Vec3 from = bladeFocus.add(side.scale((i - 1) * (1.2 - charge)))
                                 .add(0, 0.7 * (1 - charge), 0);
-                        strip(buffer, matrix, camera, from, focus, side, 0.035,
+                        strip(buffer, matrix, camera, from, bladeFocus, side, 0.035,
                                 0.6F, 0.01F, 0.02F, alpha);
                     }
                 } else if (s.skill().major() == null && elapsed < GeburahSpecialController.WINDUP_TICKS) {
-                    Vec3 blade = s.origin().add(s.forward().scale(0.7)).add(0, 1.2, 0);
+                    Vec3 blade = focus(s.caster(), now);
+                    if (blade == null) continue;
                     strip(buffer, matrix, camera, blade, blade.add(s.forward().scale(0.5)),
                             side, 0.055, 0.7F, 0.01F, 0.02F, 0.35F * strength);
                 }
@@ -247,10 +291,14 @@ public final class GeburahSpecialEffects {
                             across, 0.13, 0.25F, 0.002F, 0.01F, alpha);
                     strip(buffer, matrix, camera, center.subtract(axis.scale(radius)), center.add(axis.scale(radius)),
                             across, 0.025, 0.95F, 0.10F, 0.07F, alpha * 0.75F);
-                    if (s.connected()) {
-                        strip(buffer, matrix, camera, center.subtract(across.scale(0.32)), center.add(across.scale(0.32)),
-                                axis, 0.05, 1, 0.55F, 0.40F, alpha);
-                    }
+                }
+                if (s.event() == Event.CUE && s.connected()) {
+                    // Bounded representative contact also applies to area cues; strike mesh stays independent.
+                    Vec3 contact = s.target().add(0, 1.0, 0);
+                    strip(buffer, matrix, camera, contact.add(0, -0.32, 0), contact.add(0, 0.32, 0),
+                            side, 0.05, 1, 0.55F, 0.40F, alpha);
+                    strip(buffer, matrix, camera, contact.subtract(side.scale(0.2)), contact.add(side.scale(0.2)),
+                            new Vec3(0, 1, 0), 0.025, 1, 0.30F, 0.20F, alpha);
                 }
             }
             tess.end();
@@ -260,6 +308,7 @@ public final class GeburahSpecialEffects {
         }
     }
     private static Vec3 side(Vec3 forward) { return new Vec3(-forward.z, 0, forward.x); }
+    private record Focus(Vec3 position, double sampleTime) {}
     private static Vec3 crescent(Vec3 origin, Vec3 forward, Vec3 side, double a, double length, double width, double lift) {
         return origin.add(forward.scale(Math.sin(a) * length)).add(side.scale(-Math.cos(a) * width * 0.5))
                 .add(0, 0.55 + Math.sin(a * 2) * 0.2 + lift, 0);

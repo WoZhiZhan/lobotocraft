@@ -26,6 +26,7 @@ public final class GeburahBladeTrailState {
 
     private GeburahBladeTrailState() {
     }
+    public static int capturedEntityId() { return entityId; }
 
     public static Vec3 worldPosition(Matrix4f renderPose, Vec3 cameraPosition) {
         return worldPosition(renderPose, cameraPosition, Vec3.ZERO);

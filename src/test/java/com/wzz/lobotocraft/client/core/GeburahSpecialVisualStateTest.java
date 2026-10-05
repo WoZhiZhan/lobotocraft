@@ -38,7 +38,7 @@ final class GeburahSpecialVisualStateTest {
         state.accept(s(1, Skill.BODIES, Event.START, 0, -1), 40);
         assertEquals(Skill.EGO_BLOOD, state.frames(40).get(0).snapshot().skill());
         state.accept(s(2, Skill.EGO_BLOOD, Event.SYNC, 32, -1), 40);
-        assertTrue(state.frames(40).get(0).elapsed() >= 39);
+        assertEquals(40, state.frames(40).get(0).elapsed(), "duplicate cue must not rewind its clock");
         state.clearAccents();
         assertTrue(state.accents(40).isEmpty());
         assertEquals(1, state.frames(40).size(), "switching style must retain live attack for legacy replay");
@@ -67,6 +67,12 @@ final class GeburahSpecialVisualStateTest {
         assertTrue(GeburahSpecialVisuals.bladeWindow(Skill.BODIES, 46));
         assertEquals(0, GeburahSpecialVisuals.qualitySegments(0, 65 * 65));
         assertEquals(6, GeburahSpecialVisuals.qualitySegments(2, 1));
+        assertFalse(GeburahSpecialVisuals.bladeQuality(2, 1));
+        assertFalse(GeburahSpecialVisuals.bladeQuality(0, 65 * 65));
+        assertTrue(GeburahSpecialVisuals.bladeQuality(1, 1));
+        assertTrue(GeburahSpecialVisuals.deliver(Event.STOP, false, true));
+        assertFalse(GeburahSpecialVisuals.deliver(Event.STOP, true, false));
+        assertFalse(GeburahSpecialVisuals.deliver(Event.SYNC, false, true));
     }
 
     @Test

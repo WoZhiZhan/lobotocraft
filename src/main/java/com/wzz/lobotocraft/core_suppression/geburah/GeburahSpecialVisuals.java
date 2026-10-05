@@ -91,4 +91,10 @@ public final class GeburahSpecialVisuals {
         int count = quality <= 0 ? 20 : quality == 1 ? 12 : 6;
         return distanceSquared > 32 * 32 ? Math.max(4, count / 2) : count;
     }
+    public static boolean deliver(Event event, boolean nearby, boolean previousViewer) {
+        return event == Event.STOP ? previousViewer : nearby;
+    }
+    public static boolean bladeQuality(int quality, double distanceSquared) {
+        return quality < 2 && qualitySegments(quality, distanceSquared) > 0;
+    }
 }
