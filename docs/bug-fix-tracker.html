@@ -1251,8 +1251,24 @@
       ...defaultProgress, implementation: fix.state[0], verification: fix.state[1],
       note: fix.note, evidence: fix.evidence
     };
+    const monitorAlertTodoId = "Todo / 水滴反馈 #8";
+    const previousMonitorAlertProgress = JSON.parse(JSON.stringify(supplementalProgress[monitorAlertTodoId]));
+    const monitorAlertFixes = {
+      [monitorAlertTodoId]: {
+        state: ["已改", "自动测试通过"],
+        after: "2026-10-06 已实现：监控顶栏在暂停按钮左侧显示警报等级，正常绿色、I黄色、II橙色、III红色；未同步显示同步中。直接读取EscapeTracker既有警报包的客户端投影，不按出逃数量重算，不读取BGM播放/4秒闪烁状态；核心抑制暂停警报音乐也保留真实等级。打开监控补发当前警报，变化沿原广播即时更新，日切/降级更新、离开世界清状态，关闭监控不清设施警报。中英文文本、窄屏标题/统计裁剪，协议保持44。编译与JUnit693/693通过，新4项状态/真实接收入口检查通过；不跑全量GameTest。客户端实际显示和缩放仍待实机验收，未打新JAR。",
+        note: "仅实现第8条。显示服务端设施警报，不把音乐停播等同于警报解除；UI是只读视图，不改紧急分数、触发阈值、恢复、音乐或其他Todo。",
+        evidence: "docs/bug-evidence/20261006-monitor-alert-level.md\n"
+          + "src/test/java/com/wzz/lobotocraft/client/alert/FacilityAlertClientStateTest.java\n"
+          + "D:\\GongzuotaiD\\CodexDesk\\2026-09-12\\d-mcmodfolder-lobotocraft-integration-9d26841-docx\\work\\build-monitor-alert-20261006-b.log"
+      }
+    };
+    supplementalProgress[monitorAlertTodoId] = {
+      ...defaultProgress, implementation: "已改", verification: "自动测试通过",
+      note: monitorAlertFixes[monitorAlertTodoId].note, evidence: monitorAlertFixes[monitorAlertTodoId].evidence
+    };
     const feedbackFixes = { ...censoredFixes, ...workCloseFixes, ...combatRuleUpdates,
-      ...personnelRangeFixes, ...armyRootFixes, ...redShoesFixes, ...galaxyWolfFixes, ...wolfHoodTeddyFixes, ...workArchiveFixes, ...singingGlowFixes, ...areaMoveFixes, ...skadiReviewUpdates, ...birdScorchedDiagnosisUpdates, ...placementRootFixes, ...overtimeEquipmentFixes, ...combatRootFixes, ...workGradeFixes, ...meltdownTodoFixes, ...groundImpactTodoFixes, ...groundWeightFixes, ...egoTrialVisualFixes, ...specialSkillFixes };
+      ...personnelRangeFixes, ...armyRootFixes, ...redShoesFixes, ...galaxyWolfFixes, ...wolfHoodTeddyFixes, ...workArchiveFixes, ...singingGlowFixes, ...areaMoveFixes, ...skadiReviewUpdates, ...birdScorchedDiagnosisUpdates, ...placementRootFixes, ...overtimeEquipmentFixes, ...combatRootFixes, ...workGradeFixes, ...meltdownTodoFixes, ...groundImpactTodoFixes, ...groundWeightFixes, ...egoTrialVisualFixes, ...specialSkillFixes, ...monitorAlertFixes };
     const bundled = [...originalFeedback, ...supplemental].map(issue => ({
       ...issue,
       report: feedbackFixes[issue.id]?.report
@@ -1424,6 +1440,11 @@
         && previous.implementation === oldSpecialTodo.implementation
         && previous.verification === oldSpecialTodo.verification
         && previous.note === oldSpecialTodo.note && previous.evidence === oldSpecialTodo.evidence;
+      const oldMonitorAlert = previousMonitorAlertProgress;
+      const staleMonitorAlert = issue.id === monitorAlertTodoId && !previous.owner && !previous.updatedAt
+        && previous.implementation === oldMonitorAlert.implementation
+        && previous.verification === oldMonitorAlert.verification
+        && previous.note === oldMonitorAlert.note && previous.evidence === oldMonitorAlert.evidence;
       const oldOvertime = previousOvertimeProgress[issue.id];
       const oldRoot = previousCombatRootDefaults[issue.id]?.progress;
       const staleRoot = combatRootFixes[issue.id] && oldRoot && !previous.owner && !previous.updatedAt
@@ -1451,7 +1472,7 @@
       return { ...initialProgress(issue), ...(untouched || staleBlueStar || staleCensoredSix
         || staleCombatDefault || staleArmyPending || staleAreaMoveReport || staleArmySix || staleWolfHoodDefault
         || stalePlacement || staleOvertime || staleOvertimeEvidence || staleRoot || staleVerifiedRoot
-        || staleMeltdownTodo || staleGroundImpactTodo || staleGroundWeight || staleSpecialTodo ? {} : previous) };
+        || staleMeltdownTodo || staleGroundImpactTodo || staleGroundWeight || staleSpecialTodo || staleMonitorAlert ? {} : previous) };
     }
     function getProgress(issue) { return { ...initialProgress(issue), ...(progress[issue.id] || {}) }; }
     function isTodo(issue) {

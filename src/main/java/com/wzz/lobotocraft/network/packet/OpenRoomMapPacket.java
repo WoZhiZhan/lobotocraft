@@ -92,6 +92,7 @@ public class OpenRoomMapPacket implements IMessage {
      * 就回退到公司维度，方便在外面也能远程看监控。
      */
     public static void sendTo(ServerPlayer player, boolean refresh) {
+        if (!refresh) com.wzz.lobotocraft.entity.base.EscapeTracker.getInstance().syncToPlayer(player);
         ServerLevel level = player.serverLevel();
         CompanyRoomData data = CompanyRoomData.get(level);
 

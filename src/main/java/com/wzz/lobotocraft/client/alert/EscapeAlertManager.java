@@ -18,6 +18,9 @@ public class EscapeAlertManager {
 
     /** 当前正在播放的警报等级（-1表示无） */
     private int currentPlayingLevel = -1;
+    private final FacilityAlertClientState facilityState = new FacilityAlertClientState();
+
+    public FacilityAlertClientState.Level getFacilityAlertLevel() { return facilityState.level(); }
 
     /** 当前BGM实例 */
     private AlertBGMSoundInstance currentBGM = null;
@@ -38,6 +41,8 @@ public class EscapeAlertManager {
      * 同等级不重置；升级和降级都立即切换；-1恢复正常状态。
      */
     public void onAlertReceived(int newLevel) {
+        // Always retain server state, even when core suppression owns the music channel.
+        facilityState.receive(newLevel);
         if (CoreSuppressionClientState.isActive()) {
             suspendForCoreSuppression();
             return;
@@ -139,6 +144,7 @@ public class EscapeAlertManager {
     }
 
     public void clear() {
+        facilityState.clear();
         stopAll();
     }
 }

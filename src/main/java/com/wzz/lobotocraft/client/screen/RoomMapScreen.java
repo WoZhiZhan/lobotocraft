@@ -11,6 +11,7 @@ import com.wzz.lobotocraft.client.room.RoomMapViewState;
 import com.wzz.lobotocraft.client.room.RoomViewClient;
 import com.wzz.lobotocraft.client.ui.LobotomyUiTheme;
 import com.wzz.lobotocraft.client.ui.FacilityPauseButton;
+import com.wzz.lobotocraft.client.alert.EscapeAlertManager;
 import com.wzz.lobotocraft.employee.EmployeeDepartment;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionType;
 import com.wzz.lobotocraft.network.MessageLoader;
@@ -2826,8 +2827,19 @@ public class RoomMapScreen extends Screen {
         graphics.fill(0, 0, this.width, HEADER_H, withAlpha(0xF00A1018, alpha));
         graphics.fill(0, HEADER_H, this.width, HEADER_H + 1, withAlpha(COLOR_ACCENT, alpha));
 
+        var alert = EscapeAlertManager.getInstance().getFacilityAlertLevel();
+        String alertLabel = tr(alert.translationKey());
+        int alertRight = pauseButtonBounds().left() - 6;
+        int alertWidth = Math.min(this.font.width(alertLabel) + 12, Math.max(0, alertRight - 8));
+        int alertLeft = alertRight - alertWidth;
+        if (alertWidth > 0) {
+            graphics.fill(alertLeft, 6, alertRight, HEADER_H - 6, withAlpha(COLOR_PANEL, alpha));
+            drawBorder(graphics, alertLeft, 6, alertWidth, HEADER_H - 12, withAlpha(alert.color(), alpha));
+            drawFittedString(graphics, alertLabel, alertLeft + 6, 11, Math.max(0, alertWidth - 12),
+                    withAlpha(alert.color(), alpha));
+        }
         String title = tr("screen.lobotocraft.monitor.header");
-        drawFittedString(graphics, title, 12, 11, Math.max(1, pauseButtonBounds().left() - 20),
+        drawFittedString(graphics, title, 12, 11, Math.max(0, alertLeft - 20),
                 withAlpha(COLOR_TEXT, alpha));
         int x = 12 + this.font.width(title) + 14;
 
@@ -2841,7 +2853,7 @@ public class RoomMapScreen extends Screen {
         String stats = tr("screen.lobotocraft.monitor.stats",
                 rooms.size(), contained, escaped, floors.size());
         ScreenBounds tt2 = tt2ButtonBounds();
-        int statsWidth = Math.max(0, pauseButtonBounds().left() - x - 10);
+        int statsWidth = Math.max(0, alertLeft - x - 10);
         if (statsWidth > 12) {
             drawFittedString(graphics, stats, x, 11, statsWidth,
                     withAlpha(escaped > 0 ? STATUS_ESCAPED : COLOR_TEXT_DIM, alpha));
