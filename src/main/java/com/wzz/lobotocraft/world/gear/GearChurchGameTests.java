@@ -171,6 +171,7 @@ public final class GearChurchGameTests {
                 if (cx < minCx || cx > maxCx || cz < minCz || cz > maxCz)
                     preparation.add(new ChunkPos(cx, cz));
         var forced = new ArrayList<ChunkPos>();
+        registerTicketCleanup(h, level, forced);
         final int[] cursor = {0};
         Runnable[] generate = new Runnable[1];
         generate[0] = () -> {
@@ -252,6 +253,28 @@ public final class GearChurchGameTests {
             });
         };
         generate[0].run();
+    }
+
+    /** Vanilla exposes listeners on GameTestInfo but no public Helper->Info getter.
+     * Read only that test owner; never read/write production entity/chunk internals. */
+    private static void registerTicketCleanup(GameTestHelper h, ServerLevel level, List<ChunkPos> forced) {
+        try {
+            var field = Arrays.stream(GameTestHelper.class.getDeclaredFields())
+                    .filter(candidate -> candidate.getType() == GameTestInfo.class).findFirst().orElseThrow();
+            field.setAccessible(true);
+            var info = (GameTestInfo) field.get(h);
+            info.addListener(new GameTestListener() {
+                public void testStructureLoaded(GameTestInfo test) {}
+                public void testPassed(GameTestInfo test) { cleanup(); }
+                public void testFailed(GameTestInfo test) { cleanup(); }
+                private void cleanup() {
+                    forced.forEach(chunk -> level.setChunkForced(chunk.x, chunk.z, false));
+                    forced.clear();
+                }
+            });
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("Cannot register test ticket cleanup before terrain preparation", failure);
+        }
     }
 
     private static void finishWhenResidentsVisible(GameTestHelper h, ServerLevel level, StructureStart natural,
@@ -343,6 +366,7 @@ public final class GearChurchGameTests {
         for (int cx = bb.minX() >> 4; cx <= bb.maxX() >> 4; cx++)
             for (int cz = bb.minZ() >> 4; cz <= bb.maxZ() >> 4; cz++) chunks.add(new ChunkPos(cx, cz));
         List<ChunkPos> forced = new ArrayList<>();
+        registerTicketCleanup(h, level, forced);
         int[] cursor = {0};
         Runnable[] place = new Runnable[1];
         place[0] = () -> {
