@@ -1,0 +1,303 @@
+package com.wzz.lobotocraft.world.gear;
+
+import net.minecraft.core.*;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.gametest.framework.*;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.*;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.*;
+import net.minecraft.world.level.block.*;
+import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.levelgen.structure.*;
+import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSerializationContext;
+import net.minecraft.world.level.levelgen.structure.placement.RandomSpreadStructurePlacement;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.RandomSource;
+import net.minecraftforge.gametest.*;
+import com.wzz.lobotocraft.entity.gear.EntityGearFollower;
+import java.util.*;
+
+@GameTestHolder("lobotocraft_gear_church")
+@PrefixGameTestTemplate(false)
+public final class GearChurchGameTests {
+    private static final String T = "workcloseregressiongametests.navigation_empty";
+    public static final ResourceKey<Level> NOISE_LEVEL = ResourceKey.create(Registries.DIMENSION,
+            new ResourceLocation("lobotocraft", "gear_church_test"));
+
+    @GameTest(template = T, templateNamespace = "lobotocraft_gear_church", timeoutTicks = 12000,
+            batch = "gear_church_real_badlands")
+    public static void naturalCandidateFitsRealBadlandsAndCreatesSixteenResidentsExactlyOnce(GameTestHelper h) {
+        var level = h.getLevel().getServer().getLevel(NOISE_LEVEL);
+        h.assertTrue(level != null, "Real noise test dimension missing; use tools/gametest-data, not a flat fixture");
+        h.assertTrue(level.getSeed() == 0, "Use tools/gear-church-gametest.properties for reproducible seed=0 terrain");
+        var structure = (GearChurchStructure) level.registryAccess().registryOrThrow(Registries.STRUCTURE).get(GearChurchLayout.ID);
+        var set = level.registryAccess().registryOrThrow(Registries.STRUCTURE_SET).get(GearChurchLayout.ID);
+        h.assertTrue(structure != null && set != null, "production church registry data did not load");
+        var placement = (RandomSpreadStructurePlacement) set.placement();
+        h.assertTrue(placement.spacing() == GearChurchSite.SPACING && placement.separation() == GearChurchSite.SEPARATION,
+                "production placement differs from tested spacing");
+        var encodedPlacement = net.minecraft.world.level.levelgen.structure.placement.StructurePlacement.CODEC
+                .encodeStart(net.minecraft.resources.RegistryOps.create(com.mojang.serialization.JsonOps.INSTANCE,
+                        level.registryAccess()), placement).result().orElseThrow().getAsJsonObject();
+        h.assertTrue(encodedPlacement.getAsJsonObject("exclusion_zone").get("chunk_count").getAsInt() == 16,
+                "production exclusion is not the user-approved sixteen chunks");
+        var candidates = new ArrayList<ChunkPos>();
+        // Seeded production candidate grid, spiral ordering; no manual convenient world coordinates.
+        for (int radius = 0; radius <= 160; radius++) {
+            for (int cx = -radius; cx <= radius; cx++) for (int cz = -radius; cz <= radius; cz++) {
+                if (radius != 0 && Math.abs(cx) != radius && Math.abs(cz) != radius) continue;
+                candidates.add(placement.getPotentialStructureChunk(level.getSeed(),
+                        cx * placement.spacing(), cz * placement.spacing()));
+            }
+        }
+        new Search(h, level, structure, placement, candidates).step();
+    }
+
+    private static Structure.GenerationContext context(ServerLevel level, GearChurchStructure structure, ChunkPos chunk) {
+        var generator = level.getChunkSource().getGenerator();
+        return new Structure.GenerationContext(level.registryAccess(), generator, generator.getBiomeSource(),
+                level.getChunkSource().randomState(), level.getStructureManager(), level.getSeed(), chunk, level,
+                structure.biomes()::contains);
+    }
+
+    private static final class Search {
+        final GameTestHelper h;
+        final ServerLevel level;
+        final GearChurchStructure structure;
+        final RandomSpreadStructurePlacement placement;
+        final List<ChunkPos> candidates;
+        final net.minecraft.world.level.chunk.ChunkGeneratorStructureState structureState;
+        int index, badlands, bestRelief = Integer.MAX_VALUE;
+        Search(GameTestHelper h, ServerLevel level, GearChurchStructure structure,
+               RandomSpreadStructurePlacement placement, List<ChunkPos> candidates) {
+            this.h = h; this.level = level; this.structure = structure; this.placement = placement; this.candidates = candidates;
+            this.structureState = level.getChunkSource().getGenerator().createState(
+                    level.registryAccess().lookupOrThrow(Registries.STRUCTURE_SET),
+                    level.getChunkSource().randomState(), level.getSeed());
+        }
+        void step() {
+            // Bound work per test tick so a large search does not turn into a server watchdog hang.
+            for (int budget = 0; budget < 12 && index < candidates.size(); budget++) {
+                var chunk = candidates.get(index++);
+                var ctx = context(level, structure, chunk);
+                int x = chunk.getMiddleBlockX(), z = chunk.getMiddleBlockZ();
+                if (!ctx.biomeSource().getNoiseBiome(x >> 2, 80 >> 2, z >> 2,
+                        ctx.randomState().sampler()).is(GearChurchStructure.BIOMES)) continue;
+                if (!placement.isStructureChunk(structureState, chunk.x, chunk.z)) continue;
+                badlands++;
+                if (badlands % 10 == 0) System.out.println("GEAR-CHURCH SEARCH candidates=" + index
+                        + " badlands=" + badlands + " bestRawRelief=" + bestRelief);
+                var terrain = GearChurchStructure.terrain(ctx);
+                int minimum = Integer.MAX_VALUE, maximum = Integer.MIN_VALUE;
+                for (int lx = 0; lx < GearChurchLayout.WIDTH; lx += GearChurchSite.SAMPLE_STEP)
+                    for (int lz = 0; lz < GearChurchLayout.DEPTH; lz += GearChurchSite.SAMPLE_STEP) {
+                        int height = terrain.surface(x + lx - GearChurchLayout.CENTER.getX(),
+                                z + lz - GearChurchLayout.CENTER.getZ());
+                        minimum = Math.min(minimum, height); maximum = Math.max(maximum, height);
+                    }
+                bestRelief = Math.min(bestRelief, maximum - minimum);
+                if (maximum - minimum <= 8) {
+                    int water = 0, validBiomes = 0;
+                    for (int lx = 0; lx < GearChurchLayout.WIDTH; lx += GearChurchSite.SAMPLE_STEP)
+                        for (int lz = 0; lz < GearChurchLayout.DEPTH; lz += GearChurchSite.SAMPLE_STEP) {
+                            int px = x + lx - GearChurchLayout.CENTER.getX(), pz = z + lz - GearChurchLayout.CENTER.getZ();
+                            int surface = terrain.surface(px, pz);
+                            if (terrain.oceanFloor(px, pz) != surface) water++;
+                            if (terrain.badlands(px, surface - 1, pz)) validBiomes++;
+                        }
+                    System.out.println("GEAR-CHURCH LOW-RELIEF chunk=" + chunk + " heights=" + minimum + ".." + maximum
+                            + " waterSamples=" + water + " biomeSamples=" + validBiomes + "/90"
+                            + " centerBiomeAtSurface=" + terrain.badlands(x, maximum - 1, z));
+                }
+                var stub = structure.findValidGenerationPoint(ctx);
+                if (stub.isEmpty()) continue;
+                var pieces = stub.get().getPiecesBuilder().build();
+                var start = new StructureStart(structure, chunk, 0, pieces);
+                h.assertTrue(start.isValid() && start.getPieces().size() == GearChurchLayout.PARTS.size(),
+                        "candidate did not produce the complete registered fixed structure");
+                System.out.println("GEAR-CHURCH CANDIDATE seed=" + level.getSeed() + " chunk=" + chunk
+                        + " searched=" + index + " badlandsCandidates=" + badlands);
+                validateAndPlace(h, level, start);
+                return;
+            }
+            if (index >= candidates.size()) {
+                h.fail("No eligible site in " + candidates.size() + " production grid candidates; badlands=" + badlands
+                        + " bestRawRelief=" + bestRelief
+                        + ". Do not relax relief/biome checks to turn this green.");
+            } else h.runAfterDelay(1, this::step);
+        }
+    }
+
+    private static void validateAndPlace(GameTestHelper h, ServerLevel level, StructureStart start) {
+        var piece = (GearChurchPiece) start.getPieces().get(0);
+        BlockPos anchor = piece.anchor();
+        var bounds = start.getBoundingBox();
+        // Generate real vanilla surface chunks first, with normal structures/decorations enabled.
+        int minCx = bounds.minX() >> 4, maxCx = bounds.maxX() >> 4;
+        int minCz = bounds.minZ() >> 4, maxCz = bounds.maxZ() >> 4;
+        var chunks = new ArrayList<ChunkPos>();
+        for (int cx = minCx; cx <= maxCx; cx++) for (int cz = minCz; cz <= maxCz; cz++)
+            chunks.add(new ChunkPos(cx, cz));
+        var forced = new ArrayList<ChunkPos>();
+        final int[] cursor = {0};
+        Runnable[] generate = new Runnable[1];
+        generate[0] = () -> {
+            for (int budget = 0; budget < 2 && cursor[0] < chunks.size(); budget++) {
+                var chunk = chunks.get(cursor[0]++);
+                if (!level.getForcedChunks().contains(chunk.toLong())) {
+                    level.setChunkForced(chunk.x, chunk.z, true); forced.add(chunk);
+                }
+                level.getChunk(chunk.x, chunk.z);
+            }
+            if (cursor[0] < chunks.size()) h.runAfterDelay(1, generate[0]);
+            else h.runAfterDelay(2, () -> {
+                try {
+                    h.assertTrue(level.getBiome(anchor).is(GearChurchStructure.BIOMES), "actual chunk biome is not badlands");
+                    // Natural generation may already have placed this structure at its production candidate.
+                    var natural = level.structureManager().getStructureAt(anchor.above(2), start.getStructure());
+                    h.assertTrue(natural.isValid(), "production candidate did not naturally generate a StructureStart");
+                    h.assertTrue(natural.getPieces().size() == 25, "natural start lost template parts");
+                    var actualPiece = (GearChurchPiece) natural.getPieces().get(0);
+                    var ctx = context(level, (GearChurchStructure) start.getStructure(), start.getChunkPos());
+                    var site = GearChurchSite.find(GearChurchStructure.terrain(ctx), anchor.getX(), anchor.getZ(),
+                            actualPiece.rotation()).orElseThrow();
+                    h.assertTrue(site.maxSurface() - site.minSurface() <= GearChurchSite.MAX_RELIEF,
+                            "test relaxed production relief");
+                    h.assertTrue(natural.getBoundingBox().getXSpan() <= 145
+                            && natural.getBoundingBox().getZSpan() <= 145, "template rotation split the building apart");
+                    // Confirm the entire authored foundation is supported on actual generated terrain.
+                    int unsupported = 0;
+                    for (int lx = 0; lx < GearChurchLayout.WIDTH; lx++)
+                        for (int lz = 0; lz < GearChurchLayout.DEPTH; lz++) {
+                            if (!GearChurchLayout.foundation(lx, lz)) continue;
+                            var base = GearChurchLayout.world(new BlockPos(lx, 0, lz), anchor, actualPiece.rotation());
+                            boolean supported = false;
+                            for (int depth = 1; depth <= GearChurchSite.MAX_SUPPORT + 1; depth++) {
+                                var floor = base.below(depth);
+                                if (level.getBlockState(floor).isFaceSturdy(level, floor, Direction.UP)) { supported = true; break; }
+                            }
+                            if (!supported) unsupported++;
+                        }
+                    h.assertTrue(unsupported == 0, "actual terrain left unsupported foundation columns: " + unsupported);
+                    int spawned = GearChurchResidents.populateNear(level, natural, Vec3.atCenterOf(anchor));
+                    h.assertTrue(spawned == 16, "church failed to populate all sixteen authored safe points: " + spawned);
+                    h.assertTrue(GearChurchResidents.populateNear(level, natural, Vec3.atCenterOf(anchor)) == 0,
+                            "repeated population duplicated initial batch");
+                    var data = GearChurchResidents.data(level);
+                    var restored = GearChurchResidents.Data.load(data.save(new CompoundTag()));
+                    h.assertTrue(restored.get(anchor, actualPiece.rotation()).spawnedCount() == 16,
+                            "batch slot count did not survive save/load");
+                    level.getDataStorage().set(GearChurchResidents.DATA_ID, restored);
+                    h.assertTrue(GearChurchResidents.populateNear(level, natural, Vec3.atCenterOf(anchor)) == 0,
+                            "reload duplicated residents");
+                    for (int slot = 0; slot < 16; slot++) {
+                        var entity = level.getEntity(GearChurchResidents.residentId(level, anchor, slot));
+                        h.assertTrue(entity instanceof EntityGearFollower, "missing actual gear resident " + slot);
+                        var resident = (EntityGearFollower) entity;
+                        h.assertTrue(resident.churchSlot() == slot && resident.getMaxHealth() == 86
+                                && level.noCollision(resident), "resident slot/health/collision mismatch");
+                        h.assertTrue(GearChurchLayout.indoors(GearChurchLayout.local(resident.blockPosition(),
+                                anchor, actualPiece.rotation())), "resident spawned outside actual church interior");
+                        resident.discard();
+                    }
+                    h.assertTrue(GearChurchResidents.populateNear(level, natural, Vec3.atCenterOf(anchor)) == 0,
+                            "discarded initial batch was silently respawned");
+                    System.out.println("GEAR-CHURCH PASS seed=" + level.getSeed() + " anchor=" + anchor
+                            + " rotation=" + actualPiece.rotation() + " sampleHeights=" + site.minSurface()
+                            + ".." + site.maxSurface() + " realChunks=" + chunks.size()
+                            + " unsupported=" + unsupported + " residents=16 reloadDuplicate=0");
+                    h.succeed();
+                } finally {
+                    forced.forEach(chunk -> level.setChunkForced(chunk.x, chunk.z, false));
+                }
+            });
+        };
+        generate[0].run();
+    }
+
+    @GameTest(template = T, templateNamespace = "lobotocraft_gear_church", timeoutTicks = 100,
+            batch = "gear_church_templates")
+    public static void authoredTemplatesKeepStatesSignsAirAndAllRotations(GameTestHelper h) {
+        var manager = h.getLevel().getStructureManager();
+        int blocks = 0, signs = 0;
+        for (var part : GearChurchLayout.PARTS) {
+            var template = manager.getOrCreate(part.template());
+            h.assertTrue(template.getSize().getY() == GearChurchLayout.HEIGHT, "template height changed");
+            var saved = template.save(new CompoundTag());
+            var palettes = saved.getList("palette", net.minecraft.nbt.Tag.TAG_COMPOUND);
+            for (var t : saved.getList("blocks", net.minecraft.nbt.Tag.TAG_COMPOUND)) {
+                var b = (CompoundTag) t; String id = palettes.getCompound(b.getInt("state")).getString("Name");
+                if (!id.equals("minecraft:air")) blocks++;
+                if (b.contains("nbt") && b.getCompound("nbt").getString("id").equals("minecraft:sign")) signs++;
+            }
+        }
+        h.assertTrue(blocks == 152396 && signs == 105, "asset extraction lost source blocks/signs: " + blocks + "/" + signs);
+        var anchor = h.absolutePos(new BlockPos(0, 3, 0));
+        for (var rotation : Rotation.values()) {
+            var site = new GearChurchSite.Site(anchor, rotation, anchor.getY(), anchor.getY(), 90);
+            var p = new GearChurchPiece(manager, GearChurchLayout.PARTS.get(0), site);
+            var serialization = StructurePieceSerializationContext.fromLevel(h.getLevel());
+            var reloaded = new GearChurchPiece(serialization, p.createTag(serialization));
+            h.assertTrue(reloaded.anchor().equals(anchor) && reloaded.rotation() == rotation
+                    && reloaded.getBoundingBox().equals(p.getBoundingBox()), "piece save/load lost rotation or bounds");
+        }
+        h.succeed();
+    }
+
+    @GameTest(template = T, templateNamespace = "lobotocraft_gear_church", timeoutTicks = 2400,
+            batch = "gear_church_manual_placement")
+    public static void manualChunkClippedPlacementPopulatesSixteenSafeSlotsAndPersists(GameTestHelper h) {
+        // This fixture verifies placement/lifecycle only, NOT the separate real-badlands suitability requirement.
+        var level = h.getLevel();
+        var structure = level.registryAccess().registryOrThrow(Registries.STRUCTURE).get(GearChurchLayout.ID);
+        var anchor = new BlockPos(1608, 70, 1608);
+        var builder = new net.minecraft.world.level.levelgen.structure.pieces.StructurePiecesBuilder();
+        var site = new GearChurchSite.Site(anchor, Rotation.CLOCKWISE_90, 71, 71, 90);
+        for (var part : GearChurchLayout.PARTS) builder.addPiece(new GearChurchPiece(level.getStructureManager(), part, site));
+        var start = new StructureStart(structure, new ChunkPos(anchor), 0, builder.build());
+        var bb = start.getBoundingBox();
+        var chunks = new ArrayList<ChunkPos>();
+        for (int cx = bb.minX() >> 4; cx <= bb.maxX() >> 4; cx++)
+            for (int cz = bb.minZ() >> 4; cz <= bb.maxZ() >> 4; cz++) chunks.add(new ChunkPos(cx, cz));
+        List<ChunkPos> forced = new ArrayList<>();
+        int[] cursor = {0};
+        Runnable[] place = new Runnable[1];
+        place[0] = () -> {
+            for (int budget = 0; budget < 2 && cursor[0] < chunks.size(); budget++) {
+                var chunk = chunks.get(cursor[0]++);
+                if (!level.getForcedChunks().contains(chunk.toLong())) {
+                    level.setChunkForced(chunk.x, chunk.z, true); forced.add(chunk);
+                }
+                level.getChunk(chunk.x, chunk.z);
+                for (int x = chunk.getMinBlockX(); x <= chunk.getMaxBlockX(); x++)
+                    for (int z = chunk.getMinBlockZ(); z <= chunk.getMaxBlockZ(); z++)
+                        level.setBlock(new BlockPos(x, anchor.getY() - 1, z), Blocks.TERRACOTTA.defaultBlockState(), 2);
+                start.placeInChunk(level, level.structureManager(), level.getChunkSource().getGenerator(),
+                        RandomSource.create(281), new BoundingBox(chunk.getMinBlockX(), -64, chunk.getMinBlockZ(),
+                                chunk.getMaxBlockX(), 319, chunk.getMaxBlockZ()), chunk);
+            }
+            if (cursor[0] < chunks.size()) h.runAfterDelay(1, place[0]);
+            else h.runAfterDelay(3, () -> {
+                try {
+                    int spawned = GearChurchResidents.populateNear(level, start, Vec3.atCenterOf(anchor));
+                    h.assertTrue(spawned == 16, "manual template resident slots not all safe/ready: " + spawned);
+                    var saved = GearChurchResidents.data(level).save(new CompoundTag());
+                    level.getDataStorage().set(GearChurchResidents.DATA_ID, GearChurchResidents.Data.load(saved));
+                    h.assertTrue(GearChurchResidents.populateNear(level, start, Vec3.atCenterOf(anchor)) == 0,
+                            "manual save/load duplicated batch");
+                    for (int slot = 0; slot < 16; slot++) {
+                        var mob = level.getEntity(GearChurchResidents.residentId(level, anchor, slot));
+                        h.assertTrue(mob instanceof EntityGearFollower && level.noCollision(mob),
+                                "resident absent or colliding: " + slot);
+                        mob.discard();
+                    }
+                    System.out.println("GEAR-CHURCH MANUAL PASS parts=25 residents=16 rotation=CLOCKWISE_90 reloadDuplicate=0");
+                    h.succeed();
+                } finally { forced.forEach(chunk -> level.setChunkForced(chunk.x, chunk.z, false)); }
+            });
+        };
+        place[0].run();
+    }
+}

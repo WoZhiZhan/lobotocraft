@@ -23,6 +23,10 @@ import net.minecraftforge.registries.RegistryObject;
 public class ModEntities {
     public static final DeferredRegister<EntityType<?>> ENTITIES = 
         DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, ModMain.MODID);
+    public static final RegistryObject<EntityType<com.wzz.lobotocraft.entity.gear.EntityGearFollower>> gear_follower =
+            ENTITIES.register("gear_follower", () -> EntityType.Builder
+                    .of(com.wzz.lobotocraft.entity.gear.EntityGearFollower::new, MobCategory.MONSTER)
+                    .sized(0.65F, 1.95F).clientTrackingRange(8).updateInterval(3).build("gear_follower"));
 
     public static final RegistryObject<EntityType<EntityOneBad>> onebad =
             ENTITIES.register("onebad",

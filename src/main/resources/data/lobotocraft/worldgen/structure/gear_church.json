@@ -1,0 +1,7 @@
+{
+  "type": "lobotocraft:gear_church",
+  "biomes": "#lobotocraft:has_structure/gear_church",
+  "step": "surface_structures",
+  "terrain_adaptation": "none",
+  "spawn_overrides": {}
+}

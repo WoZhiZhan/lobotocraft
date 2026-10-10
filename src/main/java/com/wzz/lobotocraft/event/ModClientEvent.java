@@ -113,6 +113,7 @@ public class ModClientEvent {
         event.registerEntityRenderer(ModEntities.green_dawn.get(), (r) -> new GeoEntityRenderer<>(r, 1.0f, 1.0f));
         event.registerEntityRenderer(ModEntities.violet_dawn.get(), (r) -> new GeoEntityRenderer<>(r, 1.0f, 1.0f));
         event.registerEntityRenderer(ModEntities.violet_noon.get(), (r) -> new GeoEntityRenderer<>(r, 2.0f, 2.0f));
+        event.registerEntityRenderer(ModEntities.gear_follower.get(), (r) -> new GeoEntityRenderer<>(r, 1, 1));
         event.registerEntityRenderer(ModEntities.green_noon.get(), (r) -> new GeoEntityRenderer<>(r, 1.1f, 1.1f));
         event.registerEntityRenderer(ModEntities.crimson_noon.get(), (r) -> new GeoEntityRenderer<>(r, 1.2f, 1.2f));
         event.registerEntityRenderer(ModEntities.amber_dawn.get(), (r) -> new GeoEntityRenderer<>(r, 0.8f, 0.8f));

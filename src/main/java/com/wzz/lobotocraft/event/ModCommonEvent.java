@@ -23,6 +23,7 @@ import net.minecraftforge.fml.common.Mod;
 public class ModCommonEvent {
 	@SubscribeEvent
 	public static void registerAttributes(EntityAttributeCreationEvent event) {
+        event.put(ModEntities.gear_follower.get(), com.wzz.lobotocraft.entity.gear.EntityGearFollower.createAttributes().build());
 		event.put(ModEntities.onebad.get(), EntityOneBad.createAttributes().build());
 		event.put(ModEntities.clerk.get(), EntityClerk.createAttributes().build());
 		event.put(ModEntities.malkuth.get(), EntityCoreSuppressionNpc.createAttributes().build());

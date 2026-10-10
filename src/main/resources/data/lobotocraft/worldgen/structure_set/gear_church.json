@@ -1,0 +1,11 @@
+{
+  "structures": [{"structure": "lobotocraft:gear_church", "weight": 1}],
+  "placement": {
+    "type": "minecraft:random_spread",
+    "spacing": 256,
+    "separation": 144,
+    "salt": 871231,
+    "spread_type": "linear",
+    "exclusion_zone": {"other_set": "minecraft:villages", "chunk_count": 16}
+  }
+}
