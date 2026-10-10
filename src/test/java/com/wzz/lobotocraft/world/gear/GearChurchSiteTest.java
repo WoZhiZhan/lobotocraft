@@ -39,8 +39,10 @@ final class GearChurchSiteTest {
     }
     @Test void usableTerraceStillRejectsAnExteriorEntranceCliff() {
         var safe = terrain(0, false, true);
+        int[] heightQueries = {0};
         var cliff = new GearChurchSite.Terrain() {
             public int surface(int x, int z) {
+                heightQueries[0]++;
                 return z >= GearChurchLayout.DEPTH - GearChurchLayout.CENTER.getZ() ? 100 : safe.surface(x, z);
             }
             public int oceanFloor(int x, int z) { return surface(x, z); }
@@ -50,6 +52,8 @@ final class GearChurchSiteTest {
         };
         assertTrue(GearChurchSite.find(cliff, 0, 0, Rotation.NONE).isEmpty(),
                 "an open indoor door must not accept an impassable exterior cliff");
+        assertTrue(heightQueries[0] < 256,
+                "an already impossible entrance must not pay for full per-column noise scans");
     }
     @Test void footprintRotationAndIndoorAnchorsAgreeAcrossAllRotations() {
         var anchor = new BlockPos(-180, 75, 302);

@@ -61,23 +61,9 @@ public final class GearChurchSite {
             }
         }
         if (samples == 0 || biomes * 5 < samples * 4 || !terrain.badlands(centerX, max - 1, centerZ)) return Optional.empty();
-        // Only rare coarse-pass candidates pay for the bounded full foundation check.
-        // Every authored column (including template air above a non-foundation column)
-        // must be dry and fit the cut budget, not just the sparse sample or filled supports.
-        int fullMin = min, fullMax = max;
-        for (int lx = 0; lx < GearChurchLayout.WIDTH; lx++) for (int lz = 0; lz < GearChurchLayout.DEPTH; lz++) {
-            if (GearChurchLayout.roofHeight(lx, lz) < 0) continue;
-            BlockPos column = GearChurchLayout.world(new BlockPos(lx, 0, lz),
-                    new BlockPos(centerX, 0, centerZ), rotation);
-            int h = terrain.surface(column.getX(), column.getZ());
-            if (h <= terrain.minY() + MAX_SUPPORT
-                    || terrain.oceanFloor(column.getX(), column.getZ()) != h) return Optional.empty();
-            fullMin = Math.min(fullMin, h); fullMax = Math.max(fullMax, h);
-            if (fullMax - fullMin > MAX_RELIEF || fullMax + GearChurchLayout.HEIGHT >= terrain.maxY()) return Optional.empty();
-        }
         // Porch ends in a bottom trapdoor at local Y=2 (top=anchor+2.1875). Untouched
         // exterior surface must be platformSurface+1 or +2: <=1 block step in either
-        // direction, and dry. Choose the highest platform in that intersection.
+        // direction, and dry. Check this cheap constraint BEFORE the full noise scan.
         int exitMin = Integer.MAX_VALUE, exitMax = Integer.MIN_VALUE;
         for (var exit : GearChurchLayout.ENTRANCE_EXITS) {
             var column = GearChurchLayout.world(exit, new BlockPos(centerX, 0, centerZ), rotation);
@@ -85,9 +71,35 @@ public final class GearChurchSite {
             if (terrain.oceanFloor(column.getX(), column.getZ()) != h) return Optional.empty();
             exitMin = Math.min(exitMin, h); exitMax = Math.max(exitMax, h);
         }
-        int platformSurface = Math.min(Math.min(fullMax, fullMin + MAX_SUPPORT), exitMin - 1);
-        if (platformSurface < Math.max(fullMax - MAX_CUT, exitMax - 2)) return Optional.empty();
+        if (!fitsPlatformRange(min, max, exitMin, exitMax)) return Optional.empty();
+        // Every authored column must still be dry and fit the budget. Refine the grid
+        // 8->4->2->1 to discover interior ridges/gullies early, not after scanning one
+        // entire edge first. Each authored column appears once across these passes.
+        int fullMin = min, fullMax = max;
+        for (int step : new int[]{8, 4, 2, 1}) {
+            for (int lx = 0; lx < GearChurchLayout.WIDTH; lx += step)
+                for (int lz = 0; lz < GearChurchLayout.DEPTH; lz += step) {
+                    if (step < 8 && lx % (step * 2) == 0 && lz % (step * 2) == 0) continue;
+                    if (GearChurchLayout.roofHeight(lx, lz) < 0) continue;
+                    var column = GearChurchLayout.world(new BlockPos(lx, 0, lz),
+                            new BlockPos(centerX, 0, centerZ), rotation);
+                    int h = terrain.surface(column.getX(), column.getZ());
+                    if (h <= terrain.minY() + MAX_SUPPORT
+                            || terrain.oceanFloor(column.getX(), column.getZ()) != h) return Optional.empty();
+                    fullMin = Math.min(fullMin, h); fullMax = Math.max(fullMax, h);
+                    // This intersection can only shrink as further extremes are found.
+                    if (!fitsPlatformRange(fullMin, fullMax, exitMin, exitMax)
+                            || fullMax + GearChurchLayout.HEIGHT >= terrain.maxY()) return Optional.empty();
+                }
+        }
+        // Prefer not to raise above the original highest surface unless a higher natural
+        // porch exit needs it; even then, the same twelve-block fill budget applies.
+        int platformSurface = Math.min(Math.max(fullMax, exitMax - 2), Math.min(fullMin + MAX_SUPPORT, exitMin - 1));
+        if (platformSurface + GearChurchLayout.HEIGHT >= terrain.maxY()) return Optional.empty();
         return Optional.of(new Site(new BlockPos(centerX, platformSurface - 1, centerZ), rotation, fullMin, fullMax, samples));
+    }
+    private static boolean fitsPlatformRange(int min, int max, int exitMin, int exitMax) {
+        return Math.max(max - MAX_CUT, exitMax - 2) <= Math.min(min + MAX_SUPPORT, exitMin - 1);
     }
     public record Site(BlockPos anchor, Rotation rotation, int minSurface, int maxSurface, int samples) {}
 }
