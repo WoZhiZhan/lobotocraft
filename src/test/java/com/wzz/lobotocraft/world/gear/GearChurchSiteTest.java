@@ -45,4 +45,19 @@ final class GearChurchSiteTest {
         assertFalse(GearChurchResidents.blocksNatural(MobSpawnType.NATURAL, true, true));
         assertFalse(GearChurchResidents.blocksNatural(MobSpawnType.NATURAL, false, false));
     }
+    @Test void unsampledFoundationGullyCannotProduceAFloatingSupportPillar() {
+        var flat = terrain(0, false, true);
+        var gully = new GearChurchSite.Terrain() {
+            public int surface(int x, int z) {
+                return x == 17 - GearChurchLayout.CENTER.getX() && z == 17 - GearChurchLayout.CENTER.getZ()
+                        ? 60 : flat.surface(x, z);
+            }
+            public int oceanFloor(int x, int z) { return surface(x, z); }
+            public boolean badlands(int x, int y, int z) { return true; }
+            public int minY() { return -64; }
+            public int maxY() { return 320; }
+        };
+        assertTrue(GearChurchLayout.foundation(17, 17));
+        assertTrue(GearChurchSite.find(gully, 0, 0, Rotation.NONE).isEmpty());
+    }
 }

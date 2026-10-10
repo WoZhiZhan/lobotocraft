@@ -65,6 +65,19 @@ public final class GearChurchResidents {
         return UUID.nameUUIDFromBytes((level.dimension().location() + "/gear_church/" + anchor.asLong()
                 + "/" + slot).getBytes(StandardCharsets.UTF_8));
     }
+    private static List<StructureStart> loadedStarts(ServerLevel level, BlockPos probe,
+                                                     net.minecraft.world.level.levelgen.structure.Structure church) {
+        if (!level.hasChunkAt(probe)) return List.of();
+        List<StructureStart> starts = new ArrayList<>();
+        var loaded = level.getChunkAt(probe);
+        for (long reference : loaded.getReferencesForStructure(church)) {
+            var sourceChunk = new ChunkPos(reference);
+            if (!level.hasChunk(sourceChunk.x, sourceChunk.z)) continue;
+            var start = level.getChunk(sourceChunk.x, sourceChunk.z).getStartForStructure(church);
+            if (start != null && start.isValid()) starts.add(start);
+        }
+        return starts;
+    }
     @SubscribeEvent public static void tick(TickEvent.ServerTickEvent event) {
         if (event.phase != TickEvent.Phase.END || event.getServer().getTickCount() % 40 != 0) return;
         var level = event.getServer().overworld();
@@ -77,12 +90,8 @@ public final class GearChurchResidents {
             for (int dx : new int[]{-64, 0, 64}) for (int dz : new int[]{-64, 0, 64}) {
                 BlockPos probe = player.blockPosition().offset(dx, 0, dz);
                 if (!level.hasChunkAt(probe)) continue;
-                var loaded = level.getChunkAt(probe);
-                for (long reference : loaded.getReferencesForStructure(church)) {
-                    var sourceChunk = new ChunkPos(reference);
-                    if (!level.hasChunk(sourceChunk.x, sourceChunk.z)) continue;
-                    var start = level.getChunk(sourceChunk.x, sourceChunk.z).getStartForStructure(church);
-                    if (start != null && processed.add(reference)) populateNear(level, start, player.position());
+                for (var start : loadedStarts(level, probe, church)) {
+                    if (processed.add(start.getChunkPos().toLong())) populateNear(level, start, player.position());
                 }
             }
         }
@@ -96,14 +105,17 @@ public final class GearChurchResidents {
         if (level.dimension() != Level.OVERWORLD) return;
         var church = level.registryAccess().registryOrThrow(Registries.STRUCTURE).get(GearChurchLayout.ID);
         if (church == null) return;
-        var manager = event.getLevel() instanceof net.minecraft.server.level.WorldGenRegion region
-                ? level.structureManager().forWorldGenRegion(region) : level.structureManager();
-        var start = manager.getStructureAt(event.getEntity().blockPosition(), church);
-        if (!start.isValid() || start.getPieces().isEmpty() || !(start.getPieces().get(0) instanceof GearChurchPiece piece)) return;
-        boolean indoor = GearChurchLayout.indoors(GearChurchLayout.local(event.getEntity().blockPosition(),
-                piece.anchor(), piece.rotation()));
-        if (blocksNatural(event.getSpawnType(), event.getEntity() instanceof com.wzz.lobotocraft.entity.gear.EntityGearFollower, indoor))
-            event.setResult(Event.Result.DENY);
+        BlockPos pos = event.getEntity().blockPosition();
+        var starts = event.getLevel() instanceof net.minecraft.server.level.WorldGenRegion region
+                ? List.of(level.structureManager().forWorldGenRegion(region).getStructureAt(pos, church))
+                : loadedStarts(level, pos, church);
+        for (var start : starts) {
+            if (!start.isValid() || start.getPieces().isEmpty() || !(start.getPieces().get(0) instanceof GearChurchPiece piece)) continue;
+            boolean indoor = GearChurchLayout.indoors(GearChurchLayout.local(pos, piece.anchor(), piece.rotation()));
+            if (blocksNatural(event.getSpawnType(), event.getEntity() instanceof com.wzz.lobotocraft.entity.gear.EntityGearFollower, indoor)) {
+                event.setResult(Event.Result.DENY); return;
+            }
+        }
     }
     public static final class Record {
         final BlockPos anchor; final Rotation rotation; int mask;

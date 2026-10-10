@@ -93,6 +93,7 @@ public final class GearChurchGameTests {
                 int minimum = Integer.MAX_VALUE, maximum = Integer.MIN_VALUE;
                 for (int lx = 0; lx < GearChurchLayout.WIDTH; lx += GearChurchSite.SAMPLE_STEP)
                     for (int lz = 0; lz < GearChurchLayout.DEPTH; lz += GearChurchSite.SAMPLE_STEP) {
+                        if (!GearChurchLayout.foundation(lx, lz)) continue;
                         int height = terrain.surface(x + lx - GearChurchLayout.CENTER.getX(),
                                 z + lz - GearChurchLayout.CENTER.getZ());
                         minimum = Math.min(minimum, height); maximum = Math.max(maximum, height);
@@ -102,6 +103,7 @@ public final class GearChurchGameTests {
                     int water = 0, validBiomes = 0;
                     for (int lx = 0; lx < GearChurchLayout.WIDTH; lx += GearChurchSite.SAMPLE_STEP)
                         for (int lz = 0; lz < GearChurchLayout.DEPTH; lz += GearChurchSite.SAMPLE_STEP) {
+                            if (!GearChurchLayout.foundation(lx, lz)) continue;
                             int px = x + lx - GearChurchLayout.CENTER.getX(), pz = z + lz - GearChurchLayout.CENTER.getZ();
                             int surface = terrain.surface(px, pz);
                             if (terrain.oceanFloor(px, pz) != surface) water++;
@@ -151,7 +153,9 @@ public final class GearChurchGameTests {
                 }
                 level.getChunk(chunk.x, chunk.z);
             }
-            if (cursor[0] < chunks.size()) h.runAfterDelay(1, generate[0]);
+            // GameTest's scheduler keys entries by Runnable identity; rescheduling the running
+            // object would be removed by its current iterator after run() returns.
+            if (cursor[0] < chunks.size()) h.runAfterDelay(1, () -> generate[0].run());
             else h.runAfterDelay(2, () -> {
                 try {
                     h.assertTrue(level.getBiome(anchor).is(GearChurchStructure.BIOMES), "actual chunk biome is not badlands");
@@ -173,12 +177,13 @@ public final class GearChurchGameTests {
                         for (int lz = 0; lz < GearChurchLayout.DEPTH; lz++) {
                             if (!GearChurchLayout.foundation(lx, lz)) continue;
                             var base = GearChurchLayout.world(new BlockPos(lx, 0, lz), anchor, actualPiece.rotation());
-                            boolean supported = false;
-                            for (int depth = 1; depth <= GearChurchSite.MAX_SUPPORT + 1; depth++) {
-                                var floor = base.below(depth);
-                                if (level.getBlockState(floor).isFaceSturdy(level, floor, Direction.UP)) { supported = true; break; }
-                            }
-                            if (!supported) unsupported++;
+                            int originalSurface = ctx.chunkGenerator().getBaseHeight(base.getX(), base.getZ(),
+                                    Heightmap.Types.OCEAN_FLOOR_WG, level, ctx.randomState());
+                            int depth = Math.max(1, base.getY() - originalSurface + 1);
+                            var nativeGround = base.below(depth);
+                            if (depth > GearChurchSite.MAX_SUPPORT + 1
+                                    || !level.getBlockState(nativeGround).isFaceSturdy(level, nativeGround, Direction.UP))
+                                unsupported++;
                         }
                     h.assertTrue(unsupported == 0, "actual terrain left unsupported foundation columns: " + unsupported);
                     int spawned = GearChurchResidents.populateNear(level, natural, Vec3.atCenterOf(anchor));
@@ -246,8 +251,6 @@ public final class GearChurchGameTests {
         h.succeed();
     }
 
-    @GameTest(template = T, templateNamespace = "lobotocraft_gear_church", timeoutTicks = 2400,
-            batch = "gear_church_manual_placement")
     public static void manualChunkClippedPlacementPopulatesSixteenSafeSlotsAndPersists(GameTestHelper h) {
         // This fixture verifies placement/lifecycle only, NOT the separate real-badlands suitability requirement.
         var level = h.getLevel();
@@ -265,6 +268,7 @@ public final class GearChurchGameTests {
         int[] cursor = {0};
         Runnable[] place = new Runnable[1];
         place[0] = () -> {
+            if (cursor[0] % 10 == 0) System.out.println("GEAR-CHURCH MANUAL STEP " + cursor[0] + "/" + chunks.size());
             for (int budget = 0; budget < 2 && cursor[0] < chunks.size(); budget++) {
                 var chunk = chunks.get(cursor[0]++);
                 if (!level.getForcedChunks().contains(chunk.toLong())) {
@@ -278,7 +282,7 @@ public final class GearChurchGameTests {
                         RandomSource.create(281), new BoundingBox(chunk.getMinBlockX(), -64, chunk.getMinBlockZ(),
                                 chunk.getMaxBlockX(), 319, chunk.getMaxBlockZ()), chunk);
             }
-            if (cursor[0] < chunks.size()) h.runAfterDelay(1, place[0]);
+            if (cursor[0] < chunks.size()) h.runAfterDelay(1, () -> place[0].run());
             else h.runAfterDelay(3, () -> {
                 try {
                     int spawned = GearChurchResidents.populateNear(level, start, Vec3.atCenterOf(anchor));

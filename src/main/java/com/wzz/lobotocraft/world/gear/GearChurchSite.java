@@ -31,6 +31,7 @@ public final class GearChurchSite {
         int min = Integer.MAX_VALUE, max = Integer.MIN_VALUE, samples = 0, biomes = 0;
         for (int lx = 0; lx < GearChurchLayout.WIDTH; lx += SAMPLE_STEP) {
             for (int lz = 0; lz < GearChurchLayout.DEPTH; lz += SAMPLE_STEP) {
+                if (!GearChurchLayout.foundation(lx, lz)) continue;
                 BlockPos column = GearChurchLayout.world(new BlockPos(lx, 0, lz),
                         new BlockPos(centerX, 0, centerZ), rotation);
                 int h = terrain.surface(column.getX(), column.getZ());
@@ -42,8 +43,20 @@ public final class GearChurchSite {
                 if (terrain.badlands(column.getX(), h - 1, column.getZ())) biomes++;
             }
         }
-        if (biomes * 5 < samples * 4 || !terrain.badlands(centerX, max - 1, centerZ)) return Optional.empty();
-        return Optional.of(new Site(new BlockPos(centerX, max - 1, centerZ), rotation, min, max, samples));
+        if (samples == 0 || biomes * 5 < samples * 4 || !terrain.badlands(centerX, max - 1, centerZ)) return Optional.empty();
+        // Only rare coarse-pass candidates pay for the bounded full foundation check.
+        // Every actual column must be dry and fit the same eight-block relief/support budget.
+        int fullMin = min, fullMax = max;
+        for (int lx = 0; lx < GearChurchLayout.WIDTH; lx++) for (int lz = 0; lz < GearChurchLayout.DEPTH; lz++) {
+            if (!GearChurchLayout.foundation(lx, lz)) continue;
+            BlockPos column = GearChurchLayout.world(new BlockPos(lx, 0, lz),
+                    new BlockPos(centerX, 0, centerZ), rotation);
+            int h = terrain.surface(column.getX(), column.getZ());
+            if (terrain.oceanFloor(column.getX(), column.getZ()) != h) return Optional.empty();
+            fullMin = Math.min(fullMin, h); fullMax = Math.max(fullMax, h);
+            if (fullMax - fullMin > MAX_RELIEF || fullMax + GearChurchLayout.HEIGHT >= terrain.maxY()) return Optional.empty();
+        }
+        return Optional.of(new Site(new BlockPos(centerX, fullMax - 1, centerZ), rotation, fullMin, fullMax, samples));
     }
     public record Site(BlockPos anchor, Rotation rotation, int minSurface, int maxSurface, int samples) {}
 }
