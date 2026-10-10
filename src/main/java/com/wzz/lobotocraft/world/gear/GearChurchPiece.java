@@ -44,6 +44,7 @@ public final class GearChurchPiece extends TemplateStructurePiece {
     @Override public void postProcess(WorldGenLevel level, StructureManager manager, ChunkGenerator generator,
                                       RandomSource random, BoundingBox writable, ChunkPos chunk, BlockPos pivot) {
         super.postProcess(level, manager, generator, random, writable, chunk, pivot);
+        GearChurchResidents.registerPlaced(level.getLevel(), anchor, rotation);
         // Column-local bounded support, never accesses/loads a neighboring chunk during placement.
         for (int x = 0; x < template.getSize().getX(); x++) for (int z = 0; z < template.getSize().getZ(); z++) {
             int lx = offset.getX() + x, lz = offset.getZ() + z;

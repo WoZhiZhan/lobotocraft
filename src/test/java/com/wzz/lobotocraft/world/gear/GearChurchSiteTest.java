@@ -3,6 +3,7 @@ package com.wzz.lobotocraft.world.gear;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -59,5 +60,18 @@ final class GearChurchSiteTest {
         };
         assertTrue(GearChurchLayout.foundation(17, 17));
         assertTrue(GearChurchSite.find(gully, 0, 0, Rotation.NONE).isEmpty());
+    }
+    @Test void savedFootprintRemainsAvailableWithoutLoadingTheSourceChunk() {
+        var data = new GearChurchResidents.Data();
+        BlockPos anchor = new BlockPos(8, 80, 8);
+        data.get(anchor, Rotation.NONE);
+        var indoor = GearChurchLayout.world(GearChurchLayout.SPAWNS.get(0), anchor, Rotation.NONE);
+        assertNotEquals(new net.minecraft.world.level.ChunkPos(anchor), new net.minecraft.world.level.ChunkPos(indoor));
+        assertTrue(data.indoors(indoor));
+        var reloaded = GearChurchResidents.Data.load(data.save(new net.minecraft.nbt.CompoundTag()));
+        assertTrue(reloaded.indoors(indoor));
+        assertFalse(reloaded.indoors(indoor.above(100)));
+        assertFalse(GearChurchResidents.withinResidentRange(anchor, Vec3.atCenterOf(anchor).add(140, 0, 0)));
+        assertTrue(GearChurchResidents.withinResidentRange(anchor, Vec3.atCenterOf(anchor).add(20, 0, 0)));
     }
 }

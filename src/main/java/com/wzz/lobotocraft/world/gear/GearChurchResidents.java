@@ -31,8 +31,14 @@ public final class GearChurchResidents {
     public static int populateNear(ServerLevel level, StructureStart start, Vec3 observer) {
         if (!start.isValid() || !(start.getStructure() instanceof GearChurchStructure)
                 || start.getPieces().isEmpty() || !(start.getPieces().get(0) instanceof GearChurchPiece piece)) return 0;
-        if (observer.distanceToSqr(Vec3.atCenterOf(piece.anchor())) > 128 * 128) return 0;
         var record = data(level).get(piece.anchor(), piece.rotation());
+        return populateRecord(level, record, observer);
+    }
+    public static boolean withinResidentRange(BlockPos anchor, Vec3 observer) {
+        return observer.distanceToSqr(Vec3.atCenterOf(anchor)) <= 128 * 128;
+    }
+    public static int populateRecord(ServerLevel level, Record record, Vec3 observer) {
+        if (!withinResidentRange(record.anchor, observer)) return 0;
         int added = 0;
         for (int slot = 0; slot < GearChurchLayout.RESIDENTS; slot++) {
             if ((record.mask & (1 << slot)) != 0) continue;
@@ -60,6 +66,10 @@ public final class GearChurchResidents {
             }
         }
         return added;
+    }
+    /** Called by placed pieces: serialization/index mutation always executes on the server thread. */
+    public static void registerPlaced(ServerLevel level, BlockPos anchor, Rotation rotation) {
+        level.getServer().execute(() -> data(level).get(anchor, rotation));
     }
     public static UUID residentId(ServerLevel level, BlockPos anchor, int slot) {
         return UUID.nameUUIDFromBytes((level.dimension().location() + "/gear_church/" + anchor.asLong()
@@ -91,7 +101,13 @@ public final class GearChurchResidents {
                 BlockPos probe = player.blockPosition().offset(dx, 0, dz);
                 if (!level.hasChunkAt(probe)) continue;
                 for (var start : loadedStarts(level, probe, church)) {
-                    if (processed.add(start.getChunkPos().toLong())) populateNear(level, start, player.position());
+                    if (!start.getPieces().isEmpty() && start.getPieces().get(0) instanceof GearChurchPiece piece)
+                        data(level).get(piece.anchor(), piece.rotation());
+                }
+                for (var record : data(level).recordsAt(new ChunkPos(probe))) {
+                    // A far player must not claim the dedup slot before a nearby player is considered.
+                    if (withinResidentRange(record.anchor, player.position()) && processed.add(record.anchor.asLong()))
+                        populateRecord(level, record, player.position());
                 }
             }
         }
@@ -106,9 +122,13 @@ public final class GearChurchResidents {
         var church = level.registryAccess().registryOrThrow(Registries.STRUCTURE).get(GearChurchLayout.ID);
         if (church == null) return;
         BlockPos pos = event.getEntity().blockPosition();
-        var starts = event.getLevel() instanceof net.minecraft.server.level.WorldGenRegion region
-                ? List.of(level.structureManager().forWorldGenRegion(region).getStructureAt(pos, church))
-                : loadedStarts(level, pos, church);
+        if (!(event.getLevel() instanceof net.minecraft.server.level.WorldGenRegion)) {
+            if (blocksNatural(event.getSpawnType(), event.getEntity() instanceof com.wzz.lobotocraft.entity.gear.EntityGearFollower,
+                    data(level).indoors(pos))) event.setResult(Event.Result.DENY);
+            return;
+        }
+        var region = (net.minecraft.server.level.WorldGenRegion) event.getLevel();
+        var starts = List.of(level.structureManager().forWorldGenRegion(region).getStructureAt(pos, church));
         for (var start : starts) {
             if (!start.isValid() || start.getPieces().isEmpty() || !(start.getPieces().get(0) instanceof GearChurchPiece piece)) continue;
             boolean indoor = GearChurchLayout.indoors(GearChurchLayout.local(pos, piece.anchor(), piece.rotation()));
@@ -124,15 +144,38 @@ public final class GearChurchResidents {
     }
     public static final class Data extends SavedData {
         private final Map<Long, Record> records = new HashMap<>();
+        // Rebuilt from saved records; no permanent references to levels, entities or players.
+        private final Map<Long, List<Record>> byChunk = new HashMap<>();
         public Record get(BlockPos anchor, Rotation rotation) {
-            return records.computeIfAbsent(anchor.asLong(), k -> { setDirty(); return new Record(anchor, rotation, 0); });
+            return records.computeIfAbsent(anchor.asLong(), k -> {
+                var record = new Record(anchor, rotation, 0); index(record); setDirty(); return record;
+            });
+        }
+        private void index(Record record) {
+            var a = GearChurchLayout.world(BlockPos.ZERO, record.anchor, record.rotation);
+            var b = GearChurchLayout.world(new BlockPos(GearChurchLayout.WIDTH - 1, 0, GearChurchLayout.DEPTH - 1),
+                    record.anchor, record.rotation);
+            for (int cx = Math.min(a.getX(), b.getX()) >> 4; cx <= Math.max(a.getX(), b.getX()) >> 4; cx++)
+                for (int cz = Math.min(a.getZ(), b.getZ()) >> 4; cz <= Math.max(a.getZ(), b.getZ()) >> 4; cz++)
+                    byChunk.computeIfAbsent(ChunkPos.asLong(cx, cz), k -> new ArrayList<>()).add(record);
+        }
+        public List<Record> recordsAt(ChunkPos chunk) { return List.copyOf(byChunk.getOrDefault(chunk.toLong(), List.of())); }
+        public boolean indoors(BlockPos pos) {
+            for (var record : recordsAt(new ChunkPos(pos)))
+                if (GearChurchLayout.indoors(GearChurchLayout.local(pos, record.anchor, record.rotation))) return true;
+            return false;
         }
         public static Data load(CompoundTag tag) {
             Data data = new Data();
             for (Tag entry : tag.getList("Churches", Tag.TAG_COMPOUND)) {
                 var c = (CompoundTag) entry;
                 BlockPos pos = BlockPos.of(c.getLong("Anchor"));
-                try { data.records.put(pos.asLong(), new Record(pos, Rotation.valueOf(c.getString("Rotation")), c.getInt("Mask") & 0xFFFF)); }
+                try {
+                    if (!data.records.containsKey(pos.asLong())) {
+                        var record = new Record(pos, Rotation.valueOf(c.getString("Rotation")), c.getInt("Mask") & 0xFFFF);
+                        data.records.put(pos.asLong(), record); data.index(record);
+                    }
+                }
                 catch (IllegalArgumentException ignored) {}
             }
             return data;
