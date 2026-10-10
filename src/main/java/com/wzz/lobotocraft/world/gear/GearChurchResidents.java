@@ -60,7 +60,8 @@ public final class GearChurchResidents {
             mob.setUUID(id);
             mob.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, 0, 0);
             mob.setChurch(record.anchor.asLong(), slot);
-            if (!level.noCollision(mob) || !level.getEntities(mob, mob.getBoundingBox()).isEmpty()) continue;
+            if (!level.noCollision(mob) || !level.getEntities(mob, mob.getBoundingBox(),
+                    e -> e instanceof net.minecraft.world.entity.LivingEntity && e.isAlive()).isEmpty()) continue;
             if (level.addFreshEntity(mob)) {
                 record.mask |= 1 << slot; data(level).setDirty(); added++;
             }

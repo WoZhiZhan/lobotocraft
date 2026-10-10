@@ -3,10 +3,13 @@ package com.wzz.lobotocraft.world.gear;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Rotation;
 import java.util.Optional;
+import java.util.HashMap;
+import java.util.Map;
+import net.minecraft.world.level.ChunkPos;
 
 /** Fixed, bounded terrain probe. Rejects unsuitable sites rather than terraforming an entire mesa. */
 public final class GearChurchSite {
-    public static final int MAX_RELIEF = 8, MAX_SUPPORT = 12, SAMPLE_STEP = 16;
+    public static final int MAX_RELIEF = 12, MAX_SUPPORT = 12, SAMPLE_STEP = 16;
     public static final int SPACING = 256, SEPARATION = 144, SALT = 871231;
     private GearChurchSite() {}
     public interface Terrain {
@@ -17,11 +20,25 @@ public final class GearChurchSite {
         int maxY();
     }
     public static Optional<Site> findNear(Terrain terrain, int centerX, int centerZ, Rotation rotation) {
+        // Neighboring probes overlap heavily. Keep exact heights, but do not recompute the same
+        // noise column up to 25 times; this cache lives only for this bounded selection attempt.
+        Map<Long, Integer> surfaces = new HashMap<>(), floors = new HashMap<>();
+        Terrain memo = new Terrain() {
+            public int surface(int x, int z) {
+                return surfaces.computeIfAbsent(ChunkPos.asLong(x, z), key -> terrain.surface(x, z));
+            }
+            public int oceanFloor(int x, int z) {
+                return floors.computeIfAbsent(ChunkPos.asLong(x, z), key -> terrain.oceanFloor(x, z));
+            }
+            public boolean badlands(int x, int y, int z) { return terrain.badlands(x, y, z); }
+            public int minY() { return terrain.minY(); }
+            public int maxY() { return terrain.maxY(); }
+        };
         for (int radius : new int[]{0, 16, 32}) {
             int step = radius == 0 ? 1 : 16;
             for (int dx = -radius; dx <= radius; dx += step) for (int dz = -radius; dz <= radius; dz += step) {
                 if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
-                var site = find(terrain, centerX + dx, centerZ + dz, rotation);
+                var site = find(memo, centerX + dx, centerZ + dz, rotation);
                 if (site.isPresent()) return site;
             }
         }
@@ -45,7 +62,7 @@ public final class GearChurchSite {
         }
         if (samples == 0 || biomes * 5 < samples * 4 || !terrain.badlands(centerX, max - 1, centerZ)) return Optional.empty();
         // Only rare coarse-pass candidates pay for the bounded full foundation check.
-        // Every actual column must be dry and fit the same eight-block relief/support budget.
+        // Every actual column must be dry and fit the user-approved twelve-block relief/support budget.
         int fullMin = min, fullMax = max;
         for (int lx = 0; lx < GearChurchLayout.WIDTH; lx++) for (int lz = 0; lz < GearChurchLayout.DEPTH; lz++) {
             if (!GearChurchLayout.foundation(lx, lz)) continue;

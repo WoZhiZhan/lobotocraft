@@ -69,7 +69,7 @@ public final class GearChurchGameTests {
         final RandomSpreadStructurePlacement placement;
         final List<ChunkPos> candidates;
         final net.minecraft.world.level.chunk.ChunkGeneratorStructureState structureState;
-        int index, badlands, bestRelief = Integer.MAX_VALUE;
+        int index, badlands, bestRelief = Integer.MAX_VALUE, bestDryBadlandsRelief = Integer.MAX_VALUE;
         Search(GameTestHelper h, ServerLevel level, GearChurchStructure structure,
                RandomSpreadStructurePlacement placement, List<ChunkPos> candidates) {
             this.h = h; this.level = level; this.structure = structure; this.placement = placement; this.candidates = candidates;
@@ -88,7 +88,8 @@ public final class GearChurchGameTests {
                 if (!placement.isStructureChunk(structureState, chunk.x, chunk.z)) continue;
                 badlands++;
                 if (badlands % 10 == 0) System.out.println("GEAR-CHURCH SEARCH candidates=" + index
-                        + " badlands=" + badlands + " bestRawRelief=" + bestRelief);
+                        + " badlands=" + badlands + " bestRawRelief=" + bestRelief
+                        + " bestDryBadlandsRelief=" + bestDryBadlandsRelief);
                 var terrain = GearChurchStructure.terrain(ctx);
                 int minimum = Integer.MAX_VALUE, maximum = Integer.MIN_VALUE;
                 for (int lx = 0; lx < GearChurchLayout.WIDTH; lx += GearChurchSite.SAMPLE_STEP)
@@ -99,19 +100,24 @@ public final class GearChurchGameTests {
                         minimum = Math.min(minimum, height); maximum = Math.max(maximum, height);
                     }
                 bestRelief = Math.min(bestRelief, maximum - minimum);
-                if (maximum - minimum <= 8) {
-                    int water = 0, validBiomes = 0;
+                {
+                    int water = 0, validBiomes = 0, diagnosticSamples = 0;
                     for (int lx = 0; lx < GearChurchLayout.WIDTH; lx += GearChurchSite.SAMPLE_STEP)
                         for (int lz = 0; lz < GearChurchLayout.DEPTH; lz += GearChurchSite.SAMPLE_STEP) {
                             if (!GearChurchLayout.foundation(lx, lz)) continue;
                             int px = x + lx - GearChurchLayout.CENTER.getX(), pz = z + lz - GearChurchLayout.CENTER.getZ();
                             int surface = terrain.surface(px, pz);
+                            diagnosticSamples++;
                             if (terrain.oceanFloor(px, pz) != surface) water++;
                             if (terrain.badlands(px, surface - 1, pz)) validBiomes++;
                         }
-                    System.out.println("GEAR-CHURCH LOW-RELIEF chunk=" + chunk + " heights=" + minimum + ".." + maximum
-                            + " waterSamples=" + water + " biomeSamples=" + validBiomes + "/90"
-                            + " centerBiomeAtSurface=" + terrain.badlands(x, maximum - 1, z));
+                    if (water == 0 && validBiomes * 5 >= diagnosticSamples * 4
+                            && terrain.badlands(x, maximum - 1, z))
+                        bestDryBadlandsRelief = Math.min(bestDryBadlandsRelief, maximum - minimum);
+                    if (maximum - minimum <= GearChurchSite.MAX_RELIEF)
+                        System.out.println("GEAR-CHURCH LOW-RELIEF chunk=" + chunk + " heights=" + minimum + ".." + maximum
+                                + " waterSamples=" + water + " biomeSamples=" + validBiomes + "/" + diagnosticSamples
+                                + " centerBiomeAtSurface=" + terrain.badlands(x, maximum - 1, z));
                 }
                 var stub = structure.findValidGenerationPoint(ctx);
                 if (stub.isEmpty()) continue;
@@ -127,6 +133,7 @@ public final class GearChurchGameTests {
             if (index >= candidates.size()) {
                 h.fail("No eligible site in " + candidates.size() + " production grid candidates; badlands=" + badlands
                         + " bestRawRelief=" + bestRelief
+                        + " bestDryBadlandsRelief=" + bestDryBadlandsRelief
                         + ". Do not relax relief/biome checks to turn this green.");
             } else h.runAfterDelay(1, this::step);
         }
@@ -186,6 +193,7 @@ public final class GearChurchGameTests {
                                 unsupported++;
                         }
                     h.assertTrue(unsupported == 0, "actual terrain left unsupported foundation columns: " + unsupported);
+                    assertEntrance(h, level, anchor, actualPiece.rotation());
                     int spawned = GearChurchResidents.populateNear(level, natural, Vec3.atCenterOf(anchor));
                     h.assertTrue(spawned == 16, "church failed to populate all sixteen authored safe points: " + spawned);
                     h.assertTrue(GearChurchResidents.populateNear(level, natural, Vec3.atCenterOf(anchor)) == 0,
@@ -226,7 +234,7 @@ public final class GearChurchGameTests {
             batch = "gear_church_templates")
     public static void authoredTemplatesKeepStatesSignsAirAndAllRotations(GameTestHelper h) {
         var manager = h.getLevel().getStructureManager();
-        int blocks = 0, signs = 0;
+        int blocks = 0, signs = 0, authoredSoil = 0;
         for (var part : GearChurchLayout.PARTS) {
             var template = manager.getOrCreate(part.template());
             h.assertTrue(template.getSize().getY() == GearChurchLayout.HEIGHT, "template height changed");
@@ -235,10 +243,12 @@ public final class GearChurchGameTests {
             for (var t : saved.getList("blocks", net.minecraft.nbt.Tag.TAG_COMPOUND)) {
                 var b = (CompoundTag) t; String id = palettes.getCompound(b.getInt("state")).getString("Name");
                 if (!id.equals("minecraft:air")) blocks++;
+                if (id.equals("minecraft:dirt") || id.equals("minecraft:grass_block")) authoredSoil++;
                 if (b.contains("nbt") && b.getCompound("nbt").getString("id").equals("minecraft:sign")) signs++;
             }
         }
-        h.assertTrue(blocks == 152396 && signs == 105, "asset extraction lost source blocks/signs: " + blocks + "/" + signs);
+        h.assertTrue(blocks == 163233 && authoredSoil == 10837 && blocks - authoredSoil == 152396 && signs == 105,
+                "asset extraction lost source blocks/authored soil/signs: " + blocks + "/" + authoredSoil + "/" + signs);
         var anchor = h.absolutePos(new BlockPos(0, 3, 0));
         for (var rotation : Rotation.values()) {
             var site = new GearChurchSite.Site(anchor, rotation, anchor.getY(), anchor.getY(), 90);
@@ -285,8 +295,34 @@ public final class GearChurchGameTests {
             if (cursor[0] < chunks.size()) h.runAfterDelay(1, () -> place[0].run());
             else h.runAfterDelay(3, () -> {
                 try {
+                    assertEntrance(h, level, anchor, site.rotation());
+                    // Noncolliding debris must not consume a safe resident slot.
+                    var itemPos = GearChurchLayout.world(GearChurchLayout.SPAWNS.get(0), anchor, site.rotation());
+                    var debris = new net.minecraft.world.entity.item.ItemEntity(level, itemPos.getX() + 0.5,
+                            itemPos.getY() + 0.1, itemPos.getZ() + 0.5, new net.minecraft.world.item.ItemStack(
+                            net.minecraft.world.item.Items.DIRT));
+                    level.addFreshEntity(debris);
                     int spawned = GearChurchResidents.populateNear(level, start, Vec3.atCenterOf(anchor));
+                    if (spawned != 16) {
+                        var record = GearChurchResidents.data(level).get(anchor, site.rotation());
+                        System.out.println("GEAR-CHURCH MANUAL BATCH added=" + spawned + " maskCount=" + record.spawnedCount());
+                        for (int slot = 0; slot < 16; slot++) {
+                            if ((record.mask & (1 << slot)) != 0) continue;
+                            var local = GearChurchLayout.SPAWNS.get(slot);
+                            var pos = GearChurchLayout.world(local, anchor, site.rotation());
+                            var roof = GearChurchLayout.world(new BlockPos(local.getX(),
+                                    GearChurchLayout.roofHeight(local.getX(), local.getZ()), local.getZ()), anchor, site.rotation());
+                            var box = new net.minecraft.world.phys.AABB(pos.getX() + 0.175, pos.getY(), pos.getZ() + 0.175,
+                                    pos.getX() + 0.825, pos.getY() + 1.95, pos.getZ() + 0.825);
+                            System.out.println("GEAR-CHURCH MANUAL MISSING slot=" + slot + " pos=" + pos
+                                    + " floor=" + level.getBlockState(pos.below()) + " feet=" + level.getBlockState(pos)
+                                    + " head=" + level.getBlockState(pos.above()) + " roof=" + level.getBlockState(roof)
+                                    + " noBlockCollision=" + level.noCollision(box) + " entities="
+                                    + level.getEntities(null, box).stream().map(e -> e.getType() + "@" + e.position()).toList());
+                        }
+                    }
                     h.assertTrue(spawned == 16, "manual template resident slots not all safe/ready: " + spawned);
+                    debris.discard();
                     var saved = GearChurchResidents.data(level).save(new CompoundTag());
                     level.getDataStorage().set(GearChurchResidents.DATA_ID, GearChurchResidents.Data.load(saved));
                     h.assertTrue(GearChurchResidents.populateNear(level, start, Vec3.atCenterOf(anchor)) == 0,
@@ -303,5 +339,16 @@ public final class GearChurchGameTests {
             });
         };
         place[0].run();
+    }
+
+    private static void assertEntrance(GameTestHelper h, ServerLevel level, BlockPos anchor, Rotation rotation) {
+        var pos = GearChurchLayout.world(GearChurchLayout.ENTRANCE, anchor, rotation);
+        h.assertTrue(level.getBlockState(pos.below()).isFaceSturdy(level, pos.below(), Direction.UP),
+                "authored entrance floor was lost");
+        h.assertTrue(level.getBlockState(pos).isAir() && level.getBlockState(pos.above()).isAir(),
+                "entrance is buried or blocked");
+        h.assertTrue(level.noCollision(new net.minecraft.world.phys.AABB(pos.getX() + 0.2, pos.getY(),
+                pos.getZ() + 0.2, pos.getX() + 0.8, pos.getY() + 1.8, pos.getZ() + 0.8)),
+                "player-sized entrance is colliding");
     }
 }

@@ -20,6 +20,8 @@ SIZE = (145, 52, 134)
 PART = 32
 BASE = {"minecraft:air", "minecraft:cave_air", "minecraft:void_air",
         "minecraft:bedrock", "minecraft:dirt", "minecraft:grass_block"}
+AIR = {"minecraft:air", "minecraft:cave_air", "minecraft:void_air"}
+DEFAULT_SURFACE_Y = -61  # level.dat's authored superflat grass surface.
 
 
 def chunks(world):
@@ -55,18 +57,24 @@ def export_world(world, repo):
             if not block_states:
                 continue
             palette = block_states["palette"]
-            if all(str(p["Name"]) in BASE for p in palette):
+            if int(section["Y"]) * 16 + 15 < MIN[1] or all(str(p["Name"]) in AIR for p in palette):
                 continue
             bits = max(4, (len(palette) - 1).bit_length())
             per_long, mask = 64 // bits, (1 << bits) - 1
             data = [int(v) & ((1 << 64) - 1) for v in block_states.get("data", [])]
             for index in range(4096):
                 entry = palette[(data[index // per_long] >> ((index % per_long) * bits)) & mask] if data else palette[0]
-                if str(entry["Name"]) in BASE:
-                    continue
+                name = str(entry["Name"])
                 pos = (cx * 16 + (index & 15), int(section["Y"]) * 16 + (index >> 8), cz * 16 + ((index >> 4) & 15))
                 if not all(MIN[a] <= pos[a] < MIN[a] + SIZE[a] for a in range(3)):
-                    raise ValueError(f"Authored block outside declared crop: {pos}")
+                    if name not in BASE:
+                        raise ValueError(f"Authored block outside declared crop: {pos}")
+                    continue
+                if name in AIR or name == "minecraft:bedrock":
+                    continue
+                # Dirt/grass above the original -61 surface are authored terrain, not background.
+                if name in {"minecraft:dirt", "minecraft:grass_block"} and pos[1] <= DEFAULT_SURFACE_Y:
+                    continue
                 states[pos] = copy.deepcopy(entry)
                 tops[pos[0], pos[2]] = max(tops.get((pos[0], pos[2]), -1000), pos[1])
     # Indoor only: a source floor and roof overhead, no furniture/fluid/collision at feet/head.

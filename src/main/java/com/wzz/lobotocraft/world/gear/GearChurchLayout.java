@@ -12,6 +12,8 @@ import java.util.*;
 public final class GearChurchLayout {
     public static final int WIDTH = 145, HEIGHT = 52, DEPTH = 134, PART_SIZE = 32, RESIDENTS = 16;
     public static final BlockPos CENTER = new BlockPos(WIDTH / 2, 0, DEPTH / 2);
+    // Authored front porch: source (-5,-57,64), above its packed-mud floor and soil support.
+    public static final BlockPos ENTRANCE = new BlockPos(72, 3, 130);
     public static final ResourceLocation ID = new ResourceLocation("lobotocraft", "gear_church");
     private static final JsonObject MANIFEST = load();
     public static final List<Part> PARTS = parts();

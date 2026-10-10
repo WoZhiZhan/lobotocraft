@@ -19,7 +19,9 @@ final class GearChurchSiteTest {
     }
     @Test void fitsOnlyDryLowReliefBadlands() {
         assertTrue(GearChurchSite.find(terrain(8, false, true), 0, 0, Rotation.NONE).isPresent());
-        assertTrue(GearChurchSite.find(terrain(9, false, true), 0, 0, Rotation.NONE).isEmpty());
+        assertTrue(GearChurchSite.find(terrain(12, false, true), 0, 0, Rotation.NONE).isPresent());
+        assertTrue(GearChurchSite.find(terrain(13, false, true), 0, 0, Rotation.NONE).isEmpty());
+        assertEquals(12, GearChurchSite.MAX_SUPPORT, "terrain adjustment must not increase foundation fill depth");
         assertTrue(GearChurchSite.find(terrain(0, true, true), 0, 0, Rotation.NONE).isEmpty());
         assertTrue(GearChurchSite.find(terrain(0, false, false), 0, 0, Rotation.NONE).isEmpty());
     }
@@ -73,5 +75,21 @@ final class GearChurchSiteTest {
         assertFalse(reloaded.indoors(indoor.above(100)));
         assertFalse(GearChurchResidents.withinResidentRange(anchor, Vec3.atCenterOf(anchor).add(140, 0, 0)));
         assertTrue(GearChurchResidents.withinResidentRange(anchor, Vec3.atCenterOf(anchor).add(20, 0, 0)));
+    }
+    @Test void overlappingLocalProbesDoNotRecomputeNoiseColumns() {
+        var calls = new java.util.HashMap<Long, Integer>();
+        var input = new GearChurchSite.Terrain() {
+            public int surface(int x, int z) {
+                calls.merge(net.minecraft.world.level.ChunkPos.asLong(x, z), 1, Integer::sum);
+                return 80;
+            }
+            public int oceanFloor(int x, int z) { return 80; }
+            public boolean badlands(int x, int y, int z) { return false; }
+            public int minY() { return -64; }
+            public int maxY() { return 320; }
+        };
+        assertTrue(GearChurchSite.findNear(input, 0, 0, Rotation.NONE).isEmpty());
+        assertTrue(calls.size() < 25 * 56);
+        assertTrue(calls.values().stream().allMatch(count -> count == 1));
     }
 }
