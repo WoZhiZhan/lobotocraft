@@ -10,7 +10,10 @@ import static org.junit.jupiter.api.Assertions.*;
 final class GearChurchSiteTest {
     private GearChurchSite.Terrain terrain(int relief, boolean water, boolean badlands) {
         return new GearChurchSite.Terrain() {
-            public int surface(int x, int z) { return 80 + (x < 0 ? relief : 0); }
+            public int surface(int x, int z) {
+                return z >= GearChurchLayout.DEPTH - GearChurchLayout.CENTER.getZ()
+                        ? 81 + Math.min(relief, 12) : 80 + (x < 0 ? relief : 0);
+            }
             public int oceanFloor(int x, int z) { return surface(x, z) - (water ? 1 : 0); }
             public boolean badlands(int x, int y, int z) { return badlands; }
             public int minY() { return -64; }
@@ -20,10 +23,33 @@ final class GearChurchSiteTest {
     @Test void fitsOnlyDryLowReliefBadlands() {
         assertTrue(GearChurchSite.find(terrain(8, false, true), 0, 0, Rotation.NONE).isPresent());
         assertTrue(GearChurchSite.find(terrain(12, false, true), 0, 0, Rotation.NONE).isPresent());
-        assertTrue(GearChurchSite.find(terrain(13, false, true), 0, 0, Rotation.NONE).isEmpty());
+        assertTrue(GearChurchSite.find(terrain(13, false, true), 0, 0, Rotation.NONE).isPresent());
         assertEquals(12, GearChurchSite.MAX_SUPPORT, "terrain adjustment must not increase foundation fill depth");
         assertTrue(GearChurchSite.find(terrain(0, true, true), 0, 0, Rotation.NONE).isEmpty());
         assertTrue(GearChurchSite.find(terrain(0, false, false), 0, 0, Rotation.NONE).isEmpty());
+    }
+    @Test void terraceCutsAtMostSixAndFillsAtMostTwelveWithoutSinkingFlatGround() {
+        var terrace = GearChurchSite.find(terrain(18, false, true), 0, 0, Rotation.NONE).orElseThrow();
+        int platformSurface = terrace.anchor().getY() + 1;
+        assertEquals(6, terrace.maxSurface() - platformSurface);
+        assertEquals(12, platformSurface - terrace.minSurface());
+        assertTrue(GearChurchSite.find(terrain(19, false, true), 0, 0, Rotation.NONE).isEmpty());
+        var flat = GearChurchSite.find(terrain(0, false, true), 0, 0, Rotation.NONE).orElseThrow();
+        assertEquals(79, flat.anchor().getY(), "flat terrain must not be cut just because cutting is allowed");
+    }
+    @Test void usableTerraceStillRejectsAnExteriorEntranceCliff() {
+        var safe = terrain(0, false, true);
+        var cliff = new GearChurchSite.Terrain() {
+            public int surface(int x, int z) {
+                return z >= GearChurchLayout.DEPTH - GearChurchLayout.CENTER.getZ() ? 100 : safe.surface(x, z);
+            }
+            public int oceanFloor(int x, int z) { return surface(x, z); }
+            public boolean badlands(int x, int y, int z) { return true; }
+            public int minY() { return -64; }
+            public int maxY() { return 320; }
+        };
+        assertTrue(GearChurchSite.find(cliff, 0, 0, Rotation.NONE).isEmpty(),
+                "an open indoor door must not accept an impassable exterior cliff");
     }
     @Test void footprintRotationAndIndoorAnchorsAgreeAcrossAllRotations() {
         var anchor = new BlockPos(-180, 75, 302);

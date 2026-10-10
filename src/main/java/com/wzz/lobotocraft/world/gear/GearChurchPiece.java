@@ -43,6 +43,17 @@ public final class GearChurchPiece extends TemplateStructurePiece {
                                               RandomSource random, BoundingBox box) {}
     @Override public void postProcess(WorldGenLevel level, StructureManager manager, ChunkGenerator generator,
                                       RandomSource random, BoundingBox writable, ChunkPos chunk, BlockPos pivot) {
+        // Clear only the authored foundation, only this writable chunk, and only six blocks
+        // above its floor. Do this BEFORE template placement so furniture/soil are preserved.
+        for (int x = 0; x < template.getSize().getX(); x++) for (int z = 0; z < template.getSize().getZ(); z++) {
+            int lx = offset.getX() + x, lz = offset.getZ() + z;
+            if (!GearChurchLayout.foundation(lx, lz)) continue;
+            var base = GearChurchLayout.world(new BlockPos(lx, 0, lz), anchor, rotation);
+            for (int up = 1; up <= GearChurchSite.MAX_CUT; up++) {
+                var pos = base.above(up);
+                if (writable.isInside(pos)) level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
+            }
+        }
         super.postProcess(level, manager, generator, random, writable, chunk, pivot);
         GearChurchResidents.registerPlaced(level.getLevel(), anchor, rotation);
         // Column-local bounded support, never accesses/loads a neighboring chunk during placement.

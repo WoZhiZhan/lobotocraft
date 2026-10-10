@@ -14,6 +14,10 @@ public final class GearChurchLayout {
     public static final BlockPos CENTER = new BlockPos(WIDTH / 2, 0, DEPTH / 2);
     // Authored front porch: source (-5,-57,64), above its packed-mud floor and soil support.
     public static final BlockPos ENTRANCE = new BlockPos(72, 3, 130);
+    // Three-wide authored slab/trapdoor porch terminates at z=133. Check the next natural
+    // row, without extending any template or carving outside the building.
+    public static final List<BlockPos> ENTRANCE_EXITS = List.of(
+            new BlockPos(71, 0, DEPTH), new BlockPos(72, 0, DEPTH), new BlockPos(73, 0, DEPTH));
     public static final ResourceLocation ID = new ResourceLocation("lobotocraft", "gear_church");
     private static final JsonObject MANIFEST = load();
     public static final List<Part> PARTS = parts();

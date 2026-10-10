@@ -7,9 +7,9 @@ import java.util.HashMap;
 import java.util.Map;
 import net.minecraft.world.level.ChunkPos;
 
-/** Fixed, bounded terrain probe. Rejects unsuitable sites rather than terraforming an entire mesa. */
+/** Bounded terrace probe. Only a small cut/fill budget, never terraforms an entire mesa. */
 public final class GearChurchSite {
-    public static final int MAX_RELIEF = 12, MAX_SUPPORT = 12, SAMPLE_STEP = 16;
+    public static final int MAX_CUT = 6, MAX_SUPPORT = 12, MAX_RELIEF = MAX_CUT + MAX_SUPPORT, SAMPLE_STEP = 16;
     public static final int SPACING = 256, SEPARATION = 144, SALT = 871231;
     private GearChurchSite() {}
     public interface Terrain {
@@ -62,18 +62,32 @@ public final class GearChurchSite {
         }
         if (samples == 0 || biomes * 5 < samples * 4 || !terrain.badlands(centerX, max - 1, centerZ)) return Optional.empty();
         // Only rare coarse-pass candidates pay for the bounded full foundation check.
-        // Every actual column must be dry and fit the user-approved twelve-block relief/support budget.
+        // Every authored column (including template air above a non-foundation column)
+        // must be dry and fit the cut budget, not just the sparse sample or filled supports.
         int fullMin = min, fullMax = max;
         for (int lx = 0; lx < GearChurchLayout.WIDTH; lx++) for (int lz = 0; lz < GearChurchLayout.DEPTH; lz++) {
-            if (!GearChurchLayout.foundation(lx, lz)) continue;
+            if (GearChurchLayout.roofHeight(lx, lz) < 0) continue;
             BlockPos column = GearChurchLayout.world(new BlockPos(lx, 0, lz),
                     new BlockPos(centerX, 0, centerZ), rotation);
             int h = terrain.surface(column.getX(), column.getZ());
-            if (terrain.oceanFloor(column.getX(), column.getZ()) != h) return Optional.empty();
+            if (h <= terrain.minY() + MAX_SUPPORT
+                    || terrain.oceanFloor(column.getX(), column.getZ()) != h) return Optional.empty();
             fullMin = Math.min(fullMin, h); fullMax = Math.max(fullMax, h);
             if (fullMax - fullMin > MAX_RELIEF || fullMax + GearChurchLayout.HEIGHT >= terrain.maxY()) return Optional.empty();
         }
-        return Optional.of(new Site(new BlockPos(centerX, fullMax - 1, centerZ), rotation, fullMin, fullMax, samples));
+        // Porch ends in a bottom trapdoor at local Y=2 (top=anchor+2.1875). Untouched
+        // exterior surface must be platformSurface+1 or +2: <=1 block step in either
+        // direction, and dry. Choose the highest platform in that intersection.
+        int exitMin = Integer.MAX_VALUE, exitMax = Integer.MIN_VALUE;
+        for (var exit : GearChurchLayout.ENTRANCE_EXITS) {
+            var column = GearChurchLayout.world(exit, new BlockPos(centerX, 0, centerZ), rotation);
+            int h = terrain.surface(column.getX(), column.getZ());
+            if (terrain.oceanFloor(column.getX(), column.getZ()) != h) return Optional.empty();
+            exitMin = Math.min(exitMin, h); exitMax = Math.max(exitMax, h);
+        }
+        int platformSurface = Math.min(Math.min(fullMax, fullMin + MAX_SUPPORT), exitMin - 1);
+        if (platformSurface < Math.max(fullMax - MAX_CUT, exitMax - 2)) return Optional.empty();
+        return Optional.of(new Site(new BlockPos(centerX, platformSurface - 1, centerZ), rotation, fullMin, fullMax, samples));
     }
     public record Site(BlockPos anchor, Rotation rotation, int minSurface, int maxSurface, int samples) {}
 }

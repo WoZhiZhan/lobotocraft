@@ -176,6 +176,10 @@ public final class GearChurchGameTests {
                             actualPiece.rotation()).orElseThrow();
                     h.assertTrue(site.maxSurface() - site.minSurface() <= GearChurchSite.MAX_RELIEF,
                             "test relaxed production relief");
+                    int platformSurface = anchor.getY() + 1;
+                    h.assertTrue(site.maxSurface() - platformSurface <= GearChurchSite.MAX_CUT
+                            && platformSurface - site.minSurface() <= GearChurchSite.MAX_SUPPORT,
+                            "natural terrace exceeded cut/fill budget");
                     h.assertTrue(natural.getBoundingBox().getXSpan() <= 145
                             && natural.getBoundingBox().getZSpan() <= 145, "template rotation split the building apart");
                     // Confirm the entire authored foundation is supported on actual generated terrain.
@@ -194,6 +198,19 @@ public final class GearChurchGameTests {
                         }
                     h.assertTrue(unsupported == 0, "actual terrain left unsupported foundation columns: " + unsupported);
                     assertEntrance(h, level, anchor, actualPiece.rotation());
+                    for (var exit : GearChurchLayout.ENTRANCE_EXITS) {
+                        var column = GearChurchLayout.world(exit, anchor, actualPiece.rotation());
+                        int originalSurface = ctx.chunkGenerator().getBaseHeight(column.getX(), column.getZ(),
+                                Heightmap.Types.WORLD_SURFACE_WG, level, ctx.randomState());
+                        var foot = new BlockPos(column.getX(), originalSurface, column.getZ());
+                        h.assertTrue(Math.abs(originalSurface - (anchor.getY() + 2.1875)) <= 1,
+                                "natural exterior is an impassable step at the authored porch");
+                        h.assertTrue(level.getBlockState(foot.below()).isFaceSturdy(level, foot.below(), Direction.UP)
+                                && level.getFluidState(foot).isEmpty() && level.noCollision(
+                                        new net.minecraft.world.phys.AABB(foot.getX() + 0.2, foot.getY(),
+                                                foot.getZ() + 0.2, foot.getX() + 0.8, foot.getY() + 1.8,
+                                                foot.getZ() + 0.8)), "actual exterior path is blocked or unsupported");
+                    }
                     int spawned = GearChurchResidents.populateNear(level, natural, Vec3.atCenterOf(anchor));
                     h.assertTrue(spawned == 16, "church failed to populate all sixteen authored safe points: " + spawned);
                     h.assertTrue(GearChurchResidents.populateNear(level, natural, Vec3.atCenterOf(anchor)) == 0,
@@ -288,6 +305,16 @@ public final class GearChurchGameTests {
                 for (int x = chunk.getMinBlockX(); x <= chunk.getMaxBlockX(); x++)
                     for (int z = chunk.getMinBlockZ(); z <= chunk.getMaxBlockZ(); z++)
                         level.setBlock(new BlockPos(x, anchor.getY() - 1, z), Blocks.TERRACOTTA.defaultBlockState(), 2);
+                // The source column (1,1) is only authored soil. It exercises cutting beyond
+                // the template top; the seventh layer and a non-authored column must survive.
+                var cutColumn = GearChurchLayout.world(new BlockPos(1, 0, 1), anchor, site.rotation());
+                if (new ChunkPos(cutColumn).equals(chunk)) {
+                    for (int up = 2; up <= GearChurchSite.MAX_CUT + 1; up++)
+                        level.setBlock(cutColumn.above(up), Blocks.STONE.defaultBlockState(), 2);
+                }
+                var outsideColumn = GearChurchLayout.world(new BlockPos(0, 0, 1), anchor, site.rotation());
+                if (new ChunkPos(outsideColumn).equals(chunk))
+                    level.setBlock(outsideColumn.above(2), Blocks.STONE.defaultBlockState(), 2);
                 start.placeInChunk(level, level.structureManager(), level.getChunkSource().getGenerator(),
                         RandomSource.create(281), new BoundingBox(chunk.getMinBlockX(), -64, chunk.getMinBlockZ(),
                                 chunk.getMaxBlockX(), 319, chunk.getMaxBlockZ()), chunk);
@@ -296,6 +323,14 @@ public final class GearChurchGameTests {
             else h.runAfterDelay(3, () -> {
                 try {
                     assertEntrance(h, level, anchor, site.rotation());
+                    var cutColumn = GearChurchLayout.world(new BlockPos(1, 0, 1), anchor, site.rotation());
+                    for (int up = 2; up <= GearChurchSite.MAX_CUT; up++)
+                        h.assertTrue(level.getBlockState(cutColumn.above(up)).isAir(),
+                                "terrain above low authored soil was not cut within budget");
+                    h.assertTrue(level.getBlockState(cutColumn.above(GearChurchSite.MAX_CUT + 1)).is(Blocks.STONE),
+                            "terrace cut exceeded six layers");
+                    h.assertTrue(level.getBlockState(GearChurchLayout.world(new BlockPos(0, 2, 1),
+                            anchor, site.rotation())).is(Blocks.STONE), "terrace cut outside authored columns");
                     // Noncolliding debris must not consume a safe resident slot.
                     var itemPos = GearChurchLayout.world(GearChurchLayout.SPAWNS.get(0), anchor, site.rotation());
                     var debris = new net.minecraft.world.entity.item.ItemEntity(level, itemPos.getX() + 0.5,
@@ -333,7 +368,8 @@ public final class GearChurchGameTests {
                                 "resident absent or colliding: " + slot);
                         mob.discard();
                     }
-                    System.out.println("GEAR-CHURCH MANUAL PASS parts=25 residents=16 rotation=CLOCKWISE_90 reloadDuplicate=0");
+                    System.out.println("GEAR-CHURCH MANUAL PASS parts=25 residents=16 rotation=CLOCKWISE_90"
+                            + " reloadDuplicate=0 terraceCut=6 cutOutside=0");
                     h.succeed();
                 } finally { forced.forEach(chunk -> level.setChunkForced(chunk.x, chunk.z, false)); }
             });
