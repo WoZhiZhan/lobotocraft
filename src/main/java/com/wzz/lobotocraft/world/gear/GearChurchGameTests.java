@@ -52,6 +52,20 @@ public final class GearChurchGameTests {
                         cx * placement.spacing(), cz * placement.spacing()));
             }
         }
+        String witness = System.getProperty("lobotocraft.gearChurchWitnessChunk", "");
+        if (!witness.isBlank()) {
+            String[] fields = witness.split(",");
+            h.assertTrue(fields.length == 2, "invalid replay witness chunk");
+            var chunk = new ChunkPos(Integer.parseInt(fields[0]), Integer.parseInt(fields[1]));
+            h.assertTrue(candidates.remove(chunk) && placement.isStructureChunk(
+                    level.getChunkSource().getGenerator().createState(
+                            level.registryAccess().lookupOrThrow(Registries.STRUCTURE_SET),
+                            level.getChunkSource().randomState(), level.getSeed()), chunk.x, chunk.z),
+                    "replay witness must belong to the same seed0 production grid and exclusion rules");
+            candidates.add(0, chunk);
+            System.out.println("GEAR-CHURCH REPLAY natural-grid witness=" + chunk
+                    + "; all production terrain, exclusion and natural generation checks retained");
+        }
         new Search(h, level, structure, placement, candidates).step();
     }
 
@@ -149,12 +163,19 @@ public final class GearChurchGameTests {
         var chunks = new ArrayList<ChunkPos>();
         for (int cx = minCx; cx <= maxCx; cx++) for (int cz = minCz; cz <= maxCz; cz++)
             chunks.add(new ChunkPos(cx, cz));
+        // Normal player view supplies these neighbors; a remote test fixture otherwise
+        // leaves ENTITY_TICKING's radius-two FULL futures unresolved.
+        var preparation = new ArrayList<>(chunks);
+        for (int cx = minCx - 2; cx <= maxCx + 2; cx++)
+            for (int cz = minCz - 2; cz <= maxCz + 2; cz++)
+                if (cx < minCx || cx > maxCx || cz < minCz || cz > maxCz)
+                    preparation.add(new ChunkPos(cx, cz));
         var forced = new ArrayList<ChunkPos>();
         final int[] cursor = {0};
         Runnable[] generate = new Runnable[1];
         generate[0] = () -> {
-            for (int budget = 0; budget < 2 && cursor[0] < chunks.size(); budget++) {
-                var chunk = chunks.get(cursor[0]++);
+            for (int budget = 0; budget < 2 && cursor[0] < preparation.size(); budget++) {
+                var chunk = preparation.get(cursor[0]++);
                 if (!level.getForcedChunks().contains(chunk.toLong())) {
                     level.setChunkForced(chunk.x, chunk.z, true); forced.add(chunk);
                 }
@@ -162,8 +183,9 @@ public final class GearChurchGameTests {
             }
             // GameTest's scheduler keys entries by Runnable identity; rescheduling the running
             // object would be removed by its current iterator after run() returns.
-            if (cursor[0] < chunks.size()) h.runAfterDelay(1, () -> generate[0].run());
+            if (cursor[0] < preparation.size()) h.runAfterDelay(1, () -> generate[0].run());
             else h.runAfterDelay(2, () -> {
+                boolean[] deferred = {false};
                 try {
                     h.assertTrue(level.getBiome(anchor).is(GearChurchStructure.BIOMES), "actual chunk biome is not badlands");
                     // Natural generation may already have placed this structure at its production candidate.
@@ -222,29 +244,58 @@ public final class GearChurchGameTests {
                     level.getDataStorage().set(GearChurchResidents.DATA_ID, restored);
                     h.assertTrue(GearChurchResidents.populateNear(level, natural, Vec3.atCenterOf(anchor)) == 0,
                             "reload duplicated residents");
-                    for (int slot = 0; slot < 16; slot++) {
-                        var entity = level.getEntity(GearChurchResidents.residentId(level, anchor, slot));
-                        h.assertTrue(entity instanceof EntityGearFollower, "missing actual gear resident " + slot);
-                        var resident = (EntityGearFollower) entity;
-                        h.assertTrue(resident.churchSlot() == slot && resident.getMaxHealth() == 86
-                                && level.noCollision(resident), "resident slot/health/collision mismatch");
-                        h.assertTrue(GearChurchLayout.indoors(GearChurchLayout.local(resident.blockPosition(),
-                                anchor, actualPiece.rotation())), "resident spawned outside actual church interior");
-                        resident.discard();
-                    }
-                    h.assertTrue(GearChurchResidents.populateNear(level, natural, Vec3.atCenterOf(anchor)) == 0,
-                            "discarded initial batch was silently respawned");
-                    System.out.println("GEAR-CHURCH PASS seed=" + level.getSeed() + " anchor=" + anchor
-                            + " rotation=" + actualPiece.rotation() + " sampleHeights=" + site.minSurface()
-                            + ".." + site.maxSurface() + " realChunks=" + chunks.size()
-                            + " unsupported=" + unsupported + " residents=16 reloadDuplicate=0");
-                    h.succeed();
+                    deferred[0] = true;
+                    finishWhenResidentsVisible(h, level, natural, actualPiece, site, chunks.size(), forced);
                 } finally {
-                    forced.forEach(chunk -> level.setChunkForced(chunk.x, chunk.z, false));
+                    if (!deferred[0]) forced.forEach(chunk -> level.setChunkForced(chunk.x, chunk.z, false));
                 }
             });
         };
         generate[0].run();
+    }
+
+    private static void finishWhenResidentsVisible(GameTestHelper h, ServerLevel level, StructureStart natural,
+            GearChurchPiece piece, GearChurchSite.Site site, int realChunks, List<ChunkPos> forced) {
+        int[] tries = {0};
+        Runnable[] poll = new Runnable[1];
+        poll[0] = () -> {
+            try {
+                // Only advance vanilla pending tasks, never force entity-manager visibility.
+                for (int budget = 0; budget < 64 && level.getChunkSource().pollTask(); budget++) {}
+                var residents = new ArrayList<EntityGearFollower>();
+                for (int slot = 0; slot < 16; slot++) {
+                    var entity = level.getEntity(GearChurchResidents.residentId(level, piece.anchor(), slot));
+                    if (entity == null) {
+                        if (++tries[0] >= 100) h.fail("resident UUID never became queryable within 100 fixture ticks: " + slot);
+                        h.runAfterDelay(1, () -> poll[0].run());
+                        return;
+                    }
+                    h.assertTrue(entity instanceof EntityGearFollower, "wrong actual gear resident type " + slot);
+                    var resident = (EntityGearFollower) entity;
+                    h.assertTrue(resident.churchSlot() == slot && resident.getMaxHealth() == 86
+                            && resident.getHealth() == 86 && !resident.isRemoved()
+                            && level.noCollision(resident), "resident slot/health/collision mismatch");
+                    h.assertTrue(GearChurchLayout.indoors(GearChurchLayout.local(resident.blockPosition(),
+                            piece.anchor(), piece.rotation())), "resident spawned outside actual church interior");
+                    residents.add(resident);
+                }
+                residents.forEach(EntityGearFollower::discard);
+                h.assertTrue(GearChurchResidents.populateNear(level, natural, Vec3.atCenterOf(piece.anchor())) == 0,
+                        "discarded initial batch was silently respawned");
+                System.out.println("GEAR-CHURCH PASS seed=" + level.getSeed() + " anchor=" + piece.anchor()
+                        + " rotation=" + piece.rotation() + " sampleHeights=" + site.minSurface()
+                        + ".." + site.maxSurface() + " realChunks=" + realChunks
+                        + " unsupported=0 residents=16 reloadDuplicate=0"
+                        + " cut=" + (site.maxSurface() - piece.anchor().getY() - 1)
+                        + " fill=" + (piece.anchor().getY() + 1 - site.minSurface()));
+                forced.forEach(chunk -> level.setChunkForced(chunk.x, chunk.z, false));
+                h.succeed();
+            } catch (RuntimeException | Error failure) {
+                forced.forEach(chunk -> level.setChunkForced(chunk.x, chunk.z, false));
+                throw failure;
+            }
+        };
+        h.runAfterDelay(1, () -> poll[0].run());
     }
 
     @GameTest(template = T, templateNamespace = "lobotocraft_gear_church", timeoutTicks = 100,
