@@ -403,7 +403,7 @@ public final class GearChurchGameTests {
                         h.assertTrue(level.getBlockState(cutColumn.above(up)).isAir(),
                                 "terrain above low authored soil was not cut within budget");
                     h.assertTrue(level.getBlockState(cutColumn.above(GearChurchSite.MAX_CUT + 1)).is(Blocks.STONE),
-                            "terrace cut exceeded six layers");
+                            "terrace cut exceeded production budget");
                     h.assertTrue(level.getBlockState(GearChurchLayout.world(new BlockPos(0, 2, 1),
                             anchor, site.rotation())).is(Blocks.STONE), "terrace cut outside authored columns");
                     // Noncolliding debris must not consume a safe resident slot.
@@ -444,7 +444,7 @@ public final class GearChurchGameTests {
                         mob.discard();
                     }
                     System.out.println("GEAR-CHURCH MANUAL PASS parts=25 residents=16 rotation=CLOCKWISE_90"
-                            + " reloadDuplicate=0 terraceCut=6 cutOutside=0");
+                            + " reloadDuplicate=0 terraceCut=" + GearChurchSite.MAX_CUT + " cutOutside=0");
                     h.succeed();
                 } finally { forced.forEach(chunk -> level.setChunkForced(chunk.x, chunk.z, false)); }
             });

@@ -23,8 +23,10 @@ public final class GearChurchTerrainGameTests {
                 level.getChunkSource().randomState(), level.getStructureManager(), level.getSeed(), chunk, level,
                 structure.biomes()::contains);
         long began = System.nanoTime();
-        var site = GearChurchSite.findNear(GearChurchStructure.terrain(ctx), chunk.getMiddleBlockX(),
-                chunk.getMiddleBlockZ(), net.minecraft.world.level.block.Rotation.CLOCKWISE_90).orElseThrow();
+        // Pin the original safe terrain footprint, not the earlier accepted offset in an
+        // old-budget search order. Higher cut budgets can intentionally accept earlier offsets.
+        var site = GearChurchSite.find(GearChurchStructure.terrain(ctx), -85016,
+                -388952, net.minecraft.world.level.block.Rotation.CLOCKWISE_90).orElseThrow();
         h.assertTrue(site.anchor().equals(new net.minecraft.core.BlockPos(-85016, 99, -388952))
                 && site.minSurface() == 88 && site.maxSurface() == 106,
                 "optimization changed the documented full-column accepted site");

@@ -43,7 +43,7 @@ public final class GearChurchPiece extends TemplateStructurePiece {
                                               RandomSource random, BoundingBox box) {}
     @Override public void postProcess(WorldGenLevel level, StructureManager manager, ChunkGenerator generator,
                                       RandomSource random, BoundingBox writable, ChunkPos chunk, BlockPos pivot) {
-        // Clear only the authored foundation, only this writable chunk, and only six blocks
+        // Clear only the authored foundation, only this writable chunk, within MAX_CUT
         // above its floor. Do this BEFORE template placement so furniture/soil are preserved.
         for (int x = 0; x < template.getSize().getX(); x++) for (int z = 0; z < template.getSize().getZ(); z++) {
             int lx = offset.getX() + x, lz = offset.getZ() + z;

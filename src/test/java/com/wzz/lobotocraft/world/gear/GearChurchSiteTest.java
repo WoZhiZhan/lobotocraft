@@ -28,12 +28,12 @@ final class GearChurchSiteTest {
         assertTrue(GearChurchSite.find(terrain(0, true, true), 0, 0, Rotation.NONE).isEmpty());
         assertTrue(GearChurchSite.find(terrain(0, false, false), 0, 0, Rotation.NONE).isEmpty());
     }
-    @Test void terraceCutsAtMostSixAndFillsAtMostTwelveWithoutSinkingFlatGround() {
-        var terrace = GearChurchSite.find(terrain(18, false, true), 0, 0, Rotation.NONE).orElseThrow();
+    @Test void terraceCutsAtMostTwelveAndFillsAtMostTwelveWithoutSinkingFlatGround() {
+        var terrace = GearChurchSite.find(terrain(24, false, true), 0, 0, Rotation.NONE).orElseThrow();
         int platformSurface = terrace.anchor().getY() + 1;
-        assertEquals(6, terrace.maxSurface() - platformSurface);
+        assertEquals(12, terrace.maxSurface() - platformSurface);
         assertEquals(12, platformSurface - terrace.minSurface());
-        assertTrue(GearChurchSite.find(terrain(19, false, true), 0, 0, Rotation.NONE).isEmpty());
+        assertTrue(GearChurchSite.find(terrain(25, false, true), 0, 0, Rotation.NONE).isEmpty());
         var flat = GearChurchSite.find(terrain(0, false, true), 0, 0, Rotation.NONE).orElseThrow();
         assertEquals(79, flat.anchor().getY(), "flat terrain must not be cut just because cutting is allowed");
     }
