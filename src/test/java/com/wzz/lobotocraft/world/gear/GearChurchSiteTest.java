@@ -64,11 +64,29 @@ final class GearChurchSiteTest {
             assertTrue(GearChurchLayout.indoors(pos));
         }
     }
-    @Test void spacingGuaranteesTwoThousandEvenBetweenNeighboringGridCells() {
+    @Test void trialSpacingKeepsBuildingsApartWithoutTheOldTwoThousandGuarantee() {
         int minimumCenters = (GearChurchSite.SEPARATION + 1) * 16;
         int maxDiameter = (int) Math.ceil(Math.hypot(GearChurchLayout.WIDTH, GearChurchLayout.DEPTH));
         int maximumCombinedLocalShift = (int) Math.ceil(2 * Math.hypot(32, 32));
-        assertTrue(minimumCenters - maxDiameter - maximumCombinedLocalShift > 2000);
+        assertEquals(96, GearChurchSite.SPACING);
+        assertEquals(48, GearChurchSite.SEPARATION);
+        assertTrue(GearChurchSite.SPACING > GearChurchSite.SEPARATION);
+        assertTrue(minimumCenters - maxDiameter - maximumCombinedLocalShift > 0);
+        assertTrue(minimumCenters - maxDiameter - maximumCombinedLocalShift < 2000);
+    }
+    @Test void packagedPlacementMatchesTrialAndPreservesSixteenChunkExclusion() throws Exception {
+        try (var stream = GearChurchSiteTest.class.getResourceAsStream(
+                "/data/lobotocraft/worldgen/structure_set/gear_church.json")) {
+            assertNotNull(stream);
+            var placement = com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(
+                    stream, java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject().getAsJsonObject("placement");
+            assertEquals(GearChurchSite.SPACING, placement.get("spacing").getAsInt());
+            assertEquals(GearChurchSite.SEPARATION, placement.get("separation").getAsInt());
+            assertEquals(GearChurchSite.SALT, placement.get("salt").getAsInt());
+            assertEquals(16, placement.getAsJsonObject("exclusion_zone").get("chunk_count").getAsInt());
+            assertEquals("minecraft:villages",
+                    placement.getAsJsonObject("exclusion_zone").get("other_set").getAsString());
+        }
     }
     @Test void naturalRestrictionDoesNotDeleteOrBlockPetsSummonsOrResidents() {
         assertTrue(GearChurchResidents.blocksNatural(MobSpawnType.NATURAL, false, true));

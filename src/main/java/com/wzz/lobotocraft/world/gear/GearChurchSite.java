@@ -10,7 +10,7 @@ import net.minecraft.world.level.ChunkPos;
 /** Bounded terrace probe. Only a small cut/fill budget, never terraforms an entire mesa. */
 public final class GearChurchSite {
     public static final int MAX_CUT = 6, MAX_SUPPORT = 12, MAX_RELIEF = MAX_CUT + MAX_SUPPORT, SAMPLE_STEP = 16;
-    public static final int SPACING = 256, SEPARATION = 144, SALT = 871231;
+    public static final int SPACING = 96, SEPARATION = 48, SALT = 871231;
     private GearChurchSite() {}
     public interface Terrain {
         int surface(int x, int z);
