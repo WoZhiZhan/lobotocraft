@@ -23,12 +23,16 @@ public final class GearChurchStructure extends Structure {
         // Vanilla otherwise creates/interpolates the same noise column twice. Retain only
         // its two exact heights, not the full block array; cache belongs to this attempt.
         Map<Long, int[]> columns = new HashMap<>();
-        boolean vanillaNoise = context.chunkGenerator().getClass() == NoiseBasedChunkGenerator.class;
+        boolean vanillaNoise = context.chunkGenerator().getClass() == NoiseBasedChunkGenerator.class
+                && hasAlignedNoiseColumnRange(context);
         return new GearChurchSite.Terrain() {
             private int[] heights(int x, int z) {
                 return columns.computeIfAbsent(ChunkPos.asLong(x, z), key -> {
                     var column = context.chunkGenerator().getBaseColumn(x, z,
                             context.heightAccessor(), context.randomState());
+                    // No full noise cell intersects this accessor. Vanilla getBaseHeight
+                    // returns accessor.minY for both predicates rather than throwing.
+                    if (column == null) return new int[]{minY(), minY()};
                     int surface = minY(), floor = minY();
                     for (int y = maxY() - 1; y >= minY(); y--) {
                         var state = column.getBlock(y);
@@ -57,6 +61,15 @@ public final class GearChurchStructure extends Structure {
             public int minY() { return context.heightAccessor().getMinBuildHeight(); }
             public int maxY() { return context.heightAccessor().getMaxBuildHeight(); }
         };
+    }
+    private static boolean hasAlignedNoiseColumnRange(GenerationContext context) {
+        var settings = ((NoiseBasedChunkGenerator) context.chunkGenerator()).generatorSettings().value()
+                .noiseSettings().clampToHeightAccessor(context.heightAccessor());
+        int cellHeight = settings.getCellHeight();
+        // getBaseColumn's array can have uncomputed/partial slots for a clipped accessor.
+        // Keep vanilla getBaseHeight semantics for those ranges rather than filling guesses.
+        return settings.minY() % cellHeight == 0 && settings.height() >= 0
+                && settings.height() % cellHeight == 0;
     }
     @Override public Optional<GenerationStub> findGenerationPoint(GenerationContext context) {
         int x = context.chunkPos().getMiddleBlockX(), z = context.chunkPos().getMiddleBlockZ();
