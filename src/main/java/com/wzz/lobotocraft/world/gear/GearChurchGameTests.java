@@ -381,7 +381,7 @@ public final class GearChurchGameTests {
                     for (int z = chunk.getMinBlockZ(); z <= chunk.getMaxBlockZ(); z++)
                         level.setBlock(new BlockPos(x, anchor.getY() - 1, z), Blocks.TERRACOTTA.defaultBlockState(), 2);
                 // The source column (1,1) is only authored soil. It exercises cutting beyond
-                // the template top; the seventh layer and a non-authored column must survive.
+                // the template top; the first layer above MAX_CUT and a non-authored column must survive.
                 var cutColumn = GearChurchLayout.world(new BlockPos(1, 0, 1), anchor, site.rotation());
                 if (new ChunkPos(cutColumn).equals(chunk)) {
                     for (int up = 2; up <= GearChurchSite.MAX_CUT + 1; up++)
