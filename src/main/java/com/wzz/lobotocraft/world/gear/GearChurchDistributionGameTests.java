@@ -64,7 +64,8 @@ public final class GearChurchDistributionGameTests {
                 h.assertTrue(surveys.stream().allMatch(s -> s.index == s.candidates.size()),
                         "sampling stopped at first success");
                 System.out.println("GEAR-DISTRIBUTION COMPLETE seeds=0,1,2 square=[-100000,100000]^2"
-                        + " noise-policy-survey-only; no actual StructureStart/resident validation in this survey");
+                        + " centerY80-prefiltered-lower-bound-only; not exhaustive production acceptance"
+                        + "; no actual StructureStart/resident validation in this survey");
                 h.succeed();
             }
         };
@@ -80,7 +81,6 @@ public final class GearChurchDistributionGameTests {
         final long seed;
         final RandomSpreadStructurePlacement placement;
         final List<ChunkPos> candidates = new ArrayList<>();
-        final long started = System.nanoTime();
         int index, badlands, eligible;
         double nearest = Double.POSITIVE_INFINITY, maxMillis, totalMillis;
         ChunkPos nearestChunk;
@@ -110,7 +110,8 @@ public final class GearChurchDistributionGameTests {
             maxMillis = Math.max(maxMillis, millis); totalMillis += millis;
             if (site.isPresent()) {
                 eligible++;
-                double distance = Math.hypot(x, z);
+                var anchor = site.get().position();
+                double distance = Math.hypot(anchor.getX(), anchor.getZ());
                 if (distance < nearest) { nearest = distance; nearestChunk = chunk; }
                 System.out.println("GEAR-DISTRIBUTION WITNESS seed=" + seed + " spacing=" + placement.spacing()
                         + " chunk=" + chunk + " distance=" + Math.round(distance) + " selectionMillis=" + Math.round(millis));
@@ -122,7 +123,7 @@ public final class GearChurchDistributionGameTests {
         void report() {
             System.out.println("GEAR-DISTRIBUTION RESULT seed=" + seed + " spacing=" + placement.spacing()
                     + " separation=" + placement.separation() + " candidates=" + candidates.size()
-                    + " badlandsExclusionPass=" + badlands + " eligible=" + eligible
+                    + " badlandsY80ExclusionPass=" + badlands + " eligibleWithinY80Subset=" + eligible
                     + " nearestDistance=" + (nearestChunk == null ? "NONE" : Math.round(nearest))
                     + " nearestChunk=" + nearestChunk + " maxSelectionMillis=" + Math.round(maxMillis)
                     + " totalSelectionMillis=" + Math.round(totalMillis));
