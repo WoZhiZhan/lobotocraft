@@ -21,6 +21,7 @@ public final class GearChurchSite {
         int minY();
         int maxY();
         default void prepareDetailedSampling() {}
+        default void prepareCoarseSampling() {}
     }
     public static Optional<Site> findNear(Terrain terrain, int centerX, int centerZ, Rotation rotation) {
         // Neighboring probes overlap heavily. Keep exact heights, but do not recompute the same
@@ -37,6 +38,7 @@ public final class GearChurchSite {
             public int minY() { return terrain.minY(); }
             public int maxY() { return terrain.maxY(); }
             public void prepareDetailedSampling() { terrain.prepareDetailedSampling(); }
+            public void prepareCoarseSampling() { terrain.prepareCoarseSampling(); }
         };
         for (int radius : new int[]{0, 16, 32}) {
             int step = radius == 0 ? 1 : 16;
@@ -46,9 +48,20 @@ public final class GearChurchSite {
                 if (site.isPresent()) return site;
             }
         }
+        // Same +/-32 envelope and preferred rotation. Only recover gaps in the
+        // coarse grid after all original positions fail; share the exact terrain cache.
+        for (int radius : new int[]{8, 16, 24, 32}) {
+            for (int dx = -radius; dx <= radius; dx += 8) for (int dz = -radius; dz <= radius; dz += 8) {
+                if (Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
+                if (dx % 16 == 0 && dz % 16 == 0) continue;
+                var site = find(memo, centerX + dx, centerZ + dz, rotation);
+                if (site.isPresent()) return site;
+            }
+        }
         return Optional.empty();
     }
     public static Optional<Site> find(Terrain terrain, int centerX, int centerZ, Rotation rotation) {
+        terrain.prepareCoarseSampling();
         int min = Integer.MAX_VALUE, max = Integer.MIN_VALUE, samples = 0, biomes = 0;
         for (int lx = 0; lx < GearChurchLayout.WIDTH; lx += SAMPLE_STEP) {
             for (int lz = 0; lz < GearChurchLayout.DEPTH; lz += SAMPLE_STEP) {

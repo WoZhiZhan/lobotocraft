@@ -29,12 +29,17 @@ public final class GearChurchStructure extends Structure {
         return new GearChurchSite.Terrain() {
             private boolean detailed;
             public void prepareDetailedSampling() { detailed = vanillaNoise; }
+            public void prepareCoarseSampling() { detailed = false; }
             private int height(int x, int z, int offset) {
-                if (!detailed) return heights(x, z)[offset];
                 int tileSize = GearChurchNoiseHeights.TILE_SIZE;
                 int tileX = Math.floorDiv(x, tileSize), tileZ = Math.floorDiv(z, tileSize);
-                var tile = tiles.computeIfAbsent(ChunkPos.asLong(tileX, tileZ),
-                        key -> GearChurchNoiseHeights.sample((NoiseBasedChunkGenerator) context.chunkGenerator(),
+                long key = ChunkPos.asLong(tileX, tileZ);
+                var cached = tiles.get(key);
+                if (cached != null) return cached[Math.floorMod(z, tileSize) * tileSize + Math.floorMod(x, tileSize)
+                        + offset * tileSize * tileSize];
+                if (!detailed) return heights(x, z)[offset];
+                var tile = tiles.computeIfAbsent(key,
+                        tileKey -> GearChurchNoiseHeights.sample((NoiseBasedChunkGenerator) context.chunkGenerator(),
                                 context.heightAccessor(), context.randomState(), tileX * tileSize, tileZ * tileSize));
                 return tile[Math.floorMod(z, tileSize) * tileSize + Math.floorMod(x, tileSize)
                         + offset * tileSize * tileSize];
