@@ -172,6 +172,10 @@ public final class GearChurchGameTests {
                     preparation.add(new ChunkPos(cx, cz));
         var forced = new ArrayList<ChunkPos>();
         registerTicketCleanup(h, level, forced);
+        // Snapshot post-carver terrain before FEATURES places the church. This independent
+        // observation prevents a new terracotta support column being mistaken for native ground.
+        Map<BlockPos, NativeSupport> nativeSupports = new HashMap<>();
+        int[] carvingCursor = {0};
         final int[] cursor = {0};
         Runnable[] generate = new Runnable[1];
         generate[0] = () -> {
@@ -205,21 +209,31 @@ public final class GearChurchGameTests {
                             "natural terrace exceeded cut/fill budget");
                     h.assertTrue(natural.getBoundingBox().getXSpan() <= 145
                             && natural.getBoundingBox().getZSpan() <= 145, "template rotation split the building apart");
-                    // Confirm the entire authored foundation is supported on actual generated terrain.
+                    // Confirm continuous supports against the pre-placement post-carver snapshot.
                     int unsupported = 0;
+                    int deepestSupport = 0, caveColumnsBeyondSurfaceBudget = 0;
                     for (int lx = 0; lx < GearChurchLayout.WIDTH; lx++)
                         for (int lz = 0; lz < GearChurchLayout.DEPTH; lz++) {
                             if (!GearChurchLayout.foundation(lx, lz)) continue;
                             var base = GearChurchLayout.world(new BlockPos(lx, 0, lz), anchor, actualPiece.rotation());
-                            int originalSurface = ctx.chunkGenerator().getBaseHeight(base.getX(), base.getZ(),
-                                    Heightmap.Types.OCEAN_FLOOR_WG, level, ctx.randomState());
-                            int depth = Math.max(1, base.getY() - originalSurface + 1);
-                            var nativeGround = base.below(depth);
-                            if (depth > GearChurchSite.MAX_SUPPORT + 1
-                                    || !level.getBlockState(nativeGround).isFaceSturdy(level, nativeGround, Direction.UP))
-                                unsupported++;
+                            var observed = nativeSupports.get(base);
+                            boolean connected = observed != null && observed.depth() > 0;
+                            if (connected) {
+                                deepestSupport = Math.max(deepestSupport, observed.depth() - 1);
+                                if (observed.depth() - 1 > GearChurchSite.MAX_SUPPORT) caveColumnsBeyondSurfaceBudget++;
+                                var terminal = base.below(observed.depth());
+                                connected = level.getBlockState(terminal).equals(observed.state())
+                                        && level.getBlockState(terminal).isFaceSturdy(level, terminal, Direction.UP);
+                                for (int down = 1; down < observed.depth() && connected; down++) {
+                                    var pos = base.below(down);
+                                    connected = level.getBlockState(pos).isFaceSturdy(level, pos, Direction.UP);
+                                }
+                            }
+                            if (!connected) unsupported++;
                         }
                     h.assertTrue(unsupported == 0, "actual terrain left unsupported foundation columns: " + unsupported);
+                    System.out.println("GEAR-CHURCH SUPPORT verifiedBeforeFeatures=" + nativeSupports.size()
+                            + " maxActualFill=" + deepestSupport + " caveColumnsBeyond12=" + caveColumnsBeyondSurfaceBudget);
                     assertEntrance(h, level, anchor, actualPiece.rotation());
                     for (var exit : GearChurchLayout.ENTRANCE_EXITS) {
                         var column = GearChurchLayout.world(exit, anchor, actualPiece.rotation());
@@ -252,8 +266,40 @@ public final class GearChurchGameTests {
                 }
             });
         };
-        generate[0].run();
+        Runnable[] carve = new Runnable[1];
+        carve[0] = () -> {
+            for (int budget = 0; budget < 2 && carvingCursor[0] < chunks.size(); budget++) {
+                var chunk = chunks.get(carvingCursor[0]++);
+                var terrainChunk = level.getChunk(chunk.x, chunk.z,
+                        net.minecraft.world.level.chunk.ChunkStatus.CARVERS, true);
+                h.assertTrue(!terrainChunk.getStatus().isOrAfter(net.minecraft.world.level.chunk.ChunkStatus.FEATURES),
+                        "cannot snapshot native support after church placement");
+            }
+            if (carvingCursor[0] < chunks.size()) h.runAfterDelay(1, () -> carve[0].run());
+            else {
+                for (int lx = 0; lx < GearChurchLayout.WIDTH; lx++) for (int lz = 0; lz < GearChurchLayout.DEPTH; lz++) {
+                    if (!GearChurchLayout.foundation(lx, lz)) continue;
+                    var base = GearChurchLayout.world(new BlockPos(lx, 0, lz), anchor, piece.rotation());
+                    var terrainChunk = level.getChunk(base.getX() >> 4, base.getZ() >> 4,
+                            net.minecraft.world.level.chunk.ChunkStatus.CARVERS, true);
+                    int depth = -1;
+                    net.minecraft.world.level.block.state.BlockState nativeState = Blocks.AIR.defaultBlockState();
+                    for (int down = 1; down <= GearChurchSite.MAX_CAVE_SUPPORT + 1; down++) {
+                        var pos = base.below(down);
+                        if (pos.getY() < level.getMinBuildHeight()) break;
+                        var state = terrainChunk.getBlockState(pos);
+                        if (state.isFaceSturdy(net.minecraft.world.level.EmptyBlockGetter.INSTANCE, pos, Direction.UP)) {
+                            depth = down; nativeState = state; break;
+                        }
+                    }
+                    nativeSupports.put(base, new NativeSupport(depth, nativeState));
+                }
+                generate[0].run();
+            }
+        };
+        carve[0].run();
     }
+    private record NativeSupport(int depth, net.minecraft.world.level.block.state.BlockState state) {}
 
     /** Vanilla exposes listeners on GameTestInfo but no public Helper->Info getter.
      * Read only that test owner; never read/write production entity/chunk internals. */
@@ -390,6 +436,14 @@ public final class GearChurchGameTests {
                 var outsideColumn = GearChurchLayout.world(new BlockPos(0, 0, 1), anchor, site.rotation());
                 if (new ChunkPos(outsideColumn).equals(chunk))
                     level.setBlock(outsideColumn.above(2), Blocks.STONE.defaultBlockState(), 2);
+                for (int gap : new int[]{16, 17}) {
+                    var caveBase = GearChurchLayout.world(new BlockPos(1, 0, gap == 16 ? 2 : 3), anchor, site.rotation());
+                    if (new ChunkPos(caveBase).equals(chunk)) {
+                        for (int down = 1; down <= gap; down++)
+                            level.setBlock(caveBase.below(down), Blocks.AIR.defaultBlockState(), 2);
+                        level.setBlock(caveBase.below(gap + 1), Blocks.STONE.defaultBlockState(), 2);
+                    }
+                }
                 start.placeInChunk(level, level.structureManager(), level.getChunkSource().getGenerator(),
                         RandomSource.create(281), new BoundingBox(chunk.getMinBlockX(), -64, chunk.getMinBlockZ(),
                                 chunk.getMaxBlockX(), 319, chunk.getMaxBlockZ()), chunk);
@@ -406,6 +460,16 @@ public final class GearChurchGameTests {
                             "terrace cut exceeded production budget");
                     h.assertTrue(level.getBlockState(GearChurchLayout.world(new BlockPos(0, 2, 1),
                             anchor, site.rotation())).is(Blocks.STONE), "terrace cut outside authored columns");
+                    var allowedCave = GearChurchLayout.world(new BlockPos(1, 0, 2), anchor, site.rotation());
+                    for (int down = 1; down <= 16; down++)
+                        h.assertTrue(level.getBlockState(allowedCave.below(down)).is(Blocks.TERRACOTTA),
+                                "sixteen-block cave support failed to reach the native terminal");
+                    h.assertTrue(level.getBlockState(allowedCave.below(17)).is(Blocks.STONE),
+                            "cave support replaced its original ground terminal");
+                    var deepCave = GearChurchLayout.world(new BlockPos(1, 0, 3), anchor, site.rotation());
+                    for (int down = 1; down <= 17; down++)
+                        h.assertTrue(level.getBlockState(deepCave.below(down)).isAir(),
+                                "over-budget cave left a partial floating support column");
                     // Noncolliding debris must not consume a safe resident slot.
                     var itemPos = GearChurchLayout.world(GearChurchLayout.SPAWNS.get(0), anchor, site.rotation());
                     var debris = new net.minecraft.world.entity.item.ItemEntity(level, itemPos.getX() + 0.5,
@@ -444,7 +508,8 @@ public final class GearChurchGameTests {
                         mob.discard();
                     }
                     System.out.println("GEAR-CHURCH MANUAL PASS parts=25 residents=16 rotation=CLOCKWISE_90"
-                            + " reloadDuplicate=0 terraceCut=" + GearChurchSite.MAX_CUT + " cutOutside=0");
+                            + " reloadDuplicate=0 terraceCut=" + GearChurchSite.MAX_CUT
+                            + " cutOutside=0 caveFill16=pass caveFill17=rejected");
                     h.succeed();
                 } finally { forced.forEach(chunk -> level.setChunkForced(chunk.x, chunk.z, false)); }
             });

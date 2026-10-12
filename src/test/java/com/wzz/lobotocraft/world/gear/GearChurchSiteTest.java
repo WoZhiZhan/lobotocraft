@@ -25,6 +25,9 @@ final class GearChurchSiteTest {
         assertTrue(GearChurchSite.find(terrain(12, false, true), 0, 0, Rotation.NONE).isPresent());
         assertTrue(GearChurchSite.find(terrain(13, false, true), 0, 0, Rotation.NONE).isPresent());
         assertEquals(12, GearChurchSite.MAX_SUPPORT, "terrain adjustment must not increase foundation fill depth");
+        assertEquals(16, GearChurchSite.MAX_CAVE_SUPPORT);
+        assertEquals(24, GearChurchSite.MAX_RELIEF,
+                "cave columns must not silently expand the surface relief budget");
         assertTrue(GearChurchSite.find(terrain(0, true, true), 0, 0, Rotation.NONE).isEmpty());
         assertTrue(GearChurchSite.find(terrain(0, false, false), 0, 0, Rotation.NONE).isEmpty());
     }

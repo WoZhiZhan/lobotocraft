@@ -63,16 +63,18 @@ public final class GearChurchPiece extends TemplateStructurePiece {
             BlockPos base = GearChurchLayout.world(new BlockPos(lx, 0, lz), anchor, rotation);
             if (!writable.isInside(base)) continue;
             int groundDepth = -1;
-            for (int down = 1; down <= GearChurchSite.MAX_SUPPORT + 1; down++) {
+            for (int down = 1; down <= GearChurchSite.MAX_CAVE_SUPPORT + 1; down++) {
                 BlockPos pos = base.below(down);
                 if (pos.getY() < level.getMinBuildHeight()) break;
                 var state = level.getBlockState(pos);
                 if (state.isFaceSturdy(level, pos, net.minecraft.core.Direction.UP)) { groundDepth = down; break; }
             }
-            // Never leave a decorative floating twelve-block pillar if a carver changed the sampled terrain.
+            // Find a real terminal before filling; no partial floating pillar when the cave is too deep.
             if (groundDepth < 0) continue;
-            for (int down = 1; down < groundDepth; down++)
-                level.setBlock(base.below(down), Blocks.TERRACOTTA.defaultBlockState(), 2);
+            for (int down = 1; down < groundDepth; down++) {
+                var pos = base.below(down);
+                if (writable.isInside(pos)) level.setBlock(pos, Blocks.TERRACOTTA.defaultBlockState(), 2);
+            }
         }
     }
 }
