@@ -140,7 +140,7 @@ final class GearChurchSiteTest {
             public int maxY() { return 320; }
         };
         assertTrue(GearChurchSite.findNear(input, 0, 0, Rotation.NONE).isEmpty());
-        assertTrue(calls.size() <= 81,
+        assertTrue(calls.size() <= 25,
                 "a center that cannot be badlands at any permitted height must not scan whole footprints");
         assertTrue(calls.values().stream().allMatch(count -> count == 1));
     }
@@ -157,23 +157,5 @@ final class GearChurchSiteTest {
         };
         assertTrue(GearChurchSite.find(highCenter, 0, 0, Rotation.NONE).isPresent(),
                 "center y=99 is legal even though y=80 is not badlands");
-    }
-    @Test void localSearchDoesNotMissSafeMidpointsInsideTheSameThirtyTwoBlockBounds() {
-        var flat = terrain(0, false, true);
-        var midpoint = new GearChurchSite.Terrain() {
-            public int surface(int x, int z) { return flat.surface(x, z); }
-            public int oceanFloor(int x, int z) { return flat.oceanFloor(x, z); }
-            public boolean badlands(int x, int y, int z) {
-                // All old 16-grid anchors fail their required center check, but the
-                // existing footprint probes and intervening anchor have valid biomes.
-                return !(Math.abs(x) <= 32 && Math.abs(z) <= 32
-                        && Math.floorMod(x, 16) == 0 && Math.floorMod(z, 16) == 0);
-            }
-            public int minY() { return -64; }
-            public int maxY() { return 320; }
-        };
-        var site = GearChurchSite.findNear(midpoint, 0, 0, Rotation.NONE).orElseThrow();
-        assertTrue(Math.abs(site.anchor().getX()) <= 32 && Math.abs(site.anchor().getZ()) <= 32);
-        assertTrue(Math.floorMod(site.anchor().getX(), 16) != 0 || Math.floorMod(site.anchor().getZ(), 16) != 0);
     }
 }

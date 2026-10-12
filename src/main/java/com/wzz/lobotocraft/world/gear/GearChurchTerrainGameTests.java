@@ -61,6 +61,10 @@ public final class GearChurchTerrainGameTests {
                             "batch differs seed=" + seed + " pos=" + x + "," + z
                                     + " actual=" + terrain.surface(x, z) + "/" + terrain.oceanFloor(x, z)
                                     + " vanilla=" + surface + "/" + floor);
+                    terrain.prepareCoarseSampling();
+                    h.assertTrue(terrain.surface(x, z) == surface && terrain.oceanFloor(x, z) == floor,
+                            "cached tile changed after returning to coarse mode");
+                    terrain.prepareDetailedSampling();
                     compared++;
                     if (surface != floor) wet++;
                 }

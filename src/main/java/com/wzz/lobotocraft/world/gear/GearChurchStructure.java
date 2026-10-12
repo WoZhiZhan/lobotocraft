@@ -24,6 +24,8 @@ public final class GearChurchStructure extends Structure {
         // its two exact heights, not the full block array; cache belongs to this attempt.
         Map<Long, int[]> columns = new HashMap<>();
         Map<Long, int[]> tiles = new HashMap<>();
+        Map<Long, Integer> surfaceOnly = new HashMap<>();
+        Map<Long, Boolean> biomes = new HashMap<>();
         boolean vanillaNoise = context.chunkGenerator().getClass() == NoiseBasedChunkGenerator.class
                 && hasAlignedNoiseColumnRange(context);
         return new GearChurchSite.Terrain() {
@@ -37,7 +39,12 @@ public final class GearChurchStructure extends Structure {
                 var cached = tiles.get(key);
                 if (cached != null) return cached[Math.floorMod(z, tileSize) * tileSize + Math.floorMod(x, tileSize)
                         + offset * tileSize * tileSize];
-                if (!detailed) return heights(x, z)[offset];
+                if (!detailed) {
+                    if (offset == 0) return surfaceOnly.computeIfAbsent(ChunkPos.asLong(x, z),
+                            columnKey -> context.chunkGenerator().getBaseHeight(x, z,
+                                    Heightmap.Types.WORLD_SURFACE_WG, context.heightAccessor(), context.randomState()));
+                    return heights(x, z)[offset];
+                }
                 var tile = tiles.computeIfAbsent(key,
                         tileKey -> GearChurchNoiseHeights.sample((NoiseBasedChunkGenerator) context.chunkGenerator(),
                                 context.heightAccessor(), context.randomState(), tileX * tileSize, tileZ * tileSize));
@@ -74,7 +81,9 @@ public final class GearChurchStructure extends Structure {
                         Heightmap.Types.OCEAN_FLOOR_WG, context.heightAccessor(), context.randomState());
             }
             public boolean badlands(int x, int y, int z) {
-                return context.biomeSource().getNoiseBiome(x >> 2, y >> 2, z >> 2, context.randomState().sampler()).is(BIOMES);
+                int qx = x >> 2, qy = y >> 2, qz = z >> 2;
+                return biomes.computeIfAbsent(BlockPos.asLong(qx, qy, qz),
+                        key -> context.biomeSource().getNoiseBiome(qx, qy, qz, context.randomState().sampler()).is(BIOMES));
             }
             public int minY() { return context.heightAccessor().getMinBuildHeight(); }
             public int maxY() { return context.heightAccessor().getMaxBuildHeight(); }

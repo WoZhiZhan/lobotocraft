@@ -48,16 +48,6 @@ public final class GearChurchSite {
                 if (site.isPresent()) return site;
             }
         }
-        // Same +/-32 envelope and preferred rotation. Only recover gaps in the
-        // coarse grid after all original positions fail; share the exact terrain cache.
-        for (int radius : new int[]{8, 16, 24, 32}) {
-            for (int dx = -radius; dx <= radius; dx += 8) for (int dz = -radius; dz <= radius; dz += 8) {
-                if (Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
-                if (dx % 16 == 0 && dz % 16 == 0) continue;
-                var site = find(memo, centerX + dx, centerZ + dz, rotation);
-                if (site.isPresent()) return site;
-            }
-        }
         return Optional.empty();
     }
     public static Optional<Site> find(Terrain terrain, int centerX, int centerZ, Rotation rotation) {
