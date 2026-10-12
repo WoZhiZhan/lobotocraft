@@ -20,6 +20,7 @@ public final class GearChurchSite {
         boolean badlands(int x, int y, int z);
         int minY();
         int maxY();
+        default void prepareDetailedSampling() {}
     }
     public static Optional<Site> findNear(Terrain terrain, int centerX, int centerZ, Rotation rotation) {
         // Neighboring probes overlap heavily. Keep exact heights, but do not recompute the same
@@ -35,6 +36,7 @@ public final class GearChurchSite {
             public boolean badlands(int x, int y, int z) { return terrain.badlands(x, y, z); }
             public int minY() { return terrain.minY(); }
             public int maxY() { return terrain.maxY(); }
+            public void prepareDetailedSampling() { terrain.prepareDetailedSampling(); }
         };
         for (int radius : new int[]{0, 16, 32}) {
             int step = radius == 0 ? 1 : 16;
@@ -74,6 +76,7 @@ public final class GearChurchSite {
             exitMin = Math.min(exitMin, h); exitMax = Math.max(exitMax, h);
         }
         if (!fitsPlatformRange(min, max, exitMin, exitMax)) return Optional.empty();
+        terrain.prepareDetailedSampling();
         // Every authored column must still be dry and fit the budget. Refine the grid
         // 8->4->2->1 to discover interior ridges/gullies early, not after scanning one
         // entire edge first. Each authored column appears once across these passes.

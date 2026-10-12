@@ -23,9 +23,20 @@ public final class GearChurchStructure extends Structure {
         // Vanilla otherwise creates/interpolates the same noise column twice. Retain only
         // its two exact heights, not the full block array; cache belongs to this attempt.
         Map<Long, int[]> columns = new HashMap<>();
+        Map<Long, int[]> tiles = new HashMap<>();
         boolean vanillaNoise = context.chunkGenerator().getClass() == NoiseBasedChunkGenerator.class
                 && hasAlignedNoiseColumnRange(context);
         return new GearChurchSite.Terrain() {
+            private boolean detailed;
+            public void prepareDetailedSampling() { detailed = vanillaNoise; }
+            private int height(int x, int z, int offset) {
+                if (!detailed) return heights(x, z)[offset];
+                int tileX = Math.floorDiv(x, 16), tileZ = Math.floorDiv(z, 16);
+                var tile = tiles.computeIfAbsent(ChunkPos.asLong(tileX, tileZ),
+                        key -> GearChurchNoiseHeights.sample((NoiseBasedChunkGenerator) context.chunkGenerator(),
+                                context.heightAccessor(), context.randomState(), tileX * 16, tileZ * 16));
+                return tile[Math.floorMod(z, 16) * 16 + Math.floorMod(x, 16) + offset * 256];
+            }
             private int[] heights(int x, int z) {
                 return columns.computeIfAbsent(ChunkPos.asLong(x, z), key -> {
                     var column = context.chunkGenerator().getBaseColumn(x, z,
@@ -47,12 +58,12 @@ public final class GearChurchStructure extends Structure {
                 });
             }
             public int surface(int x, int z) {
-                return vanillaNoise ? heights(x, z)[0] : context.chunkGenerator().getBaseHeight(x, z,
+                return vanillaNoise ? height(x, z, 0) : context.chunkGenerator().getBaseHeight(x, z,
                         Heightmap.Types.WORLD_SURFACE_WG, context.heightAccessor(), context.randomState());
             }
             public int oceanFloor(int x, int z) {
                 // Respect custom generators/subclasses and their original height overrides.
-                return vanillaNoise ? heights(x, z)[1] : context.chunkGenerator().getBaseHeight(x, z,
+                return vanillaNoise ? height(x, z, 1) : context.chunkGenerator().getBaseHeight(x, z,
                         Heightmap.Types.OCEAN_FLOOR_WG, context.heightAccessor(), context.randomState());
             }
             public boolean badlands(int x, int y, int z) {
@@ -68,7 +79,8 @@ public final class GearChurchStructure extends Structure {
         int cellHeight = settings.getCellHeight();
         // getBaseColumn's array can have uncomputed/partial slots for a clipped accessor.
         // Keep vanilla getBaseHeight semantics for those ranges rather than filling guesses.
-        return settings.minY() % cellHeight == 0 && settings.height() >= 0
+        return settings.getCellWidth() > 0 && 16 % settings.getCellWidth() == 0
+                && settings.minY() % cellHeight == 0 && settings.height() >= 0
                 && settings.height() % cellHeight == 0;
     }
     @Override public Optional<GenerationStub> findGenerationPoint(GenerationContext context) {

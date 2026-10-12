@@ -37,6 +37,40 @@ public final class GearChurchTerrainGameTests {
     }
 
     @GameTest(template = "workcloseregressiongametests.navigation_empty",
+            templateNamespace = "lobotocraft_gear_church_terrain", timeoutTicks = 2400)
+    public static void batchTilesMatchVanillaAcrossEveryColumnOfWaterLandAndNegativeTiles(GameTestHelper h) {
+        var level = h.getLevel().getServer().getLevel(GearChurchGameTests.NOISE_LEVEL);
+        var generator = (NoiseBasedChunkGenerator) level.getChunkSource().getGenerator();
+        var structure = (GearChurchStructure) level.registryAccess().registryOrThrow(Registries.STRUCTURE)
+                .get(GearChurchLayout.ID);
+        int compared = 0, wet = 0;
+        for (long seed : new long[]{0, 1, 2}) {
+            var random = RandomState.create(generator.generatorSettings().value(),
+                    level.registryAccess().lookupOrThrow(Registries.NOISE), seed);
+            var ctx = new Structure.GenerationContext(level.registryAccess(), generator, generator.getBiomeSource(),
+                    random, level.getStructureManager(), seed, new ChunkPos(0, 0), level, structure.biomes()::contains);
+            var terrain = GearChurchStructure.terrain(ctx);
+            terrain.prepareDetailedSampling();
+            for (var tile : new int[][]{{0, 0}, {-85024, -388960}, {100000, 100000}, {-100000, -100000}}) {
+                for (int dx = 0; dx < 16; dx++) for (int dz = 0; dz < 16; dz++) {
+                    int x = tile[0] + dx, z = tile[1] + dz;
+                    int surface = generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, level, random);
+                    int floor = generator.getBaseHeight(x, z, Heightmap.Types.OCEAN_FLOOR_WG, level, random);
+                    h.assertTrue(terrain.surface(x, z) == surface && terrain.oceanFloor(x, z) == floor,
+                            "batch differs seed=" + seed + " pos=" + x + "," + z
+                                    + " actual=" + terrain.surface(x, z) + "/" + terrain.oceanFloor(x, z)
+                                    + " vanilla=" + surface + "/" + floor);
+                    compared++;
+                    if (surface != floor) wet++;
+                }
+            }
+        }
+        h.assertTrue(wet > 0 && wet < compared, "batch fixture must cover dry and wet tiles");
+        System.out.println("GEAR-TERRAIN BATCH PASS seeds=0,1,2 allColumns=" + compared + " wetColumns=" + wet);
+        h.succeed();
+    }
+
+    @GameTest(template = "workcloseregressiongametests.navigation_empty",
             templateNamespace = "lobotocraft_gear_church_terrain", timeoutTicks = 100)
     public static void emptyNoiseRangeRetainsVanillaMinimumHeightInsteadOfCrashing(GameTestHelper h) {
         var level = h.getLevel().getServer().getLevel(GearChurchGameTests.NOISE_LEVEL);

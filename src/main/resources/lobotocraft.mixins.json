@@ -20,7 +20,8 @@
     "MixinPowderSnowBlock",
     "MixinRangedAttribute",
     "MixinServerPlayer",
-    "MixinSlot"
+    "MixinSlot",
+    "NoiseGeneratorFluidPickerAccessor"
   ],
   "client": [
     "ChannelAccessor",
