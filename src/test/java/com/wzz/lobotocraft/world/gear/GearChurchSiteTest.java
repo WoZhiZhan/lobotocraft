@@ -140,8 +140,23 @@ final class GearChurchSiteTest {
             public int maxY() { return 320; }
         };
         assertTrue(GearChurchSite.findNear(input, 0, 0, Rotation.NONE).isEmpty());
-        assertTrue(calls.size() < 25 * 56);
+        assertTrue(calls.size() <= 81,
+                "a center that cannot be badlands at any permitted height must not scan whole footprints");
         assertTrue(calls.values().stream().allMatch(count -> count == 1));
+    }
+    @Test void centerBiomeScreenKeepsLegalHighSurfaceBiomesInsteadOfUsingFixedY80() {
+        var input = terrain(20, false, true);
+        var highCenter = new GearChurchSite.Terrain() {
+            public int surface(int x, int z) { return input.surface(x, z); }
+            public int oceanFloor(int x, int z) { return input.oceanFloor(x, z); }
+            public boolean badlands(int x, int y, int z) {
+                return x != 0 || z != 0 || y == 99;
+            }
+            public int minY() { return -64; }
+            public int maxY() { return 320; }
+        };
+        assertTrue(GearChurchSite.find(highCenter, 0, 0, Rotation.NONE).isPresent(),
+                "center y=99 is legal even though y=80 is not badlands");
     }
     @Test void localSearchDoesNotMissSafeMidpointsInsideTheSameThirtyTwoBlockBounds() {
         var flat = terrain(0, false, true);

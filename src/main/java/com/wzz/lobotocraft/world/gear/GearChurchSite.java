@@ -62,6 +62,20 @@ public final class GearChurchSite {
     }
     public static Optional<Site> find(Terrain terrain, int centerX, int centerZ, Rotation rotation) {
         terrain.prepareCoarseSampling();
+        if (GearChurchLayout.roofHeight(GearChurchLayout.CENTER.getX(), GearChurchLayout.CENTER.getZ()) >= 0) {
+            // A valid full footprint includes its center, so its coarse maximum can
+            // differ from the exact center surface by at most MAX_RELIEF. Check ALL
+            // possible center-biome heights before paying for the footprint. Unlike
+            // the old diagnostic Y80 gate, this cannot exclude a legal high surface.
+            int centerHeight = terrain.surface(centerX, centerZ);
+            boolean possible = false;
+            int lowestY = Math.max(terrain.minY(), centerHeight - MAX_RELIEF - 1);
+            int highestY = Math.min(terrain.maxY() - 1, centerHeight + MAX_RELIEF - 1);
+            for (int y = lowestY; y <= highestY; y++) {
+                if (terrain.badlands(centerX, y, centerZ)) { possible = true; break; }
+            }
+            if (!possible) return Optional.empty();
+        }
         int min = Integer.MAX_VALUE, max = Integer.MIN_VALUE, samples = 0, biomes = 0;
         for (int lx = 0; lx < GearChurchLayout.WIDTH; lx += SAMPLE_STEP) {
             for (int lz = 0; lz < GearChurchLayout.DEPTH; lz += SAMPLE_STEP) {
