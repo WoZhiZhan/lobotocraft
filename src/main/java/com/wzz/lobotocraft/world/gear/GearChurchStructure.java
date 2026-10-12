@@ -40,9 +40,6 @@ public final class GearChurchStructure extends Structure {
                 if (cached != null) return cached[Math.floorMod(z, tileSize) * tileSize + Math.floorMod(x, tileSize)
                         + offset * tileSize * tileSize];
                 if (!detailed) {
-                    if (offset == 0) return surfaceOnly.computeIfAbsent(ChunkPos.asLong(x, z),
-                            columnKey -> context.chunkGenerator().getBaseHeight(x, z,
-                                    Heightmap.Types.WORLD_SURFACE_WG, context.heightAccessor(), context.randomState()));
                     return heights(x, z)[offset];
                 }
                 var tile = tiles.computeIfAbsent(key,
@@ -74,6 +71,17 @@ public final class GearChurchStructure extends Structure {
             public int surface(int x, int z) {
                 return vanillaNoise ? height(x, z, 0) : context.chunkGenerator().getBaseHeight(x, z,
                         Heightmap.Types.WORLD_SURFACE_WG, context.heightAccessor(), context.randomState());
+            }
+            public int centerSurface(int x, int z) {
+                if (!vanillaNoise) return surface(x, z);
+                int tileSize = GearChurchNoiseHeights.TILE_SIZE;
+                if (tiles.containsKey(ChunkPos.asLong(Math.floorDiv(x, tileSize), Math.floorDiv(z, tileSize))))
+                    return height(x, z, 0);
+                var pair = columns.get(ChunkPos.asLong(x, z));
+                if (pair != null) return pair[0];
+                return surfaceOnly.computeIfAbsent(ChunkPos.asLong(x, z),
+                        key -> context.chunkGenerator().getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG,
+                                context.heightAccessor(), context.randomState()));
             }
             public int oceanFloor(int x, int z) {
                 // Respect custom generators/subclasses and their original height overrides.

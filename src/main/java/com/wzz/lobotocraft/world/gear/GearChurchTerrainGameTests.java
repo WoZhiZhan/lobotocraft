@@ -122,6 +122,7 @@ public final class GearChurchTerrainGameTests {
                 int x = anchor[0] + i * 7, z = anchor[1] + round * 11;
                 int surface = generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, level, random);
                 int floor = generator.getBaseHeight(x, z, Heightmap.Types.OCEAN_FLOOR_WG, level, random);
+                h.assertTrue(terrain.centerSurface(x, z) == surface, "center fast query changed exact surface height");
                 h.assertTrue(terrain.surface(x, z) == surface && terrain.oceanFloor(x, z) == floor,
                         "paired production heights differ at seed=" + seed + " x=" + x + " z=" + z);
                 h.assertTrue(terrain.oceanFloor(x, z) == floor && terrain.surface(x, z) == surface,

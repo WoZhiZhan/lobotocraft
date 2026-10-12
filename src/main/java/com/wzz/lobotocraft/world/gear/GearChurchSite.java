@@ -16,6 +16,7 @@ public final class GearChurchSite {
     private GearChurchSite() {}
     public interface Terrain {
         int surface(int x, int z);
+        default int centerSurface(int x, int z) { return surface(x, z); }
         int oceanFloor(int x, int z);
         boolean badlands(int x, int y, int z);
         int minY();
@@ -33,6 +34,9 @@ public final class GearChurchSite {
             }
             public int oceanFloor(int x, int z) {
                 return floors.computeIfAbsent(ChunkPos.asLong(x, z), key -> terrain.oceanFloor(x, z));
+            }
+            public int centerSurface(int x, int z) {
+                return surfaces.computeIfAbsent(ChunkPos.asLong(x, z), key -> terrain.centerSurface(x, z));
             }
             public boolean badlands(int x, int y, int z) { return terrain.badlands(x, y, z); }
             public int minY() { return terrain.minY(); }
@@ -57,7 +61,7 @@ public final class GearChurchSite {
             // differ from the exact center surface by at most MAX_RELIEF. Check ALL
             // possible center-biome heights before paying for the footprint. Unlike
             // the old diagnostic Y80 gate, this cannot exclude a legal high surface.
-            int centerHeight = terrain.surface(centerX, centerZ);
+            int centerHeight = terrain.centerSurface(centerX, centerZ);
             boolean possible = false;
             int lowestY = Math.max(terrain.minY(), centerHeight - MAX_RELIEF - 1);
             int highestY = Math.min(terrain.maxY() - 1, centerHeight + MAX_RELIEF - 1);
