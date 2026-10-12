@@ -31,11 +31,13 @@ public final class GearChurchStructure extends Structure {
             public void prepareDetailedSampling() { detailed = vanillaNoise; }
             private int height(int x, int z, int offset) {
                 if (!detailed) return heights(x, z)[offset];
-                int tileX = Math.floorDiv(x, 16), tileZ = Math.floorDiv(z, 16);
+                int tileSize = GearChurchNoiseHeights.TILE_SIZE;
+                int tileX = Math.floorDiv(x, tileSize), tileZ = Math.floorDiv(z, tileSize);
                 var tile = tiles.computeIfAbsent(ChunkPos.asLong(tileX, tileZ),
                         key -> GearChurchNoiseHeights.sample((NoiseBasedChunkGenerator) context.chunkGenerator(),
-                                context.heightAccessor(), context.randomState(), tileX * 16, tileZ * 16));
-                return tile[Math.floorMod(z, 16) * 16 + Math.floorMod(x, 16) + offset * 256];
+                                context.heightAccessor(), context.randomState(), tileX * tileSize, tileZ * tileSize));
+                return tile[Math.floorMod(z, tileSize) * tileSize + Math.floorMod(x, tileSize)
+                        + offset * tileSize * tileSize];
             }
             private int[] heights(int x, int z) {
                 return columns.computeIfAbsent(ChunkPos.asLong(x, z), key -> {
@@ -79,7 +81,9 @@ public final class GearChurchStructure extends Structure {
         int cellHeight = settings.getCellHeight();
         // getBaseColumn's array can have uncomputed/partial slots for a clipped accessor.
         // Keep vanilla getBaseHeight semantics for those ranges rather than filling guesses.
-        return settings.getCellWidth() > 0 && 16 % settings.getCellWidth() == 0
+        // Only the vanilla overworld cell layout has full differential coverage here.
+        // Other datapack layouts retain vanilla queries instead of assuming compatibility.
+        return settings.getCellWidth() == 4 && cellHeight == 8
                 && settings.minY() % cellHeight == 0 && settings.height() >= 0
                 && settings.height() % cellHeight == 0;
     }

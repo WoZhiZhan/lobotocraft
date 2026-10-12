@@ -7,8 +7,10 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.*;
 import net.minecraft.world.level.levelgen.blending.Blender;
 
-/** Exact 16x16 height tile using vanilla interpolation. No chunk loading or world mutation. */
+/** Exact height tile using vanilla interpolation. No chunk loading or world mutation. */
 final class GearChurchNoiseHeights {
+    // Vanilla aquifer caches are sized for a chunk; larger tiles are not supported.
+    static final int TILE_SIZE = 16;
     private GearChurchNoiseHeights() {}
 
     static int[] sample(NoiseBasedChunkGenerator generator, LevelHeightAccessor accessor,
@@ -16,17 +18,18 @@ final class GearChurchNoiseHeights {
         var settings = generator.generatorSettings().value();
         var range = settings.noiseSettings().clampToHeightAccessor(accessor);
         int width = range.getCellWidth(), height = range.getCellHeight();
-        int[] heights = new int[512]; // surface[0..255], ocean floor[256..511]
+        int area = TILE_SIZE * TILE_SIZE;
+        int[] heights = new int[area * 2]; // surface then ocean-floor planes
         Arrays.fill(heights, accessor.getMinBuildHeight());
         if (range.height() / height <= 0) return heights;
         var picker = ((NoiseGeneratorFluidPickerAccessor) generator).lobotocraft$getFluidPicker().get();
-        var noise = new HeightNoiseChunk(16 / width, random, tileX, tileZ, range, settings, picker);
-        boolean[] floorsFound = new boolean[256];
+        var noise = new HeightNoiseChunk(TILE_SIZE / width, random, tileX, tileZ, range, settings, picker);
+        boolean[] floorsFound = new boolean[area];
         noise.initializeForFirstCellX();
         try {
-            for (int cellX = 0; cellX < 16 / width; cellX++) {
+            for (int cellX = 0; cellX < TILE_SIZE / width; cellX++) {
                 noise.advanceCellX(cellX);
-                for (int cellZ = 0; cellZ < 16 / width; cellZ++) {
+                for (int cellZ = 0; cellZ < TILE_SIZE / width; cellZ++) {
                     int remaining = width * width;
                     for (int cellY = range.height() / height - 1; cellY >= 0 && remaining > 0; cellY--) {
                         noise.selectCellYZ(cellY, cellZ);
@@ -37,7 +40,7 @@ final class GearChurchNoiseHeights {
                                 int x = tileX + cellX * width + dx;
                                 noise.updateForX(x, (double) dx / width);
                                 for (int dz = 0; dz < width; dz++) {
-                                    int index = (cellZ * width + dz) * 16 + cellX * width + dx;
+                                    int index = (cellZ * width + dz) * TILE_SIZE + cellX * width + dx;
                                     if (floorsFound[index]) continue;
                                     noise.updateForZ(tileZ + cellZ * width + dz, (double) dz / width);
                                     var state = noise.state();
@@ -46,7 +49,7 @@ final class GearChurchNoiseHeights {
                                             && Heightmap.Types.WORLD_SURFACE_WG.isOpaque().test(state))
                                         heights[index] = y + 1;
                                     if (Heightmap.Types.OCEAN_FLOOR_WG.isOpaque().test(state)) {
-                                        heights[index + 256] = y + 1;
+                                        heights[index + area] = y + 1;
                                         floorsFound[index] = true;
                                         remaining--;
                                     }

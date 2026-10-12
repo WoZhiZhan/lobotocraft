@@ -52,7 +52,8 @@ public final class GearChurchTerrainGameTests {
             var terrain = GearChurchStructure.terrain(ctx);
             terrain.prepareDetailedSampling();
             for (var tile : new int[][]{{0, 0}, {-85024, -388960}, {100000, 100000}, {-100000, -100000}}) {
-                for (int dx = 0; dx < 16; dx++) for (int dz = 0; dz < 16; dz++) {
+                for (int dx = 0; dx < GearChurchNoiseHeights.TILE_SIZE; dx++)
+                    for (int dz = 0; dz < GearChurchNoiseHeights.TILE_SIZE; dz++) {
                     int x = tile[0] + dx, z = tile[1] + dz;
                     int surface = generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, level, random);
                     int floor = generator.getBaseHeight(x, z, Heightmap.Types.OCEAN_FLOOR_WG, level, random);
