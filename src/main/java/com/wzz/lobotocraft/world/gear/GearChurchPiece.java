@@ -34,6 +34,13 @@ public final class GearChurchPiece extends TemplateStructurePiece {
     }
     public BlockPos anchor() { return anchor; }
     public Rotation rotation() { return rotation; }
+    static boolean isStableSupport(net.minecraft.world.level.block.state.BlockState state,
+                                   BlockGetter level, BlockPos pos) {
+        // Falling sand/gravel can appear solid above a carved cave, then collapse after
+        // placement updates. Anchor the pillar to a stable terminal further down instead.
+        return !(state.getBlock() instanceof FallingBlock)
+                && state.isFaceSturdy(level, pos, net.minecraft.core.Direction.UP);
+    }
     @Override protected void addAdditionalSaveData(StructurePieceSerializationContext context, CompoundTag tag) {
         super.addAdditionalSaveData(context, tag);
         tag.putLong("ChurchAnchor", anchor.asLong()); tag.putString("ChurchRotation", rotation.name());
@@ -67,7 +74,7 @@ public final class GearChurchPiece extends TemplateStructurePiece {
                 BlockPos pos = base.below(down);
                 if (pos.getY() < level.getMinBuildHeight()) break;
                 var state = level.getBlockState(pos);
-                if (state.isFaceSturdy(level, pos, net.minecraft.core.Direction.UP)) { groundDepth = down; break; }
+                if (isStableSupport(state, level, pos)) { groundDepth = down; break; }
             }
             // Find a real terminal before filling; no partial floating pillar when the cave is too deep.
             if (groundDepth < 0) continue;

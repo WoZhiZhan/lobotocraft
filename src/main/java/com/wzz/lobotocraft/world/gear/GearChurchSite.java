@@ -11,7 +11,7 @@ import net.minecraft.world.level.ChunkPos;
 public final class GearChurchSite {
     public static final int MAX_CUT = 20, MAX_SUPPORT = 16, MAX_RELIEF = MAX_CUT + MAX_SUPPORT, SAMPLE_STEP = 16;
     /** Actual post-carver support columns; does not increase the surface-height selection budget. */
-    public static final int MAX_CAVE_SUPPORT = 20;
+    public static final int MAX_CAVE_SUPPORT = 25;
     public static final int SPACING = 96, SEPARATION = 48, SALT = 871231;
     private GearChurchSite() {}
     public interface Terrain {

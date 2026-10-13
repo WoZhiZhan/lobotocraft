@@ -230,7 +230,7 @@ public final class GearChurchGameTests {
                                 if (observed.depth() - 1 > GearChurchSite.MAX_SUPPORT) caveColumnsBeyondSurfaceBudget++;
                                 var terminal = base.below(observed.depth());
                                 connected = level.getBlockState(terminal).equals(observed.state())
-                                        && level.getBlockState(terminal).isFaceSturdy(level, terminal, Direction.UP);
+                                        && GearChurchPiece.isStableSupport(level.getBlockState(terminal), level, terminal);
                                 for (int down = 1; down < observed.depth() && connected; down++) {
                                     var pos = base.below(down);
                                     connected = level.getBlockState(pos).isFaceSturdy(level, pos, Direction.UP);
@@ -295,7 +295,7 @@ public final class GearChurchGameTests {
                         var pos = base.below(down);
                         if (pos.getY() < level.getMinBuildHeight()) break;
                         var state = terrainChunk.getBlockState(pos);
-                        if (state.isFaceSturdy(net.minecraft.world.level.EmptyBlockGetter.INSTANCE, pos, Direction.UP)) {
+                        if (GearChurchPiece.isStableSupport(state, net.minecraft.world.level.EmptyBlockGetter.INSTANCE, pos)) {
                             depth = down; nativeState = state; break;
                         }
                     }
@@ -452,6 +452,13 @@ public final class GearChurchGameTests {
                         level.setBlock(caveBase.below(gap + 1), Blocks.STONE.defaultBlockState(), 2);
                     }
                 }
+                var gravityBase = GearChurchLayout.world(new BlockPos(1, 0, 4), anchor, site.rotation());
+                if (new ChunkPos(gravityBase).equals(chunk)) {
+                    level.setBlock(gravityBase.below(4), Blocks.STONE.defaultBlockState(), 2);
+                    level.setBlock(gravityBase.below(3), Blocks.AIR.defaultBlockState(), 2);
+                    level.setBlock(gravityBase.below(2), Blocks.AIR.defaultBlockState(), 2);
+                    level.setBlock(gravityBase.below(), Blocks.RED_SAND.defaultBlockState(), 2);
+                }
                 start.placeInChunk(level, level.structureManager(), level.getChunkSource().getGenerator(),
                         RandomSource.create(281), new BoundingBox(chunk.getMinBlockX(), -64, chunk.getMinBlockZ(),
                                 chunk.getMaxBlockX(), 319, chunk.getMaxBlockZ()), chunk);
@@ -478,6 +485,12 @@ public final class GearChurchGameTests {
                     for (int down = 1; down <= GearChurchSite.MAX_CAVE_SUPPORT + 1; down++)
                         h.assertTrue(level.getBlockState(deepCave.below(down)).isAir(),
                                 "over-budget cave left a partial floating support column");
+                    var gravityBase = GearChurchLayout.world(new BlockPos(1, 0, 4), anchor, site.rotation());
+                    for (int down = 1; down <= 3; down++)
+                        h.assertTrue(level.getBlockState(gravityBase.below(down)).is(Blocks.TERRACOTTA),
+                                "falling sand was treated as a stable foundation terminal");
+                    h.assertTrue(level.getBlockState(gravityBase.below(4)).is(Blocks.STONE),
+                            "gravity support replaced the stable native terminal");
                     // Noncolliding debris must not consume a safe resident slot.
                     var itemPos = GearChurchLayout.world(GearChurchLayout.SPAWNS.get(0), anchor, site.rotation());
                     var debris = new net.minecraft.world.entity.item.ItemEntity(level, itemPos.getX() + 0.5,
@@ -518,7 +531,7 @@ public final class GearChurchGameTests {
                     System.out.println("GEAR-CHURCH MANUAL PASS parts=25 residents=16 rotation=CLOCKWISE_90"
                             + " reloadDuplicate=0 terraceCut=" + GearChurchSite.MAX_CUT
                             + " cutOutside=0 caveFill" + GearChurchSite.MAX_CAVE_SUPPORT + "=pass caveFill"
-                            + (GearChurchSite.MAX_CAVE_SUPPORT + 1) + "=rejected");
+                            + (GearChurchSite.MAX_CAVE_SUPPORT + 1) + "=rejected fallingSand=stableTerminal");
                     h.succeed();
                 } finally { forced.forEach(chunk -> level.setChunkForced(chunk.x, chunk.z, false)); }
             });
