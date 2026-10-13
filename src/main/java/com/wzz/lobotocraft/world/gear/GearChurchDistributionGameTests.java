@@ -36,6 +36,12 @@ public final class GearChurchDistributionGameTests {
         var oldJson = StructurePlacement.CODEC.encodeStart(ops, current).result().orElseThrow().getAsJsonObject();
         oldJson.addProperty("spacing", 256);
         oldJson.addProperty("separation", 144);
+        // Historical baseline had village exclusion. Do not silently rewrite it
+        // when the current production placement no longer has that optional field.
+        var oldExclusion = new com.google.gson.JsonObject();
+        oldExclusion.addProperty("other_set", "minecraft:villages");
+        oldExclusion.addProperty("chunk_count", 16);
+        oldJson.add("exclusion_zone", oldExclusion);
         var previous = (RandomSpreadStructurePlacement) StructurePlacement.CODEC.parse(ops, oldJson)
                 .result().orElseThrow();
         int halfWidth = Integer.getInteger("lobotocraft.gearChurchSurveyHalfWidth", 100_000);

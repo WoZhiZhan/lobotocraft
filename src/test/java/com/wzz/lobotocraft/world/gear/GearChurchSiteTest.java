@@ -77,7 +77,7 @@ final class GearChurchSiteTest {
         assertTrue(minimumCenters - maxDiameter - maximumCombinedLocalShift > 0);
         assertTrue(minimumCenters - maxDiameter - maximumCombinedLocalShift < 2000);
     }
-    @Test void packagedPlacementMatchesTrialAndPreservesSixteenChunkExclusion() throws Exception {
+    @Test void packagedPlacementMatchesTrialWithoutOtherStructureExclusion() throws Exception {
         try (var stream = GearChurchSiteTest.class.getResourceAsStream(
                 "/data/lobotocraft/worldgen/structure_set/gear_church.json")) {
             assertNotNull(stream);
@@ -86,9 +86,8 @@ final class GearChurchSiteTest {
             assertEquals(GearChurchSite.SPACING, placement.get("spacing").getAsInt());
             assertEquals(GearChurchSite.SEPARATION, placement.get("separation").getAsInt());
             assertEquals(GearChurchSite.SALT, placement.get("salt").getAsInt());
-            assertEquals(16, placement.getAsJsonObject("exclusion_zone").get("chunk_count").getAsInt());
-            assertEquals("minecraft:villages",
-                    placement.getAsJsonObject("exclusion_zone").get("other_set").getAsString());
+            assertFalse(placement.has("exclusion_zone"),
+                    "user removed other-structure exclusion; do not retain a village candidate veto");
         }
     }
     @Test void naturalRestrictionDoesNotDeleteOrBlockPetsSummonsOrResidents() {

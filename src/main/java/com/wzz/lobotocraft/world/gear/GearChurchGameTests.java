@@ -41,8 +41,15 @@ public final class GearChurchGameTests {
         var encodedPlacement = net.minecraft.world.level.levelgen.structure.placement.StructurePlacement.CODEC
                 .encodeStart(net.minecraft.resources.RegistryOps.create(com.mojang.serialization.JsonOps.INSTANCE,
                         level.registryAccess()), placement).result().orElseThrow().getAsJsonObject();
-        h.assertTrue(encodedPlacement.getAsJsonObject("exclusion_zone").get("chunk_count").getAsInt() == 16,
-                "production exclusion is not the user-approved sixteen chunks");
+        h.assertTrue(!encodedPlacement.has("exclusion_zone"),
+                "user removed other-structure exclusion; production registry must not retain it");
+        var state = level.getChunkSource().getGenerator().createState(
+                level.registryAccess().lookupOrThrow(Registries.STRUCTURE_SET),
+                level.getChunkSource().randomState(), level.getSeed());
+        // A seed0 church candidate previously rejected solely by vanilla village placement.
+        // Check the decoded placement decision, not only the packaged JSON.
+        h.assertTrue(placement.isStructureChunk(state, -6222, 3745),
+                "former village-veto candidate must now reach terrain selection");
         var candidates = new ArrayList<ChunkPos>();
         // Seeded production candidate grid, spiral ordering; no manual convenient world coordinates.
         for (int radius = 0; radius <= 160; radius++) {

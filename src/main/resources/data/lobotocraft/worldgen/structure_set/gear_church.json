@@ -5,7 +5,6 @@
     "spacing": 96,
     "separation": 48,
     "salt": 871231,
-    "spread_type": "linear",
-    "exclusion_zone": {"other_set": "minecraft:villages", "chunk_count": 16}
+    "spread_type": "linear"
   }
 }
