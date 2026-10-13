@@ -9,9 +9,9 @@ import net.minecraft.world.level.ChunkPos;
 
 /** Bounded terrace probe. Only a small cut/fill budget, never terraforms an entire mesa. */
 public final class GearChurchSite {
-    public static final int MAX_CUT = 12, MAX_SUPPORT = 12, MAX_RELIEF = MAX_CUT + MAX_SUPPORT, SAMPLE_STEP = 16;
+    public static final int MAX_CUT = 20, MAX_SUPPORT = 16, MAX_RELIEF = MAX_CUT + MAX_SUPPORT, SAMPLE_STEP = 16;
     /** Actual post-carver support columns; does not increase the surface-height selection budget. */
-    public static final int MAX_CAVE_SUPPORT = 16;
+    public static final int MAX_CAVE_SUPPORT = 20;
     public static final int SPACING = 96, SEPARATION = 48, SALT = 871231;
     private GearChurchSite() {}
     public interface Terrain {
@@ -119,7 +119,7 @@ public final class GearChurchSite {
                 }
         }
         // Prefer not to raise above the original highest surface unless a higher natural
-        // porch exit needs it; even then, the same twelve-block fill budget applies.
+        // porch exit needs it; even then, the same bounded surface-fill budget applies.
         int platformSurface = Math.min(Math.max(fullMax, exitMax - 2), Math.min(fullMin + MAX_SUPPORT, exitMin - 1));
         if (platformSurface + GearChurchLayout.HEIGHT >= terrain.maxY()) return Optional.empty();
         return Optional.of(new Site(new BlockPos(centerX, platformSurface - 1, centerZ), rotation, fullMin, fullMax, samples));

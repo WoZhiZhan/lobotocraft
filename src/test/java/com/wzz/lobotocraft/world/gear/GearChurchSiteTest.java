@@ -8,6 +8,25 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 final class GearChurchSiteTest {
+    private GearChurchSite.Terrain expandedTerraceTerrain(int relief) {
+        return new GearChurchSite.Terrain() {
+            public int surface(int x, int z) {
+                return z >= GearChurchLayout.DEPTH - GearChurchLayout.CENTER.getZ()
+                        ? 81 + Math.min(relief, 16) : 80 + (x < 0 ? relief : 0);
+            }
+            public int oceanFloor(int x, int z) { return surface(x, z); }
+            public boolean badlands(int x, int y, int z) { return true; }
+            public int minY() { return -64; }
+            public int maxY() { return 320; }
+        };
+    }
+    @Test void expandedTerraceAllowsThirtySixReliefButRejectsThirtySeven() {
+        var site = GearChurchSite.find(expandedTerraceTerrain(36), 0, 0, Rotation.NONE).orElseThrow();
+        int platform = site.anchor().getY() + 1;
+        assertEquals(20, site.maxSurface() - platform);
+        assertEquals(16, platform - site.minSurface());
+        assertTrue(GearChurchSite.find(expandedTerraceTerrain(37), 0, 0, Rotation.NONE).isEmpty());
+    }
     private GearChurchSite.Terrain terrain(int relief, boolean water, boolean badlands) {
         return new GearChurchSite.Terrain() {
             public int surface(int x, int z) {
@@ -24,19 +43,19 @@ final class GearChurchSiteTest {
         assertTrue(GearChurchSite.find(terrain(8, false, true), 0, 0, Rotation.NONE).isPresent());
         assertTrue(GearChurchSite.find(terrain(12, false, true), 0, 0, Rotation.NONE).isPresent());
         assertTrue(GearChurchSite.find(terrain(13, false, true), 0, 0, Rotation.NONE).isPresent());
-        assertEquals(12, GearChurchSite.MAX_SUPPORT, "terrain adjustment must not increase foundation fill depth");
-        assertEquals(16, GearChurchSite.MAX_CAVE_SUPPORT);
-        assertEquals(24, GearChurchSite.MAX_RELIEF,
+        assertEquals(20, GearChurchSite.MAX_CUT);
+        assertEquals(16, GearChurchSite.MAX_SUPPORT);
+        assertEquals(20, GearChurchSite.MAX_CAVE_SUPPORT);
+        assertEquals(36, GearChurchSite.MAX_RELIEF,
                 "cave columns must not silently expand the surface relief budget");
         assertTrue(GearChurchSite.find(terrain(0, true, true), 0, 0, Rotation.NONE).isEmpty());
         assertTrue(GearChurchSite.find(terrain(0, false, false), 0, 0, Rotation.NONE).isEmpty());
     }
-    @Test void terraceCutsAtMostTwelveAndFillsAtMostTwelveWithoutSinkingFlatGround() {
+    @Test void priorTerracesRemainWithinExpandedBudgetWithoutSinkingFlatGround() {
         var terrace = GearChurchSite.find(terrain(24, false, true), 0, 0, Rotation.NONE).orElseThrow();
         int platformSurface = terrace.anchor().getY() + 1;
-        assertEquals(12, terrace.maxSurface() - platformSurface);
-        assertEquals(12, platformSurface - terrace.minSurface());
-        assertTrue(GearChurchSite.find(terrain(25, false, true), 0, 0, Rotation.NONE).isEmpty());
+        assertTrue(terrace.maxSurface() - platformSurface <= GearChurchSite.MAX_CUT);
+        assertTrue(platformSurface - terrace.minSurface() <= GearChurchSite.MAX_SUPPORT);
         var flat = GearChurchSite.find(terrain(0, false, true), 0, 0, Rotation.NONE).orElseThrow();
         assertEquals(79, flat.anchor().getY(), "flat terrain must not be cut just because cutting is allowed");
     }

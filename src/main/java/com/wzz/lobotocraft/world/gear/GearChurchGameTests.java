@@ -240,7 +240,7 @@ public final class GearChurchGameTests {
                         }
                     h.assertTrue(unsupported == 0, "actual terrain left unsupported foundation columns: " + unsupported);
                     System.out.println("GEAR-CHURCH SUPPORT verifiedBeforeFeatures=" + nativeSupports.size()
-                            + " maxActualFill=" + deepestSupport + " caveColumnsBeyond12=" + caveColumnsBeyondSurfaceBudget);
+                            + " maxActualFill=" + deepestSupport + " caveColumnsBeyondSurfaceBudget=" + caveColumnsBeyondSurfaceBudget);
                     assertEntrance(h, level, anchor, actualPiece.rotation());
                     for (var exit : GearChurchLayout.ENTRANCE_EXITS) {
                         var column = GearChurchLayout.world(exit, anchor, actualPiece.rotation());
@@ -443,8 +443,9 @@ public final class GearChurchGameTests {
                 var outsideColumn = GearChurchLayout.world(new BlockPos(0, 0, 1), anchor, site.rotation());
                 if (new ChunkPos(outsideColumn).equals(chunk))
                     level.setBlock(outsideColumn.above(2), Blocks.STONE.defaultBlockState(), 2);
-                for (int gap : new int[]{16, 17}) {
-                    var caveBase = GearChurchLayout.world(new BlockPos(1, 0, gap == 16 ? 2 : 3), anchor, site.rotation());
+                for (int gap : new int[]{GearChurchSite.MAX_CAVE_SUPPORT, GearChurchSite.MAX_CAVE_SUPPORT + 1}) {
+                    var caveBase = GearChurchLayout.world(new BlockPos(1, 0,
+                            gap == GearChurchSite.MAX_CAVE_SUPPORT ? 2 : 3), anchor, site.rotation());
                     if (new ChunkPos(caveBase).equals(chunk)) {
                         for (int down = 1; down <= gap; down++)
                             level.setBlock(caveBase.below(down), Blocks.AIR.defaultBlockState(), 2);
@@ -468,13 +469,13 @@ public final class GearChurchGameTests {
                     h.assertTrue(level.getBlockState(GearChurchLayout.world(new BlockPos(0, 2, 1),
                             anchor, site.rotation())).is(Blocks.STONE), "terrace cut outside authored columns");
                     var allowedCave = GearChurchLayout.world(new BlockPos(1, 0, 2), anchor, site.rotation());
-                    for (int down = 1; down <= 16; down++)
+                    for (int down = 1; down <= GearChurchSite.MAX_CAVE_SUPPORT; down++)
                         h.assertTrue(level.getBlockState(allowedCave.below(down)).is(Blocks.TERRACOTTA),
-                                "sixteen-block cave support failed to reach the native terminal");
-                    h.assertTrue(level.getBlockState(allowedCave.below(17)).is(Blocks.STONE),
+                                "maximum allowed cave support failed to reach the native terminal");
+                    h.assertTrue(level.getBlockState(allowedCave.below(GearChurchSite.MAX_CAVE_SUPPORT + 1)).is(Blocks.STONE),
                             "cave support replaced its original ground terminal");
                     var deepCave = GearChurchLayout.world(new BlockPos(1, 0, 3), anchor, site.rotation());
-                    for (int down = 1; down <= 17; down++)
+                    for (int down = 1; down <= GearChurchSite.MAX_CAVE_SUPPORT + 1; down++)
                         h.assertTrue(level.getBlockState(deepCave.below(down)).isAir(),
                                 "over-budget cave left a partial floating support column");
                     // Noncolliding debris must not consume a safe resident slot.
@@ -516,7 +517,8 @@ public final class GearChurchGameTests {
                     }
                     System.out.println("GEAR-CHURCH MANUAL PASS parts=25 residents=16 rotation=CLOCKWISE_90"
                             + " reloadDuplicate=0 terraceCut=" + GearChurchSite.MAX_CUT
-                            + " cutOutside=0 caveFill16=pass caveFill17=rejected");
+                            + " cutOutside=0 caveFill" + GearChurchSite.MAX_CAVE_SUPPORT + "=pass caveFill"
+                            + (GearChurchSite.MAX_CAVE_SUPPORT + 1) + "=rejected");
                     h.succeed();
                 } finally { forced.forEach(chunk -> level.setChunkForced(chunk.x, chunk.z, false)); }
             });
