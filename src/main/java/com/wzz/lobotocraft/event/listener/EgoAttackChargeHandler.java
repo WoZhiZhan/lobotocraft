@@ -45,7 +45,7 @@ public final class EgoAttackChargeHandler {
         weapon.onLeftClickEntity(stack, player, event.getTarget());
     }
 
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    /** Invoked in the explicit DamageSettlement order; not an independent listener. */
     public static void onLivingHurt(LivingHurtEvent event) {
         if (!(event.getSource().getEntity() instanceof LivingEntity attacker)
                 || !BaseEgoWeapon.hasCurrentLeftClickAttack(attacker)) return;

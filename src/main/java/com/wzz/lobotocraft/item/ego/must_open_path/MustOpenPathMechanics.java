@@ -333,7 +333,7 @@ public final class MustOpenPathMechanics {
         }
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
+    /** Invoked in the explicit DamageSettlement order; not an independent listener. */
     public static void onArmorHurt(LivingHurtEvent event) {
         if (event.isCanceled() || !(event.getEntity() instanceof ServerPlayer player)
                 || event.getAmount() <= 0.0F
@@ -344,7 +344,7 @@ public final class MustOpenPathMechanics {
         player.heal(preHitHealth < player.getMaxHealth() * 0.5F ? 12.0F : 7.0F);
     }
 
-    @SubscribeEvent
+    /** Called after final HP protection by DamageSettlement. */
     public static void onDamage(LivingDamageEvent event) {
         if (event.isCanceled() || event.getAmount() <= 0.0F) return;
         Set<ServerPlayer> participants = new LinkedHashSet<>();

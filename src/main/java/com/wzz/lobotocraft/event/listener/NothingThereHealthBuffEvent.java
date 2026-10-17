@@ -15,7 +15,7 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = ModMain.MODID)
 public class NothingThereHealthBuffEvent {
 
-    @SubscribeEvent
+    /** Invoked in the explicit DamageSettlement order; not an independent listener. */
     public static void onLivingHurt(LivingHurtEvent event) {
         if (event.getSource().getEntity() instanceof Player player && !player.level().isClientSide) {
             float bonus = NothingThereCurio.overhealBonus(player);

@@ -1,13 +1,10 @@
 package com.wzz.lobotocraft.event.listener;
 
 import com.wzz.lobotocraft.ModMain;
-import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.event.definition.company.CompanyDayAdvanceEvent;
 import com.lobotocraft.facility.day.PlayerEnteredFacilityDayEvent;
 import com.wzz.lobotocraft.init.ModMobEffects;
 import com.wzz.lobotocraft.item.ego.smiling_corpse_mountain.SmilingCorpseMountainBaseArmor;
-import com.wzz.lobotocraft.network.MessageLoader;
-import com.wzz.lobotocraft.network.packet.MentalValueSyncPacket;
 import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.EgoArmorHelper;
 import com.wzz.lobotocraft.util.ParticleUtil;
@@ -62,8 +59,6 @@ public class SmilingCorpseMountainEvent {
     private static final String SHIELD_VALUE = "smiling_shield_value";
     private static final String SHIELD_UNTIL = "smiling_shield_until";
     private static final String SHIELD_NEXT_REGEN = "smiling_shield_next_regen";
-    private static final String SHIELD_BLACK_FLAG = "smiling_shield_black_pending";
-    private static final String SHIELD_MENTAL_BEFORE = "smiling_shield_mental_before";
 
     // ========================================================================
     // 每 tick: 护甲攻速移速加成 + 护盾生成
@@ -143,9 +138,9 @@ public class SmilingCorpseMountainEvent {
     }
 
     // ========================================================================
-    // LivingHurt HIGHEST: 攻击方 +1%伤害; 受击方护盾(白伤扣盾 / 黑伤记录)
+    // DamageSettlement contribution: outgoing +1% per tomb
     // ========================================================================
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    /** Invoked in the explicit DamageSettlement order; not an independent listener. */
     public static void onHurtPre(LivingHurtEvent event) {
         // ---- 攻击方: 饰品全套时, 该武器造成的伤害 +1%/墓碑 ----
         Entity srcEntity = event.getSource().getEntity();
@@ -159,7 +154,10 @@ public class SmilingCorpseMountainEvent {
             }
         }
 
-        // ---- 受击方: 护盾 ----
+    }
+
+    /** White shield uses the pre-resistance amount, preserving its existing consumption rule. */
+    public static void absorbWhiteDamage(LivingHurtEvent event) {
         if (event.getEntity() instanceof Player victim && !victim.level().isClientSide) {
             long now = victim.level().getGameTime();
             if (!isShieldActive(victim, now)) return;
@@ -177,33 +175,13 @@ public class SmilingCorpseMountainEvent {
                     setShield(victim, 0F);
                     event.setAmount(amount - shield); // 溢出部分继续走精神扣除
                 }
-            } else if (DamageHelper.isBlackDamage(source)) {
-                // 黑伤: 照常扣血, 但精神不掉 —— 记录当前精神, 待 LOWEST 补回
-                victim.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
-                    victim.getPersistentData().putBoolean(SHIELD_BLACK_FLAG, true);
-                    victim.getPersistentData().putFloat(SHIELD_MENTAL_BEFORE, mental.getMentalValue());
-                });
             }
         }
     }
 
-    // ========================================================================
-    // LivingHurt LOWEST: 把护盾期间黑伤扣掉的精神补回(receiveCanceled 确保总能收尾)
-    // ========================================================================
-    @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
-    public static void onHurtPost(LivingHurtEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer victim)) return;
-        if (victim.level().isClientSide) return;
-        if (!victim.getPersistentData().getBoolean(SHIELD_BLACK_FLAG)) return;
-
-        victim.getPersistentData().putBoolean(SHIELD_BLACK_FLAG, false);
-        float before = victim.getPersistentData().getFloat(SHIELD_MENTAL_BEFORE);
-        victim.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
-            // 若因抗性被取消, before==当前值, 相当于 no-op; 否则把被扣的精神补回
-            mental.setMentalValue(before);
-            MessageLoader.getLoader().sendToPlayer(victim,
-                    new MentalValueSyncPacket(mental.getMentalValue(), mental.getMaxMentalValue()));
-        });
+    /** Suppress BLACK's mental channel before application; never damage then undo panic. */
+    public static boolean blocksBlackMental(Player victim) {
+        return isShieldActive(victim, victim.level().getGameTime());
     }
 
     // ========================================================================

@@ -4,8 +4,6 @@ import com.wzz.lobotocraft.ModMain;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.capability.PanicType;
-import com.wzz.lobotocraft.core_suppression.CoreSuppressionDamageHooks;
-import com.wzz.lobotocraft.core_suppression.geburah.GeburahDamageTuning;
 import com.wzz.lobotocraft.employee.EmployeeServerPlayer;
 import com.wzz.lobotocraft.entity.EntityGeburah;
 import com.wzz.lobotocraft.entity.base.AbstractAbnormality;
@@ -15,17 +13,11 @@ import com.wzz.lobotocraft.event.definition.mental_value.MentalValueEvent;
 import com.wzz.lobotocraft.init.ModAttributes;
 import com.wzz.lobotocraft.item.ego.base.BaseEgoWeapon;
 import com.wzz.lobotocraft.network.MessageLoader;
-import com.wzz.lobotocraft.network.packet.DamageBorderPacket;
 import com.wzz.lobotocraft.network.packet.MentalValueSyncPacket;
-import com.wzz.lobotocraft.util.DamageHelper;
 import com.wzz.lobotocraft.util.FacilityCombatRules;
-import net.minecraft.core.Holder;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
@@ -38,7 +30,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -46,8 +37,6 @@ import net.minecraftforge.fml.common.Mod;
 
 import java.util.Comparator;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Random;
 import java.util.UUID;
 
 @Mod.EventBusSubscriber(modid = ModMain.MODID)
@@ -55,7 +44,6 @@ public class MentalValueEventHandler {
 
     private static final UUID SPEED_MODIFIER_UUID = UUID.fromString("a1b2c3d4-e5f6-7890-1234-567890abcdef");
     private static final UUID ATTACK_SPEED_MODIFIER_UUID = UUID.fromString("b2c3d4e5-f6a7-8901-2345-67890abcdef1");
-    private static final Random RANDOM = new Random();
 
     /** 正处于精神崩溃中的玩家，用于识别"崩溃入场的第一 tick"与"崩溃结束"。 */
     private static final java.util.Set<UUID> BREAKDOWN =
@@ -139,165 +127,7 @@ public class MentalValueEventHandler {
             });
         }
     }
-
-    @SubscribeEvent
-    public static void onLivingAttack(LivingHurtEvent event) {
-        if (!(event.getEntity() instanceof Player player)) {
-            return;
-        }
-
-        DamageSource source = event.getSource();
-        // Snapshot before BLACK consumes sanity; this incoming hit qualified at its start.
-        boolean fullSanityCap = com.wzz.lobotocraft.item.ego.army_in_black.ArmyInBlackBaseArmor
-                .hasFullSanityCap(player);
-        float damage = event.getAmount();
-        float suppressionMultiplier = player instanceof ServerPlayer serverPlayer
-                ? CoreSuppressionDamageHooks.incomingDamageMultiplier(serverPlayer, source)
-                : 1.0F;
-
-        // 发送边框效果到客户端
-        if (player instanceof ServerPlayer serverPlayer) {
-            String damageTypeId = getDamageTypeId(source);
-            if (damageTypeId != null) {
-                MessageLoader.getLoader().sendToPlayer(serverPlayer, new DamageBorderPacket(damageTypeId));
-            }
-        }
-        player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mental -> {
-            // 获取对应的抗性值。
-            // NaN/Inf 兜底：NaN 与任何数比较都为 false，会穿过下面所有免疫判定并算出
-            // NaN 伤害，使血量变成 NaN（既不算活也不算死的卡死状态）
-            double rawResistance = getResistanceForDamageType(player, source);
-            double resistance = Double.isFinite(rawResistance) ? rawResistance : 1.0D;
-            // NaN/Inf 防护：NaN 与任何数比较均为 false，会穿透下面所有免疫判定，
-            // 最终算出 NaN 伤害并把血量污染成 NaN（既非存活也非死亡的卡死态）
-            if (!Double.isFinite(resistance)) resistance = 1.0D;
-
-            // 如果抗性为-1或更低，免疫并回血
-            if (resistance <= -1.0D) {
-                event.setCanceled(true);
-                player.heal(damage); // 回复等同于伤害值的生命值
-                return;
-            }
-
-            // 如果抗性为0，完全免疫
-            if (resistance <= 0.0D) {
-                event.setCanceled(true);
-                return;
-            }
-
-            // 计算实际伤害
-            // resistance < 1: 减少伤害 (例如 0.5 = 减半)
-            // resistance = 1: 正常伤害
-            // resistance > 1: 增加伤害 (例如 2.0 = 双倍伤害)
-            float actualDamage = damage * (float) resistance * suppressionMultiplier;
-            if (fullSanityCap) actualDamage = Math.min(actualDamage, player.getMaxHealth() * .3F);
-            float adjustedDamage = actualDamage;
-
-            // 白色伤害：只扣精神值
-            if (DamageHelper.isWhiteDamage(source)) {
-                Player attacker = FacilityCombatRules.resolvePlayerAttacker(source);
-                boolean panicRecovery = shouldRecoverPanicFromWhite(
-                        MentalValueUtil.isPanic(mental), attacker != null,
-                        attacker != null && MentalValueUtil.isPanic(attacker));
-                if (panicRecovery) {
-                    mental.addMentalValue(adjustedDamage, MentalValueEvent.ChangeType.ADD);
-                } else {
-                    float mentalBefore = mental.getMentalValue();
-                    mental.reduceMentalValue(adjustedDamage, MentalValueEvent.ChangeType.DAMAGE);
-                    com.wzz.lobotocraft.event.ForgeModEvent.recoverFragmentAfterDamage(
-                            player, source, mentalBefore - mental.getMentalValue());
-                }
-                event.setCanceled(true); // 取消血量伤害
-                if (player instanceof ServerPlayer serverPlayer) {
-                    syncMentalValue(serverPlayer, panicRecovery
-                            ? MentalValueEvent.ChangeType.ADD : MentalValueEvent.ChangeType.DAMAGE);
-                }
-            }
-            // 黑色伤害：同时扣血量和精神值
-            else if (DamageHelper.isBlackDamage(source)) {
-                mental.reduceMentalValue(adjustedDamage, MentalValueEvent.ChangeType.DAMAGE);
-                event.setAmount(actualDamage); // 设置实际伤害
-                if (player instanceof ServerPlayer serverPlayer) {
-                    syncMentalValue(serverPlayer, MentalValueEvent.ChangeType.DAMAGE);
-                }
-            }
-            // 蓝色伤害：基础伤害 + 最大生命值的5%-7%
-            else if (DamageHelper.isBlueDamage(source)) {
-                float maxHealth = player.getMaxHealth() * suppressionMultiplier;
-                float percentDamage = maxHealth * (0.05F + RANDOM.nextFloat() * 0.02F); // 5%-7%
-                if (source.getEntity() instanceof LivingEntity attacker) {
-                    percentDamage *= BaseEgoWeapon.currentLeftClickDamageMultiplier(attacker);
-                }
-                event.setAmount(actualDamage + percentDamage); // 应用抗性后的伤害 + 百分比伤害
-            }
-            // 红色伤害：只扣血量
-            else if (DamageHelper.isRedDamage(source)) {
-                event.setAmount(actualDamage); // 设置实际伤害
-            }
-            // 其他伤害类型（环境伤害、普通生物攻击等）也应用红抗
-            else {
-                // 对于非特殊伤害类型，使用红抗来处理
-                double redResistance = player.getAttributeValue(ModAttributes.RED_DAMAGE_RESISTANCE.get());
-                if (!Double.isFinite(redResistance)) redResistance = 1.0D; // 同上：NaN/Inf 防护
-
-                // 如果红抗为-1或更低，免疫并回血
-                if (redResistance <= -1.0D) {
-                    event.setCanceled(true);
-                    player.heal(damage);
-                    return;
-                }
-                
-                // 如果红抗为0，完全免疫
-                if (redResistance <= 0.0D) {
-                    event.setCanceled(true);
-                    return;
-                }
-                
-                // 应用红抗
-                event.setAmount(damage * (float) redResistance * suppressionMultiplier);
-            }
-            if (fullSanityCap && !event.isCanceled())
-                event.setAmount(Math.min(event.getAmount(), player.getMaxHealth() * .3F));
-        });
-    }
-
-    /**
-     * 根据伤害类型获取对应的抗性值
-     */
-    private static double getResistanceForDamageType(Player player, DamageSource source) {
-        Holder<DamageType> holder = source.typeHolder();
-        Optional<ResourceKey<DamageType>> optionalKey = holder.unwrapKey();
-        if (DamageHelper.isRedDamage(source) || optionalKey.isPresent() && DamageHelper.isVanillaDamage(optionalKey.get())) {
-            double resistance = player.getAttributeValue(ModAttributes.RED_DAMAGE_RESISTANCE.get());
-            return DamageHelper.isRedDamage(source)
-                    ? GeburahDamageTuning.effectivePlayerRedMultiplier(
-                            source.getEntity() instanceof EntityGeburah, resistance)
-                    : resistance;
-        } else if (DamageHelper.isWhiteDamage(source)) {
-            return player.getAttributeValue(ModAttributes.WHITE_DAMAGE_RESISTANCE.get());
-        } else if (DamageHelper.isBlackDamage(source)) {
-            return player.getAttributeValue(ModAttributes.BLACK_DAMAGE_RESISTANCE.get());
-        } else if (DamageHelper.isBlueDamage(source)) {
-            return player.getAttributeValue(ModAttributes.BLUE_DAMAGE_RESISTANCE.get());
-        }
-        return 1.0D; // 默认无抗性
-    }
-
-    /**
-     * 获取伤害类型ID用于边框显示
-     */
-    private static String getDamageTypeId(DamageSource source) {
-        if (DamageHelper.isRedDamage(source)) {
-            return "red";
-        } else if (DamageHelper.isWhiteDamage(source)) {
-            return "white";
-        } else if (DamageHelper.isBlackDamage(source)) {
-            return "black";
-        } else if (DamageHelper.isBlueDamage(source)) {
-            return "blue";
-        }
-        return "red";
-    }
+    // Colored damage/mental conversion is owned by combat.DamageSettlement.
 
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {

@@ -178,17 +178,8 @@ public class DotHelper {
 
     /** 目标对这类颜色伤害的抗性（没有对应属性时返回 1.0 = 正常受伤） */
     public static float getColorResistance(LivingEntity target, DamageSource source) {
-        AttributeInstance attr = null;
-        if (DamageHelper.isRedDamage(source)) {
-            attr = target.getAttribute(ModAttributes.RED_DAMAGE_RESISTANCE.get());
-        } else if (DamageHelper.isWhiteDamage(source)) {
-            attr = target.getAttribute(ModAttributes.WHITE_DAMAGE_RESISTANCE.get());
-        } else if (DamageHelper.isBlackDamage(source)) {
-            attr = target.getAttribute(ModAttributes.BLACK_DAMAGE_RESISTANCE.get());
-        } else if (DamageHelper.isBlueDamage(source)) {
-            attr = target.getAttribute(ModAttributes.BLUE_DAMAGE_RESISTANCE.get());
-        }
-        return attr == null ? 1.0f : (float) attr.getValue();
+        return (float) com.wzz.lobotocraft.combat.DamageSettlement.resistance(
+                target, source, com.wzz.lobotocraft.combat.DamageSettlement.color(source));
     }
 
     /**
@@ -315,7 +306,7 @@ public class DotHelper {
     }
 
     /** LivingHurtEvent 末尾：记录“允许的修正”都算完之后的最终值（含颜色抗性） */
-    @SubscribeEvent(priority = EventPriority.LOWEST)
+    /** Invoked in the explicit DamageSettlement order; not an independent listener. */
     public static void onLivingHurt(LivingHurtEvent event) {
         LivingEntity target = event.getEntity();
         if (!isDotDamage(target)) return;
@@ -323,7 +314,7 @@ public class DotHelper {
     }
 
     /** 真伤的落地点：护甲/附魔/抗性药水都算完了，直接把伤害改回真实值 */
-    @SubscribeEvent(priority = EventPriority.LOWEST)
+    /** Final HP restoration is ordered before caps/revivals/procs by DamageSettlement. */
     public static void onLivingDamage(LivingDamageEvent event) {
         LivingEntity target = event.getEntity();
         if (!isDotDamage(target)) return;

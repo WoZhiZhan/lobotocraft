@@ -5,7 +5,6 @@ import com.wzz.lobotocraft.capability.CompanyDailyDataProvider;
 import com.wzz.lobotocraft.capability.EmployeeStatsProvider;
 import com.wzz.lobotocraft.capability.MentalValueProvider;
 import com.wzz.lobotocraft.core_suppression.CoreSuppressionManager;
-import com.wzz.lobotocraft.core_suppression.geburah.GeburahDamageTuning;
 import com.wzz.lobotocraft.entity.EntityClerk;
 import com.wzz.lobotocraft.entity.EntityGeburah;
 import com.wzz.lobotocraft.entity.abnormality.*;
@@ -59,7 +58,6 @@ import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -109,18 +107,9 @@ public class ForgeModEvent {
 			}
 			return;
 		}
-		if (event.getEntity() instanceof ServerPlayer player && event.getSource() != null && event.getSource().getEntity() instanceof Player attacker) {
+		if (event.getEntity() instanceof ServerPlayer player && event.getSource().getEntity() instanceof Player attacker) {
             if (MentalValueUtil.isPanic(player)) {
-				if (attacker.getMainHandItem().getItem() instanceof BaseEgoWeapon) {
-					DamageSource src = event.getSource();
-					if (DamageHelper.isWhiteDamage(src)) {
-						MentalValueUtil.addMentalValue(player, event.getAmount());
-						event.setCanceled(true);
-					} else if (DamageHelper.isBlackDamage(src)) {
-						MentalValueUtil.addMentalValue(player, event.getAmount());
-						EntityUtil.clearHurtTime(player, () -> player.hurt(player.damageSources().fellOutOfWorld(), event.getAmount()));
-					}
-				} else {
+				if (!(attacker.getMainHandItem().getItem() instanceof BaseEgoWeapon)) {
 					event.setCanceled(true);
 				}
 			}
@@ -147,8 +136,8 @@ public class ForgeModEvent {
 		}
 	}
 
-	@SubscribeEvent
-	public static void onLivingHurt(LivingHurtEvent event) {
+	/** Legacy equipment contributions, invoked once by DamageSettlement, never independently subscribed. */
+	public static void applyOutgoingModifiers(LivingHurtEvent event) {
 		DamageSource src = event.getSource();
 		LivingEntity target = event.getEntity();
 		// Deferred R-EGO-03: player-attributed punishment damage can still
@@ -254,6 +243,19 @@ public class ForgeModEvent {
 				event.setAmount(event.getAmount() * 1.2f);
 			}
 		}
+	}
+
+	/** Incoming equipment contributions execute after all outgoing additions/multipliers. */
+	public static void applyIncomingModifiers(LivingHurtEvent event) {
+		DamageSource src = event.getSource();
+		LivingEntity target = event.getEntity();
+		Optional<ResourceKey<DamageType>> optionalKey = src.typeHolder().unwrapKey();
+		if (optionalKey.isEmpty()) return;
+		boolean isRedDamage = DamageHelper.isRedDamage(src);
+		boolean isWhiteDamage = DamageHelper.isWhiteDamage(src);
+		boolean isBlackDamage = DamageHelper.isBlackDamage(src);
+		boolean isBlueDamage = DamageHelper.isBlueDamage(src);
+		boolean isDot = DotHelper.isDotDamage(target);
 		if (!isDot && target instanceof ServerPlayer player) {
 			if (EntityArmyInBlack.hasActiveProtection(player) && !DamageHelper.isExecution(src)) {
 				event.setAmount(event.getAmount() * 0.8f);
@@ -279,15 +281,6 @@ public class ForgeModEvent {
 			}
 			if (ChildrenGalaxyCurio.hasFullSet(player) && BuffUtil.hasFriendshipProof(player)) {
 				ChildrenGalaxyCurio.triggerRecovery(player);
-			}
-			if (src.getEntity() instanceof Player attacker && !player.level.isClientSide) {
-				if (MentalValueUtil.isPanic(player) && isWhiteDamage(src) && !MentalValueUtil.isPanic(attacker)) {
-					MentalValueUtil.addMentalValue(player, event.getAmount());
-					event.setCanceled(true);
-				}
-				if (MentalValueUtil.isPanic(player) && isBlackDamage(src) && !MentalValueUtil.isPanic(attacker)) {
-					MentalValueUtil.addMentalValue(player, event.getAmount());
-				}
 			}
 			if (EgoArmorHelper.getFullSetId(player) != null) {
 				RiskLevel riskLevel = EgoArmorHelper.getArmorRiskLevel(player);
@@ -371,33 +364,6 @@ public class ForgeModEvent {
 			}
 		}
 
-		// 处理非玩家的颜色伤害抗性
-		if (!(target instanceof Player) && (isRedDamage || isWhiteDamage || isBlackDamage || isBlueDamage)) {
-			AttributeInstance resistanceAttr;
-			if (isRedDamage) {
-				resistanceAttr = target.getAttribute(ModAttributes.RED_DAMAGE_RESISTANCE.get());
-			} else if (isWhiteDamage) {
-				resistanceAttr = target.getAttribute(ModAttributes.WHITE_DAMAGE_RESISTANCE.get());
-			} else if (isBlackDamage) {
-				resistanceAttr = target.getAttribute(ModAttributes.BLACK_DAMAGE_RESISTANCE.get());
-			} else {
-				resistanceAttr = target.getAttribute(ModAttributes.BLUE_DAMAGE_RESISTANCE.get());
-			}
-
-			if (resistanceAttr != null) {
-				double resistance = isRedDamage
-						? GeburahDamageTuning.effectiveRedMultiplier(
-							src.getEntity() instanceof EntityGeburah,
-							target instanceof AbstractAbnormality,
-							resistanceAttr.getValue())
-						: resistanceAttr.getValue();
-				if (resistance != 1.0) {
-					float finalAmount = event.getAmount() * (float) resistance;
-					event.setAmount(finalAmount);
-				}
-			}
-		}
-
 		// 粒子效果处理（所有实体）
 		ResourceKey<DamageType> key = optionalKey.get();
 		if (isRedDamage) {
@@ -414,65 +380,6 @@ public class ForgeModEvent {
 		} else if (isVanillaDamage(key)) {
 			ParticleUtil.spawnParticlesAroundEntity(target, ModParticleTypes.RED.get(), 1, 0);
 		}
-        if (target instanceof Player && DamageHelper.isExecution(event.getSource())) {
-			return;
-		}
-		if (!isRedDamage && !isWhiteDamage && !isBlackDamage && !isBlueDamage) {
-			return;
-		}
-		AttributeInstance resistanceAttr = null;
-		if (isRedDamage) {
-			resistanceAttr = target.getAttribute(ModAttributes.RED_DAMAGE_RESISTANCE.get());
-		} else if (isWhiteDamage) {
-			resistanceAttr = target.getAttribute(ModAttributes.WHITE_DAMAGE_RESISTANCE.get());
-		} else if (isBlackDamage) {
-			resistanceAttr = target.getAttribute(ModAttributes.BLACK_DAMAGE_RESISTANCE.get());
-		} else {
-			resistanceAttr = target.getAttribute(ModAttributes.BLUE_DAMAGE_RESISTANCE.get());
-		}
-		if (resistanceAttr == null) return;
-		double resistance = resistanceAttr.getValue();
-
-		if (!(target instanceof Player player)) {
-			return;
-		}
-		if (isRedDamage) {
-			resistance = GeburahDamageTuning.effectivePlayerRedMultiplier(
-					src.getEntity() instanceof EntityGeburah, resistance);
-		}
-		if (resistance < 0) {
-			event.setCanceled(true);
-			float healAmount = event.getAmount() * (float) Math.abs(resistance);
-			if (healAmount <= 0) return;
-			if (isRedDamage || isBlueDamage) {
-				target.heal(healAmount);
-			} else if (isWhiteDamage) {
-				player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mentalValue -> {
-					int currentMental = (int) mentalValue.getMentalValue();
-					int maxMental = (int) mentalValue.getEffectiveMaxMentalValue();
-					int newMental = Math.min(maxMental, currentMental + (int) healAmount);
-					mentalValue.setMentalValue(newMental);
-
-					if (!player.level().isClientSide && player instanceof ServerPlayer serverPlayer) {
-						MessageLoader.getLoader().sendToPlayer(serverPlayer,
-								new MentalValueSyncPacket(newMental, maxMental));
-					}
-				});
-			} else {
-				target.heal(healAmount);
-				player.getCapability(MentalValueProvider.MENTAL_VALUE).ifPresent(mentalValue -> {
-					int currentMental = (int) mentalValue.getMentalValue();
-					int maxMental = (int) mentalValue.getEffectiveMaxMentalValue();
-					int newMental = Math.min(maxMental, currentMental + (int) healAmount);
-					mentalValue.setMentalValue(newMental);
-
-					if (!player.level().isClientSide && player instanceof ServerPlayer serverPlayer) {
-						MessageLoader.getLoader().sendToPlayer(serverPlayer,
-								new MentalValueSyncPacket(newMental, maxMental));
-					}
-				});
-			}
-		}
 	}
 
 	@SubscribeEvent
@@ -488,7 +395,7 @@ public class ForgeModEvent {
 	 * LivingDamageEvent is too late: the health reduction and possible death have
 	 * already been processed by that point.
 	 */
-	@SubscribeEvent(priority = EventPriority.LOWEST)
+	/** Ordered health-channel interception, owned by DamageSettlement. */
 	public static void onNothingThereRevive(LivingHurtEvent event) {
 		if (event.isCanceled() || !(event.getEntity() instanceof ServerPlayer player)) {
 			return;
@@ -989,8 +896,8 @@ public class ForgeModEvent {
 		event.setCanceled(true);
 	}
 
-	@SubscribeEvent
-	public static void onLivingDamage(LivingDamageEvent event) {
+	/** Final HP protection, ordered by DamageSettlement after vanilla mitigation. */
+	public static void applyHealthProtection(LivingDamageEvent event) {
 		if (event.getEntity() instanceof ServerPlayer player) {
 			boolean hasBuff = player.hasEffect(ModMobEffects.LETICIA_BROKEN_GIFT.get()) || player.hasEffect(ModMobEffects.LETICIA_GIFT.get());
 			if (hasBuff) {
@@ -1009,6 +916,11 @@ public class ForgeModEvent {
 			event.setAmount(com.wzz.lobotocraft.item.ego.army_in_black.ArmyInBlackBaseArmor
 					.capFullSanityHit(player, event.getAmount()));
 		}
+	}
+
+	/** Damage procs consume the protected final HP amount, not pre-shield/raw input. */
+	public static void onLivingDamage(LivingDamageEvent event) {
+		if (event.isCanceled() || event.getAmount() <= 0.0F) return;
 		LivingEntity target = event.getEntity();
 		if (!(event.getSource().getEntity() instanceof Player attacker) || attacker == target) return;
 		float actualDamage = com.wzz.lobotocraft.item.ego.base.EgoDamageRecoveryPolicy

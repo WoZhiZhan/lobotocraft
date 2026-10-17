@@ -20,7 +20,7 @@ public final class GeburahSuppressionRewardEvents {
     private GeburahSuppressionRewardEvents() {
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
+    /** Invoked in the explicit DamageSettlement order; not an independent listener. */
     public static void onLivingHurt(LivingHurtEvent event) {
         if (event.isCanceled() || event.getAmount() <= 0.0F
                 || event.getEntity().level().isClientSide) return;

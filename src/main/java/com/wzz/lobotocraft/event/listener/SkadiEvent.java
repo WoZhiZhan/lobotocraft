@@ -8,6 +8,8 @@ import com.wzz.lobotocraft.util.DamageHelper;
 import com.lobotocraft.facility.day.FacilityDayCommittedEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -24,6 +26,15 @@ import net.minecraftforge.fml.common.Mod;
 public class SkadiEvent {
     private static final String LAST_REVIVE_TICK_TAG = "lobotocraft_wish_without_light_revive_tick";
 
+    /** Shared pre-channel reduction, so WHITE/BLACK mental damage receives the same blessing. */
+    public static float incomingDamageMultiplier(LivingEntity target, DamageSource source) {
+        if (!(target instanceof ServerPlayer player)
+                || !player.hasEffect(ModMobEffects.WISH_WITHOUT_LIGHT.get())
+                || !SkadiBlessingManager.isValid(player)) return 1;
+        return DamageHelper.isRedDamage(source) || DamageHelper.isWhiteDamage(source)
+                || DamageHelper.isBlackDamage(source) || DamageHelper.isBlueDamage(source) ? .6F : 1;
+    }
+
     @SubscribeEvent
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player
@@ -39,7 +50,7 @@ public class SkadiEvent {
         }
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
+    /** Final HP revival adapter, invoked by DamageSettlement after ordinary protection. */
     public static void onDamage(LivingDamageEvent event) {
         if (event.getEntity().level().isClientSide) return;
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
@@ -49,10 +60,8 @@ public class SkadiEvent {
 
         float damage = event.getAmount();
 
-        // 1. 减少 40% 伤害
-        damage *= 0.6f;
-
-        // 2. 判断减免后是否致命
+        // DamageSettlement already applied the 40% to both channels exactly once.
+        // This adapter only handles final post-vanilla health lethality.
         if (damage >= player.getHealth()) {
             if (!SkadiBlessingManager.tryConsumeCharge(player)) return;
             event.setCanceled(true);

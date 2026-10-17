@@ -107,7 +107,7 @@ public class CleanerEvent {
     }
 
     /** 满蓄力 E.G.O 命中并实际造成伤害时，有概率恢复生命和精神。 */
-    @SubscribeEvent
+    /** Called after final HP protection by DamageSettlement. */
     public static void onLivingDamage(LivingDamageEvent event) {
         if (event.isCanceled() || event.getAmount() <= 0.0F) return;
         if (!(event.getSource().getEntity() instanceof Player player)) return;

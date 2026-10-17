@@ -16,12 +16,12 @@ public final class DamageHistoryEvents {
         if (!event.isCanceled()) DamageHistory.captureRaw(event);
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
+    /** Called in DamageSettlement's finally block so mental-only/canceled entries close last. */
     public static void finishHurt(LivingHurtEvent event) {
         DamageHistory.finishHurt(event);
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
+    /** Called after the final HP adapters by DamageSettlement. */
     public static void finishDamage(LivingDamageEvent event) {
         DamageHistory.finishDamage(event);
     }

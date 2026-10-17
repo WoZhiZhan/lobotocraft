@@ -206,7 +206,7 @@ public class SheepskinSetHandler {
         }
     }
 
-    @SubscribeEvent
+    /** Invoked in the explicit DamageSettlement order; not an independent listener. */
     public static void onLivingHurt(LivingHurtEvent event) {
         LivingEntity target = event.getEntity();
         if (target.level().isClientSide) return;
@@ -219,15 +219,6 @@ public class SheepskinSetHandler {
                 event.setAmount(event.getAmount() * SINGLE_DAMAGE_BONUS);
             }
 
-            if (target instanceof Player player && isBigBadwolfSetActive(player) && !isLurking(player)) {
-                float accum = player.getPersistentData().getFloat(TAG_LURK_ACCUM) + event.getAmount();
-                if (accum >= lurkThreshold(player)) {
-                    accum = 0f;
-                    enterLurk(player);
-                }
-                player.getPersistentData().putFloat(TAG_LURK_ACCUM, accum);
-            }
-
             // 套装第3条：对【猎物】伤害额外 +3
             if (isRedhatSetActive(attacker)
                     && RedhatMercenaryWeaponGun.Prey.isPreyOf(attacker, target)) {
@@ -235,7 +226,11 @@ public class SheepskinSetHandler {
             }
         }
 
-        /* ---------- 受击方 ---------- */
+    }
+
+    public static void recordIncomingDamage(LivingHurtEvent event) {
+        LivingEntity target = event.getEntity();
+        /* ---------- 受击方：每次只累计一次，不能在攻击方分支再累计 ---------- */
         // 套装第2条：累计损失 10% 生命值 -> 进入潜狼模式 6 秒
         if (target instanceof Player player && isBigBadwolfSetActive(player) && !isLurking(player)) {
             float accum = player.getPersistentData().getFloat(TAG_LURK_ACCUM) + event.getAmount();
@@ -248,13 +243,6 @@ public class SheepskinSetHandler {
             }
             player.getPersistentData().putFloat(TAG_LURK_ACCUM, accum);
         }
-    }
-
-    /** 潜狼触发阈值：按基础最大生命值算，避免临时 MAX_HEALTH 修饰符导致阈值忽大忽小 */
-    private static float lurkThreshold(Player player) {
-        AttributeInstance hp = player.getAttribute(Attributes.MAX_HEALTH);
-        double base = hp != null ? hp.getValue() : player.getMaxHealth();
-        return (float) (base * LURK_TRIGGER_RATIO);
     }
 
     /** 进入潜狼：记录结束时刻 + 音效 + 持续粒子 */

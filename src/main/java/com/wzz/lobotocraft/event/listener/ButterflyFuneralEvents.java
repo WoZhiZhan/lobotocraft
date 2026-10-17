@@ -43,7 +43,7 @@ public class ButterflyFuneralEvents {
     }
 
     /* ---------------- 救赎加伤 / 蓝色附伤 / 叠加救赎 ---------------- */
-    @SubscribeEvent
+    /** Invoked in the explicit DamageSettlement order; not an independent listener. */
     public static void onLivingHurt(LivingHurtEvent event) {
         if (processingBonusDamage) return;
         if (!(event.getSource().getEntity() instanceof Player player)) return;

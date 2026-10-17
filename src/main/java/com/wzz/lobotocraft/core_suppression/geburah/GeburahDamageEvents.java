@@ -13,7 +13,7 @@ public final class GeburahDamageEvents {
     private GeburahDamageEvents() {
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
+    /** Custom posture/health application, last in DamageSettlement's final HP phase. */
     public static void onLivingDamage(LivingDamageEvent event) {
         if (!(event.getEntity() instanceof EntityGeburah geburah) || event.getAmount() <= 0.0F) return;
         LivingEntity responsible = GeburahDamageResponsibility.resolve(event.getSource());

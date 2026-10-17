@@ -34,7 +34,7 @@ public class QueenBeeSetHandler {
     /** 仇恨拉取半径 */
     public static final double AGGRO_RANGE = 24D;
 
-    @SubscribeEvent
+    /** Invoked in the explicit DamageSettlement order; not an independent listener. */
     public static void onLivingHurt(LivingHurtEvent event) {
         LivingEntity target = event.getEntity();
         if (target == null || target.level().isClientSide) return;

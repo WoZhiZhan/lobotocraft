@@ -73,7 +73,7 @@ public class BlueStarSetEvent {
     }
 
     /** 套装:致命伤害复活(优先级最低,在伤害最终结算前拦截) */
-    @SubscribeEvent(priority = EventPriority.LOWEST)
+    /** Invoked in the explicit DamageSettlement order; not an independent listener. */
     public static void onLivingHurt(LivingHurtEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         if (!BlueStarWeapon.isBlueStarSet(player)) return;
